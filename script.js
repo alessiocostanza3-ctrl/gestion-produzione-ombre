@@ -1004,6 +1004,43 @@ async function gestisciRipristino(id_o_numero, tipo, motivo) {
 }
 
 
+
+
+
+
+
+//--SMARTPHONE--//
+
+function toggleMobileMenu() {
+    const sidebar = document.querySelector('.sidebar');
+    // Aggiunge o toglie la classe che sposta la sidebar con transform
+    sidebar.classList.toggle('mobile-open');
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//--FUNZIONE FINALE--//
+
 document.addEventListener('DOMContentLoaded', async function() {
 
     // 1️⃣ Carica prima le impostazioni (operatori + stati)
