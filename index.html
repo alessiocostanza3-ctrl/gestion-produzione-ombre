@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PROD - Dashboard Produzione</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <script src="script.js" defer></script>
+</head>
+
+<body>
+  <div id="login-overlay">
+      <div class="login-card">
+          <div class="login-logo-container">
+              <img src="logo.png" alt="Logo ProdLab" class="login-logo-img">
+          </div>
+          <h2>Accesso ProdLab</h2>
+          <p>Inserisci la tua email aziendale per continuare</p>
+
+          <div class="login-form">
+              <input type="email" id="email-access" placeholder="nome@azienda.it" class="input-field-modern">
+              <button onclick="verificaAccesso()" class="btn-login">
+                  Entra nel Sistema <i class="fas fa-arrow-right"></i>
+              </button>
+          </div>
+          <div id="login-error" class="login-error-msg"></div>
+      </div>
+  </div>
+
+    <div class="sidebar">
+
+        <div class="sidebar-user-section" style="display: flex; align-items: center; padding: 20px 15px; gap: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 10px;">
+
+            <div id="user-avatar-icon" style="width: 42px; height: 42px; background: #2563eb; color: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; flex-shrink: 0; box-shadow: 0 4px 10px rgba(0,0,0,0.2);">
+                -
+            </div>
+
+            <div class="user-info-top" style="display: flex; flex-direction: column; overflow: hidden; flex-grow: 1;">
+                <span id="user-name-display" style="color: white; font-weight: 700; font-size: 15px; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">
+                    Caricamento...
+                </span>
+                </div>
+
+            <button onclick="logout()" class="btn-logout-minimal" title="Esci">
+                <i class="fas fa-sign-out-alt"></i>
+            </button>
+        </div>
+
+        <div class="menu-section-label">Main Menu</div>
+
+        <div class="menu-item" data-page="PROGRAMMA PRODUZIONE DEL MESE" onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', this)">
+            <div class="menu-content"><span>📦</span> Produzione</div>
+        </div>
+
+        <div class="menu-item" data-page="STORICO_RICHIESTE" onclick="cambiaPagina('STORICO_RICHIESTE', this)">
+            <div class="menu-content"><span>📩</span> Richieste</div>
+            <span id="badge-richieste-count" class="badge-sidebar-inline">0</span>
+        </div>
+
+        <div class="menu-section-label">General</div>
+
+        <div class="menu-item" data-page="ARCHIVIO_ORDINI" onclick="cambiaPagina('ARCHIVIO_ORDINI', this)">
+            <div class="menu-content"><span>🗄️</span> Archivio Ordini</div>
+        </div>
+
+        <div class="menu-item" data-page="IMPOSTAZIONI" onclick="cambiaPagina('IMPOSTAZIONI', this)">
+            <div class="menu-content"><span>⚙️</span> Impostazioni</div>
+        </div>
+
+        <div class="sidebar-footer-logo">
+            <img src="logo.png" alt="Logo" class="logo-img-footer">
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="top-bar">
+            <h1 id="titolo-pagina"></h1>
+            <button class="btn-update" onclick="aggiornaCorrente()">↻ Aggiorna Dati</button>
+        </div>
+
+        <div id="contenitore-dati"></div>
+    </div>
+
+</body>
+</html>

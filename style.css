@@ -1,0 +1,1053 @@
+
+        :root {
+            --primary: #2563eb;
+            --sidebar-bg: #111827;
+            --sidebar-text: #9ca3af;
+            --bg-body: #f8fafc;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --accent-color: #2563eb;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-body);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            color: var(--text-main);
+            overflow: hidden;
+        }
+
+
+        /* SFONDO LOGIN - EFFETTO VETRO APPANNATO */
+    #login-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        /* Colore scuro semi-trasparente */
+        background-color: rgba(15, 23, 42, 0.7);
+        /* L'effetto "appannato" magico */
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px); /* Per Safari */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+    }
+
+    /* CARD DI LOGIN */
+    .login-card {
+        background: #252525; /* Il tuo esadecimale */
+        padding: 45px;
+        border-radius: 32px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+        width: 90%;
+        max-width: 420px;
+        text-align: center;
+        border: 1px solid rgba(255, 255, 255, 0.1); /* Bordino sottile per dare profondità */
+    }
+
+    /* LOGO NEL LOGIN - PIÙ GRANDE */
+    .login-logo-container {
+        margin-bottom: 30px;
+    }
+
+    .login-logo-img {
+        width: 200px; /* Aumentato da 160px a 200px */
+        height: auto;
+        filter: none !important;
+        display: block;
+        margin: 0 auto;
+        /* Ombra esterna al logo per farlo staccare dal fondo scuro */
+        filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3)) !important;
+    }
+
+    /* TESTI BIANCHI PER LEGGIBILITÀ */
+    .login-card h2 {
+        color: #ffffff !important; /* Forza il bianco */
+        font-size: 26px;
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+
+    .login-card p {
+        color: #cbd5e1 !important; /* Grigio chiarissimo quasi bianco */
+        font-size: 15px;
+        margin-bottom: 30px;
+    }
+
+    /* BOTTONE LOGIN */
+    .btn-login {
+        width: 100%;
+        background: #3b82f6; /* Blu più acceso per risaltare sul grigio scuro */
+        color: white;
+        padding: 16px;
+        border-radius: 14px;
+        border: none;
+        font-weight: 700;
+        font-size: 16px;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+    }
+
+    .btn-login:hover {
+        background: #2563eb;
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
+    }
+
+    /* INPUT FIELD - Ritocco per sfondo scuro */
+    .input-field-modern {
+        width: 100%;
+        padding: 14px;
+        margin-bottom: 15px;
+        border-radius: 12px;
+        border: 1px solid #475569;
+        background: #1e293b;
+        color: white;
+        font-family: inherit;
+        box-sizing: border-box;
+    }
+
+    .input-field-modern::placeholder {
+        color: #94a3b8;
+    }
+
+    .login-error-msg {
+        color: #fb7185; /* Rosso pastello più leggibile */
+        font-size: 13px;
+        font-weight: 600;
+        margin-top: 20px;
+    }
+        /* STILE PULSANTE LOGOUT ELEGANTE (POSIZIONE TOP) */
+.btn-logout-minimal {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    background: rgba(255, 255, 255, 0.08); /* Effetto vetro semi-trasparente */
+    color: #cbd5e1; /* Colore testo sobrio (grigio chiaro) */
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-left: 12px;
+    backdrop-filter: blur(4px); /* Sfocatura leggera dietro il tasto */
+}
+
+.btn-logout-minimal i {
+    font-size: 14px;
+    transition: transform 0.3s ease;
+}
+
+/* EFFETTO AL PASSAGGIO DEL MOUSE */
+.btn-logout-minimal:hover {
+    background: rgba(244, 63, 94, 0.15); /* Sfondo rosso molto delicato */
+    color: #fb7185; /* Testo rosso pastello */
+    border-color: rgba(244, 63, 94, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+}
+
+.btn-logout-minimal:hover i {
+    transform: translateX(3px); /* Piccola animazione dell'icona verso l'esterno */
+}
+
+/* EFFETTO AL CLICK */
+.btn-logout-minimal:active {
+    transform: translateY(0);
+    background: rgba(244, 63, 94, 0.25);
+}
+
+
+
+/* --- SIDEBAR --- */
+.sidebar {
+  width: 260px;
+  min-width: 260px;
+  background: #242424; /* Dark Slate */
+  display: flex;
+  flex-direction: column;
+  padding: 20px 15px;
+  box-sizing: border-box;
+  z-index: 100;
+}
+
+
+
+
+
+
+
+/* 1. SEZIONE UTENTE (IN ALTO) */
+.sidebar-user-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #1f2937;
+  margin-bottom: 20px;
+}
+
+.user-card-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: white;
+}
+
+.user-avatar-top {
+  width: 35px;
+  height: 35px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 2px solid #2563eb;
+}
+
+.user-info-top {
+  display: flex;
+  flex-direction: column;
+}
+.user-name { font-size: 13px; font-weight: 700; color: white; }
+.user-role { font-size: 10px; color: #9ca3af; text-transform: uppercase; }
+
+
+
+
+
+
+/* CAMPANELLINA */
+.bell-icon-top {
+  color: #6b7280;
+  font-size: 18px;
+  cursor: pointer;
+  transition: 0.2s;
+  padding: 5px;
+  border-radius: 5px;
+}
+.bell-icon-top:hover { color: white; background: #374151; }
+
+
+
+
+
+/* 2. MENU CENTRALE */
+.menu-section-label {
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 700;
+  margin: 10px 0 5px 10px;
+  text-transform: uppercase;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* Spinge il badge a destra */
+  padding: 12px 15px;
+  color: #9ca3af;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: 0.2s;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 5px;
+}
+
+.menu-item:hover { background: #1f2937; color: white; }
+.menu-item.active {
+  background: #fff !important;
+  color: #11101d !important;
+  border-radius: 12px;
+}
+
+.menu-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+
+
+
+
+
+/* Badge rosso accanto a Richieste */
+.badge-sidebar-inline {
+  background: #ef4444;
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 12px;
+  display: none; /* Si mostra solo se > 0 */
+}
+
+
+
+
+.sidebar-footer-logo {
+    margin-top: auto;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.logo-img-footer {
+    width: 200px; /* Prova a cambiare questa misura */
+    height: auto;
+    display: block;
+    filter: none !important; /* Forza la rimozione di qualsiasi filtro */
+    opacity: 1 !important;   /* Forza la visibilità massima */
+}
+
+
+
+
+
+
+
+
+
+
+
+
+/* --- MAIN CONTENT --- */
+        .main-content {
+            flex-grow: 1;
+            padding: 40px 60px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 20px;
+        }
+
+        h1 { font-size: 28px; font-weight: 800; margin: 0; letter-spacing: -0.03em; }
+
+
+
+
+
+        /* --- CARD ORDINE --- */
+        .riga-ordine {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            padding: 24px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            margin-bottom: 12px;
+            position: relative;
+        }
+
+        .riga-ordine:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(0,0,0,0.05);
+            border-color: var(--primary);
+        }
+
+        .riga-ordine.open {
+            border-left: 6px solid var(--primary);
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+            margin-bottom: 0;
+            background: #fafafa;
+        }
+
+        .dettagli-container {
+            display: none;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-top: none;
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+            padding: 20px 30px;
+            margin-bottom: 20px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .item-card {
+            display: grid;
+            grid-template-columns: 2fr 0.8fr 1.5fr 1.5fr 1.2fr;
+            gap: 20px;
+            padding: 15px 0;
+            border-bottom: 1px solid #f1f5f9;
+            align-items: center;
+        }
+
+
+
+
+
+        /* Griglia specifica per le card dell'archivio */
+.item-card.archivio-layout {
+  display: grid !important;
+  grid-template-columns: 1.5fr 0.8fr 1.2fr 1.2fr 180px;
+  align-items: center;
+  gap: 15px;
+  padding: 15px 20px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+
+
+
+}
+
+/* Miglioriamo le etichette per farle stare sopra il valore */
+.label-sm {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin-bottom: 2px;
+  letter-spacing: 0.5px;
+}
+
+
+
+
+
+/* Forza i bottoni dell'archivio a non allargarsi troppo */
+.btn-archive-action {
+  width: 100%;
+  padding: 6px 10px !important;
+  font-size: 11px !important;
+  border-radius: 8px !important;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+
+
+        .select-interattivo {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2364748b' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-color: #f8fafc;
+            color: #1e293b;
+            border: 1px solid #e2e8f0;
+            padding: 8px 35px 8px 15px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+
+
+
+
+
+
+
+        /* --- BOTTONI SUPPORTO --- */
+        .btn-sos {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            height: 38px;
+            padding: 0 15px;
+            background: transparent;
+            color: #ef4444;
+            border: 1px solid #fee2e2;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-sos:hover { background: #fef2f2; }
+
+        .btn-sos-small {
+            background: #fef2f2;
+            color: #ef4444;
+            border: 1px solid #fee2e2;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .badge-count { background: #f1f5f9; color: #475569; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+        .btn-update { background: white; border: 1px solid var(--border-color); padding: 8px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: 0.2s; }
+        .btn-update:hover { background: #000; color: #fff; }
+
+
+
+
+
+
+
+
+
+        /* --- MODAL SUPPORTO --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(5px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            width: 500px;
+            max-width: 90%;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+        }
+
+        .btn-tipo {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+            background: white;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 12px;
+            transition: all 0.2s;
+            text-transform: uppercase;
+        }
+
+        .btn-tipo.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+        #wrapper-operatori {
+            max-height: 180px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        .op-label {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 15px;
+            border-bottom: 1px solid #f1f5f9;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .op-label:hover { background: #f8fafc; }
+
+        .inbox-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .messaggio-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        .border-assegna { border-left: 5px solid #2563eb; }
+        .border-domanda { border-left: 5px solid #f59e0b; }
+
+        .badge-tipo {
+            font-size: 10px;
+            font-weight: 800;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        .card-stat {
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            font-size: 14px;
+        }
+
+
+
+
+
+
+
+        /* --- STILE CHAT MODERNA --- */
+        .chat-card {
+            background: #ffffff;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            border: 1px solid #f1f5f9;
+        }
+
+        .chat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            border-radius: 12px 12px 0 0;
+        }
+        .info-ordine b {
+color: #1e293b;
+font-size: 15px;
+margin-left: 5px;
+}
+        .badge-tipo-chat {
+            background: #eef2ff;
+            color: #4f46e5;
+            padding: 4px 10px;
+            border-radius: 6px;
+            text-transform: uppercase;
+            font-weight: 800;
+            font-size: 10px;
+            letter-spacing: 0.5px;
+        }
+
+        .chat-body {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            background: #f0f2f5; /* Grigio chiaro tipo sfondo WhatsApp */
+            padding: 20px;
+            border-radius: 12px;
+        }
+
+
+
+
+
+        /* --- BOLLE MESSAGGIO --- */
+        .chat-bubble-wrapper {
+            display: flex;
+            width: 100%;
+        }
+
+
+
+
+
+
+        /* Ricevuto (Operatore) - Allineato a SINISTRA */
+        .chat-bubble-wrapper.received {
+            justify-content: flex-start;
+        }
+
+        .chat-bubble-wrapper.received .chat-bubble {
+            background: white;
+            color: #333;
+            border-radius: 0px 15px 15px 15px; /* Angolo tagliato in alto a sx */
+            border: 1px solid #e2e8f0;
+        }
+
+
+
+
+
+        /* Inviato (Master/Ufficio) - Allineato a DESTRA */
+        .chat-bubble-wrapper.sent {
+            justify-content: flex-end;
+        }
+
+        .chat-bubble-wrapper.sent .chat-bubble {
+            background: #007aff; /* Blu iOS */
+            color: white;
+            border-radius: 15px 15px 0px 15px; /* Angolo tagliato in basso a dx */
+        }
+
+        .chat-bubble {
+            max-width: 75%;
+            padding: 10px 15px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+
+
+
+
+        /* Nome Autore dentro la bolla */
+        .chat-bubble-name {
+            font-size: 10px;
+            font-weight: 800;
+            margin-bottom: 3px;
+            text-transform: uppercase;
+            display: block;
+        }
+
+        .chat-bubble-text {
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        .received .chat-bubble-name { color: #2563eb; }
+        .sent .chat-bubble-name { color: #dbeafe; }
+
+
+
+
+
+
+
+
+
+
+        /* --- AZIONI --- */
+        .chat-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #f1f5f9;
+        }
+
+        .btn-chat-action {
+            border: none;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-chat-action.reply { background: #eff6ff; color: #3b82f6; }
+        .btn-chat-action.alert { background: #fff1f2; color: #e11d48; }
+        .btn-chat-action.done { background: #f0fdf4; color: #16a34a; }
+
+      .reply-input-wrapper {
+          display: flex;
+          background: #ffffff;
+          padding: 8px;
+          border-radius: 25px;
+          border: 1px solid #e2e8f0;
+          margin-top: 15px;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+      }
+
+      .reply-input-wrapper input {
+          flex: 1;
+          background: none;
+          border: none;
+          padding: 5px 15px;
+          outline: none;
+          font-size: 14px;
+      }
+
+      .reply-input-wrapper button {
+          background: #3b82f6;
+          color: white;
+          border: none;
+          width: 34px;
+          height: 34px;
+          border-radius: 50%;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: 0.2s;
+      }
+
+      .reply-input-wrapper button:hover { transform: scale(1.05); background: #2563eb; }
+      .notification-container {
+position: relative;
+display: inline-block;
+cursor: pointer;
+padding: 10px;
+}
+
+.notification-bell {
+font-size: 24px;
+color: #64748b;
+}
+
+.notification-badge {
+position: absolute;
+top: 5px;
+right: 5px;
+background-color: #ef4444; /* Rosso notifica */
+color: white;
+border-radius: 50%;
+padding: 2px 6px;
+font-size: 10px;
+font-weight: bold;
+border: 2px solid white;
+display: none; /* Nascosto se 0 */
+}
+
+
+
+
+
+
+
+
+/* Animazione per il sollecito */
+.shake {
+animation: shake 0.5s;
+animation-iteration-count: infinite;
+}
+
+@keyframes shake {
+0% { transform: rotate(0deg); }
+25% { transform: rotate(5deg); }
+50% { transform: rotate(0deg); }
+75% { transform: rotate(-5deg); }
+100% { transform: rotate(0deg); }
+}
+
+
+
+
+
+
+
+
+/* Effetto al passaggio del mouse sui tasti verdi */
+button[style*="#22c55e"]:hover {
+background: #16a34a !important;
+transform: translateY(-1px);
+transition: all 0.2s;
+}
+
+button[style*="#f0fdf4"]:hover {
+background: #dcfce7 !important;
+border-color: #86efac !important;
+}
+
+
+
+
+
+
+/* Badge per gli operatori assegnati */
+.visualizza-operatori {
+display: flex;
+flex-wrap: wrap;
+gap: 4px;
+min-height: 30px;
+align-items: center;
+}
+
+.badge-operatore {
+background: #e0e7ff;
+color: #4338ca;
+padding: 2px 8px;
+border-radius: 4px;
+font-size: 11px;
+font-weight: 600;
+text-transform: uppercase;
+border: 1px solid #c7d2fe;
+}
+
+
+
+
+
+
+/* Stile per il tasto Chiedi/Assegna */
+.btn-chiedi-assegna {
+background: #6366f1;
+color: white;
+border: none;
+padding: 5px 12px;
+border-radius: 6px;
+font-size: 12px;
+font-weight: 600;
+cursor: pointer;
+transition: all 0.2s;
+display: flex;
+align-items: center;
+gap: 5px;
+}
+
+.btn-chiedi-assegna:hover {
+background: #4f46e5;
+transform: translateY(-1px);
+}
+
+
+
+
+
+
+/* --- IMPOSTAZIONI PREMIUM OPTIMIZED --- */
+
+/* Contenitore principale: gestisce lo spazio tra le card */
+.settings-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    padding: 0;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Card bianche: stile moderno, angoli stondati e ombra leggera */
+.card-settings {
+    background: white;
+    flex: 1;
+    min-width: 320px;
+    max-width: 100%;
+    padding: 24px;
+    border-radius: 24px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.04);
+    border: 1px solid #f1f5f9;
+    box-sizing: border-box;
+}
+
+.card-settings h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Righe interne (Grigie): contengono i dati di ogni stato/operatore */
+.config-row-modern {
+    background: #f8fafc;
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border: 1px solid #f1f5f9;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+/* Input principali (Nome) */
+.input-flat {
+    border: none;
+    background: transparent;
+    font-weight: 600;
+    font-size: 14px;
+    color: #1e293b;
+    outline: none;
+}
+
+/* Input secondari (Email/Reparto): bianchi e rifiniti */
+.input-field-modern {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    padding: 10px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    color: #475569;
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+}
+
+.input-field-modern:focus {
+    border-color: var(--primary);
+    outline: none;
+}
+
+/* Elementi grafici (Bollini e Avatar) */
+.status-dot-custom {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    border: 2px solid white;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+    cursor: pointer;
+}
+
+.avatar-circle {
+    width: 34px;
+    height: 34px;
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: 13px;
+}
+
+/* Pulsanti */
+.btn-trash-modern {
+    background: transparent;
+    color: #94a3b8;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-trash-modern:hover {
+    background: #fff1f2;
+    color: #f43f5e;
+}
+
+.btn-add-dashed {
+    width: 100%;
+    margin-top: 5px;
+    padding: 12px;
+    font-size: 13px;
+    border: 2px dashed #e2e8f0;
+    background: transparent;
+    border-radius: 14px;
+    color: #94a3b8;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.btn-add-dashed:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: #f0f7ff;
+}
