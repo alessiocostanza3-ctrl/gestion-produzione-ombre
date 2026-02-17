@@ -1051,3 +1051,104 @@ transform: translateY(-1px);
     color: var(--primary);
     background: #f0f7ff;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* REGOLE SOLO PER SMARTPHONE */
+@media (max-width: 768px) {
+    /* Impedisce lo scroll orizzontale fastidioso su iPhone */
+    body, html {
+        overflow-x: hidden;
+        width: 100%;
+        position: relative;
+    }
+
+    body {
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+    }
+    /* La Sidebar su iPhone deve diventare un menu a comparsa o una barra in alto */
+    .sidebar {
+        width: 100% !important;
+        height: auto !important;
+        position: fixed !important;
+        top: 0;
+        left: 0;
+        z-index: 1000;
+        padding: 10px 15px !important;
+        flex-direction: row !important; /* Mette gli elementi in orizzontale */
+        justify-content: space-between;
+        align-items: center;
+        background: #1e293b;
+    }
+
+    /* Nascondiamo le voci di menu che occupano troppo spazio, lasciamo solo icone o un menu a tendina */
+    .menu-section-label, .sidebar-footer-logo, .user-info-top {
+        display: none !important;
+    }
+
+    .sidebar-user-section {
+        padding: 0 !important;
+        margin: 0 !important;
+        border: none !important;
+    }
+
+    /* Il contenuto principale deve scendere sotto la barra in alto */
+    .main-content {
+        margin-left: 0 !important;
+        margin-top: 70px !important; /* Spazio per la barra della sidebar */
+        padding: 15px !important;
+        width: 100% !important;
+        box-sizing: border-box;
+    }
+
+    /* Card di login a tutto schermo su iPhone */
+    .login-card {
+        width: 90% !important;
+        max-width: none !important;
+        padding: 25px 15px !important;
+        border-radius: 20px !important;
+    }
+
+    /* Aumentiamo la dimensione dei tasti: su iPhone devono essere facili da tappare */
+    .btn-login, .menu-item {
+        min-height: 50px;
+        font-size: 17px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .login-card {
+        width: 85%;
+        padding: 30px 20px;
+        margin: 10px;
+    }
+
+    .login-logo-img {
+        width: 150px; /* Un po' più piccolo su schermi mini */
+    }
+
+    .login-card h2 {
+        font-size: 20px;
+    }
+}
