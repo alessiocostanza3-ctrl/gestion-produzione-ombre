@@ -3,12 +3,69 @@
 *******************************************************************************/
 const URL_GOOGLE = "https://script.google.com/macros/s/AKfycbyVMV9MkGiqphN0AKXJdHXF0Arp1vxTYrCYi1SGv_4MKLRJkx--5HoGq7mmQX-p0ZTZ/exec";
 
+// Fallback: se una sessione è già presente, nascondi subito l'overlay (evita blocchi/flicker
+// se il browser ritarda l'esecuzione di window.onload).
+try {
+    if (localStorage.getItem('sessioneUtente') || sessionStorage.getItem('sessioneUtente')) {
+        const overlay = document.getElementById('login-overlay');
+        if (overlay) overlay.style.display = 'none';
+    }
+} catch (e) {}
+
 let paginaAttuale = null; // NON leggere subito da localStorage
 let modifichePendenti = false;
 let listaOperatori = [];
 let listaStati = [];
 let tipoTrascinamento = "";
 const cacheContenuti = {};
+const cacheFetchTime = {}; // timestamp dell'ultimo fetch per pagina
+const CACHE_TTL_MS = 30000; // 30 secondi: sotto questa soglia non fare background refresh
+
+// ---- search optimisation helpers ----
+let elementiDaFiltrareCache = null;
+let ricercaTimeout = null;
+
+// small DOM shortcuts
+const $ = sel => document.querySelector(sel);
+const $$ = sel => document.querySelectorAll(sel);
+
+// Tailwind utility presets (keeps templates consistent + easy to tweak)
+const TW = {
+    card: 'bg-white/90 border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-shadow',
+    cardGrid: 'grid gap-3',
+    label: 'text-[10px] uppercase tracking-wide text-slate-500 font-semibold',
+    value: 'text-slate-900 font-semibold',
+    btn: 'inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold border border-slate-200 bg-white hover:bg-slate-50 active:scale-[0.99] transition',
+    btnPrimary: 'inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 active:scale-[0.99] transition',
+    btnSuccess: 'inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 active:scale-[0.99] transition',
+    btnWarning: 'inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold border border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 active:scale-[0.99] transition',
+    btnDanger: 'inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 active:scale-[0.99] transition',
+    btnPrimaryLg: 'inline-flex items-center gap-2 rounded-xl px-10 py-3.5 text-sm font-bold bg-slate-900 text-white hover:bg-slate-700 active:scale-[0.98] transition shadow-sm',
+    pill: 'inline-flex items-center justify-center rounded-full px-2 py-1 text-[10px] font-bold bg-slate-100 text-slate-600',
+};
+
+function aggiornaListaFiltrabili() {
+    elementiDaFiltrareCache = document.querySelectorAll('.ordine-wrapper, .chat-card, .materiale-card');
+}
+
+// helper per richieste REST
+// Cache raw ordini per autocomplete nel modal
+let _ordiniAutocompleteCache = [];
+
+async function fetchJson(pagina) {
+    const url = URL_GOOGLE + "?pagina=" + encodeURIComponent(pagina);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+}
+
+function applicaFade(elem) {
+    if (elem) {
+        elem.classList.add('fade-in');
+        setTimeout(() => elem.classList.remove('fade-in'), 300);
+    }
+}
+
 
 
 let utenteAttuale = {
@@ -22,7 +79,8 @@ window.onload = async function() {
 
     // 1. Gestione immediata dell'interfaccia per evitare "lampi"
     const overlay = document.getElementById('login-overlay');
-    const sessione = localStorage.getItem('sessioneUtente');
+    let sessione = null;
+    try { sessione = localStorage.getItem('sessioneUtente') || sessionStorage.getItem('sessioneUtente'); } catch (e) {}
 
     if (sessione) {
         // Se c'è una sessione, la leggiamo subito
@@ -53,22 +111,97 @@ window.onload = async function() {
             if (utenteAttuale.ruolo !== "MASTER" && !utenteAttuale.nome) {
                 throw new Error("Sessione corrotta");
             }
-
-            // 3. CARICA LE RICHIESTE FILTRATE
-            caricaPaginaRichieste();
+            // Il caricamento della pagina è già gestito da DOMContentLoaded → cambiaPagina()
+            // Non chiamare caricaPaginaRichieste() qui per evitare doppio caricamento
         }
 
     } catch (e) {
-        console.warn("Errore o sessione corrotta:", e);
-        localStorage.removeItem('sessioneUtente');
-        if (overlay) {
-            overlay.style.display = 'flex';
-            overlay.style.opacity = '1';
+        console.warn("Errore caricamento dati iniziali:", e);
+        let sessioneEsistente = null;
+        try { sessioneEsistente = localStorage.getItem('sessioneUtente') || sessionStorage.getItem('sessioneUtente'); } catch (e) {}
+        // Cancella sessione e mostra login SOLO se è esplicitamente corrotta
+        // mai per errori di rete, timeout GAS o altri errori non critici
+        if (e && e.message === "Sessione corrotta") {
+            try { localStorage.removeItem('sessioneUtente'); } catch (e) {}
+            try { sessionStorage.removeItem('sessioneUtente'); } catch (e) {}
+            if (overlay) { overlay.style.display = 'flex'; overlay.style.opacity = '1'; }
+        } else if (!sessioneEsistente) {
+            // Nessuna sessione in localStorage → mostra login
+            if (overlay) { overlay.style.display = 'flex'; overlay.style.opacity = '1'; }
         }
+        // Se c'è una sessione valida, l'utente resta dentro — l'errore è solo di rete
     }
 };
 
-// QUESTA FUNZIONE È QUELLA CHE SCRIVE I DATI NELLA TUA SIDEBAR
+
+
+
+
+
+//ACCESSO E INIZIALIZZAZIONE//
+function setLoginMode(mode) {
+    const isAdmin = mode === 'admin';
+    document.getElementById('login-view-utente').style.display = isAdmin ? 'none' : '';
+    document.getElementById('login-view-admin').style.display  = isAdmin ? ''     : 'none';
+    document.getElementById('login-error').innerText = '';
+    if (isAdmin) setTimeout(() => document.getElementById('login-codice')?.focus(), 50);
+}
+function togglePasswordVisibility() {
+    const pwd  = document.getElementById('login-password');
+    const icon = document.getElementById('eye-icon');
+    const isHidden = pwd.type === 'password';
+    pwd.type = isHidden ? 'text' : 'password';
+    icon.className = isHidden ? 'fas fa-eye-slash' : 'fas fa-eye';
+}
+async function hashSHA256(text) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+async function _verificaAccessoUtente() {
+    const errorDiv = document.getElementById('login-error');
+    errorDiv.innerText = "";
+
+    const isAdmin = document.getElementById('login-view-admin')?.style.display !== 'none';
+
+    // — Modalità ADMIN —
+    if (isAdmin) {
+        const codice = (document.getElementById('login-codice')?.value || '').trim();
+        if (codice === '0000') {
+            utenteAttuale = { nome: "MASTER", ruolo: "MASTER", vistaSimulata: "MASTER" };
+            salvaEApriDashboard();
+        } else {
+            errorDiv.innerText = "Codice non valido.";
+        }
+        return;
+    }
+
+    // — Modalità UTENTE —
+    const email    = (document.getElementById('login-email')?.value    || '').trim().toLowerCase();
+    const username = (document.getElementById('login-username')?.value || '').trim();
+    const password = (document.getElementById('login-password')?.value || '');
+    if (!email || !username || !password) {
+        errorDiv.innerText = "Compila tutti i campi: email, nome utente e password.";
+        return;
+    }
+    const btn = document.getElementById('btn-login');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifica...';
+    try {
+        const hash = await hashSHA256(password);
+        const res  = await fetch(`${URL_GOOGLE}?azione=verificaLogin&email=${encodeURIComponent(email)}&username=${encodeURIComponent(username)}&hash=${encodeURIComponent(hash)}`);
+        const r    = await res.json();
+        if (r.status === "success") {
+            utenteAttuale = { nome: r.nome, ruolo: r.ruolo, email: r.email, vistaSimulata: r.nome };
+            salvaEApriDashboard();
+        } else {
+            errorDiv.innerText = r.message || "Credenziali non valide.";
+        }
+    } catch (e) {
+        errorDiv.innerText = "Errore di connessione. Riprova.";
+    }
+    btn.disabled = false;
+    btn.innerHTML = 'Entra nel Sistema <i class="fas fa-arrow-right"></i>';
+}
 function aggiornaProfiloSidebar() {
     // Cerchiamo solo gli elementi effettivamente presenti nell'HTML
     const nomeDisplay = document.getElementById('user-name-display');
@@ -87,45 +220,10 @@ function aggiornaProfiloSidebar() {
             avatarIcon.innerText = utenteAttuale.nome.charAt(0).toUpperCase();
         }
     }
-}
-
-function verificaAccesso() {
-    const inputField = document.getElementById('email-access');
-    const input = inputField.value.trim().toLowerCase();
-    const errorDiv = document.getElementById('login-error');
-
-    // Reset errore
-    errorDiv.innerText = "";
-
-    // 1. Caso Master
-    if (input === "0000") {
-        utenteAttuale = { nome: "MASTER", ruolo: "MASTER", vistaSimulata: "MASTER" };
-        salvaEApriDashboard();
-        return;
-    }
-
-    // 2. Caso Operatore
-    if (typeof listaOperatori === "undefined" || listaOperatori.length === 0) {
-        errorDiv.innerText = "Sincronizzazione in corso... attendi 2 secondi.";
-        return;
-    }
-
-    const opTrovato = listaOperatori.find(op => op.email && op.email.toLowerCase() === input);
-
-    if (opTrovato) {
-        utenteAttuale = {
-            nome: opTrovato.nome.toUpperCase(),
-            ruolo: "OPERATORE",
-            vistaSimulata: opTrovato.nome.toUpperCase()
-        };
-        salvaEApriDashboard();
-    } else {
-        errorDiv.innerText = "Email non autorizzata. Verifica nelle impostazioni.";
-    }
-}
-
+} // QUESTA FUNZIONE È QUELLA CHE SCRIVE I DATI NELLA TUA SIDEBAR
 function salvaEApriDashboard() {
-    localStorage.setItem('sessioneUtente', JSON.stringify(utenteAttuale));
+    try { localStorage.setItem('sessioneUtente', JSON.stringify(utenteAttuale)); } catch (e) {}
+    try { sessionStorage.setItem('sessioneUtente', JSON.stringify(utenteAttuale)); } catch (e) {}
 
     const overlay = document.getElementById('login-overlay');
     overlay.style.transition = "opacity 0.4s ease";
@@ -138,62 +236,829 @@ function salvaEApriDashboard() {
         if(typeof aggiornaProfiloSidebar === 'function') aggiornaProfiloSidebar();
     }, 400);
 }
-
 function logout() {
-    // Cancella i dati dell'utente dal browser
-    localStorage.removeItem('sessioneUtente');
-    // Ricarica la pagina: window.onload non troverà più la sessione e mostrerà il login
-    location.reload();
+    try {
+        // 1. Pulizia totale della memoria del browser
+        localStorage.clear();
+        sessionStorage.clear();
+
+        // 2. Reindirizzamento pulito alla pagina iniziale
+        // Aggiungiamo un parametro casuale per evitare che il browser usi la cache vecchia
+        window.location.href = window.location.origin + window.location.pathname + "?logout=" + Date.now();
+
+    } catch (error) {
+        // Se c'è un errore imprevisto, forziamo comunque il ricaricamento
+        console.error("Errore durante il logout:", error);
+        window.location.reload();
+    }
 }
+// Badge unico sidebar: conta richieste non risolte, diventa arancione pulsante se ci sono sollecitati
+function aggiornaBadgeNotifiche() {} // no-op: accorpata in aggiornaBadgeSidebar
 
-
-// Funzione per generare la pagina Richieste
-// Funzione di utilità per formattare la data in modo leggibile
-function formattaDataSocial(stringaData) {
-    if(!stringaData) return "Data N.D.";
-    const d = new Date(stringaData);
-    if(isNaN(d)) return stringaData; // Se è già una stringa formattata da Sheets
-    return d.toLocaleDateString('it-IT') + " alle " + d.toLocaleTimeString('it-IT', {hour: '2-digit', minute:'2-digit'});
+/* ── Modal di conferma generico ─────────────────────── */
+function mostraConferma(titolo, messaggio, onOk, labelOk) {
+    const modal  = document.getElementById('modal-conferma');
+    const btnOk  = document.getElementById('modal-conferma-ok');
+    document.getElementById('modal-conferma-titolo').innerText = titolo;
+    document.getElementById('modal-conferma-msg').innerText    = messaggio;
+    btnOk.innerText = labelOk || 'Conferma';
+    modal.style.display = 'flex';
+    modal.offsetHeight;
+    modal.classList.add('active');
+    btnOk.onclick = () => { _chiudiConferma(); onOk(); };
 }
-
-// Funzioni di supporto per la conversazione
-function toggleAreaRisposta(id) {
-    const box = document.getElementById('box-risposta-' + id);
-    box.style.display = box.style.display === 'none' ? 'block' : 'none';
+function _chiudiConferma() {
+    const modal = document.getElementById('modal-conferma');
+    modal.classList.remove('active');
+    setTimeout(() => { if (!modal.classList.contains('active')) modal.style.display = 'none'; }, 300);
 }
+/* chiudi anche notifica toast */
+function notificaElegante(msg, tipo) {
+    let el = document.getElementById('toast-notifica');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'toast-notifica';
+        document.body.appendChild(el);
+    }
+    el.className = 'toast-notifica' + (tipo === 'error' ? ' toast-error' : '');
+    el.innerText = msg;
+    // forza reflow per ripartire l'animazione
+    void el.offsetWidth;
+    el.classList.add('visible');
+    clearTimeout(el._hideTimer);
+    el._hideTimer = setTimeout(() => { el.classList.remove('visible'); }, 3000);
+}
+function aggiornaBadgeSidebar(messaggi) {
+    const badgeSidebar = document.getElementById('badge-richieste-count');
+    const nomeSidebar  = document.getElementById('nome-utente-sidebar');
+    const imgAvatar    = document.getElementById('img-avatar-sidebar');
 
-async function inviaRisposta(idRiga) {
-    const areaTesto = document.getElementById('input-risposta-' + idRiga);
-    const testo = areaTesto.value.trim();
+    if (!badgeSidebar) return;
 
-    if (!testo) {
-        alert("Scrivi qualcosa prima di inviare!");
+    const vistaAttiva = (utenteAttuale.vistaSimulata || 'MASTER').toUpperCase().trim();
+
+    if (nomeSidebar) nomeSidebar.innerText = vistaAttiva;
+    if (imgAvatar)   imgAvatar.src = `https://ui-avatars.com/api/?name=${vistaAttiva}&background=2563eb&color=fff`;
+
+    // Se si è già sulla pagina richieste, il badge rimane nascosto
+    if (paginaAttuale === 'STORICO_RICHIESTE') {
+        badgeSidebar.style.display = 'none';
+        badgeSidebar.classList.remove('badge-sollecito-attivo');
         return;
     }
 
-    try {
-        const response = await fetch(URL_GOOGLE, {
-            method: 'POST',
-            body: JSON.stringify({
-                azione: 'aggiungi_risposta',
-                id_riga: idRiga,
-                testo: testo,
-                da: utenteAttuale.nome
-            })
-        });
+    const rilevanti = messaggi.filter(m => {
+        const dest      = String(m.A || '').toUpperCase().trim();
+        const nonRisolto = String(m.RISOLTO).toLowerCase() !== 'true';
+        if (vistaAttiva === 'MASTER') return nonRisolto;
+        return dest === vistaAttiva && nonRisolto;
+    });
 
-        if (response.ok) {
-            areaTesto.value = "";
-            caricaPaginaRichieste(); // Ricarica la vista per vedere il messaggio aggiornato
+    const conteggio    = rilevanti.length;
+    const sollecitati  = rilevanti.filter(m => String(m.SOLLECITO).toLowerCase() === 'true').length;
+
+    if (conteggio > 0) {
+        badgeSidebar.innerText = conteggio;
+        badgeSidebar.style.display = 'inline-block';
+        // Arancione pulsante se ci sono sollecitati, rosso normale altrimenti
+        if (sollecitati > 0) {
+            badgeSidebar.classList.add('badge-sollecito-attivo');
+        } else {
+            badgeSidebar.classList.remove('badge-sollecito-attivo');
         }
-    } catch (e) {
-        console.error("Errore invio risposta:", e);
-        alert("Errore durante l'invio della risposta.");
+    } else {
+        badgeSidebar.style.display = 'none';
+        badgeSidebar.classList.remove('badge-sollecito-attivo');
+    }
+
+    // Sincronizza anche il badge nell'app bar mobile
+    const badgeMobile = document.getElementById('badge-mobile-notif');
+    if (badgeMobile) {
+        if (conteggio > 0 && paginaAttuale !== 'STORICO_RICHIESTE') {
+            badgeMobile.innerText = conteggio;
+            badgeMobile.style.display = 'inline-block';
+            badgeMobile.style.background = sollecitati > 0 ? '#f97316' : '#ef4444';
+        } else {
+            badgeMobile.style.display = 'none';
+        }
+    }
+
+    // Sincronizza il badge nel bottom nav
+    const badgeBottom = document.getElementById('badge-bottom-richieste');
+    if (badgeBottom) {
+        if (conteggio > 0 && paginaAttuale !== 'STORICO_RICHIESTE') {
+            badgeBottom.innerText = conteggio;
+            badgeBottom.style.display = 'inline-block';
+            if (sollecitati > 0) badgeBottom.classList.add('badge-sollecito-attivo');
+            else badgeBottom.classList.remove('badge-sollecito-attivo');
+        } else {
+            badgeBottom.style.display = 'none';
+            badgeBottom.classList.remove('badge-sollecito-attivo');
+        }
+    }
+}
+function cambiaPagina(nomeFoglio, elementoMenu) {
+    // reset possible filter cache when switching pages
+    elementiDaFiltrareCache = null;
+
+    // 1. Reset immediato della ricerca (per evitare di vedere dati filtrati della pagina precedente)
+    const searchInput = document.getElementById('universal-search');
+    if (searchInput) searchInput.value = "";
+
+    // 2. Validazione e salvataggio Stato
+    if (!nomeFoglio || nomeFoglio === "undefined" || nomeFoglio === "null") {
+        nomeFoglio = "PROGRAMMA PRODUZIONE DEL MESE";
+    }
+    localStorage.setItem('ultimaPaginaProduzione', nomeFoglio);
+    paginaAttuale = nomeFoglio;
+
+    // 3. UI: Gestione Sidebar (Classe Active) + Bottom Nav active
+    document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
+    document.querySelectorAll('.bottom-nav-item').forEach(item => item.classList.remove('active'));
+    if (!elementoMenu) {
+        elementoMenu = document.querySelector(`.menu-item[data-page="${nomeFoglio}"]`);
+    }
+    if (elementoMenu) elementoMenu.classList.add('active');
+    // Bottom nav: marca attivo il tab corrispondente
+    const bottomTab = document.querySelector(`.bottom-nav-item[data-page="${nomeFoglio}"]`);
+    if (bottomTab) bottomTab.classList.add('active');
+
+    // 4. UI: Aggiornamento Titolo Dinamico
+    const titoli = {
+        'IMPOSTAZIONI': "Impostazioni Sistema",
+        'STORICO_RICHIESTE': "La mia Casella",
+        'ARCHIVIO_ORDINI': "Archivio Ordini",
+        'MATERIALE DA ORDINARE': "Gestione Acquisti",
+        'PROGRAMMA PRODUZIONE DEL MESE': "Dashboard Produzione"
+    };
+    const titolo = document.getElementById('titolo-pagina');
+    if (titolo) titolo.innerText = titoli[nomeFoglio] || nomeFoglio;
+
+    // 5. UI: Gestione Elementi Condizionali (Carrello)
+    const btnCarrello = document.getElementById('floating-cart-btn');
+    if (btnCarrello) {
+        const isAcquisti = (nomeFoglio === "MATERIALE DA ORDINARE");
+        btnCarrello.style.display = isAcquisti ? "flex" : "none";
+        if (!isAcquisti && typeof chiudiModalCarrello === "function") chiudiModalCarrello();
+    }
+
+    // 6. Rendering Contenuto (Cache o Server)
+    const contenitore = document.getElementById('contenitore-dati');
+    contenitore.innerHTML = ""; // Svuotamento preventivo per evitare accavallamenti
+
+    // Chiudi tutti i modali aperti quando si cambia pagina
+    ['modalAiuto', 'modal-conferma', 'modal-gestione-articolo', 'modal-carrello'].forEach(id => {
+        const m = document.getElementById(id);
+        if (!m) return;
+        if (id === 'modal-carrello') { m.classList.remove('cart-open'); return; }
+        if (id === 'modal-gestione-articolo') { m.classList.remove('active'); setTimeout(() => { if (!m.classList.contains('active')) m.style.display = 'none'; }, 300); return; }
+        m.classList.remove('active');
+        setTimeout(() => { if (!m.classList.contains('active')) m.style.display = 'none'; }, 300);
+    });
+
+    // Azzeramento badge appena si apre "La mia Casella" (con o senza cache)
+    if (nomeFoglio === 'STORICO_RICHIESTE') {
+        const badgeSidebar = document.getElementById('badge-richieste-count');
+        if (badgeSidebar) {
+            badgeSidebar.style.display = 'none';
+            badgeSidebar.classList.remove('badge-sollecito-attivo');
+        }
+        const badgeMobile = document.getElementById('badge-mobile-notif');
+        if (badgeMobile) badgeMobile.style.display = 'none';
+        const badgeBottom = document.getElementById('badge-bottom-richieste');
+        if (badgeBottom) { badgeBottom.style.display = 'none'; badgeBottom.classList.remove('badge-sollecito-attivo'); }
+    }
+
+    if (cacheContenuti[nomeFoglio]) {
+        contenitore.innerHTML = cacheContenuti[nomeFoglio];
+        applicaFade(contenitore);
+        aggiornaListaFiltrabili();
+        console.log("Rendering da cache:", nomeFoglio);
+
+        // Aggiornamento dati in background solo se la cache è scaduta (> 30s)
+        const ora = Date.now();
+        const ultimoFetch = cacheFetchTime[nomeFoglio] || 0;
+        if (ora - ultimoFetch > CACHE_TTL_MS) {
+            if (nomeFoglio === "PROGRAMMA PRODUZIONE DEL MESE") caricaDati(nomeFoglio, true);
+            if (nomeFoglio === "MATERIALE DA ORDINARE") caricaMateriali(true);
+        }
+        return;
+    }
+
+    // 7. Smistamento Caricamento (Router)
+    console.log("Caricamento dal server:", nomeFoglio);
+
+    switch (nomeFoglio) {
+        case 'IMPOSTAZIONI':
+            caricaInterfacciaImpostazioni();
+            break;
+        case 'STORICO_RICHIESTE':
+            caricaPaginaRichieste();
+            break;
+        case 'ARCHIVIO_ORDINI':
+            caricaArchivio();
+            break;
+        case 'MATERIALE DA ORDINARE':
+            caricaMateriali(false);
+            break;
+        default:
+            caricaDati(nomeFoglio, false);
     }
 }
 
-// 1. MODIFICA QUESTA FUNZIONE: Serve a cambiare chi "firma" il messaggio
-// 1. MODIFICA QUESTA FUNZIONE: Serve a cambiare chi "firma" il messaggio
+
+
+
+
+
+
+//PAGINA PRODUZIONE//
+
+async function caricaDati(nomeFoglio, isBackgroundUpdate = false) {
+    const contenitore = document.getElementById('contenitore-dati');
+    if (!isBackgroundUpdate) {
+        contenitore.innerHTML = "<div class='inline-msg'>Caricamento Dashboard...</div>";
+        applicaFade(contenitore);
+    }
+
+    try {
+        // Scarichiamo entrambi i fogli in parallelo
+        const [datiProd, datiArch] = await Promise.all([
+            fetchJson("PROGRAMMA PRODUZIONE DEL MESE"),
+            fetchJson("ARCHIVIO_ORDINI")
+        ]);
+
+        if (paginaAttuale !== nomeFoglio) return;
+
+        // --- SEZIONE ATTIVA ---
+        let htmlAttivi = generaBloccoOrdiniUnificato(datiProd, false);
+
+        // --- SEZIONE ARCHIVIATA ---
+        let htmlArchiviati = generaBloccoOrdiniUnificato(datiArch, true);
+
+        contenitore.innerHTML = `
+            <div class="scroll-wrapper">
+                <button class="scroll-btn" onclick="document.getElementById('sezione-archivio').scrollIntoView({behavior:'smooth'})">
+                    <i class="fa-solid fa-arrow-down"></i> Vai a Archivio
+                </button>
+            </div>
+            <div class="sezione-attiva">
+                ${htmlAttivi || "<div class='empty-msg'>Nessun ordine in produzione.</div>"}
+            </div>
+
+            <div id="sezione-archivio" class="separatore-archivio">
+                <span>📦 ARCHIVIO STORICO ORDINI</span>
+            </div>
+
+            <div class="sezione-archiviata">
+                ${htmlArchiviati || "<div class='empty-msg'>L'archivio è vuoto.</div>"}
+            </div>
+        `;
+        cacheContenuti[nomeFoglio] = contenitore.innerHTML;
+        cacheFetchTime[nomeFoglio] = Date.now();
+        applicaFade(contenitore);
+        aggiornaListaFiltrabili();
+
+        // Salva raw data per autocomplete del modal
+        _ordiniAutocompleteCache = datiProd.filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE').map(r => ({ ordine: r.ordine || '', cliente: r.cliente || '' }));
+        // Deduplication by ordine
+        const seen = new Set();
+        _ordiniAutocompleteCache = _ordiniAutocompleteCache.filter(o => { if (seen.has(o.ordine)) return false; seen.add(o.ordine); return true; });
+
+    } catch (e) {
+        console.error("Errore Dashboard:", e);
+        contenitore.innerHTML = "<div class='inline-error'>Errore nel caricamento dati.</div>";
+        applicaFade(contenitore);
+    }
+}
+function generaBloccoOrdiniUnificato(dati, isArchivio) {
+    if (!dati || dati.length === 0) return "";
+
+    const gruppi = {};
+    dati.forEach(r => {
+        if (!isArchivio && String(r.archiviato).toUpperCase() === "TRUE") return;
+        const nOrd = r.ordine || "N.D.";
+        if (!gruppi[nOrd]) gruppi[nOrd] = [];
+        gruppi[nOrd].push(r);
+    });
+
+    let html = "";
+    Object.keys(gruppi).forEach(nOrd => {
+        const righe = gruppi[nOrd];
+        const cliente = righe[0].cliente;
+        const riferimento = righe[0].riferimento || "";
+        const htmlRiferimento = riferimento ? `<span class="riferimento-label">(${riferimento})</span>` : '';
+
+        // Definizione Header e Bottoni in base allo stato
+        const classWrapper = isArchivio ? 'archivio-wrapper' : '';
+        const classHeader = isArchivio ? 'archivio-header' : '';
+        const colorCliente = isArchivio ? '#475569' : 'inherit';
+
+        const bottoniHeader = isArchivio
+            ? `<button class="${TW.btnWarning}" onclick="event.stopPropagation(); gestisciRipristino('${nOrd}', 'ORDINE')">
+                   <i class="fa-solid fa-rotate-left"></i> <span class="btn-txt">Ripristina</span>
+               </button>`
+            : `<button class="${TW.btnPrimary}" onclick="event.stopPropagation(); apriModalAiuto(null, 'INTERO ORDINE', '${nOrd}')">
+                   <i class="fa-regular fa-envelope"></i> <span class="btn-txt">Chiedi/Assegna</span>
+               </button>
+               <button class="${TW.btnSuccess}" onclick="event.stopPropagation(); gestisciArchiviazione('${nOrd}')">
+                   <i class="fa-solid fa-check"></i> <span class="btn-txt">Archivia</span>
+               </button>`;
+
+        html += `
+        <div class="ordine-wrapper ${classWrapper}">
+            <div class="riga-ordine ${classHeader}" onclick="toggleAccordion(this)">
+                <div class="flex-grow">
+                    <span class="order-title" style="--order-color:${colorCliente}">${cliente} ${htmlRiferimento}</span>
+                </div>
+                <div class="order-info">
+                    <div class="badge-count ${TW.pill}"><span class="badge-ord-num">ORD.${nOrd}</span><span class="badge-sep">·</span>${righe.length} ART.</div>
+                    ${bottoniHeader}
+                </div>
+            </div>
+            <div class="dettagli-container${isArchivio ? ' hidden' : ''}">
+                ${righe.map(art => isArchivio ? generaCardArchivio(art, nOrd) : generaCardArticolo(art, nOrd)).join('')}
+            </div>
+        </div>`;
+    });
+    return html;
+}
+function generaCardArticolo(art, nOrd) {
+    const statoAttuale = (art.stato || "IN ATTESA").toUpperCase();
+    const configStato = listaStati.find(s => s.nome === statoAttuale) || {colore: "#e2e8f0"};
+    const codicePrincipale = art.codice && art.codice !== "false" ? art.codice : "Senza Codice";
+
+    // Gestione visualizzazione operatori (trasforma la stringa J in badge)
+    const displayOperatori = (art.assegna && art.assegna !== "" && art.assegna !== "undefined")
+        ? art.assegna.split(',').map(op => `<span class="badge-operatore">${op.trim()}</span>`).join('')
+        : `<span class="operatore-libero">Libero</span>`;
+
+    return `
+    <div class="item-card ${TW.card}">
+        <div><span class="label-sm ${TW.label}">Codice Prodotto</span><b class="${TW.value}">${codicePrincipale}</b></div>
+        <div><span class="label-sm ${TW.label}">Quantità</span><b class="${TW.value}">${art.qty}</b></div>
+        <div>
+            <span class="label-sm ${TW.label}">Stato</span>
+            <select class="select-interattivo status-select" style="--border-color:${configStato.colore};"
+                onchange="aggiornaDato(this, '${art.id_riga}', 'stato', this.value); const _c = listaStati.find(s=>s.nome===this.value)?.colore; if(_c) this.style.setProperty('--border-color', _c)">
+                ${listaStati.map(s => `<option value="${s.nome}" ${s.nome === statoAttuale ? 'selected' : ''}>${s.nome}</option>`).join('')}
+            </select>
+        </div>
+        <div>
+            <span class="label-sm ${TW.label}">Operatore/i Assegnati</span>
+            <div class="visualizza-operatori">${displayOperatori}</div>
+        </div>
+        <div class="order-info-col">
+            <button class="btn-chiedi-assegna ${TW.btnPrimary}" onclick="apriModalAiuto('${art.id_riga}', '${codicePrincipale}', '${nOrd}')">
+                <i class="fa-regular fa-envelope"></i> Chiedi/Assegna
+            </button>
+        </div>
+    </div>`;
+}
+function toggleAccordion(elemento) {
+    elemento.classList.toggle('open');
+    const container = elemento.nextElementSibling;
+    container.style.display = elemento.classList.contains('open') ? 'block' : 'none';
+}
+async function aggiornaDato(selectEl, idRiga, campo, nuovoValore) {
+    // Feedback visivo immediato sull'elemento
+    const original = selectEl ? selectEl.style.opacity : null;
+    if (selectEl) selectEl.style.opacity = '0.5';
+    try {
+        const res = await fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify({ azione: 'aggiorna_produzione', id_riga: idRiga, colonna: campo, valore: nuovoValore })
+        });
+        if (selectEl) selectEl.style.opacity = '1';
+    } catch (e) {
+        console.error('aggiornaDato error:', e);
+        if (selectEl) selectEl.style.opacity = '1';
+        notificaElegante('Errore nel salvataggio dello stato. Riprova.');
+    }
+}
+function apriModalAiuto(idRiga, riferimento, nOrdine) {
+    const modal = document.getElementById('modalAiuto');
+
+    modal.style.display = 'flex';
+    modal.offsetHeight; // Forza il reflow per l'animazione
+    modal.classList.add('active');
+
+    // Titolo più coerente: Messaggio invece di Supporto
+    document.getElementById('modal-titolo').innerText = idRiga ?
+        `Messaggio Art. ${riferimento}` :
+        `Messaggio Ordine ${nOrdine}`;
+
+    // Generazione lista operatori
+    document.getElementById('wrapper-operatori').innerHTML = listaOperatori.map(op => `
+        <label class="op-label">
+            <input type="checkbox" name="destinatario" value="${op.email}" data-nome="${op.nome}">
+            <span><b>${op.nome}</b> <small class="text-muted">(${op.reparto || 'Team'})</small></span>
+        </label>
+    `).join('');
+
+    modal.dataset.idRiga = idRiga || "";
+    modal.dataset.nOrdine = nOrdine;
+
+    // Nascondi sempre il campo ordine libero (visibile solo da apriNuovaRichiesta)
+    const ordineRow = document.getElementById('modal-ordine-row');
+    if (ordineRow) ordineRow.style.display = 'none';
+
+    // Reset del campo testo e partiamo sempre da ASSEGNAZIONE
+    document.getElementById('messaggio-aiuto').value = "";
+    setTipoAzione('Assegnazione');
+}
+
+// Apri modal per creare una nuova richiesta libera (da bottom nav "+")
+function apriNuovaRichiesta() {
+    const modal = document.getElementById('modalAiuto');
+    modal.style.display = 'flex';
+    modal.offsetHeight;
+    modal.classList.add('active');
+    document.getElementById('modal-titolo').innerText = 'Nuova Richiesta';
+    document.getElementById('wrapper-operatori').innerHTML = listaOperatori.map(op => `
+        <label class="op-label">
+            <input type="checkbox" name="destinatario" value="${op.email}" data-nome="${op.nome}">
+            <span><b>${op.nome}</b> <small class="text-muted">(${op.reparto || 'Team'})</small></span>
+        </label>
+    `).join('');
+    modal.dataset.idRiga = '';
+    modal.dataset.nOrdine = '';
+    document.getElementById('messaggio-aiuto').value = '';
+    setTipoAzione('Assegnazione');
+    // Mostra il campo numero ordine con autocomplete
+    const ordineRow = document.getElementById('modal-ordine-row');
+    if (ordineRow) {
+        ordineRow.style.display = 'block';
+        const input = document.getElementById('modal-ordine-input');
+        if (input) {
+            input.value = '';
+            _setupOrdineAutocomplete(input);
+        }
+    }
+    // Se cache vuota prova a caricare
+    if (_ordiniAutocompleteCache.length === 0) {
+        fetchJson('PROGRAMMA PRODUZIONE DEL MESE').then(dati => {
+            const seen = new Set();
+            _ordiniAutocompleteCache = dati
+                .filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE')
+                .map(r => ({ ordine: r.ordine || '', cliente: r.cliente || '' }))
+                .filter(o => { if (!o.ordine || seen.has(o.ordine)) return false; seen.add(o.ordine); return true; });
+        }).catch(() => {});
+    }
+}
+
+function _setupOrdineAutocomplete(input) {
+    // Evita duplicare listener
+    input.oninput = function() {
+        const q = this.value.trim().toLowerCase();
+        const list = document.getElementById('ordine-autocomplete');
+        if (!list) return;
+        if (!q) { list.style.display = 'none'; list.innerHTML = ''; return; }
+        const matches = _ordiniAutocompleteCache.filter(o =>
+            o.ordine.toLowerCase().includes(q) || o.cliente.toLowerCase().includes(q)
+        ).slice(0, 8);
+        if (matches.length === 0) { list.style.display = 'none'; list.innerHTML = ''; return; }
+        list.innerHTML = matches.map(o => `
+            <div class="autocomplete-item" onmousedown="_selezionaOrdine('${o.ordine.replace(/'/g, "\\'")}',' ${o.cliente.replace(/'/g, "\\'")}')">  
+                <span class="ac-ordine">ORD. ${o.ordine}</span>
+                <span class="ac-cliente">${o.cliente}</span>
+            </div>
+        `).join('');
+        list.style.display = 'block';
+    };
+    input.onblur = function() {
+        setTimeout(() => {
+            const list = document.getElementById('ordine-autocomplete');
+            if (list) list.style.display = 'none';
+        }, 200);
+    };
+}
+
+function _selezionaOrdine(ordine, cliente) {
+    const input = document.getElementById('modal-ordine-input');
+    if (input) input.value = ordine;
+    const list = document.getElementById('ordine-autocomplete');
+    if (list) { list.style.display = 'none'; list.innerHTML = ''; }
+    // Aggiorna il dataset del modal affinché confermaInvioSupporto usi il valore corretto
+    const modal = document.getElementById('modalAiuto');
+    if (modal) modal.dataset.nOrdine = ordine;
+}
+function setTipoAzione(tipo) {
+    document.getElementById('modalAiuto').dataset.tipoAzione = tipo;
+    document.getElementById('btn-tipo-assegna').classList.toggle('active', tipo === 'Assegnazione');
+    document.getElementById('btn-tipo-domanda').classList.toggle('active', tipo === 'Domanda');
+}
+function chiudiModal() {
+    const modal = document.getElementById('modalAiuto');
+
+    // 1. Togli la classe active per avviare il fade-out
+    modal.classList.remove('active');
+
+    // 2. Aspetta la fine dell'animazione (300ms) prima di mettere display: none
+    setTimeout(() => {
+        // Controlliamo che nel frattempo l'utente non l'abbia riaperto
+        if (!modal.classList.contains('active')) {
+            modal.style.display = 'none';
+        }
+    }, 300);
+}
+async function confermaInvioSupporto() {
+    const modalElement = document.getElementById('modalAiuto');
+    if (!modalElement) return;
+
+    const idRiga = modalElement.dataset.idRiga;
+    // Se il campo ordine libero è visibile (nuova richiesta dal "++"), usa quello
+    const ordineRow = document.getElementById('modal-ordine-row');
+    const ordineInput = document.getElementById('modal-ordine-input');
+    const nOrd = (ordineRow && ordineRow.style.display !== 'none' && ordineInput && ordineInput.value.trim())
+        ? ordineInput.value.trim()
+        : modalElement.dataset.nOrdine;
+    const messaggioVal = document.getElementById('messaggio-aiuto').value;
+    const tipoAzione = modalElement.dataset.tipoAzione;
+
+    const checkboxSelezionate = document.querySelectorAll('input[name="destinatario"]:checked');
+
+    if (checkboxSelezionate.length === 0) {
+        alert("Per favore, seleziona almeno un operatore.");
+        return;
+    }
+
+    const listaNomiStr = Array.from(checkboxSelezionate).map(cb => cb.getAttribute('data-nome')).join(', ');
+    const listaNomiDestinatari = Array.from(checkboxSelezionate).map(cb => cb.getAttribute('data-nome'));
+
+    try {
+        // --- AZIONE A: Aggiorna i Badge nella Produzione ---
+        const urlAssegnazione = `${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(listaNomiStr)}&id_riga=${idRiga}`;
+        await fetch(urlAssegnazione);
+
+        // --- AZIONE B: Salva nello Storico Messaggi ---
+        const payload = {
+            azione: 'supporto_multiplo',
+            n_ordine: nOrd,
+            tipo: tipoAzione,
+            // Testo di default aggiornato
+            messaggio: messaggioVal || (tipoAzione === 'Assegnazione' ? "Nuova assegnazione" : "Nuova domanda"),
+            mittente: utenteAttuale.nome.toUpperCase().trim(),
+            destinatari: listaNomiDestinatari
+        };
+
+        const response = await fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            document.getElementById('messaggio-aiuto').value = "";
+            chiudiModal();
+
+            // Invalida la cache richieste così la prossima apertura recupera dati freschi
+            delete cacheContenuti['STORICO_RICHIESTE'];
+            delete cacheFetchTime['STORICO_RICHIESTE'];
+
+            if (paginaAttuale === 'STORICO_RICHIESTE') {
+                await caricaPaginaRichieste();
+            } else {
+                // Aggiorna il badge in background anche se non siamo sulla pagina richieste
+                fetchJson("STORICO_RICHIESTE").then(msgs => { aggiornaBadgeSidebar(msgs); aggiornaBadgeNotifiche(msgs); }).catch(() => {});
+                await caricaDati(paginaAttuale);
+            }
+        }
+
+    } catch (e) {
+        console.error("Errore durante l'operazione:", e);
+        alert("Errore nell'invio delle informazioni.");
+    }
+}
+function toggleAreaRisposta(id) {
+    const box = document.getElementById('box-risposta-' + id);
+    const boxConf = document.getElementById('box-conferma-' + id);
+    if (!box) return;
+    if (boxConf) { boxConf.style.display = 'none'; boxConf.style.opacity = '0'; }
+
+    if (box.style.display === 'none' || box.style.display === '') {
+        box.style.display = 'block';
+        setTimeout(() => { box.style.opacity = '1'; box.style.transform = 'translateY(0)'; }, 10);
+        document.getElementById('input-risposta-' + id).focus();
+    } else {
+        box.style.opacity = '0';
+        box.style.transform = 'translateY(-10px)';
+        setTimeout(() => { box.style.display = 'none'; }, 300);
+    }
+}
+function toggleBoxArchivia(id) {
+    const box = document.getElementById('box-conferma-' + id);
+    const boxResp = document.getElementById('box-risposta-' + id);
+    if (!box) return;
+    if (boxResp) { boxResp.style.display = 'none'; boxResp.style.opacity = '0'; }
+
+    if (box.style.display === 'none' || box.style.display === '') {
+        box.style.display = 'block';
+        setTimeout(() => { box.style.opacity = '1'; box.style.transform = 'translateY(0)'; }, 10);
+    } else {
+        box.style.opacity = '0';
+        box.style.transform = 'translateY(-10px)';
+        setTimeout(() => { box.style.display = 'none'; }, 300);
+    }
+}
+async function inviaRisposta(idRiga, nOrdine, destinatario) {
+    const input = document.getElementById('input-risposta-' + idRiga);
+    const testo = input.value.trim();
+    if (!testo) return;
+
+    try {
+        const payload = {
+            azione: 'supporto_multiplo',
+            n_ordine: nOrdine,
+            tipo: 'RISPOSTA',
+            messaggio: testo,
+            mittente: utenteAttuale.nome.toUpperCase().trim(),
+            destinatari: [destinatario.toUpperCase().trim()]
+        };
+
+        const response = await fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify(payload) });
+        if (response.ok) {
+            input.value = "";
+            await caricaPaginaRichieste(); // Ricarica la chat aggiornata
+        }
+    } catch (e) {
+        alert("Errore durante l'invio.");
+    }
+}
+
+
+//SEZIONE ARICHIVIO ORDINI//
+
+function generaCardArchivio(art, nOrd) {
+    const codicePrincipale = art.codice && art.codice !== "false" ? art.codice : "Senza Codice";
+    const statoArchiviato = (art.stato || "COMPLETATO").toUpperCase();
+
+    // LOGICA PULIZIA OPERATORE
+    // Se art.assegna è nullo, vuoto o la stringa "false", scriviamo "Nessuno"
+    let operatoreValore = art.assegna;
+    if (!operatoreValore || operatoreValore === "false" || operatoreValore === "") {
+        operatoreValore = "Nessuno";
+    }
+
+    return `
+    <div class="item-card archivio-layout ${TW.card}">
+        <div>
+            <span class="label-sm ${TW.label}">Codice Prodotto</span>
+            <b class="archivio-codice ${TW.value}">${codicePrincipale}</b>
+        </div>
+
+        <div class="archivio-qty">
+            <span class="label-sm ${TW.label}">Quantità</span>
+            <b class="archivio-qty-val ${TW.value}">${art.qty}</b>
+        </div>
+
+        <div>
+            <span class="label-sm ${TW.label}">Ultimo Stato</span>
+            <span class="archivio-stato ${TW.value}">${statoArchiviato}</span>
+        </div>
+
+        <div>
+            <span class="label-sm ${TW.label}">Operatore</span>
+            <span class="archivio-operatore ${TW.value}">${operatoreValore}</span>
+        </div>
+
+        <div class="item-actions">
+            <button class="btn-archive-action primary ${TW.btnPrimary}" title="Reso Cliente" onclick="gestisciRipristino('${art.id_riga}', 'RIGA', 'RESO')">
+                <i class="fa-solid fa-box"></i>
+            </button>
+            <button class="btn-archive-action warning ${TW.btnWarning}" title="Errore Archiviazione" onclick="gestisciRipristino('${art.id_riga}', 'RIGA', 'ERRORE')">
+                <i class="fa-solid fa-rotate"></i>
+            </button>
+        </div>
+    </div>`;
+}
+async function gestisciArchiviazione(nOrd, tipo) {
+    mostraConferma(
+        'Archivia Ordine',
+        `Vuoi spostare l'ordine ${nOrd} nell'archivio?`,
+        async () => {
+            try {
+                const url = URL_GOOGLE + "?azione=archiviaOrdine&ordine=" + encodeURIComponent(nOrd);
+                const response = await fetch(url);
+                const risultato = await response.json();
+                if (risultato.status === "success") {
+                    notificaElegante('Ordine ' + nOrd + ' archiviato.');
+                    caricaDati(paginaAttuale);
+                } else {
+                    notificaElegante('Errore: ' + risultato.message, 'error');
+                }
+            } catch (errore) {
+                notificaElegante('Errore di connessione al server.', 'error');
+            }
+        },
+        'Archivia'
+    );
+}
+async function gestisciRipristino(id_o_numero, tipo) {
+    const msgConferma = tipo === 'ORDINE'
+        ? `Riportare l'intero ordine ${id_o_numero} in PRODUZIONE?`
+        : `Riportare questo articolo in PRODUZIONE?`;
+
+    mostraConferma('Ripristina', msgConferma, async () => {
+        try {
+            const url = URL_GOOGLE + "?azione=ripristinaOrdine&ordine=" + encodeURIComponent(id_o_numero) + "&tipo=" + tipo;
+            const response = await fetch(url);
+            const risultato = await response.json();
+            if (risultato.status === "success") {
+                caricaDati(paginaAttuale);
+            } else {
+                notificaElegante('Errore: ' + risultato.message, 'error');
+            }
+        } catch (e) {
+            notificaElegante('Errore durante il ripristino.', 'error');
+        }
+    }, 'Ripristina');
+}
+
+
+
+
+
+
+//PAGINA RICHIESTE//
+
+async function caricaPaginaRichieste() {
+    const contenitore = document.getElementById('contenitore-dati');
+    if (!contenitore) return;
+
+    contenitore.innerHTML = "<div class='centered-msg'>Caricamento messaggi in corso...</div>";
+
+    try {
+        const [messaggiAttivi, messaggiArchivio] = await Promise.all([
+            fetchJson("STORICO_RICHIESTE"),
+            fetchJson("ARCHIVIO_RICHIESTE")
+        ]);
+
+        // Aggiorna sempre badge sidebar e campanellina (indipendentemente dalla pagina corrente)
+        aggiornaBadgeSidebar(messaggiAttivi);
+        aggiornaBadgeNotifiche(messaggiAttivi);
+
+        // Guard anti-stale: se l'utente ha cambiato pagina mentre il fetch era in corso, ignorare
+        if (paginaAttuale !== 'STORICO_RICHIESTE') return;
+
+        const io = utenteAttuale.nome.toUpperCase().trim();
+
+        const raggruppa = (dati) => {
+            const gruppi = {};
+            dati.forEach(m => {
+                if (!gruppi[m.ORDINE]) gruppi[m.ORDINE] = [];
+                gruppi[m.ORDINE].push(m);
+            });
+            return gruppi;
+        };
+
+        const gruppiAttivi = raggruppa(messaggiAttivi);
+        const gruppiArchivio = raggruppa(messaggiArchivio);
+
+        let html = `
+            <div class="scroll-wrapper">
+                <button class="scroll-btn" onclick="document.getElementById('sezione-archivio').scrollIntoView({behavior:'smooth'})">
+                    ⬇️ Vai a Richieste Archiviate
+                </button>
+            </div>
+            <div class="chat-inbox">`;
+
+        // 1. RICHIESTE ATTIVE
+        Object.keys(gruppiAttivi).reverse().forEach(nOrd => {
+            html += generaCardRichiesta(gruppiAttivi[nOrd], io, false);
+        });
+
+        // 2. DIVISORE ARCHIVIO
+        html += `
+            <div id="sezione-archivio" class="separatore-archivio">
+                <span>ARCHIVIO</span>
+            </div>`;
+
+        // 3. RICHIESTE ARCHIVIATE
+        if (Object.keys(gruppiArchivio).length === 0) {
+            html += `<div class="empty-msg" style="margin:20px 0">Nessuna richiesta archiviata.</div>`;
+        } else {
+            Object.keys(gruppiArchivio).reverse().forEach(nOrd => {
+                html += generaCardRichiesta(gruppiArchivio[nOrd], io, true);
+            });
+        }
+
+        html += `</div>`;
+        contenitore.innerHTML = html;
+        cacheContenuti['STORICO_RICHIESTE'] = html; // salva dopo archivio
+        applicaFade(contenitore);
+        aggiornaListaFiltrabili();
+
+        // Reset barra di ricerca al caricamento
+        if(document.getElementById('universal-search')) {
+            document.getElementById('universal-search').value = "";
+        }
+
+    } catch (e) {
+        console.error("Errore:", e);
+        contenitore.innerHTML = "<div class='centered-error-bold'>Errore nel caricamento. Riprova.</div>";
+        applicaFade(contenitore);
+    }
+}
 function cambiaVistaUtente(valoreSelezionato) {
     // Salviamo la vista simulata
     utenteAttuale.vistaSimulata = valoreSelezionato;
@@ -209,151 +1074,6 @@ function cambiaVistaUtente(valoreSelezionato) {
     // Ricarichiamo la pagina per aggiornare bolle e filtri
     caricaPaginaRichieste();
 }
-
-async function caricaPaginaRichieste() {
-    const contenitore = document.getElementById('contenitore-dati');
-    if (!contenitore) return;
-
-    // Messaggio di caricamento
-    contenitore.innerHTML = "<div style='text-align:center; padding:50px; color:#94a3b8;'>Caricamento messaggi...</div>";
-
-    try {
-        // 1. SCARICO I DATI (Fondamentale: definisce la variabile 'messaggi')
-        const response = await fetch(URL_GOOGLE + "?pagina=STORICO_RICHIESTE");
-        const messaggi = await response.json();
-
-        if (typeof aggiornaBadgeNotifiche === 'function') aggiornaBadgeNotifiche(messaggi);
-        if (typeof aggiornaBadgeSidebar === 'function') aggiornaBadgeSidebar(messaggi);
-
-        // 2. DEFINISCO LA VISTA ATTIVA
-        const vistaAttiva = (utenteAttuale.ruolo === "MASTER")
-                            ? (utenteAttuale.vistaSimulata || "MASTER")
-                            : utenteAttuale.nome.toUpperCase();
-
-        // 3. SELETTORE MASTER (Appare solo se sei Master)
-        let selettoreMaster = "";
-        if (utenteAttuale.ruolo === "MASTER") {
-            selettoreMaster = `
-                <div style="background: white; padding: 15px; border-radius: 16px; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: space-between;">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <span style="font-weight: 700; color: #1e293b; font-size: 14px;">👁️ Vista Master:</span>
-                        <select onchange="cambiaVistaUtente(this.value)" style="padding: 8px 15px; border-radius: 10px; border: 1px solid #e2e8f0; outline: none; font-weight: 600; color: #3b82f6; cursor:pointer;">
-                            <option value="MASTER" ${vistaAttiva === 'MASTER' ? 'selected' : ''}>TUTTI</option>
-                            ${listaOperatori.map(op => `<option value="${op.nome.toUpperCase()}" ${vistaAttiva === op.nome.toUpperCase() ? 'selected' : ''}>${op.nome}</option>`).join('')}
-                        </select>
-                    </div>
-                </div>`;
-        }
-
-        // 4. FILTRO DEI MESSAGGI
-        let filtrati = (vistaAttiva === "MASTER")
-            ? messaggi
-            : messaggi.filter(m => {
-                const dest = String(m.A || "").toUpperCase().trim();
-                const mitt = String(m.DA || "").toUpperCase().trim();
-                const target = vistaAttiva.toUpperCase().trim();
-                return dest === target || mitt === target;
-            });
-
-        // 5. GENERAZIONE HTML (Chat Cards)
-        let html = selettoreMaster + `<div class="chat-inbox">`;
-
-        filtrati.slice().reverse().forEach(m => {
-            const isRisolto = (String(m.RISOLTO).toLowerCase() === "true");
-            const isSollecitato = (String(m.SOLLECITO).toLowerCase() === "true");
-            const amIMittente = String(m.DA || "").toUpperCase().trim() === vistaAttiva;
-
-            html += `
-                <div class="chat-card" style="opacity: ${isRisolto ? '0.7' : '1'}; border-left: ${isSollecitato ? '5px solid #ef4444' : '5px solid #e2e8f0'}; margin-bottom:15px; background:white; border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
-                    <div class="chat-header" style="padding:12px 15px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
-                        <div>
-                            <span style="background:#f1f5f9; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:700; margin-right:8px;">${m.TIPO || 'MSG'}</span>
-                            <b style="font-size:14px;">ORD. ${m.ORDINE}</b>
-                        </div>
-                        <span style="font-size: 11px; color: #94a3b8;">📅 ${m["DATA ORA"] || ''}</span>
-                    </div>
-                    <div class="chat-body" style="padding:15px;">
-                        <div style="display:flex; justify-content:${amIMittente ? 'flex-end' : 'flex-start'}">
-                            <div style="max-width:85%; background:${amIMittente ? '#dbeafe' : '#f8fafc'}; padding:10px; border-radius:12px; border:1px solid ${amIMittente ? '#bfdbfe' : '#e2e8f0'}">
-                                <div style="font-size:10px; font-weight:800; color:${amIMittente ? '#2563eb' : '#64748b'}; margin-bottom:4px;">${m.DA}</div>
-                                <div style="font-size:13px; color:#1e293b;">${m.MESSAGGIO}</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="chat-footer" style="padding:10px 15px; background:#f8fafc; border-top:1px solid #f1f5f9; display:flex; align-items:center; gap:10px;">
-                        ${!isRisolto ? `
-                            <button onclick="toggleAreaRisposta('${m.id_riga}')" style="padding:5px 10px; border-radius:6px; border:1px solid #cbd5e1; background:white; cursor:pointer; font-size:12px;">Rispondi</button>
-                            <button onclick="aggiornaRichiesta('${m.id_riga}', 'risolto')" style="padding:5px 10px; border-radius:6px; border:none; background:#22c55e; color:white; cursor:pointer; font-size:12px; margin-left:auto;">✓ Risolto</button>
-                        ` : '<span style="color:#22c55e; font-size:12px; font-weight:700;">✓ Archiviato</span>'}
-                    </div>
-                </div>`;
-        });
-
-        html += `</div>`;
-        contenitore.innerHTML = html;
-        cacheContenuti['STORICO_RICHIESTE'] = html;
-
-    } catch (e) {
-        console.error("Errore caricamento richieste:", e);
-        contenitore.innerHTML = "<div style='text-align:center; padding:50px; color:#ef4444;'>Errore tecnico nel caricamento dei dati.</div>";
-    }
-}
-
-// 1. GESTIONE CAMPANELLINA (SOLO SOLLECITI)
-function aggiornaBadgeNotifiche(messaggi) {
-    const badge = document.getElementById('badge-count');
-    const bell = document.getElementById('bell-icon');
-    if (!badge) return;
-
-    const vistaAttuale = (utenteAttuale.vistaSimulata || "MASTER").toUpperCase().trim();
-
-    let notifiche = messaggi.filter(m => {
-        const perMe = (vistaAttuale === "MASTER") ? true : (String(m.A).toUpperCase().trim() === vistaAttuale);
-        const nonRisolto = (String(m.RISOLTO).toLowerCase() !== "true");
-        const sollecitato = (String(m.SOLLECITO).toLowerCase() === "true");
-        return perMe && nonRisolto && sollecitato;
-    }).length;
-
-    if (notifiche > 0) {
-        badge.innerText = notifiche;
-        badge.style.display = 'block';
-        if (bell) bell.classList.add('shake');
-    } else {
-        badge.style.display = 'none';
-        if (bell) bell.classList.remove('shake');
-    }
-}
-
-// 2. GESTIONE BADGE SIDEBAR (TOTALE RICHIESTE ATTIVE)
-function aggiornaBadgeSidebar(messaggi) {
-    const badgeSidebar = document.getElementById('badge-richieste-count');
-    const nomeSidebar = document.getElementById('nome-utente-sidebar');
-    const imgAvatar = document.getElementById('img-avatar-sidebar');
-
-    if (!badgeSidebar) return;
-
-    const vistaAttiva = (utenteAttuale.vistaSimulata || "MASTER").toUpperCase().trim();
-
-    // Aggiornamento testuale sidebar
-    if(nomeSidebar) nomeSidebar.innerText = vistaAttiva;
-    if(imgAvatar) imgAvatar.src = `https://ui-avatars.com/api/?name=${vistaAttiva}&background=2563eb&color=fff`;
-
-    // Conta TUTTE le richieste non risolte per la vista selezionata
-    let conteggio = messaggi.filter(m => {
-        const destinatario = String(m.A || "").toUpperCase().trim();
-        const nonRisolto = (String(m.RISOLTO).toLowerCase() !== "true");
-
-        if (vistaAttiva === "MASTER") return nonRisolto;
-        return (destinatario === vistaAttiva) && nonRisolto;
-    }).length;
-
-    if (conteggio > 0) {
-        badgeSidebar.innerText = conteggio;
-        badgeSidebar.style.display = 'inline-block';
-    } else {
-        badgeSidebar.style.display = 'none';
-    }
-}
 async function aggiornaRichiesta(idRiga, tipoAzione) {
     try {
         await fetch(URL_GOOGLE, {
@@ -364,13 +1084,160 @@ async function aggiornaRichiesta(idRiga, tipoAzione) {
                 tipo: tipoAzione
             })
         });
+        delete cacheContenuti['STORICO_RICHIESTE'];
+        delete cacheFetchTime['STORICO_RICHIESTE'];
         caricaPaginaRichieste(); // Rinfresca la vista
-    } catch (e) { alert("Errore aggiornamento"); }
+    } catch (e) { notificaElegante('Errore aggiornamento.', 'error'); }
+}
+function _sollecitaConferma(idRiga) {
+    mostraConferma('Sollecita Richiesta', 'Inviare un sollecito per questa richiesta?', () => sollecitaRichiesta(idRiga), 'Sollecita');
+}
+function _archiviaConferma(idRiga) {
+    mostraConferma('Archivia Richiesta', 'Archiviare definitivamente questa discussione?', () => aggiornaRichiesta(idRiga, 'risolto'), 'Archivia');
+}
+async function sollecitaRichiesta(idRiga) {
+    try {
+        const res = await fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify({
+                azione: 'aggiorna_richiesta_stato',
+                id_riga: idRiga,
+                tipo: 'sollecita'
+            })
+        });
+        const json = await res.json();
+        if (json.status === 'success') {
+            delete cacheContenuti['STORICO_RICHIESTE'];
+            delete cacheFetchTime['STORICO_RICHIESTE'];
+            notificaElegante('Sollecito inviato!');
+            caricaPaginaRichieste();
+        }
+    } catch (e) {
+        alert('Errore durante il sollecito.');
+    }
+}
+function formattaData(stringaData) {
+    if (!stringaData) return "N.D.";
+
+    let d;
+    // Se è un timestamp numerico
+    if (!isNaN(stringaData) && typeof stringaData !== 'string') {
+        d = new Date(Number(stringaData));
+    } else {
+        d = new Date(stringaData);
+        // Se fallisce, proviamo formato italiano GG/MM/AAAA HH:MM
+        if (isNaN(d.getTime())) {
+            const match = String(stringaData).match(/(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
+            if (match) {
+                const [, g, m, a] = match;
+                const oraMatch = String(stringaData).match(/(\d{2}):(\d{2})/);
+                const h = oraMatch ? oraMatch[1] : "00";
+                const min = oraMatch ? oraMatch[2] : "00";
+                d = new Date(`${a}-${m}-${g}T${h}:${min}:00`);
+            }
+        }
+    }
+
+    if (!d || isNaN(d.getTime())) return stringaData;
+
+    const giorno = String(d.getDate()).padStart(2, '0');
+    const mese = String(d.getMonth() + 1).padStart(2, '0');
+    const anno = d.getFullYear();
+    const ore = String(d.getHours()).padStart(2, '0');
+    const minuti = String(d.getMinutes()).padStart(2, '0');
+
+    // Restituisce il formato pulito
+    return `${giorno}/${mese}/${anno} ${ore}:${minuti}`;
+}
+function generaCardRichiesta(msgs, io, isArchiviata) {
+    const ultimo = msgs[msgs.length - 1];
+    const nOrd = ultimo.ORDINE;
+    const nomeCliente = ultimo.CLIENTE || "";
+
+    // Controlla se almeno un messaggio del gruppo è sollecitato
+    const isSollecitata = msgs.some(m => String(m.SOLLECITO).toLowerCase() === 'true');
+
+    // Icona tipo: freccia verde = assegnazione, ? azzurro = domanda
+    const tipoRaw = (ultimo.TIPO || 'MSG').toUpperCase();
+    const isDomanda = tipoRaw === 'AIUTO' || tipoRaw === 'DOMANDA';
+    const tipoIconaHtml = isDomanda
+        ? `<span class="chat-tipo-dot chat-tipo-domanda" title="Domanda"><i class="fas fa-question"></i></span>`
+        : `<span class="chat-tipo-dot chat-tipo-assegna" title="Assegnazione"><i class="fas fa-arrow-right"></i></span>`;
+
+    return `
+        <div class="chat-card${isArchiviata ? ' archiviata' : ''}${isSollecitata ? ' sollecitata' : ''} ${TW.card}">
+
+            <div class="chat-header${isArchiviata ? ' archiviata' : ''}">
+                <div>
+                    ${tipoIconaHtml}
+                    ${isSollecitata ? `<span class="badge-sollecito"><i class="fa-solid fa-bullhorn"></i> SOLLECITATA</span>` : ''}
+                    <span class="chat-order-label">ORD. ${nOrd}</span>${nomeCliente ? `<span class="chat-cliente-label"> • ${nomeCliente}</span>` : ''}
+                </div>
+                <span class="chat-date">${formattaData(ultimo["DATA ORA"])}</span>
+            </div>
+
+            <div class="chat-body">
+                ${msgs.map(m => {
+                    const amIMittente = (String(m.DA).toUpperCase().trim() === io);
+                    const testo = String(m.MESSAGGIO || "").includes("|") ? m.MESSAGGIO.split("|")[1] : m.MESSAGGIO;
+                    return `
+                        <div class="chat-bubble-wrapper ${amIMittente ? 'sent' : 'received'}">
+                            <div class="chat-bubble">
+                                <div class="chat-bubble-name">${m.DA}</div>
+                                <div class="chat-bubble-text">${testo}</div>
+                            </div>
+                        </div>`;
+                }).join('')}
+            </div>
+
+            ${!isArchiviata ? `
+                <div id="box-conferma-${ultimo.id_riga}" class="box-conferma box-hidden">
+                    <div class="box-message">Archiviare definitivamente questa discussione?</div>
+                    <div class="box-actions">
+                        <button onclick="toggleBoxArchivia('${ultimo.id_riga}')" class="btn-cancel button-small">Annulla</button>
+                        <button onclick="aggiornaRichiesta('${ultimo.id_riga}', 'risolto')" class="btn-archive-action button-small">Sì, Archivia</button>
+                    </div>
+                </div>
+
+                <div id="box-risposta-${ultimo.id_riga}" class="box-risposta box-hidden">
+                    <div class="reply-wrapper">
+                        <textarea id="input-risposta-${ultimo.id_riga}" class="reply-input" placeholder="Scrivi una risposta..."></textarea>
+                        <div class="reply-footer">
+                            <span class="reply-hint"><i class="fa-regular fa-paper-plane"></i> Risposta a <b>${ultimo.DA === io ? ultimo.A : ultimo.DA}</b></span>
+                            <button onclick="inviaRisposta('${ultimo.id_riga}', '${nOrd}', '${ultimo.DA === io ? ultimo.A : ultimo.DA}')" class="btn-reply-send">
+                                <i class="fa-solid fa-paper-plane"></i> Invia
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chat-actions">
+                    <div class="chat-to-info">
+                        <span class="chat-to-dest">A: <b>${ultimo.A}</b></span>
+                    </div>
+                    <div class="chat-action-btns">
+                        <button onclick="toggleAreaRisposta('${ultimo.id_riga}')" class="btn-reply button-small ${TW.btn}" title="Rispondi"><i class="fa-regular fa-comment"></i> <span class="btn-txt">Rispondi</span></button>
+                        <button onclick="_sollecitaConferma('${ultimo.id_riga}')" class="btn-alert button-small ${TW.btnWarning}" title="Sollecita"><i class="fa-solid fa-bullhorn"></i> <span class="btn-txt">Sollecita</span></button>
+                        <button onclick="_archiviaConferma('${ultimo.id_riga}')" class="btn-archive button-small ${TW.btnSuccess}" title="Archivia"><i class="fa-solid fa-box-archive"></i> <span class="btn-txt">Archivia</span></button>
+                    </div>
+                </div>
+            ` : `
+                <div class="chat-archiviata-note">
+                    <span class="chat-archiviata-label">✓ ARCHIVIATA</span>
+                </div>
+            `}
+        </div>`;
 }
 
 
 
-    async function caricaImpostazioni() {
+
+
+
+
+//PAGINA IMPOSTAZIONI//
+
+async function caricaImpostazioni() {
         try {
             const res = await fetch(URL_GOOGLE + "?azione=getImpostazioni");
             const settings = await res.json();
@@ -378,376 +1245,294 @@ async function aggiornaRichiesta(idRiga, tipoAzione) {
             listaOperatori = settings.operatori || [];
         } catch (e) { console.error("Errore caricamento impostazioni"); }
     }
+function toggleSettingsSection(sectionId, rowEl) {
+    const section = document.getElementById(sectionId);
+    if (!section) return;
+    const arrow = rowEl.querySelector('.settings-row-arrow');
+    const isOpen = section.style.display === 'block';
+    section.style.display = isOpen ? 'none' : 'block';
+    if (arrow) arrow.style.transform = isOpen ? '' : 'rotate(180deg)';
+    rowEl.classList.toggle('settings-row-active', !isOpen);
+    // Carica lista utenti quando aperta
+    if (!isOpen && (sectionId === 'section-utenti' || sectionId === 'section-team-utenti')) caricaListaUtenti();
+}
 
-    async function caricaDati(nomeFoglio, isBackgroundUpdate = false) {
-        const contenitore = document.getElementById('contenitore-dati');
-
-        // Mostriamo il caricamento solo se NON è un aggiornamento in background
-        if (!isBackgroundUpdate) {
-            contenitore.innerHTML = "<div style='padding:20px; color:#64748b;'>Caricamento produzione...</div>";
-        }
-
-        try {
-            const response = await fetch(URL_GOOGLE + "?pagina=" + encodeURIComponent(nomeFoglio));
-            const dati = await response.json();
-
-            // --- CONTROLLO DI SICUREZZA ANTI-ACCAVALLAMENTO ---
-            // Se mentre aspettavamo il server l'utente ha cambiato pagina, ci fermiamo qui.
-            if (paginaAttuale !== nomeFoglio) {
-                console.log("Abortito: l'utente ha già cambiato pagina.");
-                return;
-            }
-
-            const gruppi = {};
-            dati.forEach(r => {
-                if (String(r.archiviato).toUpperCase() === "TRUE") return;
-                const nOrd = r.ordine || "N.D.";
-                if (!gruppi[nOrd]) gruppi[nOrd] = [];
-                gruppi[nOrd].push(r);
-            });
-
-            let html = "";
-            Object.keys(gruppi).forEach(nOrd => {
-                const righe = gruppi[nOrd];
-                const cliente = righe[0].cliente;
-
-                html += `
-                <div class="ordine-wrapper">
-                    <div class="riga-ordine" onclick="toggleAccordion(this)">
-                        <div style="flex-grow:1;">
-                            <span style="font-weight:800; font-size:1.1rem;">${cliente}</span>
-                            <span style="color:var(--text-muted); margin-left:15px;">ORD. ${nOrd}</span>
-                        </div>
-                        <div style="display:flex; align-items:center; gap:10px;">
-                            <button class="btn-chiedi-assegna" onclick="event.stopPropagation(); apriModalAiuto(null, 'INTERO ORDINE', '${nOrd}')">
-                                ✉ Chiedi/Assegna Tutto
-                            </button>
-                            <button class="btn-sos-small" style="background:#22c55e; color:white; border:none;" onclick="event.stopPropagation(); gestisciArchiviazione('${nOrd}', 'ORDINE')">
-                                ✅ ARCHIVIA ORDINE
-                            </button>
-                            <div class="badge-count">${righe.length} ARTICOLI</div>
-                        </div>
-                    </div>
-                    <div class="dettagli-container">
-                        ${righe.map(art => generaCardArticolo(art, nOrd)).join('')}
-                    </div>
-                </div>`;
-            });
-
-            const contenutoFinale = html || "<div style='padding:20px;'>Tutto archiviato o nessun dato trovato.</div>";
-
-            // Scriviamo solo se siamo ancora sulla pagina giusta
-            if (paginaAttuale === nomeFoglio) {
-                contenitore.innerHTML = contenutoFinale;
-                cacheContenuti[nomeFoglio] = contenutoFinale;
-            }
-
-        } catch (e) {
-            console.error("Errore Produzione:", e);
-            if (!isBackgroundUpdate) {
-                contenitore.innerHTML = "<div style='padding:20px; color:red;'>Errore nel caricamento produzione.</div>";
-            }
-        }
-    }
-
-    function generaCardArticolo(art, nOrd) {
-        const statoAttuale = (art.stato || "IN ATTESA").toUpperCase();
-        const configStato = listaStati.find(s => s.nome === statoAttuale) || {colore: "#e2e8f0"};
-        const codicePrincipale = art.codice && art.codice !== "false" ? art.codice : "Senza Codice";
-
-        // Gestione visualizzazione operatori (trasforma la stringa J in badge)
-        const displayOperatori = (art.assegna && art.assegna !== "" && art.assegna !== "undefined")
-            ? art.assegna.split(',').map(op => `<span class="badge-operatore">${op.trim()}</span>`).join('')
-            : `<span style="color:#94a3b8; font-style:italic; font-size:12px;">Libero</span>`;
-
-        return `
-        <div class="item-card">
-            <div><span class="label-sm">Codice Prodotto</span><b>${codicePrincipale}</b></div>
-            <div><span class="label-sm">Quantità</span><b>${art.qty}</b></div>
-            <div>
-                <span class="label-sm">Stato</span>
-                <select class="select-interattivo" style="border-left: 5px solid ${configStato.colore};"
-                    onchange="aggiornaDato('${art.id_riga}', 'stato', this.value); this.style.borderLeftColor=listaStati.find(s=>s.nome===this.value).colore">
-                    ${listaStati.map(s => `<option value="${s.nome}" ${s.nome === statoAttuale ? 'selected' : ''}>${s.nome}</option>`).join('')}
-                </select>
-            </div>
-            <div>
-                <span class="label-sm">Operatore/i Assegnati</span>
-                <div class="visualizza-operatori">${displayOperatori}</div>
-            </div>
-            <div style="text-align: right; display:flex; flex-direction:column; justify-content: center; gap:5px;">
-                <button class="btn-chiedi-assegna" onclick="apriModalAiuto('${art.id_riga}', '${codicePrincipale}', '${nOrd}')">
-                    ✉ Chiedi/Assegna
-                </button>
-            </div>
-        </div>`;
-    }
-
-    function toggleAccordion(elemento) {
-        elemento.classList.toggle('open');
-        const container = elemento.nextElementSibling;
-        container.style.display = elemento.classList.contains('open') ? 'block' : 'none';
-    }
-
-    async function aggiornaDato(idRiga, campo, nuovoValore) {
-        try {
-            await fetch(URL_GOOGLE, {
-                method: 'POST',
-                body: JSON.stringify({ azione: 'aggiorna_produzione', id_riga: idRiga, colonna: campo, valore: nuovoValore })
-            });
-        } catch (e) { alert("Errore salvataggio"); }
-    }
-
-    /* --- LOGICA MODAL SUPPORTO --- */
-    function apriModalAiuto(idRiga, riferimento, nOrdine) {
-        const modal = document.getElementById('modalAiuto');
-
-        // Titolo dinamico: se idRiga esiste è un supporto articolo, altrimenti è tutto l'ordine
-        document.getElementById('modal-titolo').innerText = idRiga ?
-            `Supporto Art. ${riferimento}` :
-            `Supporto Ordine ${nOrdine}`;
-
-        // Generazione lista operatori con checkbox
-        // Aggiungiamo data-nome per recuperare facilmente il nome da scrivere nei badge
-        document.getElementById('wrapper-operatori').innerHTML = listaOperatori.map(op => `
-            <label class="op-label">
-                <input type="checkbox" name="destinatario" value="${op.email}" data-nome="${op.nome}">
-                <span><b>${op.nome}</b> <small style="color:var(--text-muted)">(${op.reparto || 'Team'})</small></span>
-            </label>
-        `).join('');
-
-        // Salviamo i dati necessari nel dataset del modal per usarli quando clicchiamo "Invia"
-        modal.dataset.idRiga = idRiga || ""; // Se vuoto, la funzione .gs capirà che è per tutto l'ordine
-        modal.dataset.nOrdine = nOrdine;
-
-        // Reset del campo testo e impostazione tab iniziale
-        document.getElementById('messaggio-aiuto').value = "";
-        setTipoAzione('ASSEGNAZIONE');
-
-        modal.style.display = 'flex';
-    }
-
-    function setTipoAzione(tipo) {
-        document.getElementById('modalAiuto').dataset.tipoAzione = tipo;
-        document.getElementById('btn-tipo-assegna').classList.toggle('active', tipo === 'ASSEGNAZIONE');
-        document.getElementById('btn-tipo-domanda').classList.toggle('active', tipo === 'DOMANDA');
-    }
-
-    function chiudiModal() { document.getElementById('modalAiuto').style.display = 'none'; }
-    async function confermaInvioSupporto() {
-        const modal = document.getElementById('modalAiuto');
-        const idRiga = modal.dataset.idRiga;
-        const nOrd = modal.dataset.nOrdine;
-        const messaggio = document.getElementById('messaggio-aiuto').value;
-        const tipoAzione = modal.dataset.tipoAzione;
-
-        const checkboxSelezionate = document.querySelectorAll('input[name="destinatario"]:checked');
-
-        if (checkboxSelezionate.length === 0) {
-            alert("Per favore, seleziona almeno un operatore.");
+/* ─── GESTIONE UTENTI ────────────────────────────────────── */
+async function caricaListaUtenti() {
+    const container = document.getElementById('lista-utenti-config');
+    if (!container) return;
+    container.innerHTML = '<div class="centered-msg small">Caricamento...</div>';
+    try {
+        const res  = await fetch(`${URL_GOOGLE}?azione=getUtenti`);
+        const list = await res.json();
+        if (!list.length) {
+            container.innerHTML = '<p class="centered-msg small">Nessun utente creato. Clicca "+ Aggiungi Utente".</p>';
             return;
         }
+        container.innerHTML = list.map(u => {
+            const id = u.id_riga;
+            const username = (u.username || '').trim();
+            const email = (u.email || '').trim();
+            const ruolo = (u.ruolo || 'OPERATORE').trim().toUpperCase();
+            const maxU = Number(u.max_utenti) || 1;
+            return `
+            <div class="config-row-modern utente-row" data-id="${id}">
+                <div class="settings-actions-row" style="gap:12px">
+                    <div class="settings-options-row" style="gap:10px">
+                        <div class="avatar-circle">${(username.charAt(0) || '?').toUpperCase()}</div>
+                        <input type="text" class="input-flat" id="ut-username-${id}" value="${username.replace(/"/g, '&quot;')}" onchange="" placeholder="Username">
+                    </div>
+                    <div class="settings-options-row" style="gap:8px">
+                        <button type="button" class="btn-modal-send" onclick="salvaModificheUtente(${id})" title="Salva modifiche">
+                            <i class="fas fa-save"></i>
+                        </button>
+                        <button type="button" class="btn-trash-modern" onclick="eliminaUtente(${id}, ${JSON.stringify(username)})" title="Elimina utente">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
 
-        // 1. Nomi per i Badge (Dashboard Produzione - Colonna J)
-        const listaNomi = Array.from(checkboxSelezionate).map(cb => cb.getAttribute('data-nome')).join(', ');
+                <div class="grid-2col gap-8" style="margin-top:10px">
+                    <input type="email" class="input-field-modern" id="ut-email-${id}" placeholder="Email" value="${email.replace(/"/g, '&quot;')}">
+                    <select class="input-field-modern" id="ut-ruolo-${id}">
+                        <option value="OPERATORE" ${ruolo === 'OPERATORE' ? 'selected' : ''}>Operatore</option>
+                        <option value="MASTER" ${ruolo === 'MASTER' ? 'selected' : ''}>Admin</option>
+                    </select>
+                </div>
+                <div class="grid-2col gap-8" style="margin-top:10px">
+                    <input type="number" class="input-field-modern" id="ut-max-${id}" min="1" max="10" value="${maxU}">
+                    <input type="password" class="input-field-modern" id="ut-pass-${id}" placeholder="Nuova password (opzionale)">
+                </div>
+                <div class="utente-max" style="margin-top:8px; opacity:0.85">Lascia la password vuota per non cambiarla.</div>
+            </div>`;
+        }).join('');
+    } catch (e) {
+        container.innerHTML = '<p class="centered-msg small text-danger">Errore nel caricamento utenti.</p>';
+    }
+}
 
-        // 2. Nomi per il Destinatario (Storico_Richieste - Colonna G)
-        // Usiamo i nomi perché la tua "Casella" filtra per NOME, non per email
-        const listaNomiDestinatari = Array.from(checkboxSelezionate).map(cb => cb.getAttribute('data-nome'));
+async function salvaModificheUtente(idRiga) {
+    const id = Number(idRiga);
+    if (!id) return;
 
-        try {
-            // --- AZIONE A: Aggiorna i Badge nella Produzione ---
-            const urlAssegnazione = `${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(listaNomi)}&id_riga=${idRiga}`;
-            await fetch(urlAssegnazione);
+    const emailEl = document.getElementById(`ut-email-${id}`);
+    const userEl  = document.getElementById(`ut-username-${id}`);
+    const ruoloEl = document.getElementById(`ut-ruolo-${id}`);
+    const maxEl   = document.getElementById(`ut-max-${id}`);
+    const passEl  = document.getElementById(`ut-pass-${id}`);
 
-            // --- AZIONE B: Salva nello Storico Messaggi ---
-            const payload = {
-                azione: 'supporto_multiplo',
-                n_ordine: nOrd,
-                tipo: tipoAzione,
-                messaggio: messaggio || (tipoAzione === 'ASSEGNAZIONE' ? "Nuova assegnazione" : "Richiesta supporto"),
-                mittente: "MASTER",
-                destinatari: listaNomiDestinatari // Ora inviamo i Nomi, così Alessio li vede!
-            };
+    const email = (emailEl?.value || '').trim();
+    const username = (userEl?.value || '').trim();
+    const ruolo = (ruoloEl?.value || 'OPERATORE').trim().toUpperCase();
+    const maxU = parseInt(maxEl?.value || '1', 10);
+    const password = (passEl?.value || '').trim();
 
-            await fetch(URL_GOOGLE, {
-                method: 'POST',
-                body: JSON.stringify(payload)
-            });
-
-            // Chiudi e ricarica
-            chiudiModal();
-            caricaDati(paginaAttuale);
-
-        } catch (e) {
-            console.error("Errore durante l'operazione:", e);
-            alert("Errore nell'invio delle informazioni.");
-        }
+    if (!email || !username) {
+        notificaElegante('Email e username sono obbligatori.', 'error');
+        return;
+    }
+    if (password && password.length < 4) {
+        notificaElegante('La password deve essere di almeno 4 caratteri.', 'error');
+        return;
     }
 
-    /* --- GESTIONE PAGINE & IMPOSTAZIONI --- */
-    /*******************************************************************************
-     * 2. MOTORE DI NAVIGAZIONE (GESTIONE REFRESH E FLUIDITÀ)
-     *******************************************************************************/
+    let hash = '';
+    if (password) hash = await hashSHA256(password);
 
-     function cambiaPagina(nomeFoglio, elementoMenu) {
-       // 1. Validazione input
-       if (!nomeFoglio || nomeFoglio === "undefined" || nomeFoglio === "null") {
-           nomeFoglio = "PROGRAMMA PRODUZIONE DEL MESE";
-       }
+    try {
+        const res = await fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify({ azione: 'aggiornaUtente', id_riga: id, email, username, ruolo, max_utenti: maxU, hash })
+        });
+        const r = await res.json();
+        if (r.status === 'success') {
+            notificaElegante('Utente aggiornato.');
+            if (passEl) passEl.value = '';
+            caricaListaUtenti();
+        } else {
+            notificaElegante(r.message || 'Errore aggiornamento utente.', 'error');
+        }
+    } catch (e) {
+        notificaElegante('Errore di connessione.', 'error');
+    }
+}
+function apriFormNuovoUtente() {
+    const form = document.getElementById('form-nuovo-utente');
+    if (form) {
+        form.style.display = 'block';
+        document.getElementById('nu-email').value    = '';
+        document.getElementById('nu-username').value = '';
+        document.getElementById('nu-password').value = '';
+        document.getElementById('nu-ruolo').value    = 'OPERATORE';
+        document.getElementById('nu-max').value      = '1';
+    }
+}
+async function salvaUtenteNuovo() {
+    const email    = (document.getElementById('nu-email')?.value   || '').trim();
+    const username = (document.getElementById('nu-username')?.value || '').trim();
+    const password = (document.getElementById('nu-password')?.value || '').trim();
+    const ruolo    = (document.getElementById('nu-ruolo')?.value    || 'OPERATORE');
+    const maxU     = parseInt(document.getElementById('nu-max')?.value || '1');
 
-       // 2. Aggiornamento Stato e Memoria
-       localStorage.setItem('ultimaPaginaProduzione', nomeFoglio);
-       paginaAttuale = nomeFoglio;
+    if (!email || !username || !password) {
+        notificaElegante('Compila tutti i campi: email, username, password.', 'error');
+        return;
+    }
+    if (password.length < 4) {
+        notificaElegante('La password deve essere di almeno 4 caratteri.', 'error');
+        return;
+    }
+    const btn = document.querySelector('#form-nuovo-utente .btn-modal-send');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    try {
+        const hash = await hashSHA256(password);
+        const res  = await fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify({ azione: 'creaUtente', email, username, hash, ruolo, max_utenti: maxU })
+        });
+        const r = await res.json();
+        if (r.status === 'success') {
+            notificaElegante(`Utente "${username}" creato con successo!`);
+            document.getElementById('form-nuovo-utente').style.display = 'none';
+            caricaListaUtenti();
+        } else {
+            notificaElegante(r.message || 'Errore nella creazione utente.', 'error');
+        }
+    } catch (e) {
+        notificaElegante('Errore di connessione.', 'error');
+    }
+    btn.disabled = false;
+    btn.innerHTML = 'Salva Utente';
+}
+function eliminaUtente(idRiga, username) {
+    mostraConferma('Elimina Utente', `Eliminare l'utente "${username}"? Non potrà più accedere.`, async () => {
+        try {
+            const res = await fetch(URL_GOOGLE, {
+                method: 'POST',
+                body: JSON.stringify({ azione: 'eliminaUtente', id_riga: idRiga })
+            });
+            const r = await res.json();
+            if (r.status === 'success') {
+                notificaElegante(`Utente "${username}" eliminato.`);
+                caricaListaUtenti();
+            } else {
+                notificaElegante(r.message || 'Errore durante eliminazione.', 'error');
+            }
+        } catch (e) {
+            notificaElegante('Errore di connessione.', 'error');
+        }
+    }, 'Elimina');
+}
+function caricaInterfacciaImpostazioni() {
+        const contenitore = document.getElementById('contenitore-dati');
+        if (!contenitore) return;
 
-       // 3. UI: Sidebar (Gestione classi active immediata)
-       document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
-       if (!elementoMenu) {
-           elementoMenu = document.querySelector(`.menu-item[data-page="${nomeFoglio}"]`);
-       }
-       if (elementoMenu) elementoMenu.classList.add('active');
+        contenitore.innerHTML = `
+            <div class="settings-accordion">
 
-       // 4. UI: Titolo
-       const titolo = document.getElementById('titolo-pagina');
-       if (titolo) {
-           const titoli = {
-               'IMPOSTAZIONI': "Impostazioni Sistema",
-               'STORICO_RICHIESTE': "La mia Casella",
-               'ARCHIVIO_ORDINI': "Archivio Ordini",
-               'PROGRAMMA PRODUZIONE DEL MESE': "Dashboard Produzione"
-           };
-           titolo.innerText = titoli[nomeFoglio] || nomeFoglio;
-       }
+                <!-- ROW: Stati Produzione -->
+                <div class="settings-row" onclick="toggleSettingsSection('section-stati', this)">
+                    <div class="settings-row-left">
+                        <div class="settings-row-icon"><i class="fas fa-tag"></i></div>
+                        <div>
+                            <div class="settings-row-title">Stati Produzione</div>
+                            <div class="settings-row-sub">${listaStati.length} stati configurati</div>
+                        </div>
+                    </div>
+                    <i class="fas fa-chevron-down settings-row-arrow"></i>
+                </div>
+                <div id="section-stati" class="settings-section-body" style="display:none">
+                    <div class="card-settings">
+                        <div id="lista-stati-config">
+                            ${listaStati.map((s, i) => `
+                                <div class="config-row-modern row" draggable="true" data-idx="${i}">
+                                    <i class="fas fa-grip-vertical drag-handle"></i>
+                                    <div class="color-picker-wrapper">
+                                        <input type="color" value="${s.colore}" class="color-overlay"
+                                               onchange="listaStati[${i}].colore=this.value; segnaModifica(); caricaInterfacciaImpostazioni();">
+                                        <div class="status-dot-custom" style="--bg-color:${s.colore};"></div>
+                                    </div>
+                                    <input type="text" class="input-flat flex-grow" value="${s.nome || s.stato}" onchange="listaStati[${i}].nome=this.value.toUpperCase(); segnaModifica();">
+                                    <button type="button" class="btn-trash-modern" onclick="azioneEliminaStato(${i})"><i class="fas fa-trash"></i></button>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <button class="btn-add-dashed" onclick="azioneAggiungiStato()">+ Aggiungi Stato</button>
+                    </div>
+                </div>
 
-       const contenitore = document.getElementById('contenitore-dati');
+                <!-- ROW: Team + Utenti (solo MASTER) -->
+                ${utenteAttuale.ruolo === "MASTER" ? `
+                <div class="settings-row" onclick="toggleSettingsSection('section-team-utenti', this)">
+                    <div class="settings-row-left">
+                        <div class="settings-row-icon"><i class="fas fa-user-lock"></i></div>
+                        <div>
+                            <div class="settings-row-title">Gestione Utenti</div>
+                            <div class="settings-row-sub">Email, username, password e ruoli di accesso</div>
+                        </div>
+                    </div>
+                    <i class="fas fa-chevron-down settings-row-arrow"></i>
+                </div>
+                <div id="section-team-utenti" class="settings-section-body" style="display:none">
+                    <div class="card-settings">
 
-       // --- FIX ACCAVALLAMENTO: SVUOTAMENTO TOTALE ---
-       // Questo impedisce che i vecchi dati restino visibili mentre carichiamo i nuovi
-       contenitore.innerHTML = "";
+                        <h3 style="margin:0 0 10px 0">Gestione Utenti</h3>
+                        <div id="lista-utenti-config"></div>
+                        <button class="btn-add-dashed" onclick="apriFormNuovoUtente()">+ Aggiungi Utente</button>
+                        <div id="form-nuovo-utente" class="form-nuovo-utente" style="display:none">
+                            <div class="form-utente-grid">
+                                <input type="email" id="nu-email" placeholder="Email" class="input-field-modern">
+                                <input type="text"  id="nu-username" placeholder="Nome utente" class="input-field-modern">
+                                <input type="password" id="nu-password" placeholder="Password" class="input-field-modern">
+                                <select id="nu-ruolo" class="input-field-modern">
+                                    <option value="OPERATORE">Operatore</option>
+                                    <option value="MASTER">Admin</option>
+                                </select>
+                                <input type="number" id="nu-max" placeholder="Max utenti/email (es. 3)" class="input-field-modern" value="1" min="1" max="10">
+                            </div>
+                            <div class="form-utente-actions">
+                                <button class="btn-modal-cancel" onclick="document.getElementById('form-nuovo-utente').style.display='none'">Annulla</button>
+                                <button class="btn-modal-send" onclick="salvaUtenteNuovo()">Salva Utente</button>
+                            </div>
+                        </div>
 
-       // 5. GESTIONE CACHE
-       if (cacheContenuti[nomeFoglio]) {
-           // Mostriamo subito quello che abbiamo in memoria (velocità fulminea)
-           contenitore.innerHTML = cacheContenuti[nomeFoglio];
-           console.log("Rendering istantaneo da cache:", nomeFoglio);
+                        <div style="height:6px"></div>
+                    </div>
+                </div>
+                ` : ''}
 
-           // Se è la produzione, aggiorniamo i dati dal server in background (silenzioso)
-           if (nomeFoglio === "PROGRAMMA PRODUZIONE DEL MESE") {
-               // Passiamo 'true' come secondo argomento per indicare che è un aggiornamento silente
-               caricaDati(nomeFoglio, true);
-           }
-           return; // Fermiamo qui l'esecuzione perché abbiamo già renderizzato la cache
-       }
+            </div>
 
-       // 6. CARICAMENTO STANDARD (Solo se la cache è vuota o è il primo avvio)
-       console.log("Cache vuota, caricamento dal server per:", nomeFoglio);
-
-       if (nomeFoglio === 'IMPOSTAZIONI') {
-           caricaInterfacciaImpostazioni();
-       } else if (nomeFoglio === 'STORICO_RICHIESTE') {
-           caricaPaginaRichieste();
-       } else if (nomeFoglio === 'ARCHIVIO_ORDINI') {
-           caricaArchivio();
-       } else {
-           // Caricamento standard (non silenzioso, mostrerà il messaggio "Caricamento...")
-           caricaDati(nomeFoglio, false);
-       }
-   }
-
-
-    /*******************************************************************************
-     * 3. INTERFACCIA IMPOSTAZIONI (CESTINO ELEGANTE E SALVATAGGIO)
-     *******************************************************************************/
-
-     function caricaInterfacciaImpostazioni() {
-         const contenitore = document.getElementById('contenitore-dati');
-         if (!contenitore) return;
-
-         contenitore.innerHTML = `
-             <div class="settings-container">
-
-                 <div class="card-settings">
-                     <h3><i class="fas fa-tag"></i> Stati Produzione</h3>
-                     <div id="lista-stati-config">
-                         ${listaStati.map((s, i) => `
-                             <div class="config-row-modern" style="flex-direction: row; align-items: center; gap: 12px;">
-                                 <div style="position:relative; width:32px; height:32px;">
-                                     <input type="color" value="${s.colore}"
-                                            style="position:absolute; opacity:0; width:100%; height:100%; cursor:pointer; z-index:2;"
-                                            onchange="listaStati[${i}].colore=this.value; segnaModifica(); caricaInterfacciaImpostazioni();">
-                                     <div class="status-dot-custom" style="background:${s.colore};"></div>
-                                 </div>
-                                 <input type="text" class="input-flat" style="flex:1;" value="${s.nome || s.stato}" onchange="listaStati[${i}].nome=this.value.toUpperCase(); segnaModifica();">
-                                 <button class="btn-trash-modern" onclick="azioneEliminaStato(${i})"><i class="fas fa-trash"></i></button>
-                             </div>
-                         `).join('')}
-                     </div>
-                     <button class="btn-add-dashed" onclick="azioneAggiungiStato()">+ Aggiungi Stato</button>
-                 </div>
-
-                 <div class="card-settings">
-                     <h3><i class="fas fa-user-check"></i> Team</h3>
-                     <div id="lista-op-config">
-                         ${listaOperatori.map((op, i) => `
-                             <div class="config-row-modern">
-                                 <div style="display:flex; align-items:center; justify-content:space-between;">
-                                     <div style="display:flex; align-items:center; gap:10px;">
-                                         <div class="avatar-circle">${op.nome.charAt(0)}</div>
-                                         <input type="text" class="input-flat" value="${op.nome}" onchange="listaOperatori[${i}].nome=this.value; segnaModifica();">
-                                     </div>
-                                     <button class="btn-trash-modern" onclick="azioneEliminaOp(${i})"><i class="fas fa-trash"></i></button>
-                                 </div>
-                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                                     <input type="text" class="input-field-modern" placeholder="Email" value="${op.email || ''}" onchange="listaOperatori[${i}].email=this.value; segnaModifica();">
-                                     <input type="text" class="input-field-modern" placeholder="Reparto" value="${op.reparto || ''}" onchange="listaOperatori[${i}].reparto=this.value; segnaModifica();">
-                                 </div>
-                             </div>
-                         `).join('')}
-                     </div>
-                     <button class="btn-add-dashed" onclick="azioneAggiungiOp()">+ Aggiungi Operatore</button>
-                 </div>
-
-             </div>
-
-             <div style="width:100%; text-align:center; margin: 30px 0;">
-                 <button class="btn-update" style="background:#1e293b; color:white; padding:14px 40px; border-radius:12px; font-weight:700; font-size:14px; border:none; cursor:pointer;" onclick="salvaTutteImpostazioni()">
-                     Salva Modifiche
-                 </button>
-             </div>
-         `;
-     }
-     /* --- FUNZIONI SUPPORTO IMPOSTAZIONI --- */
-
-     /* --- LOGICA SUPPORTO IMPOSTAZIONI --- */
-     function azioneEliminaStato(i) {
+            <div class="centered-fullwidth my-30">
+                <button type="button" class="${TW.btnPrimaryLg}" onclick="salvaTutteImpostazioni()">
+                    <i class="fas fa-save"></i> Salva Modifiche
+                </button>
+            </div>
+        `;
+        applicaFade(contenitore);
+        // Chiama initSortable subito (gli elementi esistono nel DOM anche se hidden)
+        initSortable('lista-stati-config', (container) => {
+            const rows = [...container.querySelectorAll('[data-idx]')];
+            const nuovoOrdine = rows.map(el => listaStati[+el.dataset.idx]);
+            listaStati.length = 0;
+            nuovoOrdine.forEach((s, i) => { listaStati.push(s); rows[i].dataset.idx = i; });
+            segnaModifica();
+        });
+    }
+function azioneEliminaStato(i) {
          if(confirm("Sei sicuro di voler eliminare questo stato?")) {
              listaStati.splice(i, 1);
              segnaModifica();
              caricaInterfacciaImpostazioni();
          }
      }
-
-     function azioneAggiungiStato() {
+function azioneAggiungiStato() {
          listaStati.push({nome: 'NUOVO', colore: '#94a3b8'});
          segnaModifica();
          caricaInterfacciaImpostazioni();
      }
-
-     function azioneEliminaOp(i) {
-         if(confirm("Rimuovere questo operatore dal sistema?")) {
-             listaOperatori.splice(i, 1);
-             segnaModifica();
-             caricaInterfacciaImpostazioni();
-         }
-     }
-
-     function azioneAggiungiOp() {
-         listaOperatori.push({nome: 'Nuovo Operatore', email: '', reparto: ''});
-         segnaModifica();
-         caricaInterfacciaImpostazioni();
-     }
-
-    // Funzione per attivare l'allerta salvataggio
+// azioneEliminaOp e azioneAggiungiOp rimossi: operatori derivati da UTENTI
 function segnaModifica() {
     modifichePendenti = true;
     const btn = document.getElementById('btn-salva-globale');
@@ -755,292 +1540,1000 @@ function segnaModifica() {
         btn.style.background = "#ef4444"; // Diventa rosso per segnalare modifiche
         btn.innerHTML = "<i class='fas fa-exclamation-triangle'></i> Salva Modifiche Ora!";
     }
+} // Funzione per attivare l'allerta salvataggio
+
+// Sortable generico: DnD fluido su qualsiasi lista, senza re-render
+function initSortable(containerId, onReorder) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    let dragSrc = null;
+
+    container.addEventListener('dragstart', function(e) {
+        const hasHandle = !!container.querySelector('.dnd-handle, .drag-handle');
+        if (hasHandle && !e.target.closest('.dnd-handle, .drag-handle')) return;
+        dragSrc = e.target.closest('[draggable="true"]');
+        if (!dragSrc || !container.contains(dragSrc)) { dragSrc = null; return; }
+        dragSrc.classList.add('dnd-dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', '');
+    });
+
+    container.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        if (!dragSrc) return;
+        const over = e.target.closest('[draggable="true"]');
+        if (!over || over === dragSrc || !container.contains(over)) return;
+        const rect = over.getBoundingClientRect();
+        if (e.clientY < rect.top + rect.height / 2) {
+            container.insertBefore(dragSrc, over);
+        } else {
+            container.insertBefore(dragSrc, over.nextSibling);
+        }
+    });
+
+    container.addEventListener('dragend', function(e) {
+        if (dragSrc) {
+            dragSrc.classList.remove('dnd-dragging');
+            if (onReorder) onReorder(container);
+        }
+        dragSrc = null;
+    });
+
+    container.addEventListener('drop', function(e) { e.preventDefault(); e.stopPropagation(); });
+
+    // ── Touch DnD (mobile) ───────────────────────────────────────
+    let touchSrc = null;
+    let touchGhost = null;
+    let touchOffX = 0, touchOffY = 0;
+
+    container.addEventListener('touchstart', function(e) {
+        const hasHandle = !!container.querySelector('.dnd-handle, .drag-handle');
+        const src = e.target.closest('[draggable="true"]');
+        if (!src || !container.contains(src)) return;
+        if (hasHandle && !e.target.closest('.dnd-handle, .drag-handle')) return;
+        touchSrc = src;
+        const t = e.touches[0];
+        const r = src.getBoundingClientRect();
+        touchOffX = t.clientX - r.left;
+        touchOffY = t.clientY - r.top;
+        touchGhost = src.cloneNode(true);
+        touchGhost.style.cssText = `position:fixed;width:${r.width}px;height:${r.height}px;opacity:0.85;pointer-events:none;z-index:99999;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,0.25);left:${r.left}px;top:${r.top}px;transition:none;transform:scale(1.04) rotate(-1deg);`;
+        document.body.appendChild(touchGhost);
+        src.style.opacity = '0.25';
+        src.style.transform = 'scale(0.97)';
+    }, { passive: true });
+
+    container.addEventListener('touchmove', function(e) {
+        if (!touchSrc || !touchGhost) return;
+        e.preventDefault();
+        const t = e.touches[0];
+        touchGhost.style.left = (t.clientX - touchOffX) + 'px';
+        touchGhost.style.top  = (t.clientY - touchOffY) + 'px';
+        touchGhost.style.display = 'none';
+        const below = document.elementFromPoint(t.clientX, t.clientY);
+        touchGhost.style.display = '';
+        const over = below?.closest('[draggable="true"]');
+        if (over && over !== touchSrc && container.contains(over)) {
+            const rect = over.getBoundingClientRect();
+            container.insertBefore(touchSrc, t.clientY < rect.top + rect.height / 2 ? over : over.nextSibling);
+        }
+    }, { passive: false });
+
+    container.addEventListener('touchend', function() {
+        if (!touchSrc) return;
+        touchSrc.style.opacity = '';
+        touchSrc.style.transform = '';
+        if (touchGhost) { touchGhost.remove(); touchGhost = null; }
+        if (onReorder) onReorder(container);
+        touchSrc = null;
+    });
 }
-
-    function handleDrop(e, target, tipo) {
-        const source = e.dataTransfer.getData('text');
-        if (tipo !== tipoTrascinamento) return;
-        const arr = tipo === 'stati' ? listaStati : listaOperatori;
-        const [removed] = arr.splice(source, 1);
-        arr.splice(target, 0, removed);
-        caricaInterfacciaImpostazioni();
-    }
-
-    async function salvaTutteImpostazioni() {
+async function salvaTutteImpostazioni() {
         try {
             await fetch(URL_GOOGLE, {
                 method: 'POST',
-                body: JSON.stringify({ azione: 'salva_impostazioni_globali', stati: listaStati, operatori: listaOperatori })
+                body: JSON.stringify({ azione: 'salva_impostazioni_globali', stati: listaStati, operatori: [] })
             });
-            alert("Salvato correttamente!");
-        } catch (e) { alert("Errore nel salvataggio"); }
+            notificaElegante('Impostazioni salvate correttamente!');
+        } catch (e) { notificaElegante('Errore nel salvataggio.', 'error'); }
     }
 
-    async function aggiornaCorrente() {
-      const contenitore = document.getElementById('contenitore-dati');
-      if (!contenitore) return;
 
-      console.log("Forzo aggiornamento dati per:", paginaAttuale);
 
-      // 1. Pulizia Cache
-      if (paginaAttuale === 'IMPOSTAZIONI') {
-          // Se aggiorniamo le impostazioni, svuotiamo TUTTA la cache
-          // perché i nomi operatori o stati potrebbero cambiare ovunque
-          for (let key in cacheContenuti) delete cacheContenuti[key];
-      } else {
-          // Altrimenti eliminiamo solo la cache della pagina in cui ci troviamo
-          delete cacheContenuti[paginaAttuale];
-      }
 
-      // 2. Feedback visivo: Svuotiamo e mostriamo il caricamento
-      contenitore.innerHTML = "<div style='padding:20px; color:#64748b;'>Aggiornamento in corso...</div>";
 
-      // 3. Smistamento caricamento
-      try {
-          if (paginaAttuale === 'IMPOSTAZIONI') {
-              await caricaImpostazioni(); // Ricarica i dati da Google
-              caricaInterfacciaImpostazioni(); // Disegna l'interfaccia
-          }
-          else if (paginaAttuale === 'STORICO_RICHIESTE') {
-              await caricaPaginaRichieste();
-          }
-          else if (paginaAttuale === 'ARCHIVIO_ORDINI') {
-              await caricaArchivio();
-          }
-          else {
-              // Per tutte le pagine di produzione
-              await caricaDati(paginaAttuale);
-          }
-          console.log("Aggiornamento completato con successo.");
-      } catch (errore) {
-          console.error("Errore durante l'aggiornamento:", errore);
-          contenitore.innerHTML = "<div style='padding:20px; color:red;'>Errore durante l'aggiornamento dei dati.</div>";
-      }
-  }
 
-    function formattaData(stringaData) {
-    if (!stringaData) return "";
-    try {
-        const d = new Date(stringaData);
-        // Verifica se la data è valida
-        if (isNaN(d.getTime())) return stringaData;
+  // --- PAGINA ACQUISTI ---
+  let carrelloLocale = [];
+  let sezioniMateriali = JSON.parse(localStorage.getItem('sezioniMateriali') || '["Strumenti","Bombolette","Rifiuti"]');
 
-        const giorno = String(d.getDate()).padStart(2, '0');
-        const mese = String(d.getMonth() + 1).padStart(2, '0');
-        const anno = d.getFullYear();
-        const ore = String(d.getHours()).padStart(2, '0');
-        const minuti = String(d.getMinutes()).padStart(2, '0');
-
-        return `${giorno}/${mese}/${anno} ${ore}:${minuti}`;
-    } catch (e) {
-        return stringaData;
+  async function caricaMateriali(silenzioso = false) {
+    // --- PROTEZIONE AGGIORNAMENTO ---
+    const isInSelectionMode = document.getElementById('btn-delete-selected')?.classList.contains('visible');
+    if (silenzioso && isInSelectionMode) {
+        console.log("Aggiornamento silenzioso ignorato: modalità selezione attiva.");
+        return;
     }
-}
-async function caricaArchivio() {
+
+    const modalArticolo = document.getElementById('modal-gestione-articolo');
+    if (modalArticolo) modalArticolo.style.display = 'none';
+    document.body.style.overflow = 'auto';
+
     const contenitore = document.getElementById('contenitore-dati');
-    contenitore.innerHTML = "<div style='padding:20px; color:#64748b;'>Caricamento archivio in corso...</div>";
+    if (!contenitore) return;
+
+    if (!silenzioso) {
+        contenitore.innerHTML = "<div class='centered-msg'><i class='fas fa-spinner fa-spin'></i> Caricamento catalogo materiali...</div>";
+        applicaFade(contenitore);
+    }
 
     try {
-        const response = await fetch(URL_GOOGLE + "?pagina=ARCHIVIO_ORDINI");
-        const dati = await response.json();
+        const materiali = await fetchJson("MATERIALE DA ORDINARE");
 
-        if (!dati || dati.length === 0) {
-            const msgVuoto = "<div style='padding:20px;'>Nessun dato trovato nel foglio ARCHIVIO_ORDINI.</div>";
-            contenitore.innerHTML = msgVuoto;
-            cacheContenuti['ARCHIVIO_ORDINI'] = msgVuoto;
+        // Guard anti-stale: se l'utente ha cambiato pagina mentre il fetch era in corso, ignorare
+        if (!silenzioso && paginaAttuale !== 'MATERIALE DA ORDINARE') return;
+
+        if (!materiali || materiali.length === 0) {
+            contenitore.innerHTML = "<div class='empty-msg'>Nessun materiale trovato nel catalogo.</div>";
+            applicaFade(contenitore);
             return;
         }
 
-        const gruppi = {};
-        dati.forEach(r => {
-            const nOrd = r.ordine || "N.D.";
-            if (!gruppi[nOrd]) gruppi[nOrd] = [];
-            gruppi[nOrd].push(r);
+        // Raggruppa per sezione
+        const _sezIcons = { 'Strumenti': 'fa-screwdriver-wrench', 'Bombolette': 'fa-spray-can', 'Rifiuti': 'fa-trash-can' };
+        const _groups = {};
+        sezioniMateriali.forEach(s => { _groups[s] = []; });
+        materiali.forEach((item, gi) => {
+            const s = (item.SEZIONE || '').trim();
+            const target = sezioniMateriali.includes(s) ? s : sezioniMateriali[0];
+            _groups[target].push({ item, gi });
         });
 
-        let html = "";
-        Object.keys(gruppi).forEach(nOrd => {
-            const righe = gruppi[nOrd];
-            const cliente = righe[0].cliente;
+        let html = `
+            <div class="acquisti-header header-flex">
+                <div>
+                    <h3 class="acquisti-title">Catalogo Materiali</h3>
+                    <p class="acquisti-subtitle">Gestisci o ordina i materiali.</p>
+                </div>
+                <div class="acquisti-actions-wrapper">
+                    <div class="acquisti-actions-row">
+                        <button id="btn-mode-select" type="button" onclick="toggleSelezioneMultipla()" class="${TW.btn}">
+                            <i class="fas fa-tasks"></i> Seleziona
+                        </button>
+                        <button id="btn-mode-sposta" type="button" onclick="toggleSpostaMode()" class="${TW.btn}">
+                            <i class="fas fa-arrows-alt"></i> <span class="btn-txt">Sposta</span>
+                        </button>
+                        <button id="btn-delete-selected" type="button" onclick="eliminaSelezionati()" class="${TW.btnDanger} btn-fade-action">
+                            <i class="fas fa-trash"></i> Elimina (<span id="count-selected">0</span>)
+                        </button>
+                    </div>
+                    <button type="button" class="btn-nuovo-fisso btn-sezione-new ${TW.btn}" onclick="apriModalNuovaSezione()" title="Nuova sezione">
+                        <i class="fas fa-folder-plus"></i>
+                    </button>
+                    <button type="button" class="btn-nuovo-fisso ${TW.btnSuccess}" onclick="apriModalNuovo()">
+                        <i class="fas fa-plus"></i><span class="btn-label-nuovo"> Nuovo</span>
+                    </button>
+                </div>
+            </div>
+            <div id="lista-materiali-grid">`;
+
+        sezioniMateriali.forEach((sez, si) => {
+            const sezItems = _groups[sez] || [];
+            const icon = _sezIcons[sez] || 'fa-folder';
+            html += `
+                <div class="sezione-materiali-wrapper">
+                    <div class="sezione-header" onclick="toggleSezione('sezione-grid-${si}')">
+                        <div class="sezione-header-left">
+                            <i class="fas ${icon} sezione-icon"></i>
+                            <span class="sezione-nome">${sez}</span>
+                            <span class="sezione-count">${sezItems.length}</span>
+                        </div>
+                        <i class="fas fa-chevron-down sezione-arrow"></i>
+                    </div>
+                    <div class="sezione-grid materiali-grid" id="sezione-grid-${si}" data-sezione="${sez}">`;
+
+            if (sezItems.length === 0) {
+                html += `<p class="sezione-empty">Nessun articolo. Usa <b>Sezione</b> dal menu ⋮ per spostare qui un articolo.</p>`;
+            }
+
+            sezItems.forEach(({ item, gi: index }) => {
+                const nomeProdotto = (item.OGGETTO || "Senza nome").replace(/"/g, '&quot;');
+                const fornitore = (item.FORNITORE || "Generico").replace(/"/g, '&quot;');
+                const codice = (item.CODICE || "").replace(/"/g, '&quot;');
+                const qtyId = `qty-item-${index}`;
+                const idRiga = item.id_riga;
+                const nomePulitoJS = nomeProdotto.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+                html += `
+                <div class="materiale-card ${TW.card}" data-idx="${index}">
+                    <div class="mat-card-img img-preview-container"
+                         data-prod="${nomeProdotto}"
+                         data-fornitore="${fornitore}"
+                         onclick="scattaFoto('${nomePulitoJS}')">
+                        <i class="fas fa-camera mat-img-icon"></i>
+                        <span class="mat-img-hint">Scatta foto</span>
+                        <span class="mat-badge-fornitore">${fornitore}</span>
+                    </div>
+                    <div class="materiale-info">
+                        <div class="materiale-nome">${nomeProdotto}</div>
+                        ${codice ? `<div class="materiale-codice">${codice}</div>` : ''}
+                        <div class="materiale-fornitore mat-fornitore-mobile">${fornitore}</div>
+                    </div>
+                    <div class="materiale-actions">
+                        <div class="qty-order-container">
+                            <button type="button" class="btn-qty-step" onclick="cambiaQty('${qtyId}', -1)"><i class="fas fa-minus"></i></button>
+                            <input type="number" value="1" min="1" id="${qtyId}">
+                            <button type="button" class="btn-qty-step" onclick="cambiaQty('${qtyId}', 1)"><i class="fas fa-plus"></i></button>
+                        </div>
+                        <button type="button" class="btn-add-cart" onclick="aggiungiAlCarrello(\`${nomeProdotto}\`, \`${fornitore}\`, '${qtyId}')" title="Aggiungi al carrello">
+                            <i class="fas fa-cart-plus"></i><span class="btn-cart-txt"> Aggiungi</span>
+                        </button>
+                    </div>
+                    <div class="mat-card-opts">
+                        <input type="checkbox" class="select-materiale mat-sel-chk" data-id="${idRiga}" onclick="aggiornaConteggioSelezionati()">
+                        <button type="button" onclick="toggleMenuOpzioni(event, ${index})" class="btn-opt-trigger">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <div id="menu-opzioni-${index}" class="menu-popup-opzioni">
+                            <button type="button" class="menu-item-opt" onclick="apriModalModifica('${idRiga}', \`${nomeProdotto}\`, \`${fornitore}\`, \`${codice}\`)"><i class="fas fa-edit"></i> Modifica</button>
+                            <button type="button" class="menu-item-opt" onclick="duplicaArticolo('${idRiga}', \`${nomeProdotto}\`, \`${fornitore}\`, \`${codice}\`)"><i class="fas fa-copy"></i> Duplica</button>
+                            <button type="button" class="menu-item-opt" onclick="apriModalSpostaSezione('${idRiga}')"><i class="fas fa-folder-open"></i> Sezione</button>
+                            <button type="button" class="menu-item-opt btn-menu-elimina-foto" style="display:none" onclick="resetFoto('${nomePulitoJS}')"><i class="fas fa-image"></i> Elimina foto</button>
+                            <button type="button" class="menu-item-opt text-danger" onclick="eliminaArticolo('${idRiga}')"><i class="fas fa-trash"></i> Elimina</button>
+                        </div>
+                    </div>
+                </div>`;
+            });
 
             html += `
-            <div class="ordine-wrapper" style="opacity: 0.9; border-color: #cbd5e1; margin-bottom:15px;">
-                <div class="riga-ordine" onclick="toggleAccordion(this)" style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
-                    <div style="flex-grow:1;">
-                        <span style="font-weight:800; color:#475569;">${cliente}</span>
-                        <span style="color:#94a3b8; margin-left:15px;">ORD. ${nOrd}</span>
                     </div>
-                    <div style="display:flex; align-items:center; gap:10px;">
-                        <button class="btn-sos-small"
-                                style="background:#f97316; color:white; border:none; padding: 5px 10px; border-radius:6px; cursor:pointer;"
-                                onclick="event.stopPropagation(); gestisciRipristino('${nOrd}', 'ORDINE', 'ERRORE')">
-                                🔄 Ripristina Ordine
-                        </button>
-                        <div class="badge-count" style="background:#e2e8f0; color:#475569; padding:2px 8px; border-radius:4px; font-size:11px;">${righe.length} ART.</div>
-                    </div>
-                </div>
-                <div class="dettagli-container" style="display:none; padding:10px; background:#f1f5f9;">
-                    ${righe.map(art => generaCardArchivio(art, nOrd)).join('')}
-                </div>
-            </div>`;
+                </div>`;
         });
 
+        html += `</div>`;
+        cacheContenuti["MATERIALE DA ORDINARE"] = html;
+        cacheFetchTime["MATERIALE DA ORDINARE"] = Date.now();
         contenitore.innerHTML = html;
-        // Salva in cache con la chiave specifica
-        cacheContenuti['ARCHIVIO_ORDINI'] = html;
+        applicaFade(contenitore);
+        aggiornaListaFiltrabili();
+        sezioniMateriali.forEach((_, si) => initSortable(`sezione-grid-${si}`, null));
 
     } catch (e) {
-        console.error(e);
-        contenitore.innerHTML = "<div style='padding:20px; color:red;'>Errore nel caricamento del foglio ARCHIVIO_ORDINI.</div>";
-    }
-}
-function generaCardArchivio(art, nOrd) {
-    const codicePrincipale = art.codice && art.codice !== "false" ? art.codice : "Senza Codice";
-    const statoArchiviato = (art.stato || "COMPLETATO").toUpperCase();
-
-    // LOGICA PULIZIA OPERATORE
-    // Se art.assegna è nullo, vuoto o la stringa "false", scriviamo "Nessuno"
-    let operatoreValore = art.assegna;
-    if (!operatoreValore || operatoreValore === "false" || operatoreValore === "") {
-        operatoreValore = "Nessuno";
-    }
-
-    return `
-    <div class="item-card archivio-layout">
-        <div>
-            <span class="label-sm">Codice Prodotto</span>
-            <b style="color:#1e293b;">${codicePrincipale}</b>
-        </div>
-
-        <div style="text-align:center;">
-            <span class="label-sm">Quantità</span>
-            <b style="font-size:16px;">${art.qty}</b>
-        </div>
-
-        <div>
-            <span class="label-sm">Ultimo Stato</span>
-            <span style="color:#64748b; font-weight:700;">${statoArchiviato}</span>
-        </div>
-
-        <div>
-            <span class="label-sm">Operatore</span>
-            <span style="color:#64748b; font-weight:600;">${operatoreValore}</span>
-        </div>
-
-        <div style="display:flex; flex-direction:column; gap:5px;">
-            <button class="btn-archive-action"
-                    style="background:#3b82f6; color:white; border:none;"
-                    onclick="gestisciRipristino('${art.id_riga}', 'RIGA', 'RESO')">
-                📦 Reso Cliente
-            </button>
-            <button class="btn-archive-action"
-                    style="background:white; color:#f97316; border:1px solid #f97316;"
-                    onclick="gestisciRipristino('${art.id_riga}', 'RIGA', 'ERRORE')">
-                🔄 Errore Archiv.
-            </button>
-        </div>
-    </div>`;
-}
-// --- FUNZIONE PER ARCHIVIARE (DALLA PRODUZIONE ALL'ARCHIVIO) ---
-async function gestisciArchiviazione(nOrd, tipo) {
-    if (!confirm("Vuoi spostare l'ordine " + nOrd + " nell'archivio?")) return;
-
-    // Feedback visivo sul tasto (opzionale)
-    const tasto = event.target;
-    const testoOriginale = tasto.innerHTML;
-    tasto.innerHTML = "⏳ Archiviazione...";
-    tasto.style.opacity = "0.7";
-
-    try {
-        // Usiamo 'azione' perché nel tuo .gs hai scritto: var azione = e.parameter.azione;
-        const url = URL_GOOGLE + "?azione=archiviaOrdine&ordine=" + encodeURIComponent(nOrd);
-
-        const response = await fetch(url);
-        const risultato = await response.json();
-
-        if (risultato.status === "success") {
-            alert("Ordine " + nOrd + " archiviato correttamente!");
-            // IMPORTANTE: ricarica la pagina per far sparire l'ordine che hai appena spostato
-            caricaDati(paginaAttuale);
-        } else {
-            alert("Errore dal server: " + risultato.message);
-            tasto.innerHTML = testoOriginale;
-            tasto.style.opacity = "1";
+        console.error("Errore caricamento materiali:", e);
+        if (contenitore) {
+            contenitore.innerHTML = "<div class='centered-error-bold'>Errore nel caricamento del catalogo.</div>";
+            applicaFade(contenitore);
         }
-    } catch (errore) {
-        console.error("Errore critico:", errore);
-        alert("Errore di connessione al server Google.");
-        tasto.innerHTML = testoOriginale;
-        tasto.style.opacity = "1";
     }
 }
+  function cambiaQty(inputId, delta) {
+      const el = document.getElementById(inputId);
+      if (!el) return;
+      const val = (parseInt(el.value) || 1) + delta;
+      el.value = Math.max(1, val);
+  }
+  function aggiungiAlCarrello(nome, fornitore, inputId) {
+      const qtyInput = document.getElementById(inputId);
+      const qty = parseInt(qtyInput.value) || 1; // Prende il valore attuale dell'input
 
-// --- FUNZIONE PER RIPRISTINARE (DALL'ARCHIVIO ALLA PRODUZIONE) ---
-async function gestisciRipristino(id_o_numero, tipo, motivo) {
-    const msg = tipo === 'ORDINE'
-        ? `Vuoi riportare l'intero ordine ${id_o_numero} in PRODUZIONE?`
-        : `Vuoi riportare questo articolo in PRODUZIONE?`;
+      // Recuperiamo l'immagine se presente
+      const container = document.querySelector(`[data-prod="${nome}"]`);
+      const imgPreview = container ? container.querySelector('img') : null;
+      const fotoBase64 = imgPreview ? imgPreview.src : null;
 
-    if(!confirm(msg)) return;
+      carrelloLocale.push({
+          prodotto: nome,
+          quantita: qty,
+          fornitore: fornitore,
+          foto: fotoBase64
+      });
+
+      aggiornaBadgeCarrello();
+
+      // Feedback visivo: solo icona ✓ verde per 1.4s
+      const btn = event.target.closest('button');
+      const testoOriginale = btn.innerHTML;
+      btn.innerHTML = '<i class="fas fa-check"></i>';
+      btn.style.background = 'linear-gradient(135deg,#059669,#10b981)';
+      btn.style.boxShadow = '0 2px 8px rgba(16,185,129,0.45)';
+
+      setTimeout(() => {
+          btn.innerHTML = testoOriginale;
+          btn.style.background = '';
+          btn.style.boxShadow = '';
+          qtyInput.value = 1;
+      }, 1400);
+  }
+  function toggleMostraCarrello() {
+      const modal = document.getElementById('modal-carrello');
+      const lista = document.getElementById('lista-articoli-carrello');
+      const btnInvia = document.getElementById('btn-invia-alessio');
+
+      if (carrelloLocale.length === 0) {
+          lista.innerHTML = "<p class='empty-cart-msg'>Il tuo carrello è vuoto.</p>";
+          if (btnInvia) btnInvia.style.display = 'none';
+      } else {
+          let html = "";
+          carrelloLocale.forEach((item, index) => {
+              html += `
+              <div class="cart-item-row">
+                  ${item.foto ? `<img src="${item.foto}" class="cart-item-photo">` : `<div class="cart-item-placeholder"><i class="fas fa-shopping-basket cart-item-icon"></i></div>`}
+                  <div class="flex-grow">
+                      <div class="cart-item-name">${item.prodotto}</div>
+                      <div class="cart-item-details">Qt: ${item.quantita} - ${item.fornitore}</div>
+                  </div>
+                  <button onclick="rimuoviDalCarrello(${index})" class="btn-inline-trash"><i class="fas fa-trash"></i></button>
+              </div>`;
+          });
+          lista.innerHTML = html;
+          if (btnInvia) btnInvia.style.display = 'block';
+      }
+      modal.style.display = 'flex';
+      requestAnimationFrame(() => requestAnimationFrame(() => modal.classList.add('cart-open')));
+  }
+  function rimuoviDalCarrello(index) {
+      carrelloLocale.splice(index, 1);
+      aggiornaBadgeCarrello();
+      toggleMostraCarrello(); // Refresh della lista
+  }
+  function chiudiModalCarrello() {
+      const modal = document.getElementById('modal-carrello');
+      modal.classList.remove('cart-open');
+      setTimeout(() => { modal.style.display = 'none'; }, 300);
+  }
+  // Alias: il floating button chiama apriModalCarrello
+  function apriModalCarrello() { toggleMostraCarrello(); }
+  function aggiornaBadgeCarrello() {
+      const count = carrelloLocale.length;
+
+      // Aggiorna tutti i badge presenti nel DOM
+      const b1 = document.getElementById('badge-carrello-count');
+      const b2 = document.getElementById('cart-qty-val');
+
+      if (b1) {
+          b1.innerText = count;
+          b1.style.display = count > 0 ? 'flex' : 'none';
+      }
+      if (b2) b2.innerText = count;
+  }
+  async function inviaOrdineAcquisti() {
+      if (carrelloLocale.length === 0) {
+          alert("Il carrello è vuoto!");
+          return;
+      }
+
+      const conferma = confirm(`Vuoi inviare la lista di ${carrelloLocale.length} articoli all'ufficio acquisti?`);
+      if (!conferma) return;
+
+      // Mostriamo un loader sul bottone di invio se esiste
+      const btnInvia = document.getElementById('btn-invia-alessio');
+      const testoOriginale = btnInvia ? btnInvia.innerText : "";
+      if (btnInvia) {
+          btnInvia.disabled = true;
+          btnInvia.innerText = "Invio in corso...";
+      }
+
+      try {
+          const payload = {
+              azione: "inviaOrdineAcquisti",
+              operatore: (typeof utenteAttuale !== 'undefined') ? utenteAttuale.nome : "Utente",
+              articoli: carrelloLocale
+          };
+
+          const res = await fetch(URL_GOOGLE, {
+              method: 'POST',
+              body: JSON.stringify(payload)
+          });
+
+          const result = await res.json();
+
+          if (result.status === "success") {
+              alert("✅ Ordine inviato con successo ad Alessio!");
+              carrelloLocale = [];
+              aggiornaBadgeCarrello();
+              if (typeof chiudiModalCarrello === "function") chiudiModalCarrello();
+              cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE');
+          } else {
+              throw new Error(result.message);
+          }
+      } catch (e) {
+          alert("❌ Errore nell'invio dell'ordine: " + e.message);
+      } finally {
+          if (btnInvia) {
+              btnInvia.disabled = false;
+              btnInvia.innerText = testoOriginale;
+          }
+      }
+  }
+  function scattaFoto(nomeProdotto) {
+      // Usiamo CSS.escape per gestire nomi con spazi, virgolette o caratteri speciali
+      const selettore = `[data-prod="${nomeProdotto.replace(/"/g, '\\"')}"]`;
+      const container = document.querySelector(selettore);
+
+      if (!container) return;
+
+      // Se c'è già una foto → apri fullscreen. Rimozione solo dal menu ⋮
+      if (container.querySelector('img')) {
+          const src = container.querySelector('img').src;
+          apriImmagineIntera(src);
+          return;
+      }
+
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = e => {
+          const file = e.target.files[0];
+          if (!file) return;
+
+          const reader = new FileReader();
+          reader.onload = event => {
+              const base64String = event.target.result;
+              const fornitore = container.getAttribute('data-fornitore') || '';
+
+              container.innerHTML = `
+                  <img src="${base64String}"
+                       class="modal-img"
+                       onclick="event.stopPropagation(); apriImmagineIntera('${base64String}')">
+                  ${fornitore ? `<span class="mat-badge-fornitore">${fornitore}</span>` : ''}`;
+
+              container.style.border = '';
+
+              // Mostra voce "Elimina foto" nel menu ⋮ di questa card
+              const card = container.closest('.materiale-card');
+              if (card) {
+                  const btnFoto = card.querySelector('.btn-menu-elimina-foto');
+                  if (btnFoto) btnFoto.style.display = '';
+              }
+          };
+          reader.readAsDataURL(file);
+      };
+      input.click();
+  }
+  function resetFoto(nomeProdotto) {
+      if (confirm("Vuoi rimuovere l'immagine da questo prodotto?")) {
+          const container = document.querySelector(`[data-prod="${nomeProdotto}"]`);
+          if (!container) return;
+          const fornitore = container.getAttribute('data-fornitore') || '';
+          container.innerHTML = `
+              <i class="fas fa-camera mat-img-icon"></i>
+              <span class="mat-img-hint">Scatta foto</span>
+              ${fornitore ? `<span class="mat-badge-fornitore">${fornitore}</span>` : ''}`;
+          container.style.border = '';
+          // Nasconde di nuovo voce "Elimina foto" nel menu
+          const card = container.closest('.materiale-card');
+          if (card) {
+              const btnFoto = card.querySelector('.btn-menu-elimina-foto');
+              if (btnFoto) btnFoto.style.display = 'none';
+          }
+      }
+  }
+  function apriImmagineIntera(src) {
+      // Crea un overlay temporaneo per vedere la foto grande
+      const overlay = document.createElement('div');
+      overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:200000; display:flex; justify-content:center; align-items:center; cursor:zoom-out;";
+      overlay.innerHTML = `<img src="${src}" class="overlay-img">`;
+      overlay.onclick = () => document.body.removeChild(overlay);
+      document.body.appendChild(overlay);
+  }
+  function toggleMenuOpzioni(event, index) {
+      event.preventDefault();
+      event.stopPropagation();
+
+      // Chiudi tutti gli altri menu
+      document.querySelectorAll('.menu-popup-opzioni').forEach(m => {
+          if (m.id !== `menu-opzioni-${index}`) m.classList.remove('open');
+      });
+
+      const menu = document.getElementById(`menu-opzioni-${index}`);
+      if (menu) menu.classList.toggle('open');
+  }
+
+// Chiudi i menu se clicchi altrove
+document.addEventListener('click', () => {
+        document.querySelectorAll('.menu-popup-opzioni.open').forEach(m => m.classList.remove('open'));
+});
+  function apriModalNuovo() {
+    document.getElementById('titolo-modal-articolo').innerText = "Nuovo Articolo";
+    document.getElementById('edit-id-riga').value = "";
+    document.getElementById('edit-nome').value = "";
+    document.getElementById('edit-codice').value = "";
+    document.getElementById('edit-fornitore').value = "";
+    const modal = document.getElementById('modal-gestione-articolo');
+    modal.style.display = 'flex';
+    modal.offsetHeight;
+    modal.classList.add('active');
+  }
+  function apriModalModifica(id, nome, fornitore, codice) {
+    const modal = document.getElementById('modal-gestione-articolo');
+    document.getElementById('titolo-modal-articolo').innerText = id ? "Modifica Articolo" : "Nuovo Articolo";
+    document.getElementById('edit-id-riga').value = id || "";
+    document.getElementById('edit-nome').value = nome || "";
+    document.getElementById('edit-codice').value = (codice && codice !== 'undefined') ? codice : "";
+    document.getElementById('edit-fornitore').value = fornitore || "";
+    modal.style.display = 'flex';
+    modal.offsetHeight;
+    modal.classList.add('active');
+  }
+  function chiudiModalArticolo() {
+    const modal = document.getElementById('modal-gestione-articolo');
+    modal.classList.remove('active');
+    setTimeout(() => { if (!modal.classList.contains('active')) modal.style.display = 'none'; }, 300);
+  }
+  async function salvaArticolo() {
+
+  const btn = document.getElementById('btn-salva-articolo');
+
+  const nome = document.getElementById('edit-nome').value.trim();
+
+  if (!nome) return alert("Inserisci il nome!");
+
+
+
+  const payload = {
+
+      azione: "gestisciMateriale",
+
+      id_riga: document.getElementById('edit-id-riga').value,
+
+      nome: nome,
+
+      codice: document.getElementById('edit-codice').value,
+
+      fornitore: document.getElementById('edit-fornitore').value
+
+  };
+
+
+
+  // Feedback immediato
+
+  btn.innerText = "Salvataggio...";
+
+  btn.disabled = true;
+
+
+
+  try {
+
+      const res = await fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify(payload) });
+
+      const r = await res.json();
+
+      if (r.status === "success") {
+
+          chiudiModalArticolo(); // CHIUDI PRIMA DI RICARICARE
+
+          caricaMateriali();     // RICARICA DOPO
+
+      }
+
+  } catch (e) {
+
+      alert("Errore salvataggio!");
+
+  } finally {
+
+      btn.innerText = "Salva";
+
+      btn.disabled = false;
+
+  }
+
+}
+  async function duplicaArticolo(idRiga, nome, fornitore, codice) {
+    mostraConferma('Duplica Articolo', `Duplicare l'articolo: "${nome}"?`, async () => {
+
+    const cardOriginale = document.querySelector(`[data-id="${idRiga}"]`).closest('.materiale-card');
+
+    // Generiamo un ID temporaneo basato sul tempo per rendere il menu unico
+    const tempIndex = Date.now();
+    const qtyId = `qty-item-temp-${tempIndex}`;
+
+    const divScatola = document.createElement('div');
+    divScatola.innerHTML = `
+        <div class="materiale-card ${TW.card}">
+
+            <!-- Area immagine -->
+            <div class="mat-card-img img-preview-container"
+                 data-prod="${nome}" data-fornitore="${fornitore}"
+                 onclick="scattaFoto('${nome.replace(/'/g, "\\'")}')">
+                <i class="fas fa-camera mat-img-icon"></i>
+                <span class="mat-img-hint">Scatta foto</span>
+                <span class="mat-badge-fornitore">${fornitore}</span>
+            </div>
+
+            <!-- Info prodotto -->
+            <div class="materiale-info">
+                <div class="materiale-nome">${nome}</div>
+                ${codice ? `<div class="materiale-codice">${codice}</div>` : ''}
+                <div class="materiale-fornitore mat-fornitore-mobile">${fornitore}</div>
+            </div>
+
+            <!-- Footer azioni -->
+            <div class="materiale-actions">
+                <div class="qty-order-container">
+                    <button type="button" class="btn-qty-step" onclick="cambiaQty('${qtyId}', -1)"><i class="fas fa-minus"></i></button>
+                    <input type="number" value="1" min="1" id="${qtyId}">
+                    <button type="button" class="btn-qty-step" onclick="cambiaQty('${qtyId}', 1)"><i class="fas fa-plus"></i></button>
+                </div>
+                <button type="button" class="btn-add-cart" onclick="aggiungiAlCarrello(\`${nome}\`, \`${fornitore}\`, '${qtyId}')" title="Aggiungi al carrello">
+                    <i class="fas fa-cart-plus"></i><span class="btn-cart-txt"> Aggiungi</span>
+                </button>
+            </div>
+
+            <!-- Menu opzioni + checkbox -->
+            <div class="mat-card-opts">
+                <input type="checkbox" class="select-materiale mat-sel-chk" data-id="temp" onclick="aggiornaConteggioSelezionati()">
+                <button type="button" class="btn-opt-trigger" onclick="toggleMenuOpzioni(event, 'temp-${tempIndex}')">
+                    <i class="fas fa-ellipsis-v"></i>
+                </button>
+                <div id="menu-opzioni-temp-${tempIndex}" class="menu-popup-opzioni">
+                    <button type="button" class="menu-item-opt" onclick="apriModalModifica('', \`${nome}\`, \`${fornitore}\`, \`${codice}\`)">
+                        <i class="fas fa-edit"></i> Modifica
+                    </button>
+                    <button type="button" class="menu-item-opt" onclick="duplicaArticolo('temp', \`${nome}\`, \`${fornitore}\`, \`${codice}\`)">
+                        <i class="fas fa-copy"></i> Duplica
+                    </button>
+                    <button type="button" class="menu-item-opt btn-menu-elimina-foto" style="display:none" onclick="resetFoto('${nome.replace(/'/g, "\\'")}')">
+                        <i class="fas fa-image"></i> Elimina foto
+                    </button>
+                    <button type="button" class="menu-item-opt text-danger" onclick="this.closest('.materiale-card').remove()">
+                        <i class="fas fa-trash"></i> Elimina
+                    </button>
+                </div>
+            </div>
+        </div>`;
+
+    const nuovaCard = divScatola.firstElementChild;
+    nuovaCard.style.opacity = '0';
+    nuovaCard.style.transform = 'translateY(-10px)';
+    cardOriginale.after(nuovaCard);
+    requestAnimationFrame(() => {
+        nuovaCard.style.transition = 'opacity 0.3s, transform 0.3s';
+        nuovaCard.style.opacity = '1';
+        nuovaCard.style.transform = 'translateY(0)';
+    });
+
+    // Salvataggio reale in background
+    try {
+        const res = await fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify({
+                azione: "duplicaMateriale",
+                id_riga: idRiga,
+                nome: nome,
+                codice: codice,
+                fornitore: fornitore
+            })
+        });
+        const r = await res.json();
+        if (r.status === "success") caricaMateriali(true);
+    } catch (e) {
+        nuovaCard.style.border = "1px solid red";
+        notificaElegante('Errore di sincronizzazione.', 'error');
+    }
+    }, 'Duplica');
+  } // fine duplicaArticolo
+  let modaSpostaAttiva = false;
+  function toggleSpostaMode() {
+      modaSpostaAttiva = !modaSpostaAttiva;
+      const grid = document.getElementById('lista-materiali-grid');
+      const btn = document.getElementById('btn-mode-sposta');
+      if (!grid) return;
+
+      grid.querySelectorAll('.materiale-card').forEach(card => {
+          if (modaSpostaAttiva) {
+              card.setAttribute('draggable', 'true');
+              card.classList.add('mat-wobble');
+          } else {
+              card.removeAttribute('draggable');
+              card.classList.remove('mat-wobble');
+          }
+      });
+
+      if (btn) {
+          if (modaSpostaAttiva) {
+              btn.classList.add('btn-active-sposta');
+              btn.innerHTML = '<i class="fas fa-check"></i> <span class="btn-txt">Fatto</span>';
+          } else {
+              btn.classList.remove('btn-active-sposta');
+              btn.innerHTML = '<i class="fas fa-arrows-alt"></i> <span class="btn-txt">Sposta</span>';
+          }
+      }
+  }
+
+  // ── sezioni acquisti ──────────────────────────────────────────
+  function toggleSezione(gridId) {
+      const grid = document.getElementById(gridId);
+      if (!grid) return;
+      const isOpen = grid.style.display !== 'none';
+      grid.style.display = isOpen ? 'none' : '';
+      const wrapper = grid.closest('.sezione-materiali-wrapper');
+      const arrow = wrapper?.querySelector('.sezione-arrow');
+      if (arrow) arrow.style.transform = isOpen ? 'rotate(-90deg)' : '';
+  }
+
+  function apriModalSpostaSezione(idRiga) {
+      document.querySelectorAll('.menu-popup-opzioni.open').forEach(m => m.classList.remove('open'));
+      const sel = document.getElementById('sposta-sezione-select');
+      sel.innerHTML = sezioniMateriali.map(s => `<option value="${s}">${s}</option>`).join('');
+      document.getElementById('sposta-id-riga').value = idRiga;
+      const modal = document.getElementById('modal-sposta-sezione');
+      modal.style.display = 'flex';
+      modal.offsetHeight;
+      modal.classList.add('active');
+  }
+  function chiudiModalSpostaSezione() {
+      const modal = document.getElementById('modal-sposta-sezione');
+      modal.classList.remove('active');
+      setTimeout(() => { if (!modal.classList.contains('active')) modal.style.display = 'none'; }, 300);
+  }
+  async function confermaSpostaSezione() {
+      const idRiga = document.getElementById('sposta-id-riga').value;
+      const sezione = document.getElementById('sposta-sezione-select').value;
+      chiudiModalSpostaSezione();
+      try {
+          await fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify({ azione: 'spostaSezione', id_riga: idRiga, sezione }) });
+          delete cacheContenuti['MATERIALE DA ORDINARE'];
+          caricaMateriali(false);
+      } catch (e) { notificaElegante('Errore durante lo spostamento.', 'error'); }
+  }
+
+  function apriModalNuovaSezione() {
+      document.getElementById('nuova-sezione-nome').value = '';
+      const modal = document.getElementById('modal-nuova-sezione');
+      modal.style.display = 'flex';
+      modal.offsetHeight;
+      modal.classList.add('active');
+      setTimeout(() => document.getElementById('nuova-sezione-nome')?.focus(), 100);
+  }
+  function chiudiModalNuovaSezione() {
+      const modal = document.getElementById('modal-nuova-sezione');
+      modal.classList.remove('active');
+      setTimeout(() => { if (!modal.classList.contains('active')) modal.style.display = 'none'; }, 300);
+  }
+  function confermaNuovaSezione() {
+      const nome = document.getElementById('nuova-sezione-nome').value.trim();
+      if (!nome) return;
+      if (!sezioniMateriali.includes(nome)) {
+          sezioniMateriali = [...sezioniMateriali, nome];
+          localStorage.setItem('sezioniMateriali', JSON.stringify(sezioniMateriali));
+      }
+      chiudiModalNuovaSezione();
+      delete cacheContenuti['MATERIALE DA ORDINARE'];
+      caricaMateriali(false);
+  }
+  // ─────────────────────────────────────────────────────────────
+
+  function toggleSelezioneMultipla() {
+    const grid = document.getElementById('lista-materiali-grid');
+    const btnElimina = document.getElementById('btn-delete-selected');
+    const btn = document.getElementById('btn-mode-select');
+    if (!grid) return;
+    const isOn = grid.classList.toggle('grid-sel-mode');
+    // Reset conteggio e deseleziona tutto
+    grid.querySelectorAll('.mat-sel-chk').forEach(c => { c.checked = false; });
+    if (btnElimina) btnElimina.classList.remove('visible');
+    if (btn) btn.innerHTML = isOn
+        ? '<i class="fas fa-times"></i> <span class="btn-txt">Annulla</span>'
+        : '<i class="fas fa-tasks"></i> <span class="btn-txt">Seleziona</span>';
+    const counter = document.getElementById('count-selected');
+    if (counter) counter.innerText = '0';
+  }
+  function aggiornaConteggioSelezionati() {
+    const selezionati = document.querySelectorAll('.mat-sel-chk:checked').length;
+    const btnElimina = document.getElementById('btn-delete-selected');
+    document.getElementById('count-selected').innerText = selezionati;
+    if (selezionati > 0) btnElimina.classList.add('visible');
+    else btnElimina.classList.remove('visible');
+  }
+  async function eliminaArticolo(idRiga) {
+    mostraConferma('Elimina Articolo', 'Eliminare definitivamente questo articolo dal catalogo?', async () => {
+        const card = document.querySelector(`[data-id="${idRiga}"]`).closest('.materiale-card');
+        card.style.transition = "all 0.3s ease";
+        card.style.transform = "scale(0.8)";
+        card.style.opacity = "0";
+        setTimeout(() => card.style.display = "none", 300);
+        try {
+            const res = await fetch(URL_GOOGLE, {
+                method: 'POST',
+                body: JSON.stringify({ azione: "eliminaMateriale", id_riga: idRiga })
+            });
+            const r = await res.json();
+            if (r.status !== "success") throw new Error();
+            caricaMateriali(true);
+        } catch (e) {
+            card.style.display = "flex";
+            card.style.opacity = "1";
+            card.style.transform = "";
+            notificaElegante('Errore durante l\'eliminazione.', 'error');
+        }
+    }, 'Elimina');
+  }
+  async function eliminaSelezionati() {
+    // Filtriamo gli ID per ignorare quelli "temp" non ancora salvati su Google
+    const checkboxes = document.querySelectorAll('.mat-sel-chk:checked');
+    const selezionati = Array.from(checkboxes)
+                             .map(c => c.getAttribute('data-id'))
+                             .filter(id => id && id !== "temp" && id !== "null");
+
+    if (selezionati.length === 0) {
+        alert("Nessun articolo valido selezionato. Attendi il salvataggio dei nuovi duplicati prima di eliminarli.");
+        return;
+    }
+
+    if (!confirm(`Sei sicuro di voler eliminare ${selezionati.length} articoli?`)) return;
 
     try {
-        // Usiamo 'azione=ripristinaOrdine' come definito nel .gs
-        // Se tipo è 'RIGA' dovremo gestire la riga singola, ma per ora lo script .gs
-        // sposta l'intero ordine per sicurezza.
-        const url = URL_GOOGLE + "?azione=ripristinaOrdine&ordine=" + encodeURIComponent(id_o_numero);
+        // Feedback visivo immediato (oscuriamo le card selezionate)
+        checkboxes.forEach(cb => {
+            const card = cb.closest('.materiale-card');
+            if (card) {
+                card.style.opacity = "0.3";
+                card.style.pointerEvents = "none";
+            }
+        });
 
-        const response = await fetch(url);
-        const risultato = await response.json();
+        const res = await fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify({
+                azione: "eliminaMateriale",
+                id_riga: selezionati
+            })
+        });
 
-        if (risultato.status === "success") {
-            alert("Spostato in Produzione!");
-            caricaArchivio(); // Ricarica la pagina archivio per aggiornare la lista
+        const r = await res.json();
+        if (r.status === "success") {
+            notificaElegante("Articoli eliminati con successo");
+
+            // Disattiva la modalità selezione prima di ricaricare
+            const btnDelete = document.getElementById('btn-delete-selected');
+            if (btnDelete) btnDelete.classList.remove('visible');
+
+            caricaMateriali(false); // Ricarica completa per pulire la griglia
         } else {
-            alert("Nota: " + risultato.message);
+            throw new Error(r.message);
         }
     } catch (e) {
-        alert("Errore durante il ripristino.");
+        alert("Errore durante l'eliminazione multipla: " + e.message);
+        caricaMateriali(true); // Ripristina la visualizzazione in caso di errore
     }
 }
 
+//FUNZIONE CONTRO IL FREEZE//
+
+  async function eseguiAzioneServer(payload) {
+
+    try {
+
+        console.log("Invio azione:", payload.azione);
+
+        const response = await fetch(URL_GOOGLE, {
+
+            method: 'POST',
+
+            mode: 'no-cors', // Spesso necessario con Google Apps Script se non è configurato CORS
+
+            body: JSON.stringify(payload)
+
+        });
 
 
 
+        // Se usi 'no-cors', non puoi leggere la risposta JSON.
+
+        // Se non lo usi, procedi come sotto:
+
+        /*
+
+        const res = await response.json();
+
+        if (r.status === "success") return true;
+
+        */
 
 
 
-//--SMARTPHONE--//
+        // Per ora facciamo un approccio sicuro:
 
-function toggleMobileMenu() {
-    const sidebar = document.querySelector('.sidebar');
-    // Aggiunge o toglie la classe che sposta la sidebar con transform
-    sidebar.classList.toggle('mobile-open');
+        setTimeout(() => {
+
+            notificaElegante("Operazione completata");
+
+            caricaMateriali(); // Ricarica dopo 1 secondo per dare tempo al server
+
+        }, 1500);
+
+
+
+        return true;
+
+    } catch (e) {
+
+        console.error("Errore critico:", e);
+
+        alert("Errore di connessione. Riprova.");
+
+        return false;
+
+    }
+
 }
 
 
 
 
 
+//FUNZIONI UNIVERSALI//
+function filtraUniversale() {
+    // debounce semplice per evitare che la funzione venga chiamata ad ogni battuta
+    clearTimeout(ricercaTimeout);
+    ricercaTimeout = setTimeout(() => {
+        const input = document.getElementById('universal-search').value.toLowerCase().trim();
 
+        // aggiorna la cache dei nodi la prima volta o se è stata svuotata
+        if (!elementiDaFiltrareCache) aggiornaListaFiltrabili();
+        if (!elementiDaFiltrareCache) return; // nulla da filtrare
 
+        elementiDaFiltrareCache.forEach(el => {
+            const testoContenuto = el.innerText.toLowerCase();
+            const match = testoContenuto.includes(input);
 
+            if (match) {
+            el.classList.remove('hidden-search');
+        } else {
+            el.classList.add('hidden-search');
+        }
+        });
 
+        const sezioneArchivio = document.getElementById('sezione-archivio');
+        if (sezioneArchivio) {
+            sezioneArchivio.style.display = input === "" ? "block" : "none";
+        }
+    }, 150);
+}
+function notificaElegante(messaggio) {
+    // Crea l'elemento notifica
+    const toast = document.createElement('div');
+    toast.innerHTML = `<i class="fas fa-check-circle"></i> ${messaggio}`;
 
+    // Stile della notifica
+    Object.assign(toast.style, {
+        position: 'fixed',
+        bottom: '20px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        background: '#1e293b',
+        color: 'white',
+        padding: '12px 25px',
+        borderRadius: '30px',
+        fontSize: '14px',
+        fontWeight: '600',
+        zIndex: '100000',
+        boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        opacity: '0',
+        transition: 'all 0.4s ease'
+    });
 
+    document.body.appendChild(toast);
 
+    // Animazione entrata
+    setTimeout(() => {
+        toast.style.opacity = '1';
+        toast.style.bottom = '30px';
+    }, 100);
 
-
-
-
-
-
-
-
-
-
-
-//--FUNZIONE FINALE--//
-
+    // Auto-distruzione dopo 3 secondi
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.bottom = '20px';
+        setTimeout(() => toast.remove(), 400);
+    }, 3000);
+}
 document.addEventListener('DOMContentLoaded', async function() {
 
     // 1️⃣ Carica prima le impostazioni (operatori + stati)
@@ -1058,4 +2551,102 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // 4️⃣ Cambia pagina (questa farà il fetch corretto)
     cambiaPagina(paginaSalvata, tastoMenu);
+});
+document.addEventListener('click', function (e) {
+    if (window.innerWidth > 768) return; // Non toccare nulla su Desktop
+
+    // Close mobile sidebar when tapping the backdrop
+    if (document.body.classList.contains('sidebar-is-open')) {
+        const sidebar = document.querySelector('.sidebar');
+        if (sidebar && !sidebar.contains(e.target) && !e.target.closest('#btn-mobile-menu')) {
+            sidebar.classList.remove('mobile-open');
+            document.body.classList.remove('sidebar-is-open');
+            return;
+        }
+    }
+
+    const card = e.target.closest('.riga-ordine');
+    if (card) {
+        // Se clicchi un bottone, esegui il comando e non chiudere
+        if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+
+        // Toggle della classe espansa
+        card.classList.toggle('espansa');
+    }
+});
+
+// Fallback helpers and bindings to ensure critical controls work
+function toggleMobileMenu() {
+    const sidebar = document.querySelector('.sidebar');
+    if (!sidebar) return;
+    sidebar.classList.toggle('mobile-open');
+    // Toggle body overlay class to block scroll and show backdrop
+    document.body.classList.toggle('sidebar-is-open');
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    // Bind login button safely (keeps existing inline onclick as fallback)
+    const btnLogin = document.getElementById('btn-login');
+    if (btnLogin && typeof verificaAccesso === 'function') {
+        btnLogin.addEventListener('click', function (ev) {
+            ev.preventDefault();
+            try { verificaAccesso(); } catch (e) { console.error('verificaAccesso error', e); }
+        });
+    }
+
+    // Bind logout
+    const btnLogout = document.getElementById('btn-logout');
+    if (btnLogout && typeof logout === 'function') {
+        btnLogout.addEventListener('click', function (ev) {
+            ev.preventDefault();
+            try { logout(); } catch (e) { console.error('logout error', e); }
+        });
+    }
+
+    // Bind universal search input (input event is less intrusive than keyup)
+    const searchInput = document.getElementById('universal-search');
+    if (searchInput) {
+        searchInput.addEventListener('input', function () {
+            try { if (typeof filtraUniversale === 'function') filtraUniversale(); } catch (e) { console.error('filtraUniversale error', e); }
+        });
+    }
+
+    // Mobile header hamburger (if present)
+    const mobileToggle = document.getElementById('btn-mobile-menu');
+    if (mobileToggle) {
+        mobileToggle.addEventListener('click', function (ev) {
+            ev.preventDefault();
+            try { toggleMobileMenu(); } catch (e) { console.error('toggleMobileMenu error', e); }
+        });
+    }
+
+    // Auto-close sidebar on mobile when a menu item is clicked
+    document.querySelectorAll('.menu-item').forEach(item => {
+        item.addEventListener('click', function () {
+            if (window.innerWidth <= 768) {
+                const sidebar = document.querySelector('.sidebar');
+                if (sidebar) sidebar.classList.remove('mobile-open');
+                document.body.classList.remove('sidebar-is-open');
+            }
+        });
+    });
+
+    // Allow pressing Enter in the login input to trigger login
+    const emailInput = document.getElementById('email-access');
+    if (emailInput) {
+        emailInput.addEventListener('keydown', function (ev) {
+            if (ev.key === 'Enter') {
+                ev.preventDefault();
+                try { verificaAccesso(); } catch (e) { console.error('verificaAccesso error', e); }
+            }
+        });
+    }
+
+    // Chiudi modal cliccando sul backdrop (area scura esterna al box)
+    const modalAiuto = document.getElementById('modalAiuto');
+    if (modalAiuto) {
+        modalAiuto.addEventListener('click', function(e) {
+            if (e.target === this) chiudiModal();
+        });
+    }
 });

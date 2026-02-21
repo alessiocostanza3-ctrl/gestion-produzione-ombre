@@ -1,133 +1,183 @@
+/* ============================================================
+   1. VARIABILI GLOBALI E FONDAMENTA
+   ============================================================ */
+:root {
+    --primary: #2563eb;
+    --sidebar-bg: #111827;
+    --sidebar-text: #9ca3af;
+    --bg-body: #f8fafc;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --border-color: #e2e8f0;
+    --accent-color: #2563eb;
+}
 
-        :root {
-            --primary: #2563eb;
-            --sidebar-bg: #111827;
-            --sidebar-text: #9ca3af;
-            --bg-body: #f8fafc;
-            --text-main: #0f172a;
-            --text-muted: #64748b;
-            --border-color: #e2e8f0;
-            --accent-color: #2563eb;
-        }
+body {
+    font-family: 'Roboto', sans-serif;
+    margin: 0;
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+    font-size: 12px; /* Ridotto da 16px */
+    line-height: 1.5;
+    background-color: #f8fafc;
+    color: #1e293b;
+}
 
-        body {
-            font-family: 'Inter', sans-serif;
-            background: var(--bg-body);
-            margin: 0;
-            display: flex;
-            height: 100vh;
-            color: var(--text-main);
-            overflow: hidden;
-        }
+/* Global smooth scrolling for internal anchors */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Utility for fade-in when content is replaced */
+.fade-in {
+    animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* quick transition variable */
+:root {
+    --transition-fast: 0.2s;
+}
+
+/* apply to buttons and interactive elements */
+button, .menu-item, .btn-sos, .btn-login, .btn-modal-send {
+    transition: background-color var(--transition-fast) ease, color var(--transition-fast) ease, opacity var(--transition-fast) ease;
+}
 
 
-        /* SFONDO LOGIN - EFFETTO VETRO APPANNATO */
-    #login-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        /* Colore scuro semi-trasparente */
-        background-color: rgba(15, 23, 42, 0.7);
-        /* L'effetto "appannato" magico */
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px); /* Per Safari */
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 9999;
-    }
 
-    /* CARD DI LOGIN */
-    .login-card {
-        background: #252525; /* Il tuo esadecimale */
-        padding: 45px;
-        border-radius: 32px;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
-        width: 90%;
-        max-width: 420px;
-        text-align: center;
-        border: 1px solid rgba(255, 255, 255, 0.1); /* Bordino sottile per dare profondità */
-    }
 
-    /* LOGO NEL LOGIN - PIÙ GRANDE */
-    .login-logo-container {
-        margin-bottom: 30px;
-    }
 
-    .login-logo-img {
-        width: 200px; /* Aumentato da 160px a 200px */
-        height: auto;
-        filter: none !important;
-        display: block;
-        margin: 0 auto;
-        /* Ombra esterna al logo per farlo staccare dal fondo scuro */
-        filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3)) !important;
-    }
 
-    /* TESTI BIANCHI PER LEGGIBILITÀ */
-    .login-card h2 {
-        color: #ffffff !important; /* Forza il bianco */
-        font-size: 26px;
-        font-weight: 700;
-        margin-bottom: 10px;
-    }
 
-    .login-card p {
-        color: #cbd5e1 !important; /* Grigio chiarissimo quasi bianco */
-        font-size: 15px;
-        margin-bottom: 30px;
-    }
 
-    /* BOTTONE LOGIN */
-    .btn-login {
-        width: 100%;
-        background: #3b82f6; /* Blu più acceso per risaltare sul grigio scuro */
-        color: white;
-        padding: 16px;
-        border-radius: 14px;
-        border: none;
-        font-weight: 700;
-        font-size: 16px;
-        cursor: pointer;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 10px;
-    }
 
-    .btn-login:hover {
-        background: #2563eb;
-        transform: translateY(-2px);
-        box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
-    }
 
-    /* INPUT FIELD - Ritocco per sfondo scuro */
-    .input-field-modern {
-        width: 100%;
-        padding: 14px;
-        margin-bottom: 15px;
-        border-radius: 12px;
-        border: 1px solid #475569;
-        background: #1e293b;
-        color: white;
-        font-family: inherit;
-        box-sizing: border-box;
-    }
 
-    .input-field-modern::placeholder {
-        color: #94a3b8;
-    }
 
-    .login-error-msg {
-        color: #fb7185; /* Rosso pastello più leggibile */
-        font-size: 13px;
-        font-weight: 600;
-        margin-top: 20px;
-    }
-        /* STILE PULSANTE LOGOUT ELEGANTE (POSIZIONE TOP) */
+
+/* ============================================================
+   2. PAGINA DEL LOGIN
+   ============================================================ */
+
+/* SFONDO LOGIN - EFFETTO VETRO APPANNATO */
+#login-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    /* Colore scuro semi-trasparente */
+    background-color: rgba(15, 23, 42, 0.7);
+    /* L'effetto "appannato" magico */
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px); /* Per Safari */
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 200000; /* sopra a tutto, modal-carrello incluso */
+}
+
+/* Mostra il login solo quando richiesto (classe impostata inline in index.html) */
+.needs-login #login-overlay {
+    display: flex;
+}
+
+/* CARD DI LOGIN */
+.login-card {
+    background: #252525; /* Il tuo esadecimale */
+    padding: 45px;
+    border-radius: 32px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+    width: 90%;
+    max-width: 420px;
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.1); /* Bordino sottile per dare profondità */
+}
+
+/* LOGO NEL LOGIN - PIÙ GRANDE */
+.login-logo-container {
+    margin-bottom: 30px;
+}
+
+.login-logo-img {
+    width: 200px; /* Aumentato da 160px a 200px */
+    height: auto;
+    filter: none !important;
+    display: block;
+    margin: 0 auto;
+    /* Ombra esterna al logo per farlo staccare dal fondo scuro */
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3)) !important;
+}
+
+/* TESTI BIANCHI PER LEGGIBILITÀ */
+.login-card h2 {
+    color: #ffffff !important; /* Forza il bianco */
+    font-size: 26px;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.login-card p {
+    color: #cbd5e1 !important; /* Grigio chiarissimo quasi bianco */
+    font-size: 15px;
+    margin-bottom: 30px;
+}
+
+/* BOTTONE LOGIN */
+.btn-login {
+    width: 100%;
+    background: #3b82f6; /* Blu più acceso per risaltare sul grigio scuro */
+    color: white;
+    padding: 16px;
+    border-radius: 14px;
+    border: none;
+    font-weight: 700;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.btn-login:hover {
+    background: #2563eb;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
+}
+
+/* INPUT FIELD - Ritocco per sfondo scuro */
+.input-field-modern {
+    width: 100%;
+    padding: 14px;
+    margin-bottom: 15px;
+    border-radius: 12px;
+    border: 1px solid #475569;
+    background: #1e293b;
+    color: white;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.input-field-modern::placeholder {
+    color: #94a3b8;
+}
+
+.login-error-msg {
+    color: #fb7185; /* Rosso pastello più leggibile */
+    font-size: 13px;
+    font-weight: 600;
+    margin-top: 20px;
+}
+
+/* STILE PULSANTE LOGOUT ELEGANTE (POSIZIONE TOP) */
 .btn-logout-minimal {
     display: flex;
     align-items: center;
@@ -173,147 +223,256 @@
 
 
 
-/* --- SIDEBAR --- */
+
+
+
+
+
+
+
+
+
+
+
+/* ============================================================
+   3. PAGINA PRINCIPALE: SIDEBAR
+   ============================================================ */
+
+   /* --- SIDEBAR PRINCIPALE --- */
+   /* 1. Forza la Sidebar a essere il punto di riferimento */
 .sidebar {
-  width: 260px;
-  min-width: 260px;
-  background: #242424; /* Dark Slate */
-  display: flex;
-  flex-direction: column;
-  padding: 20px 15px;
-  box-sizing: border-box;
-  z-index: 100;
-}
-
-
-
-
-
-
-
-/* 1. SEZIONE UTENTE (IN ALTO) */
-.sidebar-user-section {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-bottom: 20px;
-  border-bottom: 1px solid #1f2937;
-  margin-bottom: 20px;
-}
-
-.user-card-top {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: white;
-}
-
-.user-avatar-top {
-  width: 35px;
-  height: 35px;
-  border-radius: 8px;
-  object-fit: cover;
-  border: 2px solid #2563eb;
-}
-
-.user-info-top {
-  display: flex;
-  flex-direction: column;
-}
-.user-name { font-size: 13px; font-weight: 700; color: white; }
-.user-role { font-size: 10px; color: #9ca3af; text-transform: uppercase; }
-
-
-
-
-
-
-/* CAMPANELLINA */
-.bell-icon-top {
-  color: #6b7280;
-  font-size: 18px;
-  cursor: pointer;
-  transition: 0.2s;
-  padding: 5px;
-  border-radius: 5px;
-}
-.bell-icon-top:hover { color: white; background: #374151; }
-
-
-
-
-
-/* 2. MENU CENTRALE */
-.menu-section-label {
-  color: #6b7280;
-  font-size: 11px;
-  font-weight: 700;
-  margin: 10px 0 5px 10px;
-  text-transform: uppercase;
-}
-
-.menu-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between; /* Spinge il badge a destra */
-  padding: 12px 15px;
-  color: #9ca3af;
-  cursor: pointer;
-  border-radius: 8px;
-  transition: 0.2s;
-  font-size: 14px;
-  font-weight: 500;
-  margin-bottom: 5px;
-}
-
-.menu-item:hover { background: #1f2937; color: white; }
-.menu-item.active {
-  background: #fff !important;
-  color: #11101d !important;
-  border-radius: 12px;
-}
-
-.menu-content {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-
-
-
-
-
-/* Badge rosso accanto a Richieste */
-.badge-sidebar-inline {
-  background: #ef4444;
-  color: white;
-  font-size: 10px;
-  font-weight: 800;
-  padding: 2px 8px;
-  border-radius: 12px;
-  display: none; /* Si mostra solo se > 0 */
-}
-
-
-
-
-.sidebar-footer-logo {
-    margin-top: auto;
-    padding: 20px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 100%;
+    width: 240px;
+    height: 100vh !important;
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    background: #242424;
     box-sizing: border-box;
+    padding: 15px;
+}
+
+/* 2. Posizionamento ASSOLUTO per il footer */
+.sidebar-footer {
+    position: absolute !important;
+    bottom: 20px !important; /* Lo blocca a 20px dal bordo inferiore */
+    left: 15px !important;   /* Lo allinea al padding sinistro */
+    width: calc(100% - 30px) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    padding-top: 15px !important;
+}
+
+/* 3. Forza l'allineamento orizzontale come se fosse una riga di testo */
+.sidebar-footer-logo {
+    display: block !important; /* Cambiamo da flex a block */
+    white-space: nowrap !important; /* Impedisce di andare a capo */
+    text-align: left !important;
+}
+
+.logo-img-footer,
+.footer-divider-vertical,
+.alpha-text {
+    display: inline-block !important; /* Li mette come parole una accanto all'altra */
+    vertical-align: middle !important; /* Li centra sulla stessa linea */
+    margin: 0 !important;
 }
 
 .logo-img-footer {
-    width: 200px; /* Prova a cambiare questa misura */
-    height: auto;
-    display: block;
-    filter: none !important; /* Forza la rimozione di qualsiasi filtro */
-    opacity: 1 !important;   /* Forza la visibilità massima */
+    width: 22px !important;
+    height: auto !important;
+    margin-right: 8px !important;
+}
+
+.footer-divider-vertical {
+    width: 1px !important;
+    height: 14px !important;
+    background-color: rgba(255, 255, 255, 0.2) !important;
+    margin-right: 10px !important;
+}
+
+.alpha-text {
+    color: #3b82f6 !important;
+    font-size: 10px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1px !important;
+}
+
+
+/* 1. SEZIONE UTENTE (IN ALTO) [cite: 36] */
+/* this rule was expanded to include styles previously inline in index.html so layout stays identical */
+.sidebar-user-section {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 15px;
+    gap: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    margin-bottom: 10px;
+}
+
+.user-card-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: white;
+}
+
+.user-avatar-top {
+    width: 35px;
+    height: 35px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 2px solid #2563eb;
+}
+
+.user-info-top, #user-info-top {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-grow: 1;
+}
+
+.user-name { font-size: 13px; font-weight: 700; color: white; }
+
+#user-name-display {
+    color: white;
+    font-weight: 700;
+    font-size: 15px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+.user-role { font-size: 10px; color: #9ca3af; text-transform: uppercase; }
+
+/* 2. MENU CENTRALE [cite: 40] */
+
+#badge-carrello-count {
+    background: #f59e0b;
+}
+.menu-section-label {
+    color: #6b7280;
+    font-size: 10px;
+    font-weight: 700;
+    margin: 10px 0 5px 10px;
+    text-transform: uppercase;
+    margin-top: 20px;
+    letter-spacing: 0.05em;
+}
+
+.menu-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* Spinge il badge a destra [cite: 41] */
+    padding: 10px 12px;
+    color: #9ca3af;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: 0.2s;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+button.menu-item {
+    appearance: none;
+    -webkit-appearance: none;
+    border: none;
+    background: transparent;
+    font: inherit;
+    text-align: left;
+    width: 100%;
+}
+
+.menu-item:hover { background: #1f2937; color: white; }
+
+.menu-item.active {
+    background: #fff !important;
+    color: #11101d !important;
+    border-radius: 12px;
+}
+
+.menu-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* Badge rosso accanto a Richieste [cite: 44] */
+.badge-sidebar-inline {
+    background: #ef4444;
+    color: white;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 12px;
+    display: none; /* Si mostra solo se > 0 [cite: 45] */
+    transition: background 0.3s;
+}
+/* Sollecito: il badge diventa arancione e lampeggia */
+@keyframes badge-pulse {
+    0%, 100% { transform: scale(1);   opacity: 1; }
+    50%       { transform: scale(1.2); opacity: 0.75; }
+}
+.badge-sidebar-inline.badge-sollecito-attivo {
+    background: #f97316;
+    animation: badge-pulse 1.4s ease-in-out infinite;
+}
+
+/* FOOTER [cite: 45] */
+/* Assicuriamoci che la sidebar sia un contenitore flex alto tutto lo schermo */
+.sidebar {
+    width: 260px;
+    height: 100vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    background: #242424;
+    padding: 20px 15px !important;
+    box-sizing: border-box;
+}
+
+/* Il contenitore che spinge in basso: deve avere width 100% */
+.sidebar-footer {
+    margin-top: auto !important; /* La molla */
+    width: 100% !important;
+    padding-bottom: 5px;
+}
+
+/* LA RIGA ORIZZONTALE: Usiamo inline-flex per essere sicuri */
+.sidebar-footer-logo {
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    padding-top: 15px !important;
+    display: flex !important;
+    flex-direction: row !important; /* Forza orizzontale */
+    align-items: center !important;  /* Centra verticalmente */
+    flex-wrap: nowrap !important;    /* VIETA di andare a capo */
+    gap: 8px !important;
+}
+
+.logo-img-footer {
+    width: 20px !important; /* Leggermente più piccolo per stare comodo */
+    height: auto !important;
+    flex-shrink: 0 !important; /* Gli impedisce di rimpicciolirsi */
+}
+
+.footer-divider-vertical {
+    width: 1px !important;
+    height: 12px !important;
+    background-color: rgba(255, 255, 255, 0.2) !important;
+    flex-shrink: 0 !important;
+}
+
+.alpha-text {
+    color: #3b82f6 !important;
+    font-size: 10px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1px !important;
+    white-space: nowrap !important; /* Testo su una sola riga */
+    flex-shrink: 0 !important;
 }
 
 
@@ -327,187 +486,334 @@
 
 
 
+
+
+
+
+/* ============================================================
+   4. AREA CONTENUTO PRINCIPALE (MAIN CONTENT)
+   ============================================================ */
+
+/* search bar previously styled inline */
+.search-container {
+    position: relative;
+    margin-bottom: 20px;
+    max-width: 450px;
+}
+.search-container i {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+}
+.search-container input {
+    width: 100%;
+    padding: 10px 15px 10px 40px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    background: white;
+    font-size: 13px;
+    outline: none;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+    transition: all 0.3s ease;
+}
+
 /* --- MAIN CONTENT --- */
-        .main-content {
-            flex-grow: 1;
-            padding: 40px 60px;
-            overflow-y: auto;
-            position: relative;
-        }
+.main-content {
+    flex-grow: 1;
+    padding: 40px 60px;
+    overflow-y: auto;
+    position: relative;
+}
 
-        .top-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 40px;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 20px;
-        }
+.top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 40px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 20px;
+}
 
-        h1 { font-size: 28px; font-weight: 800; margin: 0; letter-spacing: -0.03em; }
-
-
-
-
-
-        /* --- CARD ORDINE --- */
-        .riga-ordine {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: white;
-            padding: 24px 30px;
-            border-radius: 8px;
-            cursor: pointer;
-            border: 1px solid var(--border-color);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            margin-bottom: 12px;
-            position: relative;
-        }
-
-        .riga-ordine:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px -5px rgba(0,0,0,0.05);
-            border-color: var(--primary);
-        }
-
-        .riga-ordine.open {
-            border-left: 6px solid var(--primary);
-            border-bottom-left-radius: 0;
-            border-bottom-right-radius: 0;
-            margin-bottom: 0;
-            background: #fafafa;
-        }
-
-        .dettagli-container {
-            display: none;
-            background: white;
-            border: 1px solid var(--border-color);
-            border-top: none;
-            border-bottom-left-radius: 8px;
-            border-bottom-right-radius: 8px;
-            padding: 20px 30px;
-            margin-bottom: 20px;
-            animation: slideIn 0.3s ease-out;
-        }
-
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .item-card {
-            display: grid;
-            grid-template-columns: 2fr 0.8fr 1.5fr 1.5fr 1.2fr;
-            gap: 20px;
-            padding: 15px 0;
-            border-bottom: 1px solid #f1f5f9;
-            align-items: center;
-        }
+h1 {
+    font-size: 1.5rem;
+    font-weight: 800;
+    margin: 0;
+    letter-spacing: -0.03em;
+}
 
 
 
 
 
-        /* Griglia specifica per le card dell'archivio */
+
+
+
+
+
+
+
+
+
+
+/* ============================================================
+   5. PAGINA PROGRAMMA PRODUZIONE
+   ============================================================ */
+
+/* --- CARD ORDINE --- */
+.riga-ordine {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 1px solid var(--border-color);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-bottom: 12px;
+    position: relative;
+}
+.riga-ordine b,
+.riga-ordine span[style*="font-weight:800"] {
+    font-size: 0.95rem !important; /* Non troppo grande */
+}
+
+.riga-ordine:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px -5px rgba(0,0,0,0.05);
+    border-color: var(--primary);
+}
+
+.riga-ordine.open {
+    border-left: 6px solid var(--primary);
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    margin-bottom: 0;
+    background: #fafafa;
+}
+
+.dettagli-container {
+    display: none;
+    background: white;
+    border: 1px solid var(--border-color);
+    border-top: none;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    padding: 20px 30px;
+    margin-bottom: 20px;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.item-card {
+    display: grid;
+    grid-template-columns: 2fr 0.8fr 1.6fr 1.6fr auto;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    align-items: center;
+    background: white;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    transition: box-shadow var(--transition-fast) ease, transform var(--transition-fast) ease;
+    min-width: 0;
+}
+
+.item-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ============================================================
+   6. PAGINA ARCHIVIO ORDINI
+   ============================================================ */
+
+/* Griglia specifica per le card dell'archivio */
 .item-card.archivio-layout {
-  display: grid !important;
-  grid-template-columns: 1.5fr 0.8fr 1.2fr 1.2fr 180px;
-  align-items: center;
-  gap: 15px;
-  padding: 15px 20px;
-  background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
-
-
-
+    display: grid !important;
+    grid-template-columns: 1.5fr 0.8fr 1.2fr 1.2fr 180px;
+    align-items: center;
+    gap: 15px;
+    padding: 15px 20px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
 }
 
 /* Miglioriamo le etichette per farle stare sopra il valore */
 .label-sm {
-  display: block;
-  font-size: 10px;
-  text-transform: uppercase;
-  color: #94a3b8;
-  margin-bottom: 2px;
-  letter-spacing: 0.5px;
+    display: block;
+    font-size: 10px;
+    text-transform: uppercase;
+    color: #94a3b8;
+    margin-bottom: 2px;
+    letter-spacing: 0.5px;
 }
-
-
-
-
 
 /* Forza i bottoni dell'archivio a non allargarsi troppo */
 .btn-archive-action {
-  width: 100%;
-  padding: 6px 10px !important;
-  font-size: 11px !important;
-  border-radius: 8px !important;
-  cursor: pointer;
-  transition: all 0.2s;
+    width: 100%;
+    padding: 6px 10px !important;
+    font-size: 11px !important;
+    border-radius: 8px !important;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+/* utility per card archivio */
+.archivio-codice {
+    color: #1e293b;
+}
+.archivio-qty {
+    text-align: center;
+}
+.archivio-qty-val {
+    font-size: 16px;
+}
+.archivio-stato {
+    color: #64748b;
+    font-weight: 700;
+}
+.archivio-operatore {
+    color: #64748b;
+    font-weight: 600;
+}
+
+
+.select-interattivo {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2364748b' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-color: #f8fafc;
+    color: #1e293b;
+    border: 1px solid #e2e8f0;
+    padding: 8px 35px 8px 15px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 100%;
+}
+
+.scroll-wrapper { text-align: right; margin: 10px 0; }
+.scroll-btn {
+    background: var(--primary);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: background 0.2s;
+}
+.scroll-btn:hover { background: #1e40af; }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ============================================================
+   7. BOTTONI SUPPORTO E AZIONI (SOS)
+   ============================================================ */
+
+.btn-sos {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 38px;
+    padding: 0 15px;
+    background: transparent;
+    color: #ef4444;
+    border: 1px solid #fee2e2;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-sos:hover {
+    background: #fef2f2;
+}
+
+.btn-sos-small {
+    background: #fef2f2;
+    color: #ef4444;
+    border: 1px solid #fee2e2;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 11px !important;
+    font-weight: 600;
+    cursor: pointer;
+    text-transform: uppercase;
+    min-width: 140px;  /* Forza i tasti ad avere la stessa larghezza */
+    text-align: center;
+    justify-content: center;
+    white-space: nowrap;
+}
+
+.badge-count {
+    background: #f1f5f9;
+    color: #475569;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 700;
+    min-width: 80px;   /* Allinea anche il badge finale */
+    text-align: center;
 }
 
 
 
-        .select-interattivo {
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2364748b' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 12px center;
-            background-color: #f8fafc;
-            color: #1e293b;
-            border: 1px solid #e2e8f0;
-            padding: 8px 35px 8px 15px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            width: 100%;
-        }
-
-
-
-
-
-
-
-        /* --- BOTTONI SUPPORTO --- */
-        .btn-sos {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            height: 38px;
-            padding: 0 15px;
-            background: transparent;
-            color: #ef4444;
-            border: 1px solid #fee2e2;
-            border-radius: 6px;
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .btn-sos:hover { background: #fef2f2; }
-
-        .btn-sos-small {
-            background: #fef2f2;
-            color: #ef4444;
-            border: 1px solid #fee2e2;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 10px;
-            font-weight: 700;
-            cursor: pointer;
-            text-transform: uppercase;
-        }
-
-        .badge-count { background: #f1f5f9; color: #475569; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; }
-        .btn-update { background: white; border: 1px solid var(--border-color); padding: 8px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: 0.2s; }
-        .btn-update:hover { background: #000; color: #fff; }
 
 
 
@@ -517,212 +823,194 @@
 
 
 
-        /* --- MODAL SUPPORTO --- */
-        .modal-overlay {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(5px);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 2000;
-        }
-
-        .modal-content {
-            background: white;
-            padding: 30px;
-            border-radius: 16px;
-            width: 500px;
-            max-width: 90%;
-            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
-        }
-
-        .btn-tipo {
-            flex: 1;
-            padding: 12px;
-            border: 1px solid #e2e8f0;
-            background: white;
-            border-radius: 10px;
-            cursor: pointer;
-            font-weight: 700;
-            font-size: 12px;
-            transition: all 0.2s;
-            text-transform: uppercase;
-        }
-
-        .btn-tipo.active { background: var(--primary); color: white; border-color: var(--primary); }
-
-        #wrapper-operatori {
-            max-height: 180px;
-            overflow-y: auto;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            margin: 10px 0;
-        }
-
-        .op-label {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 10px 15px;
-            border-bottom: 1px solid #f1f5f9;
-            cursor: pointer;
-            font-size: 13px;
-        }
-        .op-label:hover { background: #f8fafc; }
-
-        .inbox-container {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .messaggio-card {
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            border: 1px solid var(--border-color);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-        }
-
-        .border-assegna { border-left: 5px solid #2563eb; }
-        .border-domanda { border-left: 5px solid #f59e0b; }
-
-        .badge-tipo {
-            font-size: 10px;
-            font-weight: 800;
-            padding: 4px 8px;
-            border-radius: 4px;
-            background: #f1f5f9;
-            color: #475569;
-        }
-
-        .card-stat {
-            background: white;
-            padding: 15px;
-            border-radius: 12px;
-            border: 1px solid var(--border-color);
-            font-size: 14px;
-        }
 
 
 
 
 
+/* ============================================================
+   8. MODAL SUPPORTO (FINESTRA DI DIALOGO)
+   ============================================================ */
 
-
-        /* --- STILE CHAT MODERNA --- */
-        .chat-card {
-            background: #ffffff;
-            border-radius: 16px;
-            margin-bottom: 20px;
-            padding: 20px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-            border: 1px solid #f1f5f9;
-        }
-
-        .chat-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 15px;
-            background: #f8fafc;
-            border-bottom: 1px solid #e2e8f0;
-            border-radius: 12px 12px 0 0;
-        }
-        .info-ordine b {
-color: #1e293b;
-font-size: 15px;
-margin-left: 5px;
+/* ============================================================
+   AUTOCOMPLETE ORDINE (modal nuova richiesta)
+   ============================================================ */
+.modal-ordine-row { margin-bottom: 14px; }
+.ordine-autocomplete-wrapper {
+    position: relative;
 }
-        .badge-tipo-chat {
-            background: #eef2ff;
-            color: #4f46e5;
-            padding: 4px 10px;
-            border-radius: 6px;
-            text-transform: uppercase;
-            font-weight: 800;
-            font-size: 10px;
-            letter-spacing: 0.5px;
-        }
+.ordine-autocomplete-wrapper .input-field-modern {
+    width: 100%;
+    box-sizing: border-box;
+}
+.ordine-autocomplete-list {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    z-index: 99999;
+    overflow: hidden;
+    max-height: 240px;
+    overflow-y: auto;
+}
+.autocomplete-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid #f1f5f9;
+    gap: 10px;
+    transition: background 0.12s;
+}
+.autocomplete-item:last-child { border-bottom: none; }
+.autocomplete-item:hover { background: #f0f9ff; }
+.ac-ordine { font-weight: 700; font-size: 13px; color: #1e293b; white-space: nowrap; }
+.ac-cliente { font-size: 12px; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
 
-        .chat-body {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            background: #f0f2f5; /* Grigio chiaro tipo sfondo WhatsApp */
-            padding: 20px;
-            border-radius: 12px;
-        }
+.modal-ordine-row .input-field-modern {
+    margin-top: 6px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(5px);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.modal-overlay.active {
+    opacity: 1;
+}
+
+.modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 16px;
+    width: 500px;
+    max-width: 90%;
+    box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+    opacity: 0;
+    transform: scale(0.9) translateY(20px);
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease;
+}
+
+.modal-overlay.active .modal-content {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+.btn-tipo {
+    flex: 1;
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    background: white;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 12px;
+    transition: all 0.2s;
+    text-transform: uppercase;
+}
+
+.btn-tipo.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+#wrapper-operatori {
+    max-height: 180px;
+    overflow-y: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    margin: 10px 0;
+}
+
+.op-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 15px;
+    border-bottom: 1px solid #f1f5f9;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.op-label:hover {
+    background: #f8fafc;
+}
 
 
 
 
 
-        /* --- BOLLE MESSAGGIO --- */
-        .chat-bubble-wrapper {
-            display: flex;
-            width: 100%;
-        }
 
 
 
 
 
 
-        /* Ricevuto (Operatore) - Allineato a SINISTRA */
-        .chat-bubble-wrapper.received {
-            justify-content: flex-start;
-        }
-
-        .chat-bubble-wrapper.received .chat-bubble {
-            background: white;
-            color: #333;
-            border-radius: 0px 15px 15px 15px; /* Angolo tagliato in alto a sx */
-            border: 1px solid #e2e8f0;
-        }
 
 
 
+/* ============================================================
+   9. GESTIONE MESSAGGI (INBOX) E STATISTICHE
+   ============================================================ */
 
+.inbox-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
 
-        /* Inviato (Master/Ufficio) - Allineato a DESTRA */
-        .chat-bubble-wrapper.sent {
-            justify-content: flex-end;
-        }
+.messaggio-card {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
 
-        .chat-bubble-wrapper.sent .chat-bubble {
-            background: #007aff; /* Blu iOS */
-            color: white;
-            border-radius: 15px 15px 0px 15px; /* Angolo tagliato in basso a dx */
-        }
+.border-assegna {
+    border-left: 5px solid #2563eb;
+}
 
-        .chat-bubble {
-            max-width: 75%;
-            padding: 10px 15px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-        }
+.border-domanda {
+    border-left: 5px solid #f59e0b;
+}
 
+.badge-tipo {
+    font-size: 10px;
+    font-weight: 800;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: #f1f5f9;
+    color: #475569;
+}
 
-
-
-
-        /* Nome Autore dentro la bolla */
-        .chat-bubble-name {
-            font-size: 10px;
-            font-weight: 800;
-            margin-bottom: 3px;
-            text-transform: uppercase;
-            display: block;
-        }
-
-        .chat-bubble-text {
-            font-size: 14px;
-            line-height: 1.4;
-        }
-        .received .chat-bubble-name { color: #2563eb; }
-        .sent .chat-bubble-name { color: #dbeafe; }
+.card-stat {
+    background: white;
+    padding: 15px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    font-size: 14px;
+}
 
 
 
@@ -733,90 +1021,444 @@ margin-left: 5px;
 
 
 
-        /* --- AZIONI --- */
-        .chat-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px solid #f1f5f9;
-        }
 
-        .btn-chat-action {
-            border: none;
-            padding: 8px 14px;
-            border-radius: 8px;
-            font-size: 11px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
 
-        .btn-chat-action.reply { background: #eff6ff; color: #3b82f6; }
-        .btn-chat-action.alert { background: #fff1f2; color: #e11d48; }
-        .btn-chat-action.done { background: #f0fdf4; color: #16a34a; }
 
-      .reply-input-wrapper {
-          display: flex;
-          background: #ffffff;
-          padding: 8px;
-          border-radius: 25px;
-          border: 1px solid #e2e8f0;
-          margin-top: 15px;
-          box-shadow: 0 2px 6px rgba(0,0,0,0.03);
-      }
 
-      .reply-input-wrapper input {
-          flex: 1;
-          background: none;
-          border: none;
-          padding: 5px 15px;
-          outline: none;
-          font-size: 14px;
-      }
 
-      .reply-input-wrapper button {
-          background: #3b82f6;
-          color: white;
-          border: none;
-          width: 34px;
-          height: 34px;
-          border-radius: 50%;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: 0.2s;
-      }
+/* ============================================================
+   10. STILE CHAT MODERNA
+   ============================================================ */
 
-      .reply-input-wrapper button:hover { transform: scale(1.05); background: #2563eb; }
-      .notification-container {
-position: relative;
-display: inline-block;
-cursor: pointer;
-padding: 10px;
+/* utility classes moved from inline templates */
+.empty-msg {
+    padding: 20px;
+    color: #94a3b8;
+    text-align: center;
+}
+.hidden-search { display: none !important; }
+.separatore-archivio {
+    margin: 60px 0 30px 0;
+    text-align: center;
+    border-top: 2px dashed #e2e8f0;
+    position: relative;
+}
+.separatore-archivio span {
+    background: #f8fafc;
+    color: #94a3b8;
+    padding: 5px 20px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 800;
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 1px solid #e2e8f0;
+}
+.sezione-archiviata { opacity: 0.9; }
+.slim { display: inline-block; }
+.flex-grow { flex-grow: 1; }
+.order-info { display: flex; align-items: center; gap: 10px; }
+.order-number { color: #94a3b8; margin-left: 15px; }
+.order-title { font-weight: 800; font-size: 0.92rem; color: var(--order-color, inherit); }
+/* Badge con ordine + articoli combinati */
+.badge-ord-num { font-weight: 800; opacity: 0.85; margin-right: 2px; }
+.badge-sep { margin: 0 5px; opacity: 0.4; font-size: 10px; }
+.dettagli-container.hidden { display: none; padding: 10px; background: #f1f5f9; }
+
+/* sos button variants */
+.btn-sos-small.warning {
+    background: #f97316;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+.btn-sos-small.success {
+    background: #22c55e;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+
+.chat-card {
+    background: #ffffff;
+    border-radius: 16px;
+    margin-bottom: 20px;
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    border: 1px solid #f1f5f9;
+}
+.chat-card.archiviata { opacity: 0.8; }
+
+/* --- SOLLECITO: lampeggio card + badge --- */
+@keyframes sollecito-pulse {
+    0%   { box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-color: #f1f5f9; }
+    50%  { box-shadow: 0 0 0 4px rgba(239,68,68,0.18), 0 4px 20px rgba(239,68,68,0.15); border-color: #ef4444; }
+    100% { box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-color: #f1f5f9; }
+}
+.chat-card.sollecitata {
+    animation: sollecito-pulse 2s ease-in-out infinite;
+    border-color: #fca5a5;
+}
+.badge-sollecito {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 800;
+    color: #dc2626;
+    background: #fee2e2;
+    border: 1px solid #fca5a5;
+    padding: 2px 7px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+/* --- fine sollecito --- */
+
+.chat-header { background: transparent; padding: 12px 20px; }
+.chat-header.archiviata { background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+.chat-badge-type { font-size: 10px; font-weight: 800; color: #3b82f6; text-transform: uppercase; background: #eff6ff; padding: 2px 6px; border-radius: 4px; }
+/* Dot icona tipo (sostituisce badge testuale) */
+.chat-tipo-dot {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 900;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+.chat-tipo-assegna { background: #dcfce7; color: #16a34a; }
+.chat-tipo-domanda { background: #fee2e2; color: #dc2626; }
+/* Pulsanti solo icona nelle chat-actions */
+.btn-icon-only {
+    width: 34px;
+    height: 34px;
+    padding: 0 !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border-radius: 8px;
+}
+.chat-order-label { font-size: 14px; font-weight: 800; margin-left: 10px; }
+.chat-date { font-size: 11px; color: #94a3b8; }
+.chat-body { padding: 15px 20px; background: #fcfcfc; display: flex; flex-direction: column; gap: 10px; }
+.box-hidden { display: none; opacity: 0; transform: translateY(-10px); transition: all 0.3s ease; }
+.box-conferma { background: #fff7ed; border-top: 1px solid #ffedd5; text-align: center; }
+.box-risposta {
+    background: #f8faff;
+    border-top: 2px solid #e0eaff;
+    padding: 16px 20px 18px;
+    border-radius: 0 0 16px 16px;
+}
+.reply-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.reply-input {
+    width: 100%;
+    border-radius: 12px;
+    border: 1.5px solid #cbd5e1;
+    padding: 12px 16px;
+    font-size: 14px;
+    min-height: 80px;
+    max-height: 200px;
+    resize: vertical;
+    outline: none;
+    font-family: inherit;
+    background: #fff;
+    color: #1e293b;
+    line-height: 1.5;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
+}
+.reply-input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+}
+.reply-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+.reply-hint {
+    font-size: 12px;
+    color: #94a3b8;
+}
+.reply-hint b { color: #475569; font-weight: 700; }
+.btn-reply-send {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 20px;
+    background: #3b82f6;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+    box-shadow: 0 4px 10px rgba(59,130,246,0.25);
+    white-space: nowrap;
+}
+.btn-reply-send:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(59,130,246,0.35);
+}
+.btn-reply-send:active {
+    transform: scale(0.97);
+}
+.box-message { font-size: 13px; font-weight: 700; color: #9a3412; margin-bottom: 10px; }
+.box-actions { display: flex; gap: 10px; justify-content: center; }
+.button-small { padding: 6px 15px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; }
+.btn-cancel { background: white; color: #475569; border: 1px solid #e2e8f0; }
+.btn-archive-action { background: #16a34a; color: white; border: none; }
+.btn-reply { background: #eff6ff; color: #3b82f6; border: none; }
+.btn-alert { background: #fff1f2; color: #e11d48; border: none; }
+.btn-archive { background: #f0fdf4; color: #16a34a; border: none; }
+.chat-to { font-size: 10px; color: #94a3b8; margin-left: auto; }
+.chat-archiviata-note { padding: 10px 20px; border-top: 1px solid #f1f5f9; background: #f8fafc; text-align: right; }
+.chat-archiviata-label { font-size: 11px; color: #16a34a; font-weight: 700; }
+
+
+.chat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    border-radius: 12px 12px 0 0;
+}
+
+.info-ordine b {
+    color: #1e293b;
+    font-size: 15px;
+    margin-left: 5px;
+}
+
+.badge-tipo-chat {
+    background: #eef2ff;
+    color: #4f46e5;
+    padding: 4px 10px;
+    border-radius: 6px;
+    text-transform: uppercase;
+    font-weight: 800;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+}
+
+.chat-body {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    background: #f0f2f5; /* Grigio chiaro tipo sfondo WhatsApp */
+    padding: 20px;
+    border-radius: 12px;
+}
+
+/* --- BOLLE MESSAGGIO --- */
+.chat-bubble-wrapper {
+    display: flex;
+    width: 100%;
+}
+
+/* Ricevuto (Operatore) - Allineato a SINISTRA */
+.chat-bubble-wrapper.received {
+    justify-content: flex-start;
+}
+
+.chat-bubble-wrapper.received .chat-bubble {
+    background: white;
+    color: #333;
+    border-radius: 0px 15px 15px 15px; /* Angolo tagliato in alto a sx */
+    border: 1px solid #e2e8f0;
+}
+
+/* Inviato (Master/Ufficio) - Allineato a DESTRA */
+.chat-bubble-wrapper.sent {
+    justify-content: flex-end;
+}
+
+.chat-bubble-wrapper.sent .chat-bubble {
+    background: #007aff; /* Blu iOS */
+    color: white;
+    border-radius: 15px 15px 0px 15px; /* Angolo tagliato in basso a dx */
+}
+
+.chat-bubble {
+    max-width: 75%;
+    padding: 10px 15px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+/* Nome Autore dentro la bolla */
+.chat-bubble-name {
+    font-size: 10px;
+    font-weight: 800;
+    margin-bottom: 3px;
+    text-transform: uppercase;
+    display: block;
+}
+
+.chat-bubble-text {
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.received .chat-bubble-name { color: #2563eb; text-align: left; }
+.sent .chat-bubble-name { color: #dbeafe; text-align: right; }
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ============================================================
+   11. AZIONI CHAT E NOTIFICHE
+   ============================================================ */
+
+.chat-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #f1f5f9;
+}
+.chat-to-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.chat-to-dest {
+    font-size: 11px;
+    color: #475569;
+    font-weight: 600;
+}
+.chat-to-ord {
+    font-size: 10px;
+    color: #94a3b8;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+.chat-action-btns {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+.chat-cliente-label {
+    font-size: 11px;
+    color: #64748b;
+    font-style: italic;
+    font-weight: 500;
+    letter-spacing: 0.2px;
+}
+
+.btn-chat-action {
+    border: none;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.btn-chat-action.reply { background: #eff6ff; color: #3b82f6; }
+.btn-chat-action.alert { background: #fff1f2; color: #e11d48; }
+.btn-chat-action.done { background: #f0fdf4; color: #16a34a; }
+
+.reply-input-wrapper {
+    display: flex;
+    background: #ffffff;
+    padding: 8px;
+    border-radius: 25px;
+    border: 1px solid #e2e8f0;
+    margin-top: 15px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+}
+
+.reply-input-wrapper input {
+    flex: 1;
+    background: none;
+    border: none;
+    padding: 5px 15px;
+    outline: none;
+    font-size: 14px;
+}
+
+.reply-input-wrapper button {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.2s;
+}
+
+.reply-input-wrapper button:hover {
+    transform: scale(1.05);
+    background: #2563eb;
+}
+
+.notification-container {
+    position: relative;
+    display: inline-block;
+    cursor: pointer;
+    padding: 10px;
 }
 
 .notification-bell {
-font-size: 24px;
-color: #64748b;
+    font-size: 24px;
+    color: #64748b;
 }
 
 .notification-badge {
-position: absolute;
-top: 5px;
-right: 5px;
-background-color: #ef4444; /* Rosso notifica */
-color: white;
-border-radius: 50%;
-padding: 2px 6px;
-font-size: 10px;
-font-weight: bold;
-border: 2px solid white;
-display: none; /* Nascosto se 0 */
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background-color: #ef4444; /* Rosso notifica */
+    color: white;
+    border-radius: 50%;
+    padding: 2px 6px;
+    font-size: 10px;
+    font-weight: bold;
+    border: 2px solid white;
+    display: none; /* Nascosto se 0 */
 }
 
 
@@ -825,19 +1467,56 @@ display: none; /* Nascosto se 0 */
 
 
 
+
+
+
+
+
+
+
+
+/* --- ANIMAZIONI --- */
 
 /* Animazione per il sollecito */
 .shake {
-animation: shake 0.5s;
-animation-iteration-count: infinite;
+    animation: shake 0.5s;
+    animation-iteration-count: infinite;
 }
 
 @keyframes shake {
-0% { transform: rotate(0deg); }
-25% { transform: rotate(5deg); }
-50% { transform: rotate(0deg); }
-75% { transform: rotate(-5deg); }
-100% { transform: rotate(0deg); }
+    0% { transform: rotate(0deg); }
+    25% { transform: rotate(5deg); }
+    50% { transform: rotate(0deg); }
+    75% { transform: rotate(-5deg); }
+    100% { transform: rotate(0deg); }
+}
+
+@keyframes pulse-new {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
+    70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+}
+
+.badge-new-anim {
+    animation: pulse-new 2s infinite;
+    background: #2563eb !important;
+}
+
+.loader-spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #2563eb;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 10px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 
@@ -847,77 +1526,77 @@ animation-iteration-count: infinite;
 
 
 
-/* Effetto al passaggio del mouse sui tasti verdi */
-button[style*="#22c55e"]:hover {
-background: #16a34a !important;
-transform: translateY(-1px);
-transition: all 0.2s;
+
+
+
+
+
+
+
+
+
+
+
+/* ============================================================
+   12. IMPOSTAZIONI PREMIUM OPTIMIZED
+   ============================================================ */
+
+/* ============================================================
+   IMPOSTAZIONI: Accordion
+   ============================================================ */
+.settings-accordion {
+    background: white;
+    border-radius: 20px;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+    max-width: 680px;
+    margin: 0 auto;
+}
+.settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+    cursor: pointer;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background 0.15s;
+    user-select: none;
+}
+.settings-row:last-of-type { border-bottom: none; }
+.settings-row:hover { background: #f8fafc; }
+.settings-row.open { background: #f0f9ff; }
+.settings-row.open .settings-row-arrow { transform: rotate(180deg); }
+.settings-row-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.settings-row-icon {
+    width: 40px;
+    height: 40px;
+    background: #eff6ff;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #3b82f6;
+    font-size: 16px;
+    flex-shrink: 0;
+}
+.settings-row.open .settings-row-icon { background: #dbeafe; color: #1d4ed8; }
+.settings-row-title { font-weight: 700; font-size: 15px; color: #1e293b; }
+.settings-row-sub { font-size: 12px; color: #94a3b8; margin-top: 1px; }
+.settings-row-arrow { color: #94a3b8; font-size: 13px; transition: transform 0.2s; flex-shrink: 0; }
+.settings-section-body { border-bottom: 1px solid #f1f5f9; }
+.settings-section-body .card-settings {
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+    border-top: 1px solid #e2e8f0;
+    background: #fafbfc;
 }
 
-button[style*="#f0fdf4"]:hover {
-background: #dcfce7 !important;
-border-color: #86efac !important;
-}
-
-
-
-
-
-
-/* Badge per gli operatori assegnati */
-.visualizza-operatori {
-display: flex;
-flex-wrap: wrap;
-gap: 4px;
-min-height: 30px;
-align-items: center;
-}
-
-.badge-operatore {
-background: #e0e7ff;
-color: #4338ca;
-padding: 2px 8px;
-border-radius: 4px;
-font-size: 11px;
-font-weight: 600;
-text-transform: uppercase;
-border: 1px solid #c7d2fe;
-}
-
-
-
-
-
-
-/* Stile per il tasto Chiedi/Assegna */
-.btn-chiedi-assegna {
-background: #6366f1;
-color: white;
-border: none;
-padding: 5px 12px;
-border-radius: 6px;
-font-size: 12px;
-font-weight: 600;
-cursor: pointer;
-transition: all 0.2s;
-display: flex;
-align-items: center;
-gap: 5px;
-}
-
-.btn-chiedi-assegna:hover {
-background: #4f46e5;
-transform: translateY(-1px);
-}
-
-
-
-
-
-
-/* --- IMPOSTAZIONI PREMIUM OPTIMIZED --- */
-
-/* Contenitore principale: gestisce lo spazio tra le card */
 .settings-container {
     display: flex;
     flex-wrap: wrap;
@@ -927,7 +1606,6 @@ transform: translateY(-1px);
     box-sizing: border-box;
 }
 
-/* Card bianche: stile moderno, angoli stondati e ombra leggera */
 .card-settings {
     background: white;
     flex: 1;
@@ -950,7 +1628,6 @@ transform: translateY(-1px);
     gap: 10px;
 }
 
-/* Righe interne (Grigie): contengono i dati di ogni stato/operatore */
 .config-row-modern {
     background: #f8fafc;
     border-radius: 16px;
@@ -964,7 +1641,6 @@ transform: translateY(-1px);
     width: 100%;
 }
 
-/* Input principali (Nome) */
 .input-flat {
     border: none;
     background: transparent;
@@ -974,7 +1650,6 @@ transform: translateY(-1px);
     outline: none;
 }
 
-/* Input secondari (Email/Reparto): bianchi e rifiniti */
 .input-field-modern {
     background: #ffffff;
     border: 1px solid #e2e8f0;
@@ -992,7 +1667,6 @@ transform: translateY(-1px);
     outline: none;
 }
 
-/* Elementi grafici (Bollini e Avatar) */
 .status-dot-custom {
     width: 32px;
     height: 32px;
@@ -1000,7 +1674,177 @@ transform: translateY(-1px);
     border: 2px solid white;
     box-shadow: 0 3px 8px rgba(0,0,0,0.1);
     cursor: pointer;
+    background: var(--bg-color, #e2e8f0);
 }
+
+/* additional classes for script refactor */
+.archivio-wrapper { border-color: #cbd5e1; margin-bottom: 15px; }
+.archivio-header { background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+.order-info-col { text-align: right; display: flex; flex-direction: column; justify-content: center; gap: 5px; }
+.btn-archive-action.primary { background:#3b82f6; color:white; border:none; }
+.btn-archive-action.warning { background:white; color:#f97316; border:1px solid #f97316; }
+.color-picker-wrapper { position: relative; width: 32px; height: 32px; }
+.color-overlay { position: absolute; opacity:0; width:100%; height:100%; cursor:pointer; z-index:2; }
+
+.status-select { border-left: 5px solid var(--border-color); }
+.config-row-modern.row { flex-direction: row; align-items: center; gap: 12px; }
+.settings-actions-row { display: flex; align-items: center; justify-content: space-between; }
+.settings-options-row { display: flex; align-items: center; gap: 10px; }
+.grid-2col { display: grid; grid-template-columns: 1fr 1fr; }
+.gap-8 { gap: 8px; }
+.centered-fullwidth { width:100%; text-align:center; }
+.my-30 { margin: 30px 0; }
+.acquisti-header.header-flex { margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; padding:0 10px; }
+.acquisti-title { margin:0; font-size:16px; color:#1e293b; }
+.acquisti-subtitle { color:#64748b; font-size:12px; margin:0; }
+
+/* nuovo: acquisition page utilities */
+.hidden { display: none; }
+.acquisti-actions-row { display:flex; gap:10px; align-items:center; }
+.materiali-grid { display:grid; gap:18px; grid-template-columns: repeat(auto-fill, minmax(195px, 1fr)); }
+
+
+/* utility helpers introduced in script */
+.position-relative { position: relative; }
+.text-danger { color: #ef4444; }
+.scale-120 { transform: scale(1.2); }
+.mr-5 { margin-right: 5px; }
+.img-reset-btn {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background: rgba(239,68,68,0.92);
+    color: white;
+    border-radius: 20px;
+    padding: 5px 10px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    z-index: 20;
+    backdrop-filter: blur(4px);
+    box-shadow: 0 2px 8px rgba(239,68,68,0.4);
+    border: none;
+    transition: all 0.2s;
+    letter-spacing: 0.3px;
+}
+.img-reset-btn::before { content: '×'; font-size: 14px; font-weight: 400; line-height: 1; }
+.img-reset-btn::after { content: 'Rimuovi'; }
+.img-reset-btn:hover {
+    background: rgba(220,38,38,0.97);
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(239,68,68,0.5);
+}
+.cart-item-row { display:flex; align-items:center; gap:10px; padding:10px; border-bottom:1px solid #f1f5f9; }
+.cart-item-photo { width:40px; height:40px; object-fit:cover; border-radius:5px; }
+.cart-item-placeholder { width:40px; height:40px; background:#f8fafc; border-radius:5px; display:flex; align-items:center; justify-content:center; }
+.cart-item-icon { color:#cbd5e1; font-size:12px; }
+.cart-item-name { font-weight:700; font-size:13px; }
+.cart-item-details { font-size:11px; color:#64748b; }
+.btn-inline-trash { background:none; border:none; color:#ef4444; cursor:pointer; }
+.empty-cart-msg { text-align:center; padding:20px; color:#64748b; }
+
+/* === Modalità selezione multipla: toggle via classe sul grid === */
+/* Nasconde bottone ⋮, mostra checkbox */
+.grid-sel-mode .btn-opt-trigger { display: none !important; }
+.grid-sel-mode .mat-sel-chk {
+    display: block !important;
+    width: 16px !important;
+    height: 16px !important;
+    cursor: pointer !important;
+    accent-color: #2563eb !important;
+}
+
+/* === Wobble mode Sposta (iPhone-style) === */
+@keyframes mat-jiggle {
+    0%   { transform: rotate(0deg) scale(1); }
+    25%  { transform: rotate(-1.2deg) scale(1.01); }
+    75%  { transform: rotate(1.2deg) scale(1.01); }
+    100% { transform: rotate(0deg) scale(1); }
+}
+.mat-wobble {
+    animation: mat-jiggle 0.45s ease-in-out infinite;
+    transform-origin: center center;
+    cursor: grab !important;
+    box-shadow: 0 6px 20px rgba(37,99,235,0.18) !important;
+    border-color: #bfdbfe !important;
+    user-select: none;
+}
+.mat-wobble:nth-child(even) {
+    animation-delay: 0.2s;
+    animation-direction: alternate-reverse;
+}
+.mat-wobble:nth-child(3n) { animation-delay: 0.1s; }
+.mat-wobble:active { cursor: grabbing !important; animation: none !important; }
+
+/* Bottone Sposta attivo */
+.btn-active-sposta {
+    background: #1d4ed8 !important;
+    color: white !important;
+    border-color: #1d4ed8 !important;
+}
+.btn-active-sposta:hover {
+    background: #1e40af !important;
+}
+
+/* Drag and Drop */
+.dnd-dragging {
+    opacity: 0.35;
+    transform: scale(0.98);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.18) !important;
+    position: relative;
+    z-index: 50;
+}
+.dnd-handle, .drag-handle {
+    color: #cbd5e1;
+    cursor: grab;
+    flex-shrink: 0;
+    font-size: 13px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: color 0.2s;
+}
+.dnd-handle:hover, .drag-handle:hover { color: #94a3b8; }
+.dnd-handle:active, .drag-handle:active { cursor: grabbing; }
+
+/* additional utilities used after refactor */
+.icon-muted { color:#94a3b8; }
+.overlay-img { max-width:90%; max-height:90%; border-radius:10px; box-shadow:0 0 20px rgba(0,0,0,0.5); }
+.align-end { align-items: flex-end; }
+.gap-5 { gap: 5px; }
+
+/* message utility classes */
+.inline-msg { padding:20px; color:#64748b; }
+.inline-error { padding:20px; color:red; }
+.centered-msg { text-align:center; padding:50px; color:#94a3b8; }
+.centered-error-bold { text-align:center; padding:50px; color:#ef4444; font-weight:bold; }
+
+
+
+/* img-preview generico (modale, ecc.) */
+.img-preview-container {
+    background: #f8fafc;
+    border: 1px solid #f1f5f9;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    cursor: pointer;
+    pointer-events: auto;
+    position: relative;
+}
+.img-preview-container i {
+    color: #94a3b8;
+    font-size: 18px;
+    pointer-events: none;
+}
+
+/* img-preview container modifiers */
+.img-preview-container.dashed { border:1px dashed #cbd5e1; }
+.img-preview-container.large { width:60px; height:60px; }
 
 .avatar-circle {
     width: 34px;
@@ -1015,7 +1859,6 @@ transform: translateY(-1px);
     font-size: 13px;
 }
 
-/* Pulsanti */
 .btn-trash-modern {
     background: transparent;
     color: #94a3b8;
@@ -1052,6 +1895,48 @@ transform: translateY(-1px);
     background: #f0f7ff;
 }
 
+.visualizza-operatori {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    min-height: 30px;
+    align-items: center;
+}
+
+.badge-operatore {
+    background: #e0e7ff;
+    color: #4338ca;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    border: 1px solid #c7d2fe;
+}
+
+.btn-chiedi-assegna {
+    background: #6366f1;
+    color: white;
+    border: none;
+    padding: 6px 12px !important;
+    border-radius: 6px;
+    font-size: 11px !important;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 140px;  /* Forza i tasti ad avere la stessa larghezza */
+    text-align: center;
+    justify-content: center;
+    white-space: nowrap;
+}
+
+.btn-chiedi-assegna:hover {
+    background: #4f46e5;
+    transform: translateY(-1px);
+}
 
 
 
@@ -1060,229 +1945,717 @@ transform: translateY(-1px);
 
 
 
+/* additional rules moved from index.html inline styles */
+#modal-titolo {
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 18px;
+    color: #1e293b;
+}
 
+/* reset headings inside modals to remove default margins */
+#modal-carrello h3,
+.modal-articoli-box h3 {
+    margin: 0;
+}
+.modal-action-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+.modal-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+}
+#messaggio-aiuto {
+    width: 100%;
+    height: 80px;
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 13px;
+    resize: none;
+    outline: none;
+}
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 25px;
+}
+.btn-modal-cancel {
+    background: none;
+    border: none;
+    color: #64748b;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 14px;
+}
+.btn-modal-send {
+    background: #2563eb;
+    color: white;
+    border: none;
+    padding: 10px 25px;
+    border-radius: 10px;
+    font-weight: 700;
+    cursor: pointer;
+}
 
+#floating-cart-btn {
+    display: none;
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #f59e0b;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 8px 15px rgba(0,0,0,0.3);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 2px solid white;
+    pointer-events: auto !important;
+}
+/* === MODAL CARRELLO — fade overlay + slide-up box === */
+#modal-carrello {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.55);
+    z-index: 100000;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    backdrop-filter: blur(0px);
+    transition: opacity 0.28s ease, backdrop-filter 0.28s ease;
+    pointer-events: none;
+}
+#modal-carrello.cart-open {
+    opacity: 1;
+    backdrop-filter: blur(3px);
+    pointer-events: auto;
+}
+#modal-carrello > div {
+    background: white;
+    width: 90%;
+    max-width: 400px;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+    transform: translateY(24px) scale(0.97);
+    transition: transform 0.3s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+#modal-carrello.cart-open > div {
+    transform: translateY(0) scale(1);
+}
+#modal-carrello .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #f1f5f9;
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+}
+#modal-carrello .btn-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+}
+#modal-carrello .modal-footer {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
 
+/* gestione articolo modal */
+.modal-articoli-box h3 {
+    margin-top: 0;
+    color: #1e293b;
+    font-size: 18px;
+}
+.modal-articolo-field {
+    margin-bottom: 12px;
+}
+.modal-articolo-field label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+    margin-bottom: 4px;
+}
+.modal-articolo-field input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+.modal-articolo-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+.btn-modal-art-cancel {
+    background: none;
+    border: none;
+    color: #64748b;
+    font-weight: 600;
+    cursor: pointer;
+}
+.btn-modal-art-send {
+    background: #2563eb;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+}
 
-
-
-
-
-
-
-
-
-/* ============================================================
-   AREA MOBILE - ATTIVA SOLO SOTTO I 768px (SMARTPHONE)
-   ============================================================ */
-@media (max-width: 768px) {
-
-    /* 1. Reset per evitare sovrapposizioni e scroll laterali */
-    body, html {
-        overflow-x: hidden !important;
-        height: auto !important;
-        display: block !important; /* Toglie il flex che spacca la vista su iPhone */
-    }
-
-    /* 2. Sidebar a comparsa (Drawer) */
-    .sidebar {
-        position: fixed !important;
-        top: 0;
-        left: -100%; /* Nasconde la sidebar a sinistra */
-        width: 80% !important;
-        height: 100vh !important;
-        z-index: 9999 !important;
-        transition: transform 0.3s ease-in-out;
-        display: flex !important;
-        flex-direction: column !important;
-        background: #242424 !important;
-        visibility: hidden;
-    }
-
-    /* Classe che attiveremo col tasto menu */
-    .sidebar.mobile-open {
-        left: 0 !important;
-        visibility: visible !important;
-        transform: translateX(100%); /* La fa scivolare dentro */
-    }
-
-    /* 3. Header Mobile (il tasto con le 3 lineette) */
-    .mobile-header {
-        display: flex !important;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0 20px;
-        background: #111827;
-        color: white;
-        height: 60px;
-        position: fixed;
-        top: 0;
-        width: 100%;
-        z-index: 9000;
-        box-sizing: border-box;
-    }
-
-    /* 4. Main Content: Sistemazione spaziature */
-    .main-content {
-        margin-left: 0 !important;
-        margin-top: 60px !important; /* Spazio per l'header fisso */
-        padding: 15px !important;
-        width: 100% !important;
-        overflow-y: visible !important;
-    }
-
-    /* 5. Card Ordini: Diventano verticali e leggibili */
-    .riga-ordine {
-        flex-direction: column !important;
-        align-items: flex-start !important;
-        padding: 15px !important;
-        gap: 12px !important;
-    }
-
-    /* Sistemiamo i div interni alle card che si sovrappongono */
-    .riga-ordine > div {
-        width: 100% !important;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-size: 14px;
-    }
-
-    /* Nascondiamo elementi inutili su mobile per pulizia */
-    .sidebar-footer-logo, .menu-section-label {
-        display: none !important;
-    }
-
-    /* 6. Tabelle e Griglie dettagli */
-    .item-card {
-        grid-template-columns: 1fr !important; /* Una colonna sola */
-        gap: 8px !important;
-        border-bottom: 2px solid #eee;
-        padding-bottom: 15px !important;
-    }
-
-    /* Ridimensionamento Login per iPhone */
-    .login-card {
-        width: 90% !important;
-        padding: 25px !important;
-        border-radius: 20px !important;
-    }
+/* mobile header adjustments */
+.mobile-header {
+    display: none; /* nascosto su desktop, visibile via @media */
+    align-items: center;
+    background: #111827;
+    color: white;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 48px;
+    z-index: 9000;
+    box-sizing: border-box;
+    padding: 0 16px;
+    gap: 12px;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.05);
+}
+.mobile-menu-btn {
+    background: transparent;
+    border: none;
+    color: white;
+    padding: 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    line-height: 1;
+    min-width: 40px;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.mobile-menu-btn i { font-size: 20px; }
+.mobile-header-title {
+    flex: 1;
+    text-align: center;
+    font-weight: 800;
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: white;
+}
+.mobile-header-right {
+    min-width: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-shrink: 0;
+}
+.badge-mobile-notif {
+    background: #ef4444;
+    color: white;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 12px;
+    min-width: 20px;
+    text-align: center;
 }
 
 /* ============================================================
-   AREA DESKTOP - QUESTA NON VIENE TOCCATA DALLE MODIFICHE SOPRA
+   BOTTOM NAVIGATION (mobile YouTube-style)
    ============================================================ */
-   /* ============================================================
-      SOLUZIONE RESPONSIVE DEFINITIVA (Smartphone)
-      ============================================================ */
-   @media (max-width: 768px) {
-       body, html {
-           overflow-x: hidden !important; /* Blocca lo scivolamento a destra */
-           width: 100%;
-           position: relative;
-       }
+.bottom-nav {
+    display: none; /* mostrata solo su mobile */
+}
+@media (max-width: 768px) {
+    .bottom-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 60px;
+        background: #111827;
+        z-index: 9100;
+        align-items: center;
+        justify-content: space-around;
+        border-top: 1px solid rgba(255,255,255,0.07);
+        padding: 0 4px;
+        gap: 0;
+    }
+    .bottom-nav-item {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        background: transparent;
+        border: none;
+        color: #6b7280;
+        cursor: pointer;
+        padding: 6px 2px;
+        min-height: 56px;
+        position: relative;
+        transition: color 0.18s;
+        font-family: inherit;
+    }
+    .bottom-nav-item i {
+        font-size: 18px;
+        transition: transform 0.18s;
+    }
+    .bottom-nav-item span:first-of-type {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.2px;
+        white-space: nowrap;
+    }
+    .bottom-nav-item.active {
+        color: #ffffff;
+    }
+    .bottom-nav-item.active i {
+        transform: translateY(-1px);
+    }
+    /* Badge richieste sul tab */
+    .badge-bottom {
+        position: absolute;
+        top: 5px;
+        right: calc(50% - 16px);
+        background: #ef4444;
+        color: white;
+        font-size: 9px;
+        font-weight: 900;
+        padding: 1px 5px;
+        border-radius: 10px;
+        min-width: 16px;
+        text-align: center;
+        border: 1.5px solid #111827;
+        pointer-events: none;
+    }
+    .badge-bottom.badge-sollecito-attivo {
+        background: #f97316;
+        animation: badge-pulse 1.4s ease-in-out infinite;
+    }
+    /* FAB centrale "+" */
+    .bottom-nav-fab {
+        width: 52px;
+        height: 52px;
+        background: linear-gradient(135deg, #2563eb, #7c3aed);
+        border: none;
+        border-radius: 50%;
+        color: white;
+        font-size: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 4px 20px rgba(37,99,235,0.5);
+        flex-shrink: 0;
+        transition: transform 0.2s, box-shadow 0.2s;
+        margin-bottom: 4px; /* sollevato leggermente */
+        position: relative;
+        z-index: 1;
+    }
+    .bottom-nav-fab:active {
+        transform: scale(0.9);
+        box-shadow: 0 2px 10px rgba(37,99,235,0.4);
+    }
+}
 
-       /* BARRA SUPERIORE FISSA */
-       .mobile-header {
-           display: flex !important;
-           position: fixed;
-           top: 0; left: 0;
-           width: 100%;
-           height: 60px;
-           background: #1a1a1a;
-           color: white;
-           align-items: center;
-           padding: 0 20px;
-           z-index: 9999; /* Sempre sopra tutto */
-           box-sizing: border-box;
-       }
+/* user avatar icon rules */
+#user-avatar-icon {
+    width: 42px;
+    height: 42px;
+    background: #2563eb;
+    color: white;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 18px;
+    flex-shrink: 0;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
 
-       /* SIDEBAR: Ora scorre SOPRA il contenuto, senza spingerlo */
-       .sidebar {
-               position: fixed !important;
-               /* Parte esattamente sotto l'header mobile */
-               top: 60px !important;
-               left: 0 !important;
-               /* Larghezza ridotta per eleganza */
-               width: 260px !important;
-               /* Altezza automatica in base ai link, ma con un massimo */
-               height: auto !important;
-               max-height: calc(100vh - 80px) !important;
-               background: #1a1a1a !important;
-               z-index: 9999 !important;
-               /* Arrotondiamo solo gli angoli a destra per un look moderno */
-               border-radius: 0 0 20px 0;
+/* end inline-to-css additions */
 
-               /* Animazione fluida */
-               transform: translateX(-100%);
-               transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-               display: flex !important;
-               flex-direction: column !important;
-               padding: 15px !important;
-               box-shadow: 10px 10px 30px rgba(0,0,0,0.3);
-               visibility: visible !important;
-           }
+/*PAGINA ACQUISTI*/
 
-           /* Quando il menu è aperto scivola dentro */
-           .sidebar.mobile-open {
-               transform: translateX(0) !important;
-           }
+/* Card Materiale - Layout Principale */
+/* ============================================================
+   ACQUISTI – Card e-commerce verticale (desktop)
+   ============================================================ */
+.materiale-card {
+    display: flex;
+    flex-direction: column;
+    background: white;
+    border-radius: 16px;
+    border: 1px solid #e8edf3;
+    position: relative !important;
+    overflow: visible !important;
+    transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.2s ease;
+    will-change: transform;
+    padding: 0;
+    gap: 0;
+    min-height: 0;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+}
 
-           /* Nascondiamo il tasto X di prima perché ora l'hamburger dell'header è libero! */
-           .mobile-close-btn {
-               display: none !important;
-           }
-       }
-       /* CONTENUTO PRINCIPALE: Pulizia totale proporzioni */
-       .main-content {
-           margin-left: 0 !important;
-           margin-top: 60px !important; /* Spazio per l'header */
-           padding: 15px !important;
-           width: 100% !important;
-           box-sizing: border-box !important;
-           display: block !important;
-       }
+.materiale-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 16px 40px rgba(37, 99, 235, 0.13);
+    border-color: #bfdbfe;
+}
 
-       /* SISTEMAZIONE CARD E DIV INTERNI */
-       .top-bar {
-           flex-direction: column !important;
-           align-items: flex-start !important;
-           gap: 15px !important;
-           margin-bottom: 20px !important;
-       }
+.materiale-card:has(.menu-popup-opzioni.open) {
+    z-index: 100 !important;
+    border-color: #2563eb;
+}
 
-       .riga-ordine {
-           flex-direction: column !important; /* Elementi uno sotto l'altro */
-           padding: 15px !important;
-           gap: 10px !important;
-           align-items: stretch !important;
-       }
+/* DnD handle – appare solo su hover */
+.dnd-handle {
+    position: absolute;
+    top: 10px;
+    left: 8px;
+    color: #cbd5e1;
+    font-size: 13px;
+    cursor: grab;
+    z-index: 4;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.materiale-card:hover .dnd-handle { opacity: 1; }
 
-       /* Forza i div dentro la card a non sovrapporsi */
-       .riga-ordine > div {
-           width: 100% !important;
-           display: flex !important;
-           justify-content: space-between !important;
-           font-size: 13px !important;
-       }
+/* Checkbox selezione multipla: nascosta di default, dentro mat-card-opts */
+.mat-sel-chk {
+    display: none; /* mostrata da .grid-sel-mode */
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: #2563eb;
+    flex-shrink: 0;
+}
 
-       /* Nascondiamo le etichette lunghe del menu che sporgono */
-       .menu-section-label, .sidebar-footer-logo {
-           display: none !important;
-       }
+/* === AREA IMMAGINE === */
+.mat-card-img {
+    width: 100% !important;
+    height: 150px !important;
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    border-radius: 14px 14px 0 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    position: relative !important;
+    overflow: hidden !important;
+    flex-shrink: 0 !important;
+    border-bottom: 1px solid #e8edf3 !important;
+    transition: background 0.2s !important;
+    border: none !important;
+}
+.mat-card-img:hover {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%) !important;
+}
+.mat-card-img .mat-img-icon {
+    font-size: 32px;
+    color: #93c5fd;
+    transition: all 0.25s;
+    pointer-events: none;
+}
+.mat-card-img:hover .mat-img-icon {
+    color: #2563eb;
+    transform: scale(1.18);
+}
+/* Hint "Scatta foto" appare sull'hover */
+.mat-img-hint {
+    position: absolute;
+    bottom: 10px;
+    left: 0; right: 0;
+    text-align: center;
+    font-size: 11px;
+    color: #2563eb;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: all 0.2s;
+    pointer-events: none;
+}
+.mat-card-img:hover .mat-img-hint {
+    opacity: 1;
+    transform: translateY(0);
+}
+/* Badge fornitore – overlay top-left sull'immagine */
+.mat-badge-fornitore {
+    position: absolute;
+    top: 10px; left: 10px;
+    background: rgba(255,255,255,0.92);
+    color: #475569;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    border: 1px solid #e2e8f0;
+    backdrop-filter: blur(4px);
+    max-width: 130px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    pointer-events: none;
+}
 
-       /* Dettagli ordine e chat */
-       .item-card {
-           grid-template-columns: 1fr !important; /* Singola colonna */
-           gap: 10px !important;
-       }
-   }
+/* Foto caricata nell'area immagine card */
+.mat-card-img img.modal-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 14px 14px 0 0;
+    display: block;
+}
 
-   /* FIX DESKTOP: Per non sfaldare la vista PC */
-   @media (min-width: 769px) {
-       .mobile-header { display: none !important; }
-       .sidebar { transform: translateX(0) !important; position: relative !important; }
-   }
+/* === BODY: nome + codice === */
+.materiale-info {
+    flex: 1;
+    padding: 12px 14px 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+.materiale-fornitore.mat-fornitore-mobile {
+    display: none; /* visibile solo su mobile */
+}
+.materiale-name, .materiale-nome {
+    font-weight: 700;
+    font-size: 13px;
+    color: #1e293b;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.materiale-codice {
+    font-size: 10px;
+    color: #2563eb;
+    font-weight: 700;
+}
+
+/* === FOOTER: qty stepper + bottone Aggiungi === */
+.materiale-actions {
+    padding: 10px 12px 12px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    border-top: 1px solid #f1f5f9;
+    flex-shrink: 0;
+    justify-content: flex-start;
+}
+.qty-order-container {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.materiale-card input[type="number"] {
+    width: 36px;
+    height: 28px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    text-align: center;
+    font-weight: 800;
+    font-size: 13px;
+    color: #1e293b;
+    outline: none;
+    padding: 0;
+    line-height: 28px;
+    vertical-align: middle;
+    -moz-appearance: textfield;
+    appearance: textfield;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+}
+.materiale-card input[type="number"]::-webkit-inner-spin-button,
+.materiale-card input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.btn-qty-step {
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    color: #374151;
+    cursor: pointer;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    font-size: 11px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s;
+    font-family: inherit;
+}
+.btn-qty-step:hover { background: #e2e8f0; }
+
+.btn-add-cart {
+    flex: 1;
+    background: linear-gradient(135deg, #1d4ed8, #3b82f6);
+    color: white;
+    border: none;
+    height: 32px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    transition: all 0.2s;
+    box-shadow: 0 2px 8px rgba(29,78,216,0.28);
+    white-space: nowrap;
+    padding: 0 10px;
+}
+.btn-add-cart:hover {
+    background: linear-gradient(135deg, #1e40af, #2563eb);
+    box-shadow: 0 4px 14px rgba(29,78,216,0.4);
+    transform: translateY(-1px);
+}
+.btn-cart-txt { /* testo "Aggiungi" nel bottone */ }
+
+/* === MENU OPZIONI ⋮ === */
+.mat-card-opts {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 6;
+}
+.btn-opt-trigger {
+    background: rgba(255,255,255,0.88);
+    border: 1px solid #e2e8f0;
+    color: #64748b;
+    cursor: pointer;
+    padding: 4px 8px;
+    font-size: 13px;
+    border-radius: 8px;
+    backdrop-filter: blur(4px);
+    transition: all 0.15s;
+    line-height: 1;
+}
+.btn-opt-trigger:hover {
+    background: white;
+    color: #1e293b;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* Popup menu — fade + scale */
+.menu-popup-opzioni {
+    display: block !important; /* sempre nel DOM, visibilità via opacity */
+    position: absolute;
+    right: 0;
+    top: 36px;
+    background: white !important;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15) !important;
+    z-index: 999999 !important;
+    min-width: 150px;
+    padding: 5px 0;
+    /* animazione */
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(0.94) translateY(-6px);
+    transform-origin: top right;
+    transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.34, 1.3, 0.64, 1), visibility 0s linear 0.18s;
+    pointer-events: none;
+}
+.menu-popup-opzioni.open {
+    opacity: 1;
+    visibility: visible;
+    transform: scale(1) translateY(0);
+    transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.34, 1.3, 0.64, 1), visibility 0s linear 0s;
+    pointer-events: auto;
+}
+
+.menu-item-opt {
+    padding: 10px 15px;
+    font-size: 13px;
+    color: #1e293b;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: background 0.2s;
+}
+
+button.menu-item-opt {
+    appearance: none;
+    -webkit-appearance: none;
+    border: none;
+    background: transparent;
+    font: inherit;
+    text-align: left;
+    width: 100%;
+}
+
+.menu-item-opt:hover { background: #f8fafc; }
+.menu-item-opt i { width: 14px; color: #94a3b8; }
+.menu-item-opt.text-danger { color: #dc2626; }
+.menu-item-opt.text-danger i { color: #dc2626; }
+
+/* MODAL GESTIONE ARTICOLI */
+.modal-articoli-overlay {
+    position: fixed !important;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: rgba(15, 23, 42, 0.7) !important; /* Più scuro ed elegante */
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 999999 !important;
+    backdrop-filter: blur(4px); /* Effetto sfocato moderno */
+}
+
+.modal-articoli-box {
+    background: white;
+    padding: 25px;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+}
 
 
 
@@ -1300,24 +2673,843 @@ transform: translateY(-1px);
 
 
 
+/* ============================================================
+   ACQUISTI — Sezioni
+   ============================================================ */
+.sezione-materiali-wrapper { margin-bottom: 18px; }
 
+.sezione-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    cursor: pointer;
+    user-select: none;
+    margin-bottom: 10px;
+    transition: background 0.15s;
+}
+.sezione-header:hover { background: #f0f6ff; border-color: #bfdbfe; }
+.sezione-header-left { display: flex; align-items: center; gap: 10px; }
+.sezione-icon { color: #3b82f6; font-size: 14px; }
+.sezione-nome  { font-weight: 700; font-size: 14px; color: #1e293b; }
+.sezione-count {
+    background: #e0e7ff;
+    color: #3730a3;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 20px;
+    min-width: 20px;
+    text-align: center;
+}
+.sezione-arrow { color: #94a3b8; font-size: 12px; transition: transform 0.25s ease; }
+.sezione-grid  { margin-bottom: 6px; }
+.sezione-empty {
+    text-align: center;
+    padding: 18px 12px;
+    color: #94a3b8;
+    font-size: 12px;
+    font-style: italic;
+    border: 1px dashed #e2e8f0;
+    border-radius: 10px;
+    margin: 4px 0 10px;
+}
+.sezione-empty b { color: #64748b; font-style: normal; }
+.btn-sezione-new { color: #3b82f6 !important; }
 
+/* ============================================================
+   13. AREA MOBILE - SMARTPHONE (MAX 768px)
+   ============================================================ */
 
+@media (max-width: 768px) {
 
+    /* === BASE === */
+    html { scroll-behavior: smooth; }
+    body, html {
+        overflow-x: hidden;
+        height: auto;
+        min-height: 100%;
+    }
+    body { display: block !important; }
 
+    /* === APP BAR: nascosta su mobile === */
+    .mobile-header {
+        display: none !important;
+    }
 
-@media (max-width: 480px) {
+    /* === SIDEBAR: nascosta su mobile, gestita dal bottom nav === */
+    .sidebar {
+        display: none !important;
+    }
+
+    /* === MAIN CONTENT === */
+    .main-content {
+        margin-left: 0 !important;
+        margin-top: 0 !important;
+        padding: 18px 14px 76px !important; /* 76px = bottom nav 60px + spazio */
+        width: 100% !important;
+        box-sizing: border-box !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+    }
+
+    /* === TOP BAR (titolo pagina) – versione mobile elegante === */
+    .top-bar {
+        margin-bottom: 18px !important;
+        padding: 18px 0 14px !important;
+        border-bottom: none !important;
+        position: relative;
+    }
+    .top-bar::after {
+        content: '';
+        display: block;
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 40px;
+        height: 3px;
+        background: linear-gradient(90deg, #2563eb, #7c3aed);
+        border-radius: 2px;
+    }
+    h1 {
+        font-size: 1.45rem !important;
+        font-weight: 900 !important;
+        letter-spacing: -0.03em !important;
+        color: #0f172a !important;
+        line-height: 1.15 !important;
+    }
+
+    /* === SEARCH === */
+    .search-container {
+        max-width: 100% !important;
+        margin-bottom: 12px !important;
+    }
+    .search-container input { font-size: 16px !important; }
+
+    /* === ORDINE HEADER (riga-ordine) === */
+    .riga-ordine {
+        flex-wrap: wrap !important;
+        gap: 8px 6px !important;
+        padding: 12px 14px !important;
+    }
+    /* Nome cliente: riga intera, prima */
+    .riga-ordine > .flex-grow {
+        width: 100%;
+        order: 1;
+        min-width: 0;
+    }
+    .flex-grow .order-title {
+        max-width: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: block;
+    }
+    /* Bottoni: sinistra nella seconda riga */
+    .riga-ordine > .order-info {
+        order: 2;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+        align-items: center !important;
+        flex: 1;
+    }
+    .riga-ordine > .order-info > button {
+        padding: 7px 11px !important;
+        font-size: 11px !important;
+    }
+    /* Badge: angolo sinistro nella seconda riga (prima dei bottoni) */
+    .riga-ordine > .order-info > .badge-count {
+        margin-right: auto;
+    }
+    /* Testo bottoni nascosto su mobile */
+    .btn-txt { display: none !important; }
+
+    /* === ITEM CARD produzione: 2 colonne === */
+    .item-card {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 10px 12px !important;
+        padding: 14px !important;
+    }
+    .item-card > div:last-child {
+        grid-column: 1 / -1 !important;
+        display: flex !important;
+        justify-content: stretch !important;
+    }
+    .item-card > div:last-child .btn-chiedi-assegna {
+        width: 100% !important;
+        justify-content: center !important;
+    }
+
+    /* === ARCHIVIO LAYOUT === */
+    .item-card.archivio-layout {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 10px !important;
+        padding: 14px !important;
+    }
+    .item-card.archivio-layout > .item-actions {
+        grid-column: 1 / -1 !important;
+        flex-direction: row !important;
+        gap: 8px !important;
+    }
+    .item-card.archivio-layout > .item-actions > button {
+        flex: 1 !important;
+        justify-content: center !important;
+        font-size: 11px !important;
+    }
+
+    /* === SELECT INTERATTIVO (stato) === */
+    .select-interattivo {
+        font-size: 13px !important;
+        padding: 6px 8px !important;
+    }
+
+    /* === MODAL → BOTTOM SHEET === */
+    .modal-overlay {
+        align-items: flex-end !important;
+        background: rgba(0,0,0,0.5) !important;
+    }
+    .modal-content {
+        width: 100% !important;
+        max-width: 100% !important;
+        max-height: 92dvh !important;
+        overflow-y: auto !important;
+        border-radius: 20px 20px 0 0 !important;
+        padding: 8px 20px 36px !important;
+        transform: translateY(100%) !important;
+        transition: transform 0.38s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        opacity: 1 !important;
+    }
+    .modal-overlay.active .modal-content {
+        transform: translateY(0) !important;
+    }
+    .modal-content::before {
+        content: '';
+        display: block;
+        width: 40px;
+        height: 4px;
+        background: #cbd5e1;
+        border-radius: 2px;
+        margin: 10px auto 18px;
+    }
+
+    /* Wobble abilitato anche su mobile (modalità Sposta) */
+    .mat-wobble {
+        animation: mat-jiggle 0.45s ease-in-out infinite alternate !important;
+        box-shadow: 0 6px 22px rgba(37,99,235,0.18) !important;
+        border-color: #93c5fd !important;
+        cursor: grab !important;
+    }
+
+    /* ============================================================
+       ACQUISTI MOBILE — layout e-commerce a griglia (2 righe)
+       ============================================================ */
+
+    /* Header catalogo: titolo + row bottoni scrollabile */
+    .acquisti-header.header-flex {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 10px !important;
+        padding: 0 2px !important;
+        margin-bottom: 14px !important;
+    }
+    .acquisti-title { font-size: 15px !important; }
+    .acquisti-subtitle { font-size: 11px !important; }
+    /* Wrapper: riga scrollabile + bottone + fisso a destra */
+    .acquisti-actions-wrapper {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        width: 100% !important;
+    }
+    .acquisti-actions-row {
+        flex: 1 !important;
+        min-width: 0 !important;
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        gap: 7px !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        padding-bottom: 3px !important;
+        scrollbar-width: none !important;
+    }
+    .acquisti-actions-row::-webkit-scrollbar { display: none !important; }
+    .acquisti-actions-row > button {
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+        height: 36px !important;
+        padding: 0 14px !important;
+        font-size: 12px !important;
+        border-radius: 8px !important;
+    }
+    /* Bottone + fisso: non entra nello scroll */
+    .btn-nuovo-fisso {
+        flex-shrink: 0 !important;
+        width: 36px !important;
+        height: 36px !important;
+        padding: 0 !important;
+        border-radius: 8px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 16px !important;
+    }
+    .btn-label-nuovo { display: none !important; }
+
+    /* Lista: 1 colonna, spaziatura ridotta */
+    .materiali-grid {
+        gap: 8px !important;
+        grid-template-columns: 1fr !important;
+    }
+
+    /* ── CARD: CSS-Grid a 2 righe ──────────────────────────────
+       Colonne: [img 72px] [info flessibile] [menu ⋮ auto]
+       Riga 1 : immagine + info + bottone ⋮
+       Riga 2 : footer azioni a tutta larghezza
+    ─────────────────────────────────────────────────────────── */
+    .materiale-card {
+        display: grid !important;
+        grid-template-columns: 72px 1fr auto !important;
+        grid-template-rows: auto auto !important;
+        grid-template-areas:
+            "img  info  opts"
+            "foot foot  foot" !important;
+        align-items: start !important;
+        padding: 12px 12px 0 12px !important;
+        gap: 0 12px !important;
+        border-radius: 14px !important;
+        overflow: visible !important;
+        box-shadow: 0 1px 5px rgba(0,0,0,0.07) !important;
+        border: 1px solid #e8edf3 !important;
+        /* disabilita flex desktop */
+        flex-direction: unset !important;
+    }
+    .materiale-card:hover {
+        transform: none !important;
+        box-shadow: 0 1px 5px rgba(0,0,0,0.07) !important;
+    }
+
+    /* ── AREA IMMAGINE (grid-area: img) ── */
+    .mat-card-img {
+        grid-area: img !important;
+        width: 72px !important;
+        height: 72px !important;
+        border-radius: 12px !important;
+        flex-shrink: 0 !important;
+        border: 1px solid #e2eaf3 !important;
+        border-bottom: 1px solid #e2eaf3 !important;
+        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%) !important;
+        cursor: pointer !important;
+        align-self: center !important;
+        margin-bottom: 12px !important;
+    }
+    .mat-card-img .mat-img-icon { font-size: 24px !important; color: #93c5fd !important; }
+    /* Foto caricata */
+    .mat-card-img img.modal-img { border-radius: 12px !important; }
+    /* Badge/hint visivi soppressi su mobile */
+    .mat-badge-fornitore, .mat-img-hint { display: none !important; }
+
+    /* ── INFO PRODOTTO (grid-area: info) ── */
+    .materiale-info {
+        grid-area: info !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 3px !important;
+        padding: 2px 0 12px 0 !important;
+        min-width: 0 !important;
+        flex: unset !important;
+        align-self: center !important;
+    }
+    .materiale-nome {
+        -webkit-line-clamp: 2 !important;
+        font-size: 13px !important;
+        font-weight: 700 !important;
+        color: #1e293b !important;
+        line-height: 1.4 !important;
+    }
+    .materiale-codice {
+        font-size: 10px !important;
+        color: #2563eb !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.2px !important;
+    }
+    .mat-fornitore-mobile {
+        display: block !important;
+        font-size: 10px !important;
+        color: #94a3b8 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.4px !important;
+        font-weight: 600 !important;
+    }
+
+    /* ── MENU ⋮ (grid-area: opts) ── */
+    .mat-card-opts {
+        grid-area: opts !important;
+        position: static !important;   /* tolto absolute: il grid lo posiziona */
+        display: flex !important;
+        align-items: flex-start !important;
+        justify-content: flex-end !important;
+        padding-top: 2px !important;
+        padding-bottom: 12px !important;
+        flex-shrink: 0 !important;
+        align-self: center !important;
+    }
+    .btn-opt-trigger {
+        width: 32px !important;
+        height: 32px !important;
+        padding: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 14px !important;
+        border-radius: 8px !important;
+    }
+    /* Popup menu: verso sinistra, non esce dallo schermo */
+    .menu-popup-opzioni {
+        right: 0 !important;
+        left: auto !important;
+        top: 34px !important;
+        min-width: 165px !important;
+    }
+    .menu-item-opt { padding: 11px 15px !important; font-size: 13px !important; }
+
+    /* ── FOOTER AZIONI (grid-area: foot) ─────────────────────
+       Tutta la larghezza: stepper a sinistra, "Aggiungi" a destra
+    ─────────────────────────────────────────────────────────── */
+    .materiale-actions {
+        grid-area: foot !important;
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        padding: 10px 0 12px !important;
+        border-top: 1px solid #f0f4f8 !important;
+        gap: 8px !important;
+        flex-shrink: 0 !important;
+    }
+    /* Stepper: - qty + */
+    .qty-order-container {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 6px !important;
+    }
+    .btn-qty-step {
+        width: 32px !important;
+        height: 32px !important;
+        border-radius: 8px !important;
+        flex-shrink: 0 !important;
+        font-size: 12px !important;
+        background: #f1f5f9 !important;
+        border: 1px solid #e2e8f0 !important;
+    }
+    .materiale-card input[type="number"] {
+        width: 38px !important;
+        height: 32px !important;
+        line-height: 32px !important;
+        font-size: 14px !important;
+        font-weight: 800 !important;
+        border-radius: 7px !important;
+        text-align: center !important;
+    }
+    /* Bottone "Aggiungi": testo visibile, full look e-commerce */
+    .btn-add-cart {
+        flex: 0 0 auto !important;
+        width: auto !important;
+        height: 38px !important;
+        border-radius: 10px !important;
+        padding: 0 16px !important;
+        font-size: 13px !important;
+        font-weight: 700 !important;
+        gap: 6px !important;
+        box-shadow: 0 2px 8px rgba(29,78,216,0.22) !important;
+    }
+    /* Bottone aggiungi: solo icona su mobile */
+    .btn-cart-txt { display: none !important; }
+    .btn-add-cart {
+        flex: 0 0 42px !important;
+        width: 42px !important;
+        height: 38px !important;
+        padding: 0 !important;
+        font-size: 16px !important;
+        border-radius: 10px !important;
+        box-shadow: 0 2px 8px rgba(29,78,216,0.22) !important;
+        gap: 0 !important;
+    }
+
+    /* Bottone Nuovo: solo icona + su mobile */
+    .btn-label-nuovo { display: none !important; }
+
+    /* Checkbox selezione multipla su mobile */
+    .grid-sel-mode .mat-sel-chk { display: inline-block !important; }
+    /* Nascondi handle drag */
+    .dnd-handle, .drag-handle { display: none !important; }
+
+    /* === MODAL ARTICOLI → bottom sheet === */
+    .modal-articoli-overlay { align-items: flex-end !important; }
+    .modal-articoli-box {
+        width: 100% !important;
+        max-width: 100% !important;
+        border-radius: 20px 20px 0 0 !important;
+        padding: 8px 20px 32px !important;
+        max-height: 88dvh !important;
+        overflow-y: auto !important;
+    }
+
+    /* === FLOATING CART === */
+    #floating-cart-btn {
+        bottom: 70px !important; /* sopra bottom nav */
+        right: 16px !important;
+        padding: 10px 16px !important;
+        font-size: 12px !important;
+    }
+
+    /* === CHAT CARDS === */
+    .chat-card { padding: 14px !important; border-radius: 12px !important; margin-bottom: 12px !important; }
+    .chat-actions { flex-wrap: wrap !important; gap: 6px !important; }
+    .chat-bubble-text { font-size: 13px !important; }
+
+    /* === IMPOSTAZIONI === */
+    .settings-container { flex-direction: column !important; gap: 16px !important; }
+    .card-settings { padding: 16px !important; }
+
+    /* === LOGIN CARD → bottom sheet === */
     .login-card {
-        width: 85%;
-        padding: 30px 20px;
-        margin: 10px;
+        width: 100% !important;
+        max-width: 100% !important;
+        border-radius: 24px 24px 0 0 !important;
+        padding: 20px 20px 36px !important;
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        margin: 0 !important;
+        max-height: 92dvh !important;
+        overflow-y: auto !important;
+    }
+    .login-logo-img { width: 110px !important; }
+    .login-logo-container { margin-bottom: 16px !important; }
+    .login-card h2 { font-size: 20px !important; margin-bottom: 6px !important; }
+    .login-card p { font-size: 13px !important; margin-bottom: 18px !important; }
+    #login-overlay { align-items: flex-end !important; padding: 0 !important; }
+
+    /* === MISC === */
+    .scroll-btn { font-size: 12px !important; padding: 8px 14px !important; }
+    .riga-ordine:hover, .item-card:hover, .materiale-card:hover, .chat-card:hover {
+        transform: none !important;
+        box-shadow: none !important;
+    }
+    .btn-tipo, .btn-modal-cancel, .btn-modal-send, .btn-login { min-height: 44px; }
+    .sidebar-footer-logo, .menu-section-label { display: none !important; }
+}
+
+/* ============================================================
+   14. AREA DESKTOP - PC E TABLET (MIN 769px)
+   ============================================================ */
+
+@media (min-width: 769px) {
+    .mobile-header {
+        display: none !important;
     }
 
-    .login-logo-img {
-        width: 150px; /* Un po' più piccolo su schermi mini */
+    .sidebar {
+        position: fixed !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 260px !important;
+        height: 100vh !important;
+        transform: translateX(0) !important;
+        visibility: visible !important;
+        display: flex !important;
+        flex-direction: column !important;
     }
 
-    .login-card h2 {
-        font-size: 20px;
+    .main-content {
+        margin-left: 260px !important;
+        margin-top: 0 !important;
+        width: calc(100% - 260px) !important;
     }
+
+    .menu-section-label, .sidebar-footer-logo, .user-info-top {
+        display: block !important;
+    }
+}
+
+/* --- EFFETTI FINALI --- */
+
+/* Mobile sidebar backdrop */
+body.sidebar-is-open::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 9998;
+    animation: fadeIn 0.2s ease;
+}
+/* Blocca scroll del body quando la sidebar è aperta su mobile */
+@media (max-width: 768px) {
+    body.sidebar-is-open {
+        overflow: hidden !important;
+    }
+}
+
+button:active {
+    transform: scale(0.96);
+    filter: brightness(0.9);
+}
+
+.btn-tipo, .btn-primary, .btn-login {
+    transition: all 0.2s ease;
+}
+
+/* ============================================================
+   15. FIX Z-INDEX — modals sopra sidebar e bottom-nav
+   ============================================================ */
+.modal-overlay {
+    z-index: 10200 !important;
+}
+
+/* Il carrello flottante deve stare SOTTO i modal */
+#floating-cart-btn {
+    z-index: 8000 !important;
+}
+
+/* === MODAL ARTICOLI - animazione active === */
+.modal-articoli-overlay {
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+.modal-articoli-overlay.active {
+    opacity: 1;
+}
+.modal-articoli-box {
+    transform: translateY(30px);
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.modal-articoli-overlay.active .modal-articoli-box {
+    transform: translateY(0);
+}
+
+/* === Wobble mode Sposta (iPhone-style) === */
+.btn-fade-action {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease, transform 0.2s ease;
+    transform: scale(0.9);
+}
+.btn-fade-action.visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: scale(1);
+}
+/* Arrow impostazioni */
+.settings-row-arrow {
+    transition: transform 0.3s ease;
+}
+.settings-row-active .settings-row-arrow {
+    transform: rotate(180deg);
+}
+
+/* === TOAST NOTIFICA === */
+.toast-notifica {
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    background: #1e293b;
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    z-index: 99999;
+    opacity: 0;
+    transform: translateY(12px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    pointer-events: none;
+    max-width: 320px;
+}
+.toast-notifica.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+.toast-notifica.toast-error {
+    background: #dc2626;
+}
+
+/* === MODAL CONFERMA === */
+.modal-conferma-box {
+    max-width: 360px !important;
+    text-align: center;
+}
+.modal-conferma-titolo {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: #1e293b;
+}
+.modal-conferma-msg {
+    color: #475569;
+    font-size: 14px;
+    margin-bottom: 20px;
+    line-height: 1.5;
+}
+
+/* Link accesso admin / torna indietro */
+.btn-login-admin-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 18px;
+    background: none;
+    border: none;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.3px;
+    transition: color 0.2s;
+    width: 100%;
+    padding: 6px;
+}
+.btn-login-admin-link:hover { color: #94a3b8; }
+
+/* PIN input centrato e grande */
+.login-pin-input {
+    text-align: center !important;
+    font-size: 28px !important;
+    letter-spacing: 12px !important;
+    font-weight: 700 !important;
+    padding: 16px 20px !important;
+}
+
+/* ============================================================
+   16. LOGIN — nuovi elementi (modalità tabs + password toggle)
+   ============================================================ */
+.login-mode-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 12px;
+    padding: 4px;
+}
+.login-tab {
+    flex: 1;
+    padding: 10px;
+    background: transparent;
+    color: #94a3b8;
+    border: none;
+    border-radius: 9px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+.login-tab.active {
+    background: #3b82f6;
+    color: #fff;
+    box-shadow: 0 4px 10px rgba(59,130,246,0.35);
+}
+.login-password-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+.login-password-row .input-field-modern {
+    margin-bottom: 0;
+    padding-right: 48px;
+    flex: 1;
+}
+.btn-toggle-pwd {
+    position: absolute;
+    right: 12px;
+    background: none;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 15px;
+    padding: 4px;
+}
+.btn-toggle-pwd:hover { color: #fff; }
+
+/* ============================================================
+   17. GESTIONE UTENTI — sezione impostazioni
+   ============================================================ */
+.utente-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 12px !important;
+}
+.utente-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.utente-nome {
+    font-weight: 700;
+    font-size: 14px;
+    color: #1e293b;
+}
+.utente-meta {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 2px;
+}
+.utente-max {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 1px;
+}
+.badge-ruolo {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.badge-operatore { background: #e0f2fe; color: #0369a1; }
+.badge-master    { background: #fee2e2; color: #dc2626; }
+
+/* Form nuovo utente */
+.form-nuovo-utente {
+    margin-top: 16px;
+    padding: 16px;
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: 12px;
+}
+.form-utente-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+.form-utente-grid .input-field-modern {
+    background: #fff !important;
+    color: #1e293b !important;
+    border: 1px solid #e2e8f0 !important;
+    margin-bottom: 0 !important;
+}
+.form-utente-grid .input-field-modern::placeholder {
+    color: #94a3b8 !important;
+}
+.form-utente-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+@media (max-width: 480px) {
+    .form-utente-grid { grid-template-columns: 1fr !important; }
 }

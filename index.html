@@ -2,93 +2,370 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PROD - Dashboard Produzione</title>
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="ProdLab">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script>
+        // Tailwind via CDN (no build step). Disable preflight to avoid breaking existing styles.
+        tailwind = window.tailwind || {};
+        tailwind.config = {
+            corePlugins: { preflight: false }
+        };
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="style.css">
+    <script>
+        // Gate visuale del login: non dipendere dal caricamento di script.js
+        // - se NON c'è sessione → mostra overlay (classe needs-login)
+        // - se c'è sessione → overlay resta nascosto
+        (function () {
+            try {
+                const hasSession = !!(localStorage.getItem('sessioneUtente') || sessionStorage.getItem('sessioneUtente'));
+                if (!hasSession) document.documentElement.classList.add('needs-login');
+            } catch (e) {
+                // se localStorage non è accessibile, richiedi comunque login
+                document.documentElement.classList.add('needs-login');
+            }
+        })();
+    </script>
+    <script>
+        // Funzioni login disponibili immediatamente, indipendentemente dal caricamento di script.js
+        function setLoginMode(mode) {
+            const isAdmin = mode === 'admin';
+            const vu = document.getElementById('login-view-utente');
+            const va = document.getElementById('login-view-admin');
+            const err = document.getElementById('login-error');
+            if (vu) vu.style.display = isAdmin ? 'none' : '';
+            if (va) va.style.display  = isAdmin ? ''     : 'none';
+            if (err) err.innerText = '';
+            if (isAdmin) setTimeout(() => { const c = document.getElementById('login-codice'); if(c) c.focus(); }, 80);
+        }
+        function togglePasswordVisibility() {
+            const pwd  = document.getElementById('login-password');
+            const icon = document.getElementById('eye-icon');
+            if (!pwd) return;
+            const isHidden = pwd.type === 'password';
+            pwd.type = isHidden ? 'text' : 'password';
+            if (icon) icon.className = isHidden ? 'fas fa-eye-slash' : 'fas fa-eye';
+        }
+        function verificaAccesso() {
+            const errorDiv = document.getElementById('login-error');
+            if (errorDiv) errorDiv.innerText = '';
+
+            const adminView = document.getElementById('login-view-admin');
+            const isAdmin = adminView && adminView.style.display !== 'none';
+
+            if (isAdmin) {
+                // ── ADMIN PIN ── completamente inline, zero dipendenze da script.js
+                const codice = (document.getElementById('login-codice')?.value || '').trim();
+                if (codice === '0000') {
+                    try {
+                        localStorage.setItem('sessioneUtente', JSON.stringify({ nome: 'MASTER', ruolo: 'MASTER', vistaSimulata: 'MASTER' }));
+                    } catch(e) {}
+                    try {
+                        sessionStorage.setItem('sessioneUtente', JSON.stringify({ nome: 'MASTER', ruolo: 'MASTER', vistaSimulata: 'MASTER' }));
+                    } catch(e) {}
+                    try { document.documentElement.classList.remove('needs-login'); } catch (e) {}
+                    // Ricarica sempre: window.onload legge la sessione e nasconde il login
+                    window.location.reload();
+                } else {
+                    if (errorDiv) errorDiv.innerText = 'PIN non valido.';
+                    const input = document.getElementById('login-codice');
+                    if (input) { input.value = ''; input.focus(); }
+                }
+                return;
+            }
+
+            // ── LOGIN UTENTE ── delega a script.js
+            if (typeof _verificaAccessoUtente === 'function') {
+                _verificaAccessoUtente();
+            } else if (errorDiv) {
+                errorDiv.innerText = 'Caricamento in corso, riprova tra un secondo.';
+            }
+        }
+
+        // Fallback: se esiste già una sessione salvata, non bloccare l'app dietro al login
+        // anche nel caso in cui script.js sia lento o non venga caricato.
+        document.addEventListener('DOMContentLoaded', function () {
+            let sessione = null;
+            try { sessione = localStorage.getItem('sessioneUtente') || sessionStorage.getItem('sessioneUtente'); } catch (e) {}
+            if (!sessione) return;
+            let utente = null;
+            try { utente = JSON.parse(sessione); } catch (e) { return; }
+
+            const overlay = document.getElementById('login-overlay');
+            if (overlay) overlay.style.display = 'none';
+
+            const nameEl = document.getElementById('user-name-display');
+            const avatarEl = document.getElementById('user-avatar-icon');
+            if (utente && utente.nome) {
+                if (nameEl) nameEl.innerText = String(utente.nome).toUpperCase();
+                if (avatarEl) avatarEl.innerText = String(utente.nome).charAt(0).toUpperCase();
+            }
+        });
+    </script>
     <script src="script.js" defer></script>
 </head>
 
 <body>
-  <div class="mobile-header">
-      <i class="fas fa-bars" onclick="toggleMobileMenu()" style="font-size: 24px; cursor: pointer;"></i>
-      <span style="font-weight: 800; letter-spacing: 1px; margin-left: 15px;">PRODLAB</span>
-  </div>
-  <div id="login-overlay">
-      <div class="login-card">
-          <div class="login-logo-container">
-              <img src="logo.png" alt="Logo ProdLab" class="login-logo-img">
-          </div>
-          <h2>Accesso ProdLab</h2>
-          <p>Inserisci la tua email aziendale per continuare</p>
+    <div class="mobile-header">
+        <span class="mobile-header-title">PRODLAB</span>
+        <div class="mobile-header-right">
+            <span id="badge-mobile-notif" class="badge-mobile-notif" style="display:none">0</span>
+        </div>
+    </div>
 
-          <div class="login-form">
-              <input type="email" id="email-access" placeholder="nome@azienda.it" class="input-field-modern">
-              <button onclick="verificaAccesso()" class="btn-login">
-                  Entra nel Sistema <i class="fas fa-arrow-right"></i>
-              </button>
-          </div>
-          <div id="login-error" class="login-error-msg"></div>
-      </div>
-  </div>
-
-    <div class="sidebar">
-
-        <div class="sidebar-user-section" style="display: flex; align-items: center; padding: 20px 15px; gap: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 10px;">
-
-            <div id="user-avatar-icon" style="width: 42px; height: 42px; background: #2563eb; color: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; flex-shrink: 0; box-shadow: 0 4px 10px rgba(0,0,0,0.2);">
-                -
+    <div id="login-overlay">
+        <div class="login-card">
+            <div class="login-logo-container">
+                <img src="logo.png" alt="Logo ProdLab" class="login-logo-img">
             </div>
 
-            <div class="user-info-top" style="display: flex; flex-direction: column; overflow: hidden; flex-grow: 1;">
-                <span id="user-name-display" style="color: white; font-weight: 700; font-size: 15px; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">
+            <!-- Vista utente normale (default) -->
+            <div id="login-view-utente">
+                <h2>Accesso ProdLab</h2>
+                <p>Inserisci le tue credenziali per continuare</p>
+                <div class="login-form">
+                    <input type="email" id="login-email" placeholder="Email aziendale" class="input-field-modern" autocomplete="email" onkeydown="if(event.key==='Enter') verificaAccesso()">
+                    <input type="text" id="login-username" placeholder="Nome utente" class="input-field-modern" autocomplete="username" onkeydown="if(event.key==='Enter') verificaAccesso()">
+                    <div class="login-password-row">
+                        <input type="password" id="login-password" placeholder="Password" class="input-field-modern" autocomplete="current-password" onkeydown="if(event.key==='Enter') verificaAccesso()">
+                        <button type="button" class="btn-toggle-pwd" onclick="togglePasswordVisibility()">
+                            <i class="fas fa-eye" id="eye-icon"></i>
+                        </button>
+                    </div>
+                    <button id="btn-login" class="btn-login" onclick="verificaAccesso()">
+                        Entra nel Sistema <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+                <button class="btn-login-admin-link" onclick="setLoginMode('admin')">
+                    <i class="fas fa-shield-alt"></i> Accesso amministratore
+                </button>
+            </div>
+
+            <!-- Vista admin: solo PIN -->
+            <div id="login-view-admin" style="display:none">
+                <h2>Area Admin</h2>
+                <p>Inserisci il PIN amministratore</p>
+                <div class="login-form">
+                    <input type="password" id="login-codice" placeholder="● ● ● ●" class="input-field-modern login-pin-input" maxlength="6" onkeydown="if(event.key==='Enter') verificaAccesso()" autofocus>
+                    <button class="btn-login" onclick="verificaAccesso()">
+                        <i class="fas fa-shield-alt"></i> Entra come Admin
+                    </button>
+                </div>
+                <button class="btn-login-admin-link" onclick="setLoginMode('utente')">
+                    <i class="fas fa-arrow-left"></i> Torna al login utente
+                </button>
+            </div>
+
+            <div id="login-error" class="login-error-msg"></div>
+        </div>
+    </div>
+
+    <div class="sidebar">
+        <div class="sidebar-user-section">
+            <div id="user-avatar-icon">
+                -
+            </div>
+            <div class="user-info-top" id="user-info-top">
+                <span id="user-name-display">
                     Caricamento...
                 </span>
-                </div>
-
-            <button onclick="logout()" class="btn-logout-minimal" title="Esci">
+            </div>
+            <button id="btn-logout" class="btn-logout-minimal" title="Esci">
                 <i class="fas fa-sign-out-alt"></i>
             </button>
         </div>
 
         <div class="menu-section-label">Main Menu</div>
-
-        <div class="menu-item" data-page="PROGRAMMA PRODUZIONE DEL MESE" onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', this)">
+        <button type="button" class="menu-item" data-page="PROGRAMMA PRODUZIONE DEL MESE" onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', this)">
             <div class="menu-content"><span>📦</span> Produzione</div>
-        </div>
+        </button>
 
-        <div class="menu-item" data-page="STORICO_RICHIESTE" onclick="cambiaPagina('STORICO_RICHIESTE', this)">
+        <button type="button" class="menu-item" data-page="STORICO_RICHIESTE" onclick="cambiaPagina('STORICO_RICHIESTE', this)">
             <div class="menu-content"><span>📩</span> Richieste</div>
             <span id="badge-richieste-count" class="badge-sidebar-inline">0</span>
-        </div>
+        </button>
+
+        <button type="button" class="menu-item" data-page="MATERIALE DA ORDINARE" onclick="cambiaPagina('MATERIALE DA ORDINARE', this)">
+            <div class="menu-content"><span>🛒</span> Acquisti</div>
+            <span id="badge-carrello-count" class="badge-sidebar-inline">0</span>
+        </button>
 
         <div class="menu-section-label">General</div>
-
-        <div class="menu-item" data-page="ARCHIVIO_ORDINI" onclick="cambiaPagina('ARCHIVIO_ORDINI', this)">
-            <div class="menu-content"><span>🗄️</span> Archivio Ordini</div>
-        </div>
-
-        <div class="menu-item" data-page="IMPOSTAZIONI" onclick="cambiaPagina('IMPOSTAZIONI', this)">
+        <button type="button" class="menu-item" data-page="IMPOSTAZIONI" onclick="cambiaPagina('IMPOSTAZIONI', this)">
             <div class="menu-content"><span>⚙️</span> Impostazioni</div>
-        </div>
+        </button>
 
-        <div class="sidebar-footer-logo">
-            <img src="logo.png" alt="Logo" class="logo-img-footer">
+        <div class="sidebar-footer">
+            <div class="sidebar-footer-logo">
+                <img src="logo.png" alt="Logo" class="logo-img-footer">
+                <div class="footer-divider-vertical"></div>
+                <span class="alpha-text">Alpha</span>
+            </div>
         </div>
     </div>
 
     <div class="main-content">
         <div class="top-bar">
-            <h1 id="titolo-pagina"></h1>
-            <button class="btn-update" onclick="aggiornaCorrente()">↻ Aggiorna Dati</button>
+            <h1 id="titolo-pagina">Dashboard</h1>
+            
+        </div>
+
+        <div class="search-container">
+            <i class="fas fa-search"></i>
+            <input type="text" id="universal-search" placeholder="Cerca" oninput="filtraUniversale()" onkeyup="filtraUniversale()">
         </div>
 
         <div id="contenitore-dati"></div>
     </div>
+
+    <div id="modalAiuto" class="modal-overlay">
+        <div class="modal-content">
+            <h2 id="modal-titolo">Dettagli</h2>
+            <!-- Campo ordine: visibile solo quando si crea una nuova richiesta dal "+" -->
+            <div id="modal-ordine-row" class="modal-ordine-row" style="display:none">
+                <p class="modal-label">Numero Ordine:</p>
+                <div class="ordine-autocomplete-wrapper">
+                    <input type="text" id="modal-ordine-input" class="input-field-modern" placeholder="Cerca ordine o cliente..." autocomplete="off">
+                    <div id="ordine-autocomplete" class="ordine-autocomplete-list" style="display:none"></div>
+                </div>
+            </div>
+            <div class="modal-action-row">
+                <button type="button" id="btn-tipo-assegna" class="btn-tipo" onclick="setTipoAzione('ASSEGNAZIONE')"><i class="fas fa-user-tag"></i> Assegnazione</button>
+                <button type="button" id="btn-tipo-domanda" class="btn-tipo" onclick="setTipoAzione('DOMANDA')"><i class="fas fa-question-circle"></i> Domanda</button>
+            </div>
+            <p class="modal-label">Seleziona Destinatari:</p>
+            <div id="wrapper-operatori"></div>
+            <p class="modal-label">Messaggio (opzionale):</p>
+            <textarea id="messaggio-aiuto" placeholder="Inserisci qui eventuali note..."></textarea>
+            <div class="modal-footer">
+                <button type="button" onclick="chiudiModal()" class="btn-modal-cancel">Annulla</button>
+                <button type="button" onclick="confermaInvioSupporto()" class="btn-modal-send">
+                    <i class="fas fa-paper-plane"></i> Invia Messaggio
+                </button>
+            </div>
+        </div>
+    </div>
+
+        <!-- BOTTOM NAVIGATION (solo mobile) -->
+    <nav class="bottom-nav" id="bottom-nav">
+        <button type="button" class="bottom-nav-item active" data-page="PROGRAMMA PRODUZIONE DEL MESE" onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', this)">
+            <i class="fas fa-boxes-stacked"></i>
+            <span>Produzione</span>
+        </button>
+        <button type="button" class="bottom-nav-item" data-page="STORICO_RICHIESTE" onclick="cambiaPagina('STORICO_RICHIESTE', this)">
+            <i class="fas fa-envelope"></i>
+            <span>Richieste</span>
+            <span id="badge-bottom-richieste" class="badge-bottom" style="display:none">0</span>
+        </button>
+        <button type="button" class="bottom-nav-fab" id="btn-nuova-richiesta" onclick="apriNuovaRichiesta()" aria-label="Nuova richiesta">
+            <i class="fas fa-plus"></i>
+        </button>
+        <button type="button" class="bottom-nav-item" data-page="MATERIALE DA ORDINARE" onclick="cambiaPagina('MATERIALE DA ORDINARE', this)">
+            <i class="fas fa-cart-shopping"></i>
+            <span>Acquisti</span>
+        </button>
+        <button type="button" class="bottom-nav-item" data-page="IMPOSTAZIONI" onclick="cambiaPagina('IMPOSTAZIONI', this)">
+            <i class="fas fa-gear"></i>
+            <span>Impostazioni</span>
+        </button>
+    </nav>
+
+    <button id="floating-cart-btn" onclick="apriModalCarrello()" style="display:none">
+            <i class="fas fa-shopping-cart"></i>
+            <span>Carrello (<span id="cart-qty-val">0</span>)</span>
+    </button>
+
+  <div id="modal-carrello">
+      <div class="modal-carrello-box">
+          <div class="modal-header">
+              <h3>🛒 Carrello</h3>
+              <button onclick="chiudiModalCarrello()" class="btn-close">&times;</button>
+          </div>
+          <div id="lista-articoli-carrello"></div>
+          <div class="modal-footer">
+               <button onclick="chiudiModalCarrello()" class="btn-modal-cancel">Chiudi</button>
+               <button id="btn-invia-alessio" onclick="inviaOrdineAcquisti()" class="btn-modal-send">Invia ad Alessio</button>
+          </div>
+      </div>
+  </div>
+
+  <div id="modal-gestione-articolo" class="modal-articoli-overlay" onclick="if(event.target===this) chiudiModalArticolo()">
+      <div class="modal-articoli-box">
+          <h3 id="titolo-modal-articolo">Nuovo Articolo</h3>
+          <input type="hidden" id="edit-id-riga">
+
+          <div class="modal-articolo-field">
+              <label for="edit-nome">NOME PRODOTTO</label>
+              <input type="text" id="edit-nome">
+          </div>
+
+          <div class="modal-articolo-field">
+              <label for="edit-codice">CODICE</label>
+              <input type="text" id="edit-codice">
+          </div>
+
+          <div class="modal-articolo-field">
+              <label for="edit-fornitore">FORNITORE</label>
+              <input type="text" id="edit-fornitore">
+          </div>
+
+          <div class="modal-articolo-footer">
+              <button onclick="chiudiModalArticolo()" class="btn-modal-art-cancel">Annulla</button>
+              <button id="btn-salva-articolo" onclick="salvaArticolo()" class="btn-modal-art-send">Salva</button>
+          </div>
+      </div>
+  </div>
+
+  <!-- Modal conferma generico -->
+  <div id="modal-conferma" class="modal-overlay" onclick="if(event.target===this) _chiudiConferma()">
+      <div class="modal-content modal-conferma-box">
+          <h3 id="modal-conferma-titolo" class="modal-conferma-titolo"></h3>
+          <p id="modal-conferma-msg" class="modal-conferma-msg"></p>
+          <div class="modal-footer">
+              <button type="button" onclick="_chiudiConferma()" class="btn-modal-cancel">Annulla</button>
+              <button type="button" id="modal-conferma-ok" class="btn-modal-send">Conferma</button>
+          </div>
+      </div>
+  </div>
+
+  <!-- Modal: sposta articolo in sezione -->
+  <div id="modal-sposta-sezione" class="modal-overlay" onclick="if(event.target===this) chiudiModalSpostaSezione()">
+      <div class="modal-content">
+          <h2>Sposta in sezione</h2>
+          <input type="hidden" id="sposta-id-riga">
+          <p class="modal-label" style="margin-top:18px">Seleziona sezione di destinazione:</p>
+          <select id="sposta-sezione-select" class="input-field-modern" style="width:100%;margin-top:8px;background:white;color:#1e293b;border:1px solid #e2e8f0;border-radius:10px;padding:11px 14px;font-size:14px;font-weight:600;cursor:pointer;"></select>
+          <div class="modal-footer" style="margin-top:24px">
+              <button type="button" onclick="chiudiModalSpostaSezione()" class="btn-modal-cancel">Annulla</button>
+              <button type="button" onclick="confermaSpostaSezione()" class="btn-modal-send">
+                  <i class="fas fa-folder-open"></i> Sposta
+              </button>
+          </div>
+      </div>
+  </div>
+
+  <!-- Modal: crea nuova sezione -->
+  <div id="modal-nuova-sezione" class="modal-overlay" onclick="if(event.target===this) chiudiModalNuovaSezione()">
+      <div class="modal-content">
+          <h2>Nuova sezione</h2>
+          <p class="modal-label" style="margin-top:18px">Nome della sezione:</p>
+          <input type="text" id="nuova-sezione-nome" class="input-field-modern" placeholder="Es. Colori, Nastri, Pulizia..." style="width:100%;margin-top:8px;box-sizing:border-box" onkeydown="if(event.key==='Enter') confermaNuovaSezione()">
+          <div class="modal-footer" style="margin-top:24px">
+              <button type="button" onclick="chiudiModalNuovaSezione()" class="btn-modal-cancel">Annulla</button>
+              <button type="button" onclick="confermaNuovaSezione()" class="btn-modal-send">
+                  <i class="fas fa-folder-plus"></i> Crea
+              </button>
+          </div>
+      </div>
+  </div>
 
 </body>
 </html>
