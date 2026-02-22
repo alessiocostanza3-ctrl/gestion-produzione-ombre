@@ -40,7 +40,7 @@
             .bottom-nav { position: static !important;
                           box-sizing: border-box !important;
                           height: calc(49px + env(safe-area-inset-bottom, 0px)) !important;
-                          padding: 0 max(12px, env(safe-area-inset-right,12px)) 0 max(12px, env(safe-area-inset-left,12px)) !important;
+                          padding: 0 max(12px, env(safe-area-inset-right,12px)) env(safe-area-inset-bottom,0px) max(12px, env(safe-area-inset-left,12px)) !important;
                           background: #111827 !important;
                           flex-shrink: 0 !important;
                           align-items: center !important; }
@@ -61,7 +61,7 @@
         }
         @media (min-width:769px) { #ver-badge { display:none; } }
     </style>
-    <link rel="stylesheet" href="style.css?v=20260223d">
+    <link rel="stylesheet" href="style.css?v=20260223e">
     <script>
     // DEBUG: mostra altezza nav e safe-area reale nel badge
     window.addEventListener('load', function(){
@@ -168,7 +168,7 @@
             }
         });
     </script>
-    <script src="script.js?v=20260223d" defer></script>
+    <script src="script.js?v=20260223e" defer></script>
 </head>
 
 <body>

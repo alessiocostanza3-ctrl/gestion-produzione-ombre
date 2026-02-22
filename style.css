@@ -2201,7 +2201,7 @@ h1 {
         /* box-sizing: border-box → height include padding → content box = 49px (icone) */
         box-sizing: border-box;
         height: calc(49px + env(safe-area-inset-bottom, 0px));
-        padding: 0 max(12px, env(safe-area-inset-right, 12px)) 0 max(12px, env(safe-area-inset-left, 12px));
+        padding: 0 max(12px, env(safe-area-inset-right, 12px)) env(safe-area-inset-bottom, 0px) max(12px, env(safe-area-inset-left, 12px));
         background: #111827;
         z-index: 9100;
         align-items: center;
