@@ -2222,7 +2222,7 @@ h1 {
         color: #6b7280;
         cursor: pointer;
         padding: 6px 2px;
-        height: 54px;
+        height: 100%;
         box-sizing: border-box;
         position: relative;
         transition: color 0.18s;
@@ -2760,7 +2760,7 @@ body.keyboard-open .bottom-nav { display: none !important; }
        Nessun position:fixed per topbar e nav → nessun reflow iOS. */
     html, body {
         height: 100vh !important;
-        height: 100svh !important;
+        height: -webkit-fill-available !important;
         overflow: hidden !important;
         background: #111827 !important;
     }
