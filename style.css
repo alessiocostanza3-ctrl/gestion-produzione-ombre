@@ -2198,18 +2198,15 @@ h1 {
         display: flex;
         position: static;
         flex-shrink: 0;
-        height: 49px;
-        overflow: hidden;
-        background: rgba(17, 24, 39, 0.92);
-        -webkit-backdrop-filter: blur(14px);
-        backdrop-filter: blur(14px);
-        z-index: 9100;
-        align-items: stretch;
-        justify-content: space-around;
-        border-top: 1px solid rgba(255,255,255,0.07);
-        /* padding laterale: rispetta gli angoli stondati dell'iPhone */
+        /* box-sizing: border-box → height include padding → content box = 49px (icone) */
         box-sizing: border-box;
-        padding: 0 max(12px, env(safe-area-inset-right, 12px)) 0 max(12px, env(safe-area-inset-left, 12px));
+        height: calc(49px + env(safe-area-inset-bottom, 0px));
+        padding: 0 max(12px, env(safe-area-inset-right, 12px)) env(safe-area-inset-bottom, 0px) max(12px, env(safe-area-inset-left, 12px));
+        background: #111827;
+        z-index: 9100;
+        align-items: flex-start;
+        justify-content: space-around;
+        border-top: 1px solid rgba(255,255,255,0.08);
         gap: 0;
     }
     .bottom-nav-item {
@@ -2224,7 +2221,7 @@ h1 {
         color: #6b7280;
         cursor: pointer;
         padding: 0 2px;
-        height: 100% !important;
+        height: 49px !important;
         box-sizing: border-box;
         position: relative;
         transition: color 0.18s;
@@ -2764,8 +2761,7 @@ body.keyboard-open .bottom-nav { display: none !important; }
         height: 100vh !important;
         height: -webkit-fill-available !important;
         overflow: hidden !important;
-        background: #f8fafc !important;
-        padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+        background: #111827 !important;
     }
     body {
         display: flex !important;

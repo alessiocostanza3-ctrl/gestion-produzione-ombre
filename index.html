@@ -24,8 +24,7 @@
                 height: 100vh !important;
                 height: -webkit-fill-available !important;
                 overflow: hidden !important;
-                background: #f8fafc !important;
-                padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+                background: #111827 !important;
             }
             body { display: flex !important; flex-direction: column !important; }
             .main-content {
@@ -38,12 +37,13 @@
             }
             #contenitore-dati { flex: 1 !important; overflow-y: auto !important; padding: 14px !important; }
             .mobile-topbar { background: #ffffff; flex-shrink: 0; }
-            .bottom-nav { position: static !important; height: 49px !important; flex-shrink: 0 !important;
+            .bottom-nav { position: static !important;
                           box-sizing: border-box !important;
-                          background: rgba(17, 24, 39, 0.92) !important;
-                          -webkit-backdrop-filter: blur(14px) !important;
-                          backdrop-filter: blur(14px) !important;
-                          padding: 0 max(12px, env(safe-area-inset-right,12px)) 0 max(12px, env(safe-area-inset-left,12px)) !important; }
+                          height: calc(49px + env(safe-area-inset-bottom, 0px)) !important;
+                          padding: 0 max(12px, env(safe-area-inset-right,12px)) env(safe-area-inset-bottom,0px) max(12px, env(safe-area-inset-left,12px)) !important;
+                          background: #111827 !important;
+                          flex-shrink: 0 !important;
+                          align-items: flex-start !important; }
         }
     </style>
     <script>
@@ -54,7 +54,7 @@
         };
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="style.css?v=20260222y">
+    <link rel="stylesheet" href="style.css?v=20260222z">
     <script>
         // Gate visuale del login: non dipendere dal caricamento di script.js
         // - se NON c'è sessione → mostra overlay (classe needs-login)
@@ -145,7 +145,7 @@
             }
         });
     </script>
-    <script src="script.js?v=20260222y" defer></script>
+    <script src="script.js?v=20260222z" defer></script>
 </head>
 
 <body>
