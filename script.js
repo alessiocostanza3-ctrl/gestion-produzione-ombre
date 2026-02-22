@@ -2497,12 +2497,21 @@ function filtraUniversale() {
             }
         });
 
-        // Gestione sezioni acquisti: espandi se ricerca attiva, rispetta lo stato se vuoto
-        if (input !== '') {
-            document.querySelectorAll('.sezione-grid').forEach(grid => {
-                grid.style.display = ''; // forza apertura durante la ricerca
-            });
-        }
+        // Gestione sezioni acquisti: mostra/nascondi intera sezione in base ai risultati
+        document.querySelectorAll('.sezione-materiali-wrapper').forEach(wrapper => {
+            if (input === '') {
+                // Ricerca vuota: mostra tutto, non toccare display delle sezione-grid (utente può averle collassate)
+                wrapper.style.display = '';
+            } else {
+                // Espandi la sezione-grid per mostrare i risultati
+                const grid = wrapper.querySelector('.sezione-grid');
+                if (grid) grid.style.display = '';
+                // Conta le card visibili in questa sezione
+                const cardsVisibili = wrapper.querySelectorAll('.materiale-card:not(.hidden-search)').length;
+                // Nasconde il wrapper intero se non ha nessun risultato
+                wrapper.style.display = cardsVisibili > 0 ? '' : 'none';
+            }
+        });
 
         const sezioneArchivio = document.getElementById('sezione-archivio');
         if (sezioneArchivio) {
