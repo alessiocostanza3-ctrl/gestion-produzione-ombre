@@ -2207,8 +2207,6 @@ h1 {
         border-top: 1px solid rgba(255,255,255,0.07);
         padding: 0 4px env(safe-area-inset-bottom, 6px);
         gap: 0;
-        /* estende il colore scuro nella zona safe-area sotto la nav */
-        box-shadow: 0 100px 0 100px #111827;
     }
     .bottom-nav-item {
         flex: 1;
@@ -2734,15 +2732,7 @@ button.menu-item-opt {
 body.keyboard-open .bottom-nav { display: none !important; }
 
 /* compensa il padding safe-area nel calcolo dello spazio sotto il contenuto */
-@media (max-width: 768px) {
-    /* sfondo scuro su html copre la zona safe-area sotto la bottom-nav */
-    html {
-        background: #111827;
-    }
-    .main-content {
-        padding-bottom: calc(60px + env(safe-area-inset-bottom, 6px) + 10px) !important;
-    }
-}
+/* NESSUN override su html: evita flash scuro in cima al caricamento */
 .sezione-empty {
     text-align: center;
     padding: 18px 12px;
@@ -2762,14 +2752,19 @@ body.keyboard-open .bottom-nav { display: none !important; }
 
 @media (max-width: 768px) {
 
-    /* === BASE === */
+    /* === BASE ===
+       body scuro = la zona safe-area sotto il bottom-nav non mostra bianco
+       main-content bianco esplicito = il contenuto non eredita il colore scuro */
     html { scroll-behavior: smooth; }
     body, html {
         overflow-x: hidden;
         height: auto;
         min-height: 100%;
     }
-    body { display: block !important; }
+    body {
+        display: block !important;
+        background: #111827 !important; /* copre zona safe-area sotto bottom-nav */
+    }
 
     /* === APP BAR: nascosta su mobile === */
     .mobile-header {
@@ -2785,9 +2780,10 @@ body.keyboard-open .bottom-nav { display: none !important; }
     .main-content {
         margin-left: 0 !important;
         margin-top: 0 !important;
-        /* top: altezza mobile-topbar (~114px) + safe area notch/Dynamic Island */
-        padding: calc(114px + env(safe-area-inset-top, 0px)) 14px calc(76px + env(safe-area-inset-bottom, 8px)) !important;
+        padding: calc(114px + env(safe-area-inset-top, 0px)) 14px calc(76px + env(safe-area-inset-bottom, 6px)) !important;
         width: 100% !important;
+        min-height: 100svh;   /* evita flash di sfondo scuro durante cambio pagina */
+        background: #f8fafc;  /* bianco esplicito: non eredita body scuro */
         box-sizing: border-box !important;
         overflow-x: hidden !important;
         overflow-y: auto !important;
