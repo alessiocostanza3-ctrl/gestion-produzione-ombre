@@ -2837,12 +2837,28 @@ button.menu-item-opt {
     /* Testo bottoni nascosto su mobile */
     .btn-txt { display: none !important; }
 
-    /* === ITEM CARD produzione: 2 colonne === */
+    /* === ITEM CARD produzione: layout mobile ottimizzato === */
     .item-card {
         grid-template-columns: 1fr 1fr !important;
-        gap: 10px 12px !important;
-        padding: 14px !important;
+        gap: 8px 10px !important;
+        padding: 12px !important;
     }
+    /* Codice (1°) e Quantità (2°): affiancati in riga 1 */
+    .item-card > div:nth-child(1) {
+        grid-column: 1 !important;
+    }
+    .item-card > div:nth-child(2) {
+        grid-column: 2 !important;
+    }
+    /* Stato (3°): riga intera */
+    .item-card > div:nth-child(3) {
+        grid-column: 1 / -1 !important;
+    }
+    /* Operatori (4°): riga intera */
+    .item-card > div:nth-child(4) {
+        grid-column: 1 / -1 !important;
+    }
+    /* Bottone (5°/last): riga intera */
     .item-card > div:last-child {
         grid-column: 1 / -1 !important;
         display: flex !important;
@@ -2851,6 +2867,26 @@ button.menu-item-opt {
     .item-card > div:last-child .btn-chiedi-assegna {
         width: 100% !important;
         justify-content: center !important;
+    }
+    /* Etichette più compatte */
+    .item-card .label-sm {
+        font-size: 9px !important;
+        margin-bottom: 2px !important;
+    }
+    .item-card b, .item-card .value {
+        font-size: 12px !important;
+    }
+    /* Select stato: tutta la larghezza disponibile */
+    .item-card .select-interattivo {
+        width: 100% !important;
+        font-size: 13px !important;
+        padding: 8px 10px !important;
+        box-sizing: border-box !important;
+    }
+    /* Badge operatori: testo più piccolo */
+    .badge-operatore {
+        font-size: 11px !important;
+        padding: 3px 8px !important;
     }
 
     /* === ARCHIVIO LAYOUT === */
