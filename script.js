@@ -1648,6 +1648,31 @@ async function salvaTutteImpostazioni() {
   let carrelloLocale = [];
   let sezioniMateriali = JSON.parse(localStorage.getItem('sezioniMateriali') || '["Strumenti","Bombolette","Rifiuti"]');
 
+  // Carica le sezioni dal backend (sovrascrive il localStorage se il backend le ha)
+  async function _caricaSezioniDaBackend() {
+    try {
+      const res = await fetch(URL_GOOGLE + '?pagina=SEZIONI_CONFIG');
+      const sezioniRemote = await res.json();
+      if (Array.isArray(sezioniRemote) && sezioniRemote.length > 0) {
+        sezioniMateriali = sezioniRemote;
+        localStorage.setItem('sezioniMateriali', JSON.stringify(sezioniMateriali));
+      }
+    } catch (e) {
+      console.warn('Sezioni: fallback a localStorage', e);
+    }
+  }
+
+  async function _salvaSezioniSuBackend() {
+    try {
+      await fetch(URL_GOOGLE, {
+        method: 'POST',
+        body: JSON.stringify({ azione: 'salvaSezioni', sezioni: sezioniMateriali })
+      });
+    } catch (e) {
+      console.warn('Impossibile salvare sezioni sul backend', e);
+    }
+  }
+
   async function caricaMateriali(silenzioso = false) {
     // --- PROTEZIONE AGGIORNAMENTO ---
     const isInSelectionMode = document.getElementById('btn-delete-selected')?.classList.contains('visible');
@@ -1670,6 +1695,17 @@ async function salvaTutteImpostazioni() {
 
     try {
         const materiali = await fetchJson("MATERIALE DA ORDINARE");
+
+        // Aggiorna la lista sezioni dal backend prima di renderizzare
+        await _caricaSezioniDaBackend();
+
+        // Aggiungi in sezioniMateriali eventuali sezioni già presenti nei dati ma non ancora in lista
+        materiali.forEach(item => {
+            const s = (item.SEZIONE || '').trim();
+            if (s && !sezioniMateriali.includes(s)) {
+                sezioniMateriali.push(s);
+            }
+        });
 
         // Guard anti-stale: se l'utente ha cambiato pagina mentre il fetch era in corso, ignorare
         if (!silenzioso && paginaAttuale !== 'MATERIALE DA ORDINARE') return;
@@ -2300,6 +2336,7 @@ document.addEventListener('click', () => {
       if (!sezioniMateriali.includes(nome)) {
           sezioniMateriali = [...sezioniMateriali, nome];
           localStorage.setItem('sezioniMateriali', JSON.stringify(sezioniMateriali));
+          _salvaSezioniSuBackend(); // Persiste sul backend per tutti i dispositivi
       }
       chiudiModalNuovaSezione();
       delete cacheContenuti['MATERIALE DA ORDINARE'];
