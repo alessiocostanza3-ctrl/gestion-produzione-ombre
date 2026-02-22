@@ -566,7 +566,7 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
                </button>`;
 
         html += `
-        <div class="ordine-wrapper ${classWrapper}">
+        <div class="ordine-wrapper ${classWrapper}" data-ordine="${nOrd}" data-cliente="${(cliente || '').toLowerCase().replace(/"/g, '')}">
             <div class="riga-ordine ${classHeader}" onclick="toggleAccordion(this)">
                 <div class="flex-grow">
                     <span class="order-title" style="--order-color:${colorCliente}">${cliente} ${htmlRiferimento}</span>
@@ -1166,7 +1166,7 @@ function generaCardRichiesta(msgs, io, isArchiviata) {
         : `<span class="chat-tipo-dot chat-tipo-assegna" title="Assegnazione"><i class="fas fa-arrow-right"></i></span>`;
 
     return `
-        <div class="chat-card${isArchiviata ? ' archiviata' : ''}${isSollecitata ? ' sollecitata' : ''} ${TW.card}">
+        <div class="chat-card${isArchiviata ? ' archiviata' : ''}${isSollecitata ? ' sollecitata' : ''} ${TW.card}" data-ordine="${String(nOrd || '')}" data-cliente="${(nomeCliente || '').toLowerCase().replace(/"/g, '')}">
 
             <div class="chat-header${isArchiviata ? ' archiviata' : ''}">
                 <div>
@@ -2483,18 +2483,40 @@ function filtraUniversale() {
         if (!elementiDaFiltrareCache) aggiornaListaFiltrabili();
         if (!elementiDaFiltrareCache) return;
 
-        // Filtra le singole card
+        // ── Smart matching ────────────────────────────────────────────────────
+        // Solo cifre  → cerca per numero ordine
+        // Solo lettere/spazi → cerca per nome cliente (o testo libero se no data-cliente)
+        // Misto       → cerca in tutti i campi
+        const isNumericOnly = input !== '' && /^\d+$/.test(input);
+        const isTextOnly    = input !== '' && /^[^\d]+$/.test(input);
+
         elementiDaFiltrareCache.forEach(el => {
-            const testoRicerca = el.dataset.search || el.innerText.toLowerCase();
-            const match = input === '' || testoRicerca.includes(input);
+            let match;
+            if (input === '') {
+                match = true;
+            } else if (el.classList.contains('ordine-wrapper') || el.classList.contains('chat-card')) {
+                // Produzione / Richieste: smart per ordine o cliente
+                const ordine  = String(el.dataset.ordine  || '');
+                const cliente = String(el.dataset.cliente || '');
+                if (isNumericOnly) {
+                    match = ordine.includes(input);
+                } else if (isTextOnly) {
+                    match = cliente.includes(input);
+                } else {
+                    match = ordine.includes(input) || cliente.includes(input);
+                }
+            } else {
+                // Acquisti (materiale-card): usa sempre data-search (già lowercase)
+                const ds = String(el.dataset.search || el.textContent || '').toLowerCase();
+                match = ds.includes(input);
+            }
             el.classList.toggle('hidden-search', !match);
         });
 
-        // Modalità ricerca acquisti: appiattisce le sezioni in una lista flat
+        // ── Modalità ricerca acquisti: appiattisce le sezioni ─────────────────
         if (grid) {
             if (input !== '') {
                 grid.classList.add('search-active');
-                // Marca le sezioni senza risultati visibili
                 document.querySelectorAll('.sezione-materiali-wrapper').forEach(wrapper => {
                     const visibili = wrapper.querySelectorAll('.materiale-card:not(.hidden-search)').length;
                     wrapper.classList.toggle('sez-no-results', visibili === 0);
