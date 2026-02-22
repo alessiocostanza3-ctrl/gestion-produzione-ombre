@@ -26,7 +26,7 @@
                 overflow: hidden !important;
                 background: #111827 !important;
             }
-            body { display: flex !important; flex-direction: column !important; }
+            body { display: flex !important; flex-direction: column !important; padding-bottom: env(safe-area-inset-bottom, 0px) !important; }
             .main-content {
                 flex: 1 !important;
                 display: flex !important;
@@ -39,8 +39,8 @@
             .mobile-topbar { background: #ffffff; flex-shrink: 0; }
             .bottom-nav { position: static !important;
                           box-sizing: border-box !important;
-                          height: auto !important;
-                          padding: 0 max(12px, env(safe-area-inset-right,12px)) env(safe-area-inset-bottom,0px) max(12px, env(safe-area-inset-left,12px)) !important;
+                          height: 56px !important;
+                          padding: 0 max(12px, env(safe-area-inset-right,12px)) 0 max(12px, env(safe-area-inset-left,12px)) !important;
                           background: #111827 !important;
                           flex-shrink: 0 !important;
                           align-items: center !important; }
@@ -62,7 +62,7 @@
         }
         @media (min-width:769px) { #ver-badge { display:none; } }
     </style>
-    <link rel="stylesheet" href="style.css?v=20260223g">
+    <link rel="stylesheet" href="style.css?v=20260223h">
     <script>
     // DEBUG: mostra altezza nav e safe-area reale nel badge
     window.addEventListener('load', function(){
@@ -169,11 +169,11 @@
             }
         });
     </script>
-    <script src="script.js?v=20260223g" defer></script>
+    <script src="script.js?v=20260223h" defer></script>
 </head>
 
 <body>
-    <div id="ver-badge">v23g</div>
+    <div id="ver-badge">v23h</div>
     <div class="mobile-header">
         <span class="mobile-header-title">PRODLAB</span>
         <div class="mobile-header-right">

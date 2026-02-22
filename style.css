@@ -2198,11 +2198,10 @@ h1 {
         display: flex;
         position: static;
         flex-shrink: 0;
-        /* height: auto → cresce da sola in base agli items (56px) + safe-area padding */
-        height: auto;
+        /* Altezza FISSA 56px: mai influenzata da safe-area o browser chrome */
+        height: 56px;
         box-sizing: border-box;
-        /* padding-bottom = safe-area → sfondo si estende, items restano alti 56px */
-        padding: 0 max(12px, env(safe-area-inset-right, 12px)) env(safe-area-inset-bottom, 0px) max(12px, env(safe-area-inset-left, 12px));
+        padding: 0 max(12px, env(safe-area-inset-right, 12px)) 0 max(12px, env(safe-area-inset-left, 12px));
         background: #111827;
         z-index: 9100;
         align-items: center;
@@ -2222,7 +2221,7 @@ h1 {
         color: #6b7280;
         cursor: pointer;
         padding: 0 2px;
-        /* altezza fissa 56px: indipendente dal safe-area del contenitore */
+        /* altezza fissa 56px */
         height: 56px;
         min-height: 56px;
         box-sizing: border-box;
@@ -2783,6 +2782,9 @@ body.keyboard-open .bottom-nav { display: none !important; }
     body {
         display: flex !important;
         flex-direction: column !important;
+        /* safe-area-inset-bottom qui: il body scuro (#111827) riempie l'area
+           home indicator visivamente continua con il nav, senza alterarne l'altezza */
+        padding-bottom: env(safe-area-inset-bottom, 0px) !important;
     }
 
     /* === APP BAR: nascosta su mobile === */
