@@ -2200,13 +2200,16 @@ h1 {
         bottom: 0;
         left: 0;
         right: 0;
-        height: 60px;
+        min-height: 60px;
+        height: auto;
         background: #111827;
         z-index: 9100;
         align-items: center;
         justify-content: space-around;
         border-top: 1px solid rgba(255,255,255,0.07);
         padding: 0 4px;
+        /* safe area iPhone per la home indicator e bordi arrotondati */
+        padding-bottom: env(safe-area-inset-bottom, 8px);
         gap: 0;
     }
     .bottom-nav-item {
@@ -2772,17 +2775,31 @@ body.keyboard-open .bottom-nav { display: none !important; }
     .main-content {
         margin-left: 0 !important;
         margin-top: 0 !important;
-        padding: 18px 14px 76px !important; /* 76px = bottom nav 60px + spazio */
+        /* top: altezza mobile-topbar (~114px) + safe area notch/Dynamic Island */
+        padding: calc(114px + env(safe-area-inset-top, 0px)) 14px calc(76px + env(safe-area-inset-bottom, 8px)) !important;
         width: 100% !important;
         box-sizing: border-box !important;
         overflow-x: hidden !important;
         overflow-y: auto !important;
     }
 
+    /* === MOBILE TOPBAR FISSA (titolo + ricerca) === */
+    .mobile-topbar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 9090;
+        background: #ffffff;
+        /* spazio sopra per notch / Dynamic Island / status bar */
+        padding: env(safe-area-inset-top, 0px) 14px 10px;
+        box-shadow: 0 2px 14px rgba(0,0,0,0.08);
+    }
+
     /* === TOP BAR (titolo pagina) – versione mobile elegante === */
     .top-bar {
-        margin-bottom: 18px !important;
-        padding: 18px 0 14px !important;
+        margin-bottom: 10px !important;
+        padding: 14px 0 10px !important;
         border-bottom: none !important;
         position: relative;
     }
@@ -2808,7 +2825,7 @@ body.keyboard-open .bottom-nav { display: none !important; }
     /* === SEARCH === */
     .search-container {
         max-width: 100% !important;
-        margin-bottom: 12px !important;
+        margin-bottom: 4px !important;
     }
     .search-container input { font-size: 16px !important; }
 

@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>PROD - Dashboard Produzione</title>
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -22,7 +22,7 @@
         };
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="style.css?v=20260222j">
+    <link rel="stylesheet" href="style.css?v=20260222k">
     <script>
         // Gate visuale del login: non dipendere dal caricamento di script.js
         // - se NON c'è sessione → mostra overlay (classe needs-login)
@@ -113,7 +113,7 @@
             }
         });
     </script>
-    <script src="script.js?v=20260222j" defer></script>
+    <script src="script.js?v=20260222k" defer></script>
 </head>
 
 <body>
@@ -216,14 +216,15 @@
     </div>
 
     <div class="main-content">
-        <div class="top-bar">
-            <h1 id="titolo-pagina">Dashboard</h1>
-            
-        </div>
-
-        <div class="search-container">
-            <i class="fas fa-search"></i>
-            <input type="text" id="universal-search" placeholder="Cerca" oninput="filtraUniversale()" onkeyup="filtraUniversale()">
+        <!-- mobile-topbar: su mobile diventa fixed, su desktop è inline -->
+        <div class="mobile-topbar">
+            <div class="top-bar">
+                <h1 id="titolo-pagina">Dashboard</h1>
+            </div>
+            <div class="search-container">
+                <i class="fas fa-search"></i>
+                <input type="text" id="universal-search" placeholder="Cerca" oninput="filtraUniversale()" onkeyup="filtraUniversale()">
+            </div>
         </div>
 
         <div id="contenitore-dati"></div>
