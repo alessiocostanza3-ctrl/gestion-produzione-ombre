@@ -2711,6 +2711,25 @@ button.menu-item-opt {
 }
 .sezione-arrow { color: #94a3b8; font-size: 12px; transition: transform 0.25s ease; }
 .sezione-grid  { margin-bottom: 6px; }
+
+/* === MODALITÀ RICERCA ATTIVA: appiattisce sezioni ========= */
+#lista-materiali-grid.search-active .sezione-header { display: none !important; }
+#lista-materiali-grid.search-active .sezione-materiali-wrapper { display: contents; margin: 0; }
+#lista-materiali-grid.search-active .sezione-materiali-wrapper.sez-no-results { display: none !important; }
+#lista-materiali-grid.search-active .sezione-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(195px, 1fr));
+    gap: 18px;
+    margin-bottom: 8px;
+}
+@media (max-width: 768px) {
+    #lista-materiali-grid.search-active .sezione-grid {
+        grid-template-columns: 1fr !important;
+        gap: 8px !important;
+    }
+}
+/* === TASTIERA APERTA: nasconde bottom-nav per evitare sovrapposizioni === */
+body.keyboard-open .bottom-nav { display: none !important; }
 .sezione-empty {
     text-align: center;
     padding: 18px 12px;

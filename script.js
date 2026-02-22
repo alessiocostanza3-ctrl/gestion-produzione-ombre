@@ -2475,49 +2475,42 @@ document.addEventListener('click', () => {
 
 //FUNZIONI UNIVERSALI//
 function filtraUniversale() {
-    // debounce semplice per evitare che la funzione venga chiamata ad ogni battuta
     clearTimeout(ricercaTimeout);
     ricercaTimeout = setTimeout(() => {
         const input = document.getElementById('universal-search').value.toLowerCase().trim();
+        const grid = document.getElementById('lista-materiali-grid');
 
-        // aggiorna la cache dei nodi la prima volta o se è stata svuotata
         if (!elementiDaFiltrareCache) aggiornaListaFiltrabili();
-        if (!elementiDaFiltrareCache) return; // nulla da filtrare
+        if (!elementiDaFiltrareCache) return;
 
+        // Filtra le singole card
         elementiDaFiltrareCache.forEach(el => {
-            // Per le card acquisti usa data-search (più affidabile su Safari iOS con CSS grid)
-            // Per gli altri elementi usa innerText come fallback
             const testoRicerca = el.dataset.search || el.innerText.toLowerCase();
             const match = input === '' || testoRicerca.includes(input);
-
-            if (match) {
-                el.classList.remove('hidden-search');
-            } else {
-                el.classList.add('hidden-search');
-            }
+            el.classList.toggle('hidden-search', !match);
         });
 
-        // Gestione sezioni acquisti: mostra/nascondi intera sezione in base ai risultati
-        document.querySelectorAll('.sezione-materiali-wrapper').forEach(wrapper => {
-            if (input === '') {
-                // Ricerca vuota: mostra tutto, non toccare display delle sezione-grid (utente può averle collassate)
-                wrapper.style.display = '';
+        // Modalità ricerca acquisti: appiattisce le sezioni in una lista flat
+        if (grid) {
+            if (input !== '') {
+                grid.classList.add('search-active');
+                // Marca le sezioni senza risultati visibili
+                document.querySelectorAll('.sezione-materiali-wrapper').forEach(wrapper => {
+                    const visibili = wrapper.querySelectorAll('.materiale-card:not(.hidden-search)').length;
+                    wrapper.classList.toggle('sez-no-results', visibili === 0);
+                });
             } else {
-                // Espandi la sezione-grid per mostrare i risultati
-                const grid = wrapper.querySelector('.sezione-grid');
-                if (grid) grid.style.display = '';
-                // Conta le card visibili in questa sezione
-                const cardsVisibili = wrapper.querySelectorAll('.materiale-card:not(.hidden-search)').length;
-                // Nasconde il wrapper intero se non ha nessun risultato
-                wrapper.style.display = cardsVisibili > 0 ? '' : 'none';
+                grid.classList.remove('search-active');
+                document.querySelectorAll('.sezione-materiali-wrapper').forEach(w => {
+                    w.classList.remove('sez-no-results');
+                    w.style.display = '';
+                });
             }
-        });
+        }
 
         const sezioneArchivio = document.getElementById('sezione-archivio');
-        if (sezioneArchivio) {
-            sezioneArchivio.style.display = input === "" ? "block" : "none";
-        }
-    }, 150);
+        if (sezioneArchivio) sezioneArchivio.style.display = input === '' ? 'block' : 'none';
+    }, 120);
 }
 function notificaElegante(messaggio) {
     // Crea l'elemento notifica
@@ -2638,6 +2631,26 @@ document.addEventListener('DOMContentLoaded', function () {
         // compositionend: copre tastiere mobili con input predittivo (iOS/Android)
         searchInput.addEventListener('compositionend', function () {
             try { if (typeof filtraUniversale === 'function') filtraUniversale(); } catch (e) { console.error('filtraUniversale error', e); }
+        });
+    }
+
+    // === FIX TASTIERA iOS: nasconde bottom-nav quando la tastiera è aperta ===
+    // Evita che bottom-nav (position:fixed) si sovrapponga alla tastiera o al contenuto
+    if (window.innerWidth <= 768) {
+        let _keyboardTimer = null;
+        document.addEventListener('focusin', function (e) {
+            if (e.target.matches('input, textarea, select')) {
+                clearTimeout(_keyboardTimer);
+                document.body.classList.add('keyboard-open');
+            }
+        });
+        document.addEventListener('focusout', function (e) {
+            if (e.target.matches('input, textarea, select')) {
+                // piccolo delay: evita flickering quando si passa da un campo all'altro
+                _keyboardTimer = setTimeout(() => {
+                    document.body.classList.remove('keyboard-open');
+                }, 300);
+            }
         });
     }
 
