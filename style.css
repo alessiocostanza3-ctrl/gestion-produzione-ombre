@@ -2200,16 +2200,12 @@ h1 {
         bottom: 0;
         left: 0;
         right: 0;
-        min-height: 60px;
-        height: auto;
         background: #111827;
         z-index: 9100;
-        align-items: center;
+        align-items: flex-start;          /* icone ancorate in alto */
         justify-content: space-around;
         border-top: 1px solid rgba(255,255,255,0.07);
-        padding: 0 4px;
-        /* safe area iPhone per la home indicator e bordi arrotondati */
-        padding-bottom: env(safe-area-inset-bottom, 8px);
+        padding: 0 4px env(safe-area-inset-bottom, 6px); /* safe-area solo in fondo */
         gap: 0;
     }
     .bottom-nav-item {
@@ -2223,8 +2219,9 @@ h1 {
         border: none;
         color: #6b7280;
         cursor: pointer;
-        padding: 6px 2px;
-        min-height: 56px;
+        padding: 8px 2px 6px;   /* padding top/bottom definito → altezza 60px garantita */
+        height: 60px;           /* altezza fissa: le icone restano dentro i 60px */
+        box-sizing: border-box;
         position: relative;
         transition: color 0.18s;
         font-family: inherit;
@@ -2281,7 +2278,7 @@ h1 {
         box-shadow: 0 4px 20px rgba(37,99,235,0.5);
         flex-shrink: 0;
         transition: transform 0.2s, box-shadow 0.2s;
-        margin-bottom: 4px; /* sollevato leggermente */
+        margin-top: 4px;   /* leggermente solevato rispetto al top */
         position: relative;
         z-index: 1;
     }
@@ -2733,6 +2730,13 @@ button.menu-item-opt {
 }
 /* === TASTIERA APERTA: nasconde bottom-nav per evitare sovrapposizioni === */
 body.keyboard-open .bottom-nav { display: none !important; }
+
+/* compensa il padding safe-area nel calcolo dello spazio sotto il contenuto */
+@media (max-width: 768px) {
+    .main-content {
+        padding-bottom: calc(60px + env(safe-area-inset-bottom, 6px) + 10px) !important;
+    }
+}
 .sezione-empty {
     text-align: center;
     padding: 18px 12px;
