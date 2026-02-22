@@ -2198,7 +2198,7 @@ h1 {
         display: flex;
         position: static;
         flex-shrink: 0;
-        height: 54px;
+        height: calc(54px + env(safe-area-inset-bottom, 0px));
         overflow: hidden;
         background: #111827;
         z-index: 9100;
@@ -2207,7 +2207,7 @@ h1 {
         border-top: 1px solid rgba(255,255,255,0.07);
         /* padding laterale: rispetta gli angoli stondati dell'iPhone */
         box-sizing: border-box;
-        padding: 0 max(12px, env(safe-area-inset-right, 12px)) max(2px, min(env(safe-area-inset-bottom, 0px), 6px)) max(12px, env(safe-area-inset-left, 12px));
+        padding: 0 max(12px, env(safe-area-inset-right, 12px)) 0 max(12px, env(safe-area-inset-left, 12px));
         gap: 0;
     }
     .bottom-nav-item {
