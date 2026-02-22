@@ -2198,10 +2198,10 @@ h1 {
         display: flex;
         position: static;
         flex-shrink: 0;
-        /* box-sizing: border-box → height totale = 60px(visibili) + safe-area-bottom */
+        /* height: auto → cresce da sola in base agli items (56px) + safe-area padding */
+        height: auto;
         box-sizing: border-box;
-        height: calc(60px + env(safe-area-inset-bottom, 0px));
-        /* padding-bottom = safe area → items centrati nei 60px effettivi */
+        /* padding-bottom = safe-area → sfondo si estende, items restano alti 56px */
         padding: 0 max(12px, env(safe-area-inset-right, 12px)) env(safe-area-inset-bottom, 0px) max(12px, env(safe-area-inset-left, 12px));
         background: #111827;
         z-index: 9100;
@@ -2222,8 +2222,9 @@ h1 {
         color: #6b7280;
         cursor: pointer;
         padding: 0 2px;
-        /* altezza esplicita 60px: centra icona+label nel blocco visibile */
-        height: 60px;
+        /* altezza fissa 56px: indipendente dal safe-area del contenitore */
+        height: 56px;
+        min-height: 56px;
         box-sizing: border-box;
         position: relative;
         transition: color 0.18s;
@@ -2283,7 +2284,7 @@ h1 {
         box-shadow: 0 4px 20px rgba(37,99,235,0.5);
         flex-shrink: 0;
         transition: transform 0.2s, box-shadow 0.2s;
-        margin-top: -4px; /* leggero sollevamento visivo */
+        margin: 3px 0; /* spazio verticale → entra nei 56px dell'item */
         position: relative;
         z-index: 1;
     }
