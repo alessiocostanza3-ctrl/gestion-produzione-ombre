@@ -744,9 +744,10 @@ function _selezionaOrdine(ordine, cliente) {
     if (modal) modal.dataset.nOrdine = ordine;
 }
 function setTipoAzione(tipo) {
-    document.getElementById('modalAiuto').dataset.tipoAzione = tipo;
-    document.getElementById('btn-tipo-assegna').classList.toggle('active', tipo === 'Assegnazione');
-    document.getElementById('btn-tipo-domanda').classList.toggle('active', tipo === 'Domanda');
+    const tipoUp = tipo.toUpperCase();
+    document.getElementById('modalAiuto').dataset.tipoAzione = tipoUp;
+    document.getElementById('btn-tipo-assegna').classList.toggle('active', tipoUp === 'ASSEGNAZIONE');
+    document.getElementById('btn-tipo-domanda').classList.toggle('active', tipoUp === 'DOMANDA');
 }
 function chiudiModal() {
     const modal = document.getElementById('modalAiuto');
@@ -797,7 +798,7 @@ async function confermaInvioSupporto() {
             n_ordine: nOrd,
             tipo: tipoAzione,
             // Testo di default aggiornato
-            messaggio: messaggioVal || (tipoAzione === 'Assegnazione' ? "Nuova assegnazione" : "Nuova domanda"),
+            messaggio: messaggioVal || (tipoAzione === 'ASSEGNAZIONE' ? "Nuova assegnazione" : "Nuova domanda"),
             mittente: utenteAttuale.nome.toUpperCase().trim(),
             destinatari: listaNomiDestinatari
         };
