@@ -2756,19 +2756,17 @@ body.keyboard-open .bottom-nav { display: none !important; }
 @media (max-width: 768px) {
 
     /* === BASE ===
-       body scuro = la zona safe-area sotto il bottom-nav non mostra bianco
-       main-content bianco esplicito = il contenuto non eredita il colore scuro
-       NOTA: le regole critiche sono duplicate inline nel <head> di index.html
-             per eliminare il flash al primo paint (FOUC). */
-    html { scroll-behavior: smooth; }
-    body, html {
-        overflow-x: hidden;
-        height: auto;
-        min-height: 100%;
+       body e html BLOCCATI a 100dvh + overflow:hidden.
+       Il documento non cambia mai dimensione → iOS Safari non ri-renderizza
+       i fixed elements (bottom-nav e mobile-topbar) ad ogni cambio pagina.
+       Solo .main-content scorre internamente. */
+    html, body {
+        height: 100dvh !important;
+        overflow: hidden !important;
+        background: #111827 !important; /* safe-area zone scure */
     }
     body {
         display: block !important;
-        background: #111827 !important;
     }
 
     /* === APP BAR: nascosta su mobile === */
@@ -2781,17 +2779,22 @@ body.keyboard-open .bottom-nav { display: none !important; }
         display: none !important;
     }
 
-    /* === MAIN CONTENT === */
+    /* === MAIN CONTENT ===
+       Altezza = viewport intero meno topbar meno bottom-nav.
+       Scorre solo qui dentro; il body non scorre mai. */
     .main-content {
-        margin-left: 0 !important;
-        margin-top: 0 !important;
-        padding: calc(114px + env(safe-area-inset-top, 0px)) 14px calc(76px + env(safe-area-inset-bottom, 6px)) !important;
-        width: 100% !important;
-        min-height: 100svh;   /* evita flash di sfondo scuro durante cambio pagina */
-        background: #f8fafc;  /* bianco esplicito: non eredita body scuro */
+        position: fixed !important;   /* staccato dal flusso: nessun reflow */
+        top: calc(114px + env(safe-area-inset-top, 0px)) !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: calc(60px + env(safe-area-inset-bottom, 6px)) !important;
+        margin: 0 !important;
+        padding: 14px 14px 8px !important;
+        background: #f8fafc !important;
         box-sizing: border-box !important;
         overflow-x: hidden !important;
         overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
     }
 
     /* === MOBILE TOPBAR FISSA (titolo + ricerca) === */

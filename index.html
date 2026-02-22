@@ -19,11 +19,17 @@
          Elimina il flash di sfondo bianco/scuro al caricamento e al cambio pagina. -->
     <style>
         @media (max-width: 768px) {
-            html  { background: #111827; }   /* zona safe-area sotto bottom-nav */
-            body  { background: #111827 !important; display: block !important; }
-            .main-content { background: #f8fafc !important; min-height: 100svh; }
+            html, body { height: 100dvh !important; overflow: hidden !important; background: #111827 !important; }
+            body { display: block !important; }
+            .main-content {
+                position: fixed !important;
+                top: calc(114px + env(safe-area-inset-top,0px)) !important;
+                left: 0 !important; right: 0 !important;
+                bottom: calc(60px + env(safe-area-inset-bottom,6px)) !important;
+                background: #f8fafc !important;
+                overflow-y: auto !important;
+            }
             .mobile-topbar { background: #ffffff; }
-            /* altezza fissa bottom-nav: nessun allungamento possibile */
             .bottom-nav {
                 height: calc(60px + env(safe-area-inset-bottom, 6px)) !important;
                 overflow: hidden !important;
@@ -38,7 +44,7 @@
         };
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="style.css?v=20260222p">
+    <link rel="stylesheet" href="style.css?v=20260222q">
     <script>
         // Gate visuale del login: non dipendere dal caricamento di script.js
         // - se NON c'è sessione → mostra overlay (classe needs-login)
@@ -129,7 +135,7 @@
             }
         });
     </script>
-    <script src="script.js?v=20260222p" defer></script>
+    <script src="script.js?v=20260222q" defer></script>
 </head>
 
 <body>
