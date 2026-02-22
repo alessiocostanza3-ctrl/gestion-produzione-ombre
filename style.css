@@ -2202,11 +2202,13 @@ h1 {
         right: 0;
         background: #111827;
         z-index: 9100;
-        align-items: flex-start;          /* icone ancorate in alto */
+        align-items: flex-start;
         justify-content: space-around;
         border-top: 1px solid rgba(255,255,255,0.07);
-        padding: 0 4px env(safe-area-inset-bottom, 6px); /* safe-area solo in fondo */
+        padding: 0 4px env(safe-area-inset-bottom, 6px);
         gap: 0;
+        /* estende il colore scuro nella zona safe-area sotto la nav */
+        box-shadow: 0 100px 0 100px #111827;
     }
     .bottom-nav-item {
         flex: 1;
@@ -2733,6 +2735,10 @@ body.keyboard-open .bottom-nav { display: none !important; }
 
 /* compensa il padding safe-area nel calcolo dello spazio sotto il contenuto */
 @media (max-width: 768px) {
+    /* sfondo scuro su html copre la zona safe-area sotto la bottom-nav */
+    html {
+        background: #111827;
+    }
     .main-content {
         padding-bottom: calc(60px + env(safe-area-inset-bottom, 6px) + 10px) !important;
     }
