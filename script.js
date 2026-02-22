@@ -1779,7 +1779,7 @@ async function salvaTutteImpostazioni() {
                 const nomePulitoJS = nomeProdotto.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
                 html += `
-                <div class="materiale-card ${TW.card}" data-idx="${index}">
+                <div class="materiale-card ${TW.card}" data-idx="${index}" data-search="${(nomeProdotto + ' ' + fornitore + ' ' + codice).toLowerCase().replace(/"/g, '')}">
                     <div class="mat-card-img img-preview-container"
                          data-prod="${nomeProdotto}"
                          data-fornitore="${fornitore}"
@@ -2485,15 +2485,24 @@ function filtraUniversale() {
         if (!elementiDaFiltrareCache) return; // nulla da filtrare
 
         elementiDaFiltrareCache.forEach(el => {
-            const testoContenuto = el.innerText.toLowerCase();
-            const match = testoContenuto.includes(input);
+            // Per le card acquisti usa data-search (più affidabile su Safari iOS con CSS grid)
+            // Per gli altri elementi usa innerText come fallback
+            const testoRicerca = el.dataset.search || el.innerText.toLowerCase();
+            const match = input === '' || testoRicerca.includes(input);
 
             if (match) {
-            el.classList.remove('hidden-search');
-        } else {
-            el.classList.add('hidden-search');
-        }
+                el.classList.remove('hidden-search');
+            } else {
+                el.classList.add('hidden-search');
+            }
         });
+
+        // Gestione sezioni acquisti: espandi se ricerca attiva, rispetta lo stato se vuoto
+        if (input !== '') {
+            document.querySelectorAll('.sezione-grid').forEach(grid => {
+                grid.style.display = ''; // forza apertura durante la ricerca
+            });
+        }
 
         const sezioneArchivio = document.getElementById('sezione-archivio');
         if (sezioneArchivio) {
@@ -2615,6 +2624,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const searchInput = document.getElementById('universal-search');
     if (searchInput) {
         searchInput.addEventListener('input', function () {
+            try { if (typeof filtraUniversale === 'function') filtraUniversale(); } catch (e) { console.error('filtraUniversale error', e); }
+        });
+        // compositionend: copre tastiere mobili con input predittivo (iOS/Android)
+        searchInput.addEventListener('compositionend', function () {
             try { if (typeof filtraUniversale === 'function') filtraUniversale(); } catch (e) { console.error('filtraUniversale error', e); }
         });
     }
