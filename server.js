@@ -16,4 +16,16 @@ http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': mime[ext] || 'text/plain', 'Cache-Control': 'no-cache' });
     res.end(data);
   });
-}).listen(5500, '127.0.0.1', () => console.log('SERVER OK http://localhost:5500'));
+}).listen(5500, '0.0.0.0', () => {
+  const os = require('os');
+  const nets = os.networkInterfaces();
+  let localIp = 'localhost';
+  for (const n of Object.values(nets)) {
+    for (const net of n) {
+      if (net.family === 'IPv4' && !net.internal) { localIp = net.address; break; }
+    }
+    if (localIp !== 'localhost') break;
+  }
+  console.log('SERVER OK http://localhost:5500');
+  console.log('>>> IPHONE: http://' + localIp + ':5500');
+});
