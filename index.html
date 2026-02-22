@@ -23,6 +23,11 @@
             body  { background: #111827 !important; display: block !important; }
             .main-content { background: #f8fafc !important; min-height: 100svh; }
             .mobile-topbar { background: #ffffff; }
+            /* altezza fissa bottom-nav: nessun allungamento possibile */
+            .bottom-nav {
+                height: calc(60px + env(safe-area-inset-bottom, 6px)) !important;
+                overflow: hidden !important;
+            }
         }
     </style>
     <script>
@@ -33,7 +38,7 @@
         };
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="style.css?v=20260222o">
+    <link rel="stylesheet" href="style.css?v=20260222p">
     <script>
         // Gate visuale del login: non dipendere dal caricamento di script.js
         // - se NON c'è sessione → mostra overlay (classe needs-login)
@@ -124,7 +129,7 @@
             }
         });
     </script>
-    <script src="script.js?v=20260222o" defer></script>
+    <script src="script.js?v=20260222p" defer></script>
 </head>
 
 <body>
