@@ -2200,8 +2200,8 @@ h1 {
         flex-shrink: 0;
         /* box-sizing: border-box → height include padding → content box = 49px (icone) */
         box-sizing: border-box;
-        height: calc(49px + env(safe-area-inset-bottom, 0px));
-        padding: 0 max(12px, env(safe-area-inset-right, 12px)) env(safe-area-inset-bottom, 0px) max(12px, env(safe-area-inset-left, 12px));
+        height: 49px;
+        padding: 0 max(12px, env(safe-area-inset-right, 12px)) 0 max(12px, env(safe-area-inset-left, 12px));
         background: #111827;
         z-index: 9100;
         align-items: center;
@@ -2729,6 +2729,18 @@ button.menu-item-opt {
         gap: 8px !important;
     }
 }
+/* Spacer post-nav: copre la safe-area con lo stesso sfondo della nav */
+.nav-safe-spacer { display: none; }
+@media (max-width: 768px) {
+    .nav-safe-spacer {
+        display: block;
+        flex-shrink: 0;
+        height: env(safe-area-inset-bottom, 0px);
+        background: #111827;
+    }
+}
+body.keyboard-open .nav-safe-spacer { display: none !important; }
+
 /* === TASTIERA APERTA: nasconde bottom-nav per evitare sovrapposizioni === */
 body.keyboard-open .bottom-nav { display: none !important; }
 
