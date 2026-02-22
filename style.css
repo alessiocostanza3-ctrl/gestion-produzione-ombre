@@ -2198,11 +2198,13 @@ h1 {
         display: flex;
         position: static;
         flex-shrink: 0;
-        height: calc(54px + env(safe-area-inset-bottom, 0px));
+        height: calc(49px + env(safe-area-inset-bottom, 0px));
         overflow: hidden;
-        background: #111827;
+        background: rgba(17, 24, 39, 0.92);
+        -webkit-backdrop-filter: blur(14px);
+        backdrop-filter: blur(14px);
         z-index: 9100;
-        align-items: center;
+        align-items: stretch;
         justify-content: space-around;
         border-top: 1px solid rgba(255,255,255,0.07);
         /* padding laterale: rispetta gli angoli stondati dell'iPhone */
@@ -2221,8 +2223,8 @@ h1 {
         border: none;
         color: #6b7280;
         cursor: pointer;
-        padding: 6px 2px;
-        height: 100%;
+        padding: 0 2px;
+        height: 100% !important;
         box-sizing: border-box;
         position: relative;
         transition: color 0.18s;
@@ -2280,7 +2282,7 @@ h1 {
         box-shadow: 0 4px 20px rgba(37,99,235,0.5);
         flex-shrink: 0;
         transition: transform 0.2s, box-shadow 0.2s;
-        margin-top: 4px;   /* leggermente solevato rispetto al top */
+        margin-top: 0;
         position: relative;
         z-index: 1;
     }
