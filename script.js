@@ -1737,9 +1737,6 @@ async function salvaTutteImpostazioni() {
                         <button id="btn-mode-select" type="button" onclick="toggleSelezioneMultipla()" class="${TW.btn}">
                             <i class="fas fa-tasks"></i> Seleziona
                         </button>
-                        <button id="btn-mode-sposta" type="button" onclick="toggleSpostaMode()" class="${TW.btn}">
-                            <i class="fas fa-arrows-alt"></i> <span class="btn-txt">Sposta</span>
-                        </button>
                         <button id="btn-delete-selected" type="button" onclick="eliminaSelezionati()" class="${TW.btnDanger} btn-fade-action">
                             <i class="fas fa-trash"></i> Elimina (<span id="count-selected">0</span>)
                         </button>
@@ -1833,7 +1830,6 @@ async function salvaTutteImpostazioni() {
         contenitore.innerHTML = html;
         applicaFade(contenitore);
         aggiornaListaFiltrabili();
-        sezioniMateriali.forEach((_, si) => initSortable(`sezione-grid-${si}`, null));
 
     } catch (e) {
         console.error("Errore caricamento materiali:", e);
@@ -2252,33 +2248,7 @@ document.addEventListener('click', () => {
     }
     }, 'Duplica');
   } // fine duplicaArticolo
-  let modaSpostaAttiva = false;
-  function toggleSpostaMode() {
-      modaSpostaAttiva = !modaSpostaAttiva;
-      const grid = document.getElementById('lista-materiali-grid');
-      const btn = document.getElementById('btn-mode-sposta');
-      if (!grid) return;
 
-      grid.querySelectorAll('.materiale-card').forEach(card => {
-          if (modaSpostaAttiva) {
-              card.setAttribute('draggable', 'true');
-              card.classList.add('mat-wobble');
-          } else {
-              card.removeAttribute('draggable');
-              card.classList.remove('mat-wobble');
-          }
-      });
-
-      if (btn) {
-          if (modaSpostaAttiva) {
-              btn.classList.add('btn-active-sposta');
-              btn.innerHTML = '<i class="fas fa-check"></i> <span class="btn-txt">Fatto</span>';
-          } else {
-              btn.classList.remove('btn-active-sposta');
-              btn.innerHTML = '<i class="fas fa-arrows-alt"></i> <span class="btn-txt">Sposta</span>';
-          }
-      }
-  }
 
   // ── sezioni acquisti ──────────────────────────────────────────
   function toggleSezione(gridId) {
