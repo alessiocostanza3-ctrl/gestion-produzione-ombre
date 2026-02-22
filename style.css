@@ -2198,9 +2198,10 @@ h1 {
         display: flex;
         position: static;
         flex-shrink: 0;
-        /* box-sizing: border-box → height include padding → content box = 49px (icone) */
+        /* box-sizing: border-box → height totale = 60px(visibili) + safe-area-bottom */
         box-sizing: border-box;
-        height: calc(49px + env(safe-area-inset-bottom, 0px));
+        height: calc(60px + env(safe-area-inset-bottom, 0px));
+        /* padding-bottom = safe area → items centrati nei 60px effettivi */
         padding: 0 max(12px, env(safe-area-inset-right, 12px)) env(safe-area-inset-bottom, 0px) max(12px, env(safe-area-inset-left, 12px));
         background: #111827;
         z-index: 9100;
@@ -2221,21 +2222,24 @@ h1 {
         color: #6b7280;
         cursor: pointer;
         padding: 0 2px;
-        height: auto;
+        /* altezza esplicita 60px: centra icona+label nel blocco visibile */
+        height: 60px;
         box-sizing: border-box;
         position: relative;
         transition: color 0.18s;
         font-family: inherit;
     }
     .bottom-nav-item i {
-        font-size: 18px;
+        font-size: 20px;
         transition: transform 0.18s;
+        line-height: 1;
     }
     .bottom-nav-item span:first-of-type {
         font-size: 10px;
         font-weight: 600;
         letter-spacing: 0.2px;
         white-space: nowrap;
+        line-height: 1;
     }
     .bottom-nav-item.active {
         color: #ffffff;
@@ -2265,8 +2269,8 @@ h1 {
     }
     /* FAB centrale "+" */
     .bottom-nav-fab {
-        width: 52px;
-        height: 52px;
+        width: 50px;
+        height: 50px;
         background: linear-gradient(135deg, #2563eb, #7c3aed);
         border: none;
         border-radius: 50%;
@@ -2279,7 +2283,7 @@ h1 {
         box-shadow: 0 4px 20px rgba(37,99,235,0.5);
         flex-shrink: 0;
         transition: transform 0.2s, box-shadow 0.2s;
-        margin-top: 0;
+        margin-top: -4px; /* leggero sollevamento visivo */
         position: relative;
         z-index: 1;
     }
