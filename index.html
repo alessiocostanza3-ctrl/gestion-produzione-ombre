@@ -15,25 +15,28 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <!-- CRITICAL CSS inline: applicato PRIMA di qualsiasi paint del browser.
-         Elimina il flash di sfondo bianco/scuro al caricamento e al cambio pagina. -->
+    <!-- CRITICAL CSS inline: architettura flex-column applicata prima del primo paint.
+         body=colonna 100dvh | topbar=altezza automatica | contenuto=flex:1 scroll | nav=60px.
+         Nessun position:fixed per topbar/nav → nessun reflow/rimbalzo su iOS. -->
     <style>
         @media (max-width: 768px) {
-            html, body { height: 100dvh !important; overflow: hidden !important; background: #111827 !important; }
-            body { display: block !important; }
-            .main-content {
-                position: fixed !important;
-                top: calc(114px + env(safe-area-inset-top,0px)) !important;
-                left: 0 !important; right: 0 !important;
-                bottom: 60px !important;
-                background: #f8fafc !important;
-                overflow-y: auto !important;
-            }
-            .mobile-topbar { background: #ffffff; }
-            .bottom-nav {
-                height: 60px !important;
+            html, body {
+                height: 100dvh !important;
                 overflow: hidden !important;
+                background: #111827 !important;
             }
+            body { display: flex !important; flex-direction: column !important; }
+            .main-content {
+                flex: 1 !important;
+                display: flex !important;
+                flex-direction: column !important;
+                overflow: hidden !important;
+                padding: 0 !important;
+                background: #f8fafc !important;
+            }
+            #contenitore-dati { flex: 1 !important; overflow-y: auto !important; padding: 14px !important; }
+            .mobile-topbar { background: #ffffff; flex-shrink: 0; }
+            .bottom-nav { position: static !important; height: 60px !important; flex-shrink: 0 !important; }
         }
     </style>
     <script>
@@ -44,7 +47,7 @@
         };
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="style.css?v=20260222r">
+    <link rel="stylesheet" href="style.css?v=20260222s">
     <script>
         // Gate visuale del login: non dipendere dal caricamento di script.js
         // - se NON c'è sessione → mostra overlay (classe needs-login)
@@ -135,7 +138,7 @@
             }
         });
     </script>
-    <script src="script.js?v=20260222r" defer></script>
+    <script src="script.js?v=20260222s" defer></script>
 </head>
 
 <body>

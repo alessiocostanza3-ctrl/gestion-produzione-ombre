@@ -2196,15 +2196,13 @@ h1 {
 @media (max-width: 768px) {
     .bottom-nav {
         display: flex;
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 60px;            /* fisso: mai più alto */
+        position: static;        /* nel flusso flex del body, in fondo */
+        flex-shrink: 0;
+        height: 60px;
         overflow: hidden;
         background: #111827;
         z-index: 9100;
-        align-items: center;     /* icone centrate nei 60px */
+        align-items: center;
         justify-content: space-around;
         border-top: 1px solid rgba(255,255,255,0.07);
         padding: 0 4px;
@@ -2755,17 +2753,17 @@ body.keyboard-open .bottom-nav { display: none !important; }
 @media (max-width: 768px) {
 
     /* === BASE ===
-       body e html BLOCCATI a 100dvh + overflow:hidden.
-       Il documento non cambia mai dimensione → iOS Safari non ri-renderizza
-       i fixed elements (bottom-nav e mobile-topbar) ad ogni cambio pagina.
-       Solo .main-content scorre internamente. */
+       Architettura flex-column: il body è una colonna alta 100dvh.
+       Ordine: topbar (auto) | contenuto (flex:1, scorre) | nav (60px fissi).
+       Nessun position:fixed per topbar e nav → nessun reflow iOS. */
     html, body {
         height: 100dvh !important;
         overflow: hidden !important;
-        background: #111827 !important; /* safe-area zone scure */
+        background: #111827 !important;
     }
     body {
-        display: block !important;
+        display: flex !important;
+        flex-direction: column !important;
     }
 
     /* === APP BAR: nascosta su mobile === */
@@ -2779,32 +2777,37 @@ body.keyboard-open .bottom-nav { display: none !important; }
     }
 
     /* === MAIN CONTENT ===
-       Altezza = viewport intero meno topbar meno bottom-nav.
-       Scorre solo qui dentro; il body non scorre mai. */
+       flex:1 → occupa tutto lo spazio tra topbar e bottom-nav.
+       flex-column interno: topbar (shrink:0) + contenitore-dati (flex:1 scroll). */
     .main-content {
-        position: fixed !important;
-        top: calc(114px + env(safe-area-inset-top, 0px)) !important;
-        left: 0 !important;
-        right: 0 !important;
-        bottom: 60px !important;   /* esattamente l'altezza della bottom-nav */
+        flex: 1 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important;
+        padding: 0 !important;
         margin: 0 !important;
-        padding: 14px 14px 8px !important;
+        width: 100% !important;
         background: #f8fafc !important;
         box-sizing: border-box !important;
-        overflow-x: hidden !important;
-        overflow-y: auto !important;
-        -webkit-overflow-scrolling: touch;
     }
 
-    /* === MOBILE TOPBAR FISSA (titolo + ricerca) === */
+    /* L'area scrollabile è #contenitore-dati, non main-content */
+    #contenitore-dati {
+        flex: 1;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 14px 14px 8px;
+        box-sizing: border-box;
+    }
+
+    /* === MOBILE TOPBAR (titolo + ricerca) ===
+       Nel flusso flex: NON più position:fixed.
+       Si posiziona naturalmente in cima al main-content. */
     .mobile-topbar {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
+        position: relative;
+        flex-shrink: 0;
         z-index: 9090;
         background: #ffffff;
-        /* spazio sopra per notch / Dynamic Island / status bar */
         padding: env(safe-area-inset-top, 0px) 14px 10px;
         box-shadow: 0 2px 14px rgba(0,0,0,0.08);
     }
