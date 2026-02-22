@@ -39,14 +39,11 @@
             .mobile-topbar { background: #ffffff; flex-shrink: 0; }
             .bottom-nav { position: static !important;
                           box-sizing: border-box !important;
-                          height: 49px !important;
+                          height: calc(49px + env(safe-area-inset-bottom, 0px)) !important;
                           padding: 0 max(12px, env(safe-area-inset-right,12px)) 0 max(12px, env(safe-area-inset-left,12px)) !important;
                           background: #111827 !important;
                           flex-shrink: 0 !important;
                           align-items: center !important; }
-            .nav-safe-spacer { display: block !important; flex-shrink: 0 !important;
-                               height: env(safe-area-inset-bottom, 0px) !important;
-                               background: #111827 !important; }
         }
     </style>
     <script>
@@ -57,7 +54,14 @@
         };
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="style.css?v=20260223b">
+    <!-- badge versione: conferma visiva su mobile che il codice è aggiornato -->
+    <style>
+        @media (max-width: 768px) {
+            #ver-badge { position:fixed; bottom: calc(49px + env(safe-area-inset-bottom,0px) + 4px); right:8px; background:#1d4ed8; color:#fff; font-size:10px; font-weight:800; padding:2px 7px; border-radius:20px; z-index:99999; pointer-events:none; }
+        }
+        @media (min-width:769px) { #ver-badge { display:none; } }
+    </style>
+    <link rel="stylesheet" href="style.css?v=20260223c">
     <script>
         // Gate visuale del login: non dipendere dal caricamento di script.js
         // - se NON c'è sessione → mostra overlay (classe needs-login)
@@ -148,10 +152,11 @@
             }
         });
     </script>
-    <script src="script.js?v=20260223b" defer></script>
+    <script src="script.js?v=20260223c" defer></script>
 </head>
 
 <body>
+    <div id="ver-badge">v23c</div>
     <div class="mobile-header">
         <span class="mobile-header-title">PRODLAB</span>
         <div class="mobile-header-right">
@@ -316,7 +321,6 @@
             <span>Impostazioni</span>
         </button>
     </nav>
-    <div class="nav-safe-spacer"></div>
 
     <button id="floating-cart-btn" onclick="apriModalCarrello()" style="display:none">
             <i class="fas fa-shopping-cart"></i>
