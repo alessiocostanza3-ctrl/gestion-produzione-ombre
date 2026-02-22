@@ -2198,7 +2198,7 @@ h1 {
         display: flex;
         position: static;
         flex-shrink: 0;
-        height: calc(49px + env(safe-area-inset-bottom, 0px));
+        height: 49px;
         overflow: hidden;
         background: rgba(17, 24, 39, 0.92);
         -webkit-backdrop-filter: blur(14px);
@@ -2764,7 +2764,8 @@ body.keyboard-open .bottom-nav { display: none !important; }
         height: 100vh !important;
         height: -webkit-fill-available !important;
         overflow: hidden !important;
-        background: #111827 !important;
+        background: #f8fafc !important;
+        padding-bottom: env(safe-area-inset-bottom, 0px) !important;
     }
     body {
         display: flex !important;
