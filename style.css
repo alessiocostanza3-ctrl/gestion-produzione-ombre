@@ -2196,29 +2196,20 @@ h1 {
 @media (max-width: 768px) {
     .bottom-nav {
         display: flex;
-        position: fixed;
-        left: 0;
-        right: 0;
-        bottom: 0;
+        /* STATIC: resta nel flusso flex, sempre all'ultimo posto nella colonna */
+        position: static;
         flex-shrink: 0;
-        height: auto;
-        box-sizing: border-box;
-        /* safe-area come padding: sfondo esteso, contenuto sempre 56px */
+        /* content-box: height=56px è solo l'area contenuto;
+           padding-bottom estende lo SFONDO nella safe-area senza gonfiare i bottoni */
+        box-sizing: content-box;
+        height: 56px;
         padding: 0 max(12px, env(safe-area-inset-right, 12px)) env(safe-area-inset-bottom, 0px) max(12px, env(safe-area-inset-left, 12px));
         background: #111827;
         z-index: 9100;
-        align-items: stretch;
-        justify-content: center;
-        border-top: 1px solid rgba(255,255,255,0.08);
-        gap: 0;
-    }
-
-    .bottom-nav-inner {
-        height: 56px;
-        display: flex;
         align-items: center;
         justify-content: space-around;
-        width: 100%;
+        border-top: 1px solid rgba(255,255,255,0.08);
+        gap: 0;
     }
     .bottom-nav-item {
         flex: 1;
@@ -2793,8 +2784,6 @@ body.keyboard-open .bottom-nav { display: none !important; }
     body {
         display: flex !important;
         flex-direction: column !important;
-        /* nav fixed: lascia spazio al contenuto (nav 56px + safe-area) */
-        padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px)) !important;
     }
 
     /* === APP BAR: nascosta su mobile === */
