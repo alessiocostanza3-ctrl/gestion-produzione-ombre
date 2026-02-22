@@ -36,7 +36,8 @@
             }
             #contenitore-dati { flex: 1 !important; overflow-y: auto !important; padding: 14px !important; }
             .mobile-topbar { background: #ffffff; flex-shrink: 0; }
-            .bottom-nav { position: static !important; height: 60px !important; flex-shrink: 0 !important; }
+            .bottom-nav { position: static !important; height: 54px !important; flex-shrink: 0 !important;
+                          padding: 0 max(12px, env(safe-area-inset-right,12px)) 0 max(12px, env(safe-area-inset-left,12px)) !important; }
         }
     </style>
     <script>
@@ -47,7 +48,7 @@
         };
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="style.css?v=20260222s">
+    <link rel="stylesheet" href="style.css?v=20260222t">
     <script>
         // Gate visuale del login: non dipendere dal caricamento di script.js
         // - se NON c'è sessione → mostra overlay (classe needs-login)
@@ -138,7 +139,7 @@
             }
         });
     </script>
-    <script src="script.js?v=20260222s" defer></script>
+    <script src="script.js?v=20260222t" defer></script>
 </head>
 
 <body>
