@@ -205,47 +205,136 @@ button, .menu-item, .btn-sos, .btn-login, .btn-modal-send {
 }
 
 /* STILE PULSANTE LOGOUT ELEGANTE (POSIZIONE TOP) */
-.btn-logout-minimal {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 14px;
-    background: rgba(255, 255, 255, 0.08); /* Effetto vetro semi-trasparente */
-    color: #cbd5e1; /* Colore testo sobrio (grigio chiaro) */
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 10px;
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    margin-left: 12px;
-    backdrop-filter: blur(4px); /* Sfocatura leggera dietro il tasto */
+/* ---- AVATAR CIRCOLARE CLICCABILE ---- */
+.user-avatar-btn {
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 50% !important;
+    background: #2563eb !important;
+    border: 2.5px solid rgba(255,255,255,0.15) !important;
+    color: #fff !important;
+    font-size: 16px !important;
+    font-weight: 800 !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s !important;
+    padding: 0 !important;
+    outline: none !important;
+    box-shadow: 0 2px 8px rgba(37,99,235,0.35) !important;
+}
+.user-avatar-btn:hover {
+    border-color: rgba(255,255,255,0.45) !important;
+    box-shadow: 0 4px 16px rgba(37,99,235,0.55) !important;
+    transform: scale(1.06) !important;
+}
+.user-avatar-btn:active {
+    transform: scale(0.97) !important;
 }
 
-.btn-logout-minimal i {
-    font-size: 14px;
-    transition: transform 0.3s ease;
+/* ---- ACCOUNT DROPDOWN ---- */
+.sidebar-user-section {
+    position: relative !important;
 }
-
-/* EFFETTO AL PASSAGGIO DEL MOUSE */
-.btn-logout-minimal:hover {
-    background: rgba(244, 63, 94, 0.15); /* Sfondo rosso molto delicato */
-    color: #fb7185; /* Testo rosso pastello */
-    border-color: rgba(244, 63, 94, 0.3);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    transform: translateY(-1px);
+.account-dropdown {
+    position: absolute !important;
+    top: calc(100% + 8px) !important;
+    left: 0 !important;
+    width: 230px !important;
+    background: #1c1c1e !important;
+    border: 1px solid rgba(255,255,255,0.10) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 12px 36px rgba(0,0,0,0.55) !important;
+    z-index: 9999 !important;
+    overflow: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: translateY(-6px) !important;
+    transition: opacity 0.18s ease, transform 0.18s ease !important;
 }
-
-.btn-logout-minimal:hover i {
-    transform: translateX(3px); /* Piccola animazione dell'icona verso l'esterno */
+.account-dropdown.open {
+    opacity: 1 !important;
+    pointer-events: all !important;
+    transform: translateY(0) !important;
 }
-
-/* EFFETTO AL CLICK */
-.btn-logout-minimal:active {
-    transform: translateY(0);
-    background: rgba(244, 63, 94, 0.25);
+.account-dropdown-header {
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    padding: 16px 16px 14px !important;
+}
+.account-ddrop-avatar {
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 50% !important;
+    background: #2563eb !important;
+    color: #fff !important;
+    font-size: 17px !important;
+    font-weight: 800 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+}
+.account-ddrop-info {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+    overflow: hidden !important;
+}
+.account-ddrop-name {
+    color: #ffffff !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+.account-ddrop-role {
+    color: #6b7280 !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+}
+.account-dropdown-divider {
+    height: 1px !important;
+    background: rgba(255,255,255,0.07) !important;
+    margin: 0 !important;
+}
+.account-menu-item {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    width: 100% !important;
+    padding: 12px 16px !important;
+    background: transparent !important;
+    border: none !important;
+    color: #d1d5db !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    text-align: left !important;
+    transition: background 0.15s, color 0.15s !important;
+}
+.account-menu-item:hover {
+    background: rgba(255,255,255,0.07) !important;
+    color: #ffffff !important;
+}
+.account-menu-item i {
+    width: 16px !important;
+    text-align: center !important;
+    font-size: 14px !important;
+    opacity: 0.75 !important;
+}
+.account-menu-logout {
+    color: #f87171 !important;
+}
+.account-menu-logout:hover {
+    background: rgba(244,63,94,0.12) !important;
+    color: #fb7185 !important;
 }
 
 
@@ -441,7 +530,7 @@ button.menu-item {
     width: 36px !important;
     height: 36px !important;
     border-radius: 10px !important;
-    background: #ffffff !important;
+    background: # !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -2352,18 +2441,10 @@ h1 {
 
 /* user avatar icon rules */
 #user-avatar-icon {
-    width: 42px;
-    height: 42px;
-    background: #2563eb;
-    color: white;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    font-size: 16px;
     font-weight: 800;
-    font-size: 18px;
-    flex-shrink: 0;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    line-height: 1;
+    pointer-events: none;
 }
 
 /* end inline-to-css additions */

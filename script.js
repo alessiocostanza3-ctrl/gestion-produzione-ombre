@@ -273,24 +273,46 @@ async function _creaAccountUtente() {
     }
 }
 function aggiornaProfiloSidebar() {
-    // Cerchiamo solo gli elementi effettivamente presenti nell'HTML
     const nomeDisplay = document.getElementById('user-name-display');
     const avatarIcon = document.getElementById('user-avatar-icon');
+    const ddropAvatar = document.getElementById('account-ddrop-avatar');
+    const ddropName = document.getElementById('account-ddrop-name');
+    const ddropRole = document.getElementById('account-ddrop-role');
 
-    // Verifichiamo che l'utente sia loggato e abbia un nome
     if (utenteAttuale && utenteAttuale.nome) {
+        const iniziale = utenteAttuale.nome.charAt(0).toUpperCase();
+        const nomeUp = utenteAttuale.nome.toUpperCase();
 
-        // Scriviamo il nome (es. SIMONE)
-        if (nomeDisplay) {
-            nomeDisplay.innerText = utenteAttuale.nome.toUpperCase();
-        }
+        if (nomeDisplay) nomeDisplay.innerText = nomeUp;
+        if (avatarIcon) avatarIcon.innerText = iniziale;
+        if (ddropAvatar) ddropAvatar.innerText = iniziale;
+        if (ddropName) ddropName.innerText = nomeUp;
+        if (ddropRole) ddropRole.innerText = (utenteAttuale.ruolo || 'Utente').toUpperCase();
+    }
+}
 
-        // Mettiamo l'iniziale nell'avatar (es. S)
-        if (avatarIcon) {
-            avatarIcon.innerText = utenteAttuale.nome.charAt(0).toUpperCase();
+function toggleAccountMenu(e) {
+    if (e) e.stopPropagation();
+    const dropdown = document.getElementById('account-dropdown');
+    if (!dropdown) return;
+    dropdown.classList.toggle('open');
+}
+
+function chiudiAccountMenu() {
+    const dropdown = document.getElementById('account-dropdown');
+    if (dropdown) dropdown.classList.remove('open');
+}
+
+// Chiude il dropdown cliccando fuori
+document.addEventListener('click', function(e) {
+    const dropdown = document.getElementById('account-dropdown');
+    const btn = document.getElementById('user-avatar-btn');
+    if (dropdown && dropdown.classList.contains('open')) {
+        if (!dropdown.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+            dropdown.classList.remove('open');
         }
     }
-} // QUESTA FUNZIONE È QUELLA CHE SCRIVE I DATI NELLA TUA SIDEBAR
+}); // QUESTA FUNZIONE È QUELLA CHE SCRIVE I DATI NELLA TUA SIDEBAR
 function salvaEApriDashboard() {
     try { localStorage.setItem('sessioneUtente', JSON.stringify(utenteAttuale)); } catch (e) {}
     try { sessionStorage.setItem('sessioneUtente', JSON.stringify(utenteAttuale)); } catch (e) {}
@@ -2799,11 +2821,12 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Bind logout
+    // Bind logout (nel dropdown account)
     const btnLogout = document.getElementById('btn-logout');
-    if (btnLogout && !btnLogout.hasAttribute('onclick') && typeof logout === 'function') {
+    if (btnLogout && typeof logout === 'function') {
         btnLogout.addEventListener('click', function (ev) {
             ev.preventDefault();
+            chiudiAccountMenu();
             try { logout(); } catch (e) { console.error('logout error', e); }
         });
     }

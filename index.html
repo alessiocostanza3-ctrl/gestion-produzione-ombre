@@ -266,17 +266,31 @@
 
     <div class="sidebar">
         <div class="sidebar-user-section">
-            <div id="user-avatar-icon">
-                -
-            </div>
-            <div class="user-info-top" id="user-info-top">
-                <span id="user-name-display">
-                    Caricamento...
-                </span>
-            </div>
-            <button id="btn-logout" class="btn-logout-minimal" title="Esci">
-                <i class="fas fa-sign-out-alt"></i>
+            <button id="user-avatar-btn" class="user-avatar-btn" onclick="toggleAccountMenu(event)" title="Account">
+                <span id="user-avatar-icon">-</span>
             </button>
+            <div class="user-info-top" id="user-info-top">
+                <span id="user-name-display">Caricamento...</span>
+            </div>
+
+            <!-- Account dropdown -->
+            <div id="account-dropdown" class="account-dropdown">
+                <div class="account-dropdown-header">
+                    <div class="account-ddrop-avatar" id="account-ddrop-avatar">-</div>
+                    <div class="account-ddrop-info">
+                        <span class="account-ddrop-name" id="account-ddrop-name">—</span>
+                        <span class="account-ddrop-role" id="account-ddrop-role">Utente</span>
+                    </div>
+                </div>
+                <div class="account-dropdown-divider"></div>
+                <button class="account-menu-item" onclick="cambiaPagina('IMPOSTAZIONI', null); chiudiAccountMenu()">
+                    <i class="fas fa-user-cog"></i> Impostazioni account
+                </button>
+                <div class="account-dropdown-divider"></div>
+                <button class="account-menu-item account-menu-logout" id="btn-logout">
+                    <i class="fas fa-sign-out-alt"></i> Esci
+                </button>
+            </div>
         </div>
 
         <div class="menu-section-label">Main Menu</div>
