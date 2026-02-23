@@ -27,6 +27,8 @@
                 background: #111827 !important;
             }
             body { display: flex !important; flex-direction: column !important; }
+            /* MOBILE: nascondi la barra superiore, usiamo solo mobile-topbar */
+            .mobile-header { display: none !important; }
             /* sidebar desktop: mai visibile su mobile */
             .sidebar { display: none !important; }
             .main-content {
@@ -68,7 +70,7 @@
         };
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="style.css?v=20260223p">
+    <link rel="stylesheet" href="style.css?v=20260223q">
     <script>
         // Gate visuale del login: non dipendere dal caricamento di script.js
         // - se NON c'è sessione → mostra overlay (classe needs-login)
