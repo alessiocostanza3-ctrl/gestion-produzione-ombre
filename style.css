@@ -2188,117 +2188,8 @@ h1 {
 }
 
 /* ============================================================
-   MOBILE TAB BAR
+   MOBILE TAB BAR - RIMOSSO
    ============================================================ */
-.mobile-tab-bar {
-    display: none;
-}
-
-@media (max-width: 768px) {
-    .mobile-tab-bar {
-        display: flex;
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background-color: #111827;
-        border-top: 1px solid rgba(255,255,255,0.08);
-        z-index: 9999;
-        align-items: center;
-        justify-content: space-around;
-        height: 56px;
-        padding: 0 12px;
-        box-sizing: border-box;
-        gap: 0;
-    }
-
-    .tab-item {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        height: 56px;
-        min-height: 56px;
-        background: transparent;
-        border: none;
-        color: #6b7280;
-        font-family: inherit;
-        cursor: pointer;
-        position: relative;
-        padding: 0 2px;
-        box-sizing: border-box;
-        transition: color 0.18s;
-    }
-
-    .tab-item i {
-        font-size: 20px;
-        transition: transform 0.18s;
-        line-height: 1;
-    }
-
-    .tab-item span:first-of-type {
-        font-size: 10px;
-        font-weight: 600;
-        letter-spacing: 0.2px;
-        white-space: nowrap;
-        line-height: 1;
-    }
-
-    .tab-item.active {
-        color: #ffffff;
-    }
-
-    .tab-item.active i {
-        transform: translateY(-1px);
-    }
-
-    .tab-fab {
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #2563eb, #7c3aed);
-        color: white;
-        border: none;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 22px;
-        box-shadow: 0 4px 20px rgba(37,99,235,0.5);
-        cursor: pointer;
-        flex-shrink: 0;
-        transition: transform 0.2s, box-shadow 0.2s;
-        margin: 3px 0;
-        position: relative;
-        z-index: 1;
-    }
-
-    .tab-fab:active {
-        transform: scale(0.9);
-        box-shadow: 0 2px 10px rgba(37,99,235,0.4);
-    }
-
-    /* Badge richieste sul tab */
-    .badge-bottom {
-        position: absolute;
-        top: 5px;
-        right: calc(50% - 16px);
-        background: #ef4444;
-        color: white;
-        font-size: 9px;
-        font-weight: 900;
-        padding: 1px 5px;
-        border-radius: 10px;
-        min-width: 16px;
-        text-align: center;
-        border: 1.5px solid #111827;
-        pointer-events: none;
-    }
-    .badge-bottom.badge-sollecito-attivo {
-        background: #f97316;
-        animation: badge-pulse 1.4s ease-in-out infinite;
-    }
-}
 
 /* user avatar icon rules */
 #user-avatar-icon {
@@ -2740,8 +2631,7 @@ button.menu-item-opt {
         gap: 8px !important;
     }
 }
-/* === TASTIERA APERTA: nasconde mobile-tab-bar per evitare sovrapposizioni === */
-body.keyboard-open .mobile-tab-bar { display: none !important; }
+/* === TASTIERA APERTA: regole da aggiornare una volta definita una nuova barra === */
 
 /* compensa il padding safe-area nel calcolo dello spazio sotto il contenuto */
 /* NESSUN override su html: evita flash scuro in cima al caricamento */

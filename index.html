@@ -70,7 +70,7 @@
         };
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="style.css?v=20260223s">
+    <link rel="stylesheet" href="style.css?v=20260223t">
     <script>
         // Gate visuale del login: non dipendere dal caricamento di script.js
         // - se NON c'è sessione → mostra overlay (classe needs-login)
@@ -304,30 +304,6 @@
                 </button>
             </div>
         </div>
-    </div>
-
-        <!-- NUOVA MOBILE TAB BAR -->
-    <div class="mobile-tab-bar" id="mobile-tab-bar">
-        <button type="button" class="tab-item active" data-page="PROGRAMMA PRODUZIONE DEL MESE" onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', this)">
-            <i class="fas fa-boxes-stacked"></i>
-            <span>Produzione</span>
-        </button>
-        <button type="button" class="tab-item" data-page="STORICO_RICHIESTE" onclick="cambiaPagina('STORICO_RICHIESTE', this)">
-            <i class="fas fa-envelope"></i>
-            <span>Richieste</span>
-            <span id="badge-bottom-richieste" class="badge-bottom" style="display:none">0</span>
-        </button>
-        <button type="button" class="tab-fab" id="btn-nuova-richiesta" onclick="apriNuovaRichiesta()" aria-label="Nuova richiesta">
-            <i class="fas fa-plus"></i>
-        </button>
-        <button type="button" class="tab-item" data-page="MATERIALE DA ORDINARE" onclick="cambiaPagina('MATERIALE DA ORDINARE', this)">
-            <i class="fas fa-cart-shopping"></i>
-            <span>Acquisti</span>
-        </button>
-        <button type="button" class="tab-item" data-page="IMPOSTAZIONI" onclick="cambiaPagina('IMPOSTAZIONI', this)">
-            <i class="fas fa-gear"></i>
-            <span>Impostazioni</span>
-        </button>
     </div>
 
     <button id="floating-cart-btn" onclick="apriModalCarrello()" style="display:none">
