@@ -2734,7 +2734,7 @@ button.menu-item-opt {
         gap: 8px !important;
     }
 }
-/* === TASTIERA APERTA: nasconde bottom-nav per evitare sovrapposizioni === */
+/* === TASTIERA APERTA: nasconde mobile-tab-bar per evitare sovrapposizioni === */
 body.keyboard-open .mobile-tab-bar { display: none !important; }
 
 /* compensa il padding safe-area nel calcolo dello spazio sotto il contenuto */
