@@ -21,24 +21,24 @@
     <style>
         @media (max-width: 768px) {
             html, body {
-                height: 100vh !important;
-                height: -webkit-fill-available !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+                height: 100dvh !important;
                 overflow: hidden !important;
                 background: #f8fafc !important;
             }
-            body { display: flex !important; flex-direction: column !important; }
-            /* sidebar desktop: mai visibile su mobile */
-            .sidebar { display: none !important; height: 0 !important; overflow: hidden !important; visibility: hidden !important; }
+            body { position: fixed !important; inset: 0 !important; }
+            .sidebar, .mobile-header, .mobile-topbar { display: none !important; height: 0 !important; overflow: hidden !important; visibility: hidden !important; }
             .main-content {
-                flex: 1 !important;
-                display: flex !important;
-                flex-direction: column !important;
+                position: fixed !important;
+                inset: 0 !important;
                 overflow: hidden !important;
+                margin: 0 !important;
                 padding: 0 !important;
                 background: #f8fafc !important;
             }
-            /* contenitore normale senza offset top */
-            #contenitore-dati { flex: 1 !important; overflow-y: auto !important; padding: 0 14px 0 14px !important; margin-top: 0 !important; }
+            #contenitore-dati { position: absolute !important; inset: 0 !important; overflow-y: auto !important; padding: 0 14px 14px 14px !important; margin: 0 !important; }
         }
     </style>
     <script>
@@ -49,7 +49,7 @@
         };
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="style.css?v=20260223z">
+    <link rel="stylesheet" href="style.css?v=20260223aa">
     <script>
         // Gate visuale del login: non dipendere dal caricamento di script.js
         // - se NON c'è sessione → mostra overlay (classe needs-login)
