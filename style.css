@@ -240,18 +240,18 @@ button, .menu-item, .btn-sos, .btn-login, .btn-modal-send {
 }
 .account-dropdown {
     position: absolute !important;
-    top: calc(100% + 8px) !important;
+    bottom: calc(100% + 8px) !important;
     left: 0 !important;
     width: 230px !important;
     background: #1c1c1e !important;
     border: 1px solid rgba(255,255,255,0.10) !important;
     border-radius: 14px !important;
-    box-shadow: 0 12px 36px rgba(0,0,0,0.55) !important;
+    box-shadow: 0 -8px 36px rgba(0,0,0,0.55) !important;
     z-index: 9999 !important;
     overflow: hidden !important;
     opacity: 0 !important;
     pointer-events: none !important;
-    transform: translateY(-6px) !important;
+    transform: translateY(6px) !important;
     transition: opacity 0.18s ease, transform 0.18s ease !important;
 }
 .account-dropdown.open {
@@ -368,16 +368,15 @@ button, .menu-item, .btn-sos, .btn-login, .btn-modal-send {
 }
 
 /* 2. Posizionamento ASSOLUTO per il footer */
-/* 1. SEZIONE UTENTE (IN ALTO) [cite: 36] */
-/* this rule was expanded to include styles previously inline in index.html so layout stays identical */
+/* 1. SEZIONE UTENTE (IN BASSO nel footer) */
 .sidebar-user-section {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 20px 15px;
+    padding: 14px 10px;
     gap: 12px;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
-    margin-bottom: 10px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    margin-top: 0;
 }
 
 .user-card-top {
@@ -512,19 +511,32 @@ button.menu-item {
     border-top: 1px solid rgba(255,255,255,0.07);
 }
 
-.sidebar-footer-brand {
+/* ---- BRAND HOME BUTTON (in cima alla sidebar) ---- */
+.sidebar-brand-home-btn {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     gap: 11px !important;
-    padding: 11px 10px !important;
-    border-radius: 12px !important;
-    transition: background 0.2s ease !important;
-    cursor: default;
+    padding: 14px 10px !important;
+    width: 100% !important;
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 1px solid rgba(255,255,255,0.07) !important;
+    margin-bottom: 12px !important;
+    cursor: pointer !important;
+    outline: none !important;
+    text-decoration: none !important;
+}
+.sidebar-brand-home-btn:hover,
+.sidebar-brand-home-btn:focus {
+    background: transparent !important;
+    outline: none !important;
+    box-shadow: none !important;
 }
 
-.sidebar-footer-brand:hover {
-    background: rgba(255,255,255,0.06) !important;
+/* La sidebar-footer ora contiene l'account */
+.sidebar-footer-brand {
+    display: none !important;
 }
 
 .sidebar-brand-icon {
