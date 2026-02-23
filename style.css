@@ -536,7 +536,7 @@ button.menu-item {
     justify-content: center !important;
     flex-shrink: 0 !important;
     overflow: hidden !important;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.30) !important;
+
 }
 
 .sidebar-brand-img {
