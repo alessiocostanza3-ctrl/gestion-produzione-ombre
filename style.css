@@ -205,6 +205,12 @@ button, .menu-item, .btn-sos, .btn-login, .btn-modal-send {
 }
 
 /* STILE PULSANTE LOGOUT ELEGANTE (POSIZIONE TOP) */
+
+/* Top float bar: nascosta su mobile, visibile su desktop */
+.top-float-bar {
+    display: none;
+}
+
 /* ============================================================
    SIDEBAR COLLASSABILE
    ============================================================ */
@@ -3581,23 +3587,91 @@ button.menu-item-opt {
         display: none !important;
     }
 
-    /* Nasconde il titolo desktop su mobile (base rule) */
-    .page-title-desktop {
-        display: block;
+    /* TOP FLOAT BAR */
+    .top-float-bar {
+        position: fixed !important;
+        top: 10px !important;
+        left: 10px !important;
+        right: 10px !important;
+        height: 56px !important;
+        display: flex !important;
+        gap: 10px !important;
+        z-index: 200 !important;
     }
+
+    /* Card brand (stessa larghezza sidebar) */
+    .top-brand-card {
+        width: 248px !important;
+        flex-shrink: 0 !important;
+        height: 56px !important;
+        background: #242424 !important;
+        border-radius: 20px !important;
+        box-shadow: 0 4px 18px rgba(0,0,0,0.22) !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 11px !important;
+        border: none !important;
+        cursor: pointer !important;
+        outline: none !important;
+        transition: width 0.28s cubic-bezier(0.4,0,0.2,1) !important;
+        overflow: hidden !important;
+    }
+    .top-brand-card:hover, .top-brand-card:focus {
+        background: #242424 !important;
+        box-shadow: 0 4px 18px rgba(0,0,0,0.22) !important;
+    }
+    body.sidebar-collapsed .top-brand-card {
+        width: 62px !important;
+    }
+    body.sidebar-collapsed .top-brand-card .sidebar-brand-text {
+        display: none !important;
+    }
+
+    /* Card search */
+    .top-search-card {
+        flex: 1 !important;
+        height: 56px !important;
+        background: #ffffff !important;
+        border-radius: 20px !important;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.07) !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+        padding: 0 22px !important;
+        transition: box-shadow 0.18s !important;
+    }
+    .top-search-card:focus-within {
+        box-shadow: 0 4px 20px rgba(37,99,235,0.13) !important;
+    }
+    .top-search-icon {
+        color: #94a3b8 !important;
+        font-size: 14px !important;
+        flex-shrink: 0 !important;
+    }
+    .top-search-input {
+        border: none !important;
+        background: transparent !important;
+        outline: none !important;
+        font-size: 14px !important;
+        color: #374151 !important;
+        width: 100% !important;
+        font-family: inherit !important;
+    }
+    .top-search-input::placeholder { color: #94a3b8 !important; }
 
     /* Sfondo leggermente più scuro per far risaltare i pannelli */
     body {
         background: #e5eaf0 !important;
     }
 
-    /* Sidebar flottante stondato — stile Google/YouTube */
+    /* Sidebar flottante stondato — parte sotto la top bar */
     .sidebar {
         position: fixed !important;
         left: 10px !important;
-        top: 10px !important;
+        top: 76px !important;
         width: 248px !important;
-        height: calc(100vh - 20px) !important;
+        height: calc(100vh - 86px) !important;
         border-radius: 20px !important;
         box-shadow: 0 8px 32px rgba(0,0,0,0.22) !important;
         transform: translateX(0) !important;
@@ -3613,97 +3687,33 @@ button.menu-item-opt {
         width: 62px !important;
     }
 
-    /* Main panel come card bianca staccata — flex column: header fisso + contenuto scorrevole */
+    /* Main panel: sotto la top bar */
     .main-content {
-        margin: 10px 10px 10px 272px !important;
+        margin: 76px 10px 10px 272px !important;
         width: calc(100% - 282px) !important;
-        height: calc(100vh - 20px) !important;
+        height: calc(100vh - 86px) !important;
         background: #ffffff !important;
         border-radius: 20px !important;
         box-shadow: 0 2px 16px rgba(0,0,0,0.07) !important;
-        padding: 0 !important;
-        overflow: hidden !important;
-        display: flex !important;
-        flex-direction: column !important;
+        padding: 28px 44px !important;
+        overflow-y: auto !important;
+        display: block !important;
         transition: margin-left 0.28s cubic-bezier(0.4,0,0.2,1), width 0.28s cubic-bezier(0.4,0,0.2,1) !important;
     }
 
     /* Main content quando sidebar è collapsed su desktop */
     body.sidebar-collapsed .main-content {
-        margin: 10px 10px 10px 86px !important;
+        margin: 76px 10px 10px 86px !important;
         width: calc(100% - 96px) !important;
     }
 
-    /* Header fisso: titolo + search */
-    #desk-main-header {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: space-between !important;
-        gap: 20px !important;
-        flex-shrink: 0 !important;
-        padding: 28px 44px 18px !important;
-        border-bottom: 1.5px solid #f1f5f9 !important;
-        background: #fff !important;
-        border-radius: 20px 20px 0 0 !important;
-    }
+    /* Nasconde elementi non usati su desktop */
+    #desk-main-header { display: none !important; }
 
-    /* Titolo pagina desktop */
-    .page-title-desktop {
-        display: block;
-        font-size: 1.75rem;
-        font-weight: 700;
-        color: #111827;
-        letter-spacing: -0.02em;
-        line-height: 1.2;
-        white-space: nowrap;
-        flex-shrink: 0;
-    }
-
-    /* Barra ricerca desktop nell'header */
-    .desk-search-bar {
-        display: flex !important;
-        align-items: center !important;
-        gap: 8px !important;
-        background: #f8fafc !important;
-        border: 1.5px solid #e2e8f0 !important;
-        border-radius: 10px !important;
-        padding: 7px 14px !important;
-        max-width: 280px !important;
-        width: 100% !important;
-        transition: border-color 0.15s !important;
-    }
-    .desk-search-bar:focus-within {
-        border-color: #2563eb !important;
-        background: #fff !important;
-    }
-    .desk-search-icon {
-        color: #94a3b8 !important;
-        font-size: 13px !important;
-        flex-shrink: 0 !important;
-    }
-    #desk-search-input {
-        border: none !important;
-        background: transparent !important;
-        outline: none !important;
-        font-size: 13px !important;
-        color: #374151 !important;
-        width: 100% !important;
-        font-family: inherit !important;
-    }
-    #desk-search-input::placeholder { color: #94a3b8 !important; }
-
-    /* Area contenuto scrollabile */
-    #contenitore-dati {
-        flex: 1 !important;
-        overflow-y: auto !important;
-        min-height: 0 !important;
-        padding: 24px 44px 28px !important;
-    }
-
-    /* Toolbar Acquisti sticky dentro il contenitore */
+    /* Toolbar Acquisti sticky dentro main-content scrollabile */
     .acquisti-header.header-flex {
         position: sticky !important;
-        top: -24px !important;
+        top: -28px !important;
         z-index: 6 !important;
         background: #fff !important;
         padding: 8px 0 12px !important;

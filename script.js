@@ -1233,9 +1233,10 @@ async function caricaPaginaRichieste() {
         aggiornaListaFiltrabili();
 
         // Reset barra di ricerca al caricamento
-        if(document.getElementById('universal-search')) {
-            document.getElementById('universal-search').value = "";
-        }
+        ['universal-search', 'mobile-search'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = "";
+        });
 
     } catch (e) {
         console.error("Errore:", e);
@@ -2670,10 +2671,10 @@ function _matchFirstWord(text, term) {
 function filtraUniversale() {
     clearTimeout(ricercaTimeout);
     ricercaTimeout = setTimeout(() => {
-        // Legge da entrambi gli input (mobile e desktop)
-        const mobileVal = (document.getElementById('universal-search')?.value || '').toLowerCase().trim();
-        const deskVal   = (document.getElementById('desk-search-input')?.value  || '').toLowerCase().trim();
-        const input = mobileVal || deskVal;
+        // Legge da tutti gli input di ricerca (top bar desktop + mobile)
+        const topVal    = (document.getElementById('universal-search')?.value || '').toLowerCase().trim();
+        const mobVal    = (document.getElementById('mobile-search')?.value    || '').toLowerCase().trim();
+        const input = topVal || mobVal;
         const grid = document.getElementById('lista-materiali-grid');
 
         if (!elementiDaFiltrareCache) aggiornaListaFiltrabili();

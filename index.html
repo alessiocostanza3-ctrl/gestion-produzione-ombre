@@ -264,20 +264,26 @@
         </div>
     </div>
 
-    <div class="sidebar" id="main-sidebar">
-        <!-- Toggle hamburger -->
-        <button class="sidebar-toggle-btn" id="sidebar-toggle" onclick="toggleSidebar()" title="Espandi/Chiudi menu">
-            <span class="sidebar-toggle-icon">&#9776;</span>
-        </button>
-
-        <!-- TOP: Logo + PROD — home button -->
-        <button class="sidebar-brand-home-btn" onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', null)" title="Home">
+    <!-- TOP BAR FLOTTANTE: brand card + search card -->
+    <div class="top-float-bar" id="top-float-bar">
+        <button class="top-brand-card" id="top-brand-card" onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', null)" title="Home">
             <div class="sidebar-brand-icon">
                 <img src="logo.png" alt="PROD Logo" class="sidebar-brand-img">
             </div>
             <div class="sidebar-brand-text">
                 <span class="sidebar-brand-name">PROD</span>
             </div>
+        </button>
+        <div class="top-search-card">
+            <i class="fas fa-search top-search-icon"></i>
+            <input type="text" id="universal-search" class="top-search-input" placeholder="Cerca in tutte le pagine..." oninput="filtraUniversale()" onkeyup="filtraUniversale()">
+        </div>
+    </div>
+
+    <div class="sidebar" id="main-sidebar">
+        <!-- Toggle hamburger -->
+        <button class="sidebar-toggle-btn" id="sidebar-toggle" onclick="toggleSidebar()" title="Espandi/Chiudi menu">
+            <span class="sidebar-toggle-icon">&#9776;</span>
         </button>
 
         <button type="button" class="menu-item" title="Produzione" data-page="PROGRAMMA PRODUZIONE DEL MESE" onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', this)">
@@ -337,14 +343,7 @@
             </div>
             <div class="search-container">
                 <i class="fas fa-search"></i>
-                <input type="text" id="universal-search" placeholder="Cerca" oninput="filtraUniversale()" onkeyup="filtraUniversale()">
-            </div>
-        </div>
-        <div id="desk-main-header" class="desk-main-header">
-            <div id="page-title-desktop" class="page-title-desktop">Dashboard Produzione</div>
-            <div class="desk-search-bar">
-                <i class="fas fa-search desk-search-icon"></i>
-                <input type="text" id="desk-search-input" placeholder="Cerca..." oninput="filtraUniversale()" onkeyup="filtraUniversale()">
+                <input type="text" id="mobile-search" placeholder="Cerca" oninput="filtraUniversale()" onkeyup="filtraUniversale()">
             </div>
         </div>
         <div id="contenitore-dati"></div>
