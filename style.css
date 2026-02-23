@@ -2773,8 +2773,6 @@ body.keyboard-open .bottom-nav { display: none !important; }
     body {
         display: flex !important;
         flex-direction: column !important;
-        /* evita sovrapposizione contenuto/nav fixed */
-        padding-bottom: 56px !important;
     }
 
     /* === APP BAR: nascosta su mobile === */
@@ -2807,7 +2805,7 @@ body.keyboard-open .bottom-nav { display: none !important; }
         flex: 1;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
-        padding: 14px 14px 8px;
+        padding: 14px 14px 72px; /* 72px = nav 56px + margine 16px */
         box-sizing: border-box;
     }
 
