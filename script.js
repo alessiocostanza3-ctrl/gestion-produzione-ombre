@@ -2616,11 +2616,10 @@ document.addEventListener('click', () => {
 // Escapa i caratteri speciali regex nell'input utente
 function _escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
-// Restituisce true se una parola della stringa inizia con il termine cercato
-function _matchWordStart(text, term) {
+// Restituisce true se la stringa inizia ESATTAMENTE con il termine (prima parola)
+function _matchFirstWord(text, term) {
     if (!term) return true;
-    const re = new RegExp('(?:^|\\s)' + _escapeRegex(term), 'i');
-    return re.test(text);
+    return text.trimStart().startsWith(term);
 }
 
 function filtraUniversale() {
@@ -2652,13 +2651,13 @@ function filtraUniversale() {
                     // Numero ordine: match dall'inizio
                     match = ordine.startsWith(input);
                 } else {
-                    // Testo: almeno una parola del nome cliente inizia con le lettere digitate
-                    match = _matchWordStart(cliente, input);
+                    // Testo: la stringa del cliente INIZIA con le lettere digitate
+                    match = _matchFirstWord(cliente, input);
                 }
             } else {
-                // Acquisti (materiale-card): word-start su data-search
+                // Acquisti (materiale-card): la prima parola di data-search inizia con il termine
                 const ds = String(el.dataset.search || el.textContent || '').toLowerCase();
-                match = _matchWordStart(ds, input);
+                match = _matchFirstWord(ds, input);
             }
             el.classList.toggle('hidden-search', !match);
         });
