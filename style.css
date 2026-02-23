@@ -3401,6 +3401,11 @@ button.menu-item-opt {
         display: none !important;
     }
 
+    /* Nasconde il titolo desktop su mobile (base rule) */
+    .page-title-desktop {
+        display: block;
+    }
+
     /* Sfondo leggermente più scuro per far risaltare i pannelli */
     body {
         background: #e5eaf0 !important;
@@ -3432,6 +3437,19 @@ button.menu-item-opt {
         box-shadow: 0 2px 16px rgba(0,0,0,0.07) !important;
         padding: 28px 44px !important;
         overflow-y: auto !important;
+    }
+
+    /* Titolo pagina desktop */
+    .page-title-desktop {
+        display: block;
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #111827;
+        letter-spacing: -0.02em;
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 2px solid #f1f5f9;
+        line-height: 1.2;
     }
 
     .menu-section-label, .sidebar-footer-logo, .user-info-top {

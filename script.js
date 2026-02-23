@@ -466,6 +466,8 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
     };
     const titolo = document.getElementById('titolo-pagina');
     if (titolo) titolo.innerText = titoli[nomeFoglio] || nomeFoglio;
+    const titoloDesk = document.getElementById('page-title-desktop');
+    if (titoloDesk) titoloDesk.innerText = titoli[nomeFoglio] || nomeFoglio;
 
     // 5. UI: Gestione Elementi Condizionali (Carrello)
     const btnCarrello = document.getElementById('floating-cart-btn');
