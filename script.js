@@ -673,10 +673,16 @@ function generaCardArticolo(art, nOrd) {
         <div><span class="label-sm ${TW.label}">Quantità</span><b class="${TW.value}">${art.qty}</b></div>
         <div>
             <span class="label-sm ${TW.label}">Stato</span>
-            <select class="select-interattivo status-select" style="--border-color:${configStato.colore};"
-                onchange="aggiornaDato(this, '${art.id_riga}', 'stato', this.value); const _c = listaStati.find(s=>s.nome===this.value)?.colore; if(_c) this.style.setProperty('--border-color', _c)">
-                ${listaStati.map(s => `<option value="${s.nome}" ${s.nome === statoAttuale ? 'selected' : ''}>${s.nome}</option>`).join('')}
-            </select>
+            <div class="stato-dropdown" data-id-riga="${art.id_riga}">
+                <button type="button" class="stato-trigger" style="--stato-color:${configStato.colore}" onclick="toggleStatoDropdown(this)">
+                    <span class="stato-dot"></span>
+                    <span class="stato-label-txt">${statoAttuale}</span>
+                    <i class="fas fa-chevron-down stato-chevron"></i>
+                </button>
+                <div class="stato-popup">
+                    ${listaStati.map(s => `<button type="button" class="stato-option${s.nome === statoAttuale ? ' is-selected' : ''}" style="--ocolor:${s.colore}" onclick="selezionaStato(this, '${art.id_riga}')"><span class="stato-opt-dot"></span><span>${s.nome}</span>${s.nome === statoAttuale ? '<i class="fas fa-check stato-check-icon"></i>' : ''}</button>`).join('')}
+                </div>
+            </div>
         </div>
         <div>
             <span class="label-sm ${TW.label}">Operatore/i Assegnati</span>
@@ -689,6 +695,48 @@ function generaCardArticolo(art, nOrd) {
         </div>
     </div>`;
 }
+/* ---- STATO DROPDOWN CUSTOM ---- */
+function toggleStatoDropdown(btn) {
+    const dropdown = btn.closest('.stato-dropdown');
+    const isOpen = dropdown.classList.contains('open');
+    // chiudi tutti gli altri
+    document.querySelectorAll('.stato-dropdown.open').forEach(d => d.classList.remove('open'));
+    if (!isOpen) dropdown.classList.add('open');
+}
+function selezionaStato(optBtn, idRiga) {
+    const nuovoStato = optBtn.querySelector('span:not(.stato-opt-dot)').textContent.trim();
+    const dropdown = optBtn.closest('.stato-dropdown');
+    const trigger = dropdown.querySelector('.stato-trigger');
+    const labelEl = trigger.querySelector('.stato-label-txt');
+    // trova colore del nuovo stato
+    const configStato = listaStati.find(s => s.nome === nuovoStato) || {};
+    const nuovoColore = configStato.colore || '#e2e8f0';
+    // aggiorna trigger
+    trigger.style.setProperty('--stato-color', nuovoColore);
+    labelEl.textContent = nuovoStato;
+    // aggiorna check nelle opzioni
+    dropdown.querySelectorAll('.stato-option').forEach(o => {
+        o.classList.remove('is-selected');
+        const existing = o.querySelector('.stato-check-icon');
+        if (existing) existing.remove();
+    });
+    optBtn.classList.add('is-selected');
+    const checkIcon = document.createElement('i');
+    checkIcon.className = 'fas fa-check stato-check-icon';
+    optBtn.appendChild(checkIcon);
+    // chiudi
+    dropdown.classList.remove('open');
+    // salva
+    aggiornaDato(null, idRiga, 'stato', nuovoStato);
+}
+// chiudi dropdown cliccando fuori
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.stato-dropdown')) {
+        document.querySelectorAll('.stato-dropdown.open').forEach(d => d.classList.remove('open'));
+    }
+}, true);
+/* ---- FINE STATO DROPDOWN CUSTOM ---- */
+
 function toggleAccordion(elemento) {
     elemento.classList.toggle('open');
     const container = elemento.nextElementSibling;

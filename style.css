@@ -733,6 +733,11 @@ h1 {
 }
 
 
+/* ============================================================
+   SELECT STATO CUSTOM DROPDOWN
+   ============================================================ */
+
+/* Manteniamo select-interattivo per retrocompatibilità mobile */
 .select-interattivo {
     -webkit-appearance: none;
     -moz-appearance: none;
@@ -751,6 +756,156 @@ h1 {
     cursor: pointer;
     transition: all 0.2s ease;
     width: 100%;
+}
+
+/* Wrapper relativo */
+.stato-dropdown {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+}
+
+/* Pill trigger */
+.stato-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    width: 100%;
+    padding: 7px 12px 7px 10px;
+    background: color-mix(in srgb, var(--stato-color, #e2e8f0) 12%, white);
+    border: 1.5px solid color-mix(in srgb, var(--stato-color, #e2e8f0) 55%, white);
+    border-radius: 20px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: color-mix(in srgb, var(--stato-color, #475569) 80%, #1e293b);
+    transition: background 0.18s, border-color 0.18s, box-shadow 0.18s;
+    white-space: nowrap;
+    overflow: hidden;
+}
+.stato-trigger:hover {
+    background: color-mix(in srgb, var(--stato-color, #e2e8f0) 22%, white);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--stato-color, #e2e8f0) 20%, transparent);
+}
+.stato-dropdown.open .stato-trigger {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--stato-color, #e2e8f0) 28%, transparent);
+}
+
+/* Dot colorato */
+.stato-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--stato-color, #94a3b8);
+    flex-shrink: 0;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--stato-color, #94a3b8) 30%, white);
+}
+
+/* Testo stato */
+.stato-label-txt {
+    flex: 1;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Chevron */
+.stato-chevron {
+    font-size: 9px;
+    flex-shrink: 0;
+    color: color-mix(in srgb, var(--stato-color, #64748b) 70%, #64748b);
+    transition: transform 0.22s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+.stato-dropdown.open .stato-chevron {
+    transform: rotate(180deg);
+}
+
+/* Popup */
+.stato-popup {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    min-width: 200px;
+    width: max-content;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.13), 0 2px 8px rgba(0,0,0,0.06);
+    z-index: 99999;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    /* animazione */
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-6px) scale(0.97);
+    transform-origin: top left;
+    transition:
+        opacity 0.18s ease,
+        transform 0.2s cubic-bezier(0.34, 1.3, 0.64, 1),
+        visibility 0s linear 0.18s;
+    pointer-events: none;
+}
+.stato-dropdown.open .stato-popup {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+    transition:
+        opacity 0.18s ease,
+        transform 0.2s cubic-bezier(0.34, 1.3, 0.64, 1),
+        visibility 0s linear 0s;
+    pointer-events: auto;
+}
+
+/* Singola opzione */
+.stato-option {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 9px 12px;
+    border-radius: 9px;
+    border: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #334155;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.14s, color 0.14s;
+    width: 100%;
+}
+.stato-option:hover {
+    background: color-mix(in srgb, var(--ocolor, #e2e8f0) 14%, #f8fafc);
+    color: color-mix(in srgb, var(--ocolor, #334155) 80%, #1e293b);
+}
+.stato-option.is-selected {
+    background: color-mix(in srgb, var(--ocolor, #e2e8f0) 18%, white);
+    color: color-mix(in srgb, var(--ocolor, #334155) 90%, #1e293b);
+    font-weight: 700;
+}
+
+/* Dot opzione */
+.stato-opt-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--ocolor, #94a3b8);
+    flex-shrink: 0;
+    box-shadow: 0 0 0 2.5px color-mix(in srgb, var(--ocolor, #94a3b8) 25%, white);
+}
+
+/* Check icon sull'opzione selezionata */
+.stato-check-icon {
+    margin-left: auto;
+    font-size: 11px;
+    color: color-mix(in srgb, var(--ocolor, #2563eb) 80%, #1e293b);
 }
 
 .scroll-wrapper { text-align: right; margin: 10px 0; }
