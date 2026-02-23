@@ -516,19 +516,7 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
     const titoloDesk = document.getElementById('page-title-desktop');
     if (titoloDesk) titoloDesk.innerText = titoli[nomeFoglio] || nomeFoglio;
 
-    // Azioni rapide per pagina (Archivio, ecc.)
-    const pageActionsHTML = {
-        'PROGRAMMA PRODUZIONE DEL MESE': `<button class="scroll-btn" onclick="document.getElementById('sezione-archivio')?.scrollIntoView({behavior:'smooth'})"><i class="fa-solid fa-arrow-down"></i> Vai a Archivio</button>`,
-        'STORICO_RICHIESTE': `<button class="scroll-btn" onclick="document.getElementById('sezione-archivio')?.scrollIntoView({behavior:'smooth'})">⬇️ Vai a Archiviate</button>`,
-    };
-    const actionsHTML = pageActionsHTML[nomeFoglio] || '';
-    const deskActions = document.getElementById('desk-page-actions');
-    if (deskActions) deskActions.innerHTML = actionsHTML;
-    const mobileActions = document.getElementById('mobile-page-actions');
-    if (mobileActions) mobileActions.innerHTML = actionsHTML;
-    // Aggiorna offset #contenitore-dati in base all'altezza reale del topbar mobile
-    aggiornaAltezzaTopbar();
-
+    // 5. UI: Gestione Elementi Condizionali (Carrello)
     const btnCarrello = document.getElementById('floating-cart-btn');
     if (btnCarrello) {
         const isAcquisti = (nomeFoglio === "MATERIALE DA ORDINARE");
@@ -632,6 +620,11 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
         let htmlArchiviati = generaBloccoOrdiniUnificato(datiArch, true);
 
         contenitore.innerHTML = `
+            <div class="scroll-wrapper">
+                <button class="scroll-btn" onclick="document.getElementById('sezione-archivio').scrollIntoView({behavior:'smooth'})">
+                    <i class="fa-solid fa-arrow-down"></i> Vai a Archivio
+                </button>
+            </div>
             <div class="sezione-attiva">
                 ${htmlAttivi || "<div class='empty-msg'>Nessun ordine in produzione.</div>"}
             </div>
@@ -1206,6 +1199,11 @@ async function caricaPaginaRichieste() {
         const gruppiArchivio = raggruppa(messaggiArchivio);
 
         let html = `
+            <div class="scroll-wrapper">
+                <button class="scroll-btn" onclick="document.getElementById('sezione-archivio').scrollIntoView({behavior:'smooth'})">
+                    ⬇️ Vai a Richieste Archiviate
+                </button>
+            </div>
             <div class="chat-inbox">`;
 
         // 1. RICHIESTE ATTIVE
