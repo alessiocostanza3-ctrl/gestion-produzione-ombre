@@ -2693,16 +2693,16 @@ button.menu-item-opt {
         top: 0 !important;
         left: 0 !important;
         right: 0 !important;
-        height: 112px !important;
+        height: 104px !important;
         box-sizing: border-box !important;
-        padding: 14px 14px 10px !important;
+        padding: 10px 12px 8px !important;
         background: #f8fafc !important;
         z-index: 20 !important;
     }
 
     .top-bar {
-        margin-bottom: 10px !important;
-        padding: 14px 0 10px !important;
+        margin-bottom: 6px !important;
+        padding: 10px 0 8px !important;
         border-bottom: none !important;
         position: relative;
     }
@@ -2720,7 +2720,7 @@ button.menu-item-opt {
     }
 
     h1 {
-        font-size: 1.45rem !important;
+        font-size: 1.32rem !important;
         font-weight: 900 !important;
         letter-spacing: -0.03em !important;
         color: #0f172a !important;
@@ -2729,10 +2729,14 @@ button.menu-item-opt {
 
     .search-container {
         max-width: 100% !important;
-        margin-bottom: 4px !important;
+        margin-bottom: 2px !important;
     }
 
-    .search-container input { font-size: 16px !important; }
+    .search-container input {
+        font-size: 16px !important;
+        padding: 9px 12px 9px 38px !important;
+        border-radius: 12px !important;
+    }
 
     input, textarea, select {
         font-size: 16px !important;
@@ -2740,12 +2744,12 @@ button.menu-item-opt {
 
     #contenitore-dati {
         position: absolute !important;
-        top: 112px !important;
+        top: 104px !important;
         left: 0 !important;
         right: 0 !important;
-        bottom: 56px !important;
+        bottom: 60px !important;
         margin: 0 !important;
-        padding: 0 14px 14px 14px !important;
+        padding: 4px 12px 12px 12px !important;
         overflow-y: auto !important;
         -webkit-overflow-scrolling: touch !important;
         box-sizing: border-box !important;
@@ -2757,7 +2761,9 @@ button.menu-item-opt {
         left: 0 !important;
         right: 0 !important;
         bottom: 0 !important;
-        height: 56px !important;
+        height: 60px !important;
+        padding: 0 8px 4px !important;
+        box-sizing: border-box !important;
         display: flex !important;
         align-items: center !important;
         justify-content: space-around !important;
@@ -2768,7 +2774,7 @@ button.menu-item-opt {
 
     .tab-item {
         flex: 1 !important;
-        height: 56px !important;
+        height: 52px !important;
         border: 0 !important;
         background: transparent !important;
         color: #9ca3af !important;
@@ -2776,17 +2782,21 @@ button.menu-item-opt {
         flex-direction: column !important;
         align-items: center !important;
         justify-content: center !important;
-        gap: 2px !important;
+        gap: 1px !important;
         position: relative !important;
+        border-radius: 10px !important;
     }
+
+    .tab-item i { font-size: 17px !important; }
+    .tab-item span { font-size: 10px !important; line-height: 1.1 !important; }
 
     .tab-item.active {
         color: #ffffff !important;
     }
 
     .tab-fab {
-        width: 44px !important;
-        height: 44px !important;
+        width: 40px !important;
+        height: 40px !important;
         border-radius: 50% !important;
         border: 0 !important;
         color: white !important;
@@ -2814,8 +2824,9 @@ button.menu-item-opt {
 
     .riga-ordine {
         flex-wrap: wrap !important;
-        gap: 8px 6px !important;
-        padding: 12px 14px !important;
+        gap: 7px 6px !important;
+        padding: 10px 12px !important;
+        margin-bottom: 9px !important;
     }
     .riga-ordine > .flex-grow {
         width: 100%;
@@ -2848,8 +2859,8 @@ button.menu-item-opt {
 
     .item-card {
         grid-template-columns: 1fr 1fr !important;
-        gap: 8px 10px !important;
-        padding: 12px !important;
+        gap: 7px 8px !important;
+        padding: 10px !important;
     }
     .item-card > div:nth-child(1) { grid-column: 1 !important; }
     .item-card > div:nth-child(2) { grid-column: 2 !important; }
@@ -2868,7 +2879,7 @@ button.menu-item-opt {
         font-size: 9px !important;
         margin-bottom: 2px !important;
     }
-    .item-card b, .item-card .value { font-size: 12px !important; }
+    .item-card b, .item-card .value { font-size: 11px !important; }
 
     .item-card .select-interattivo,
     .select-interattivo {
@@ -2909,7 +2920,7 @@ button.menu-item-opt {
         max-height: 92dvh !important;
         overflow-y: auto !important;
         border-radius: 20px 20px 0 0 !important;
-        padding: 8px 20px 36px !important;
+        padding: 8px 16px 28px !important;
         transform: translateY(100%) !important;
         transition: transform 0.38s cubic-bezier(0.4, 0, 0.2, 1) !important;
         opacity: 1 !important;
@@ -2989,8 +3000,8 @@ button.menu-item-opt {
             "img  info  opts"
             "foot foot  foot" !important;
         align-items: start !important;
-        padding: 12px 12px 0 12px !important;
-        gap: 0 12px !important;
+        padding: 10px 10px 0 10px !important;
+        gap: 0 10px !important;
         border-radius: 14px !important;
         overflow: visible !important;
         box-shadow: 0 1px 5px rgba(0,0,0,0.07) !important;
@@ -3086,7 +3097,7 @@ button.menu-item-opt {
         flex-direction: row !important;
         align-items: center !important;
         justify-content: space-between !important;
-        padding: 10px 0 12px !important;
+        padding: 8px 0 10px !important;
         border-top: 1px solid #f0f4f8 !important;
         gap: 8px !important;
         flex-shrink: 0 !important;
@@ -3178,7 +3189,7 @@ button.menu-item-opt {
 
     #floating-cart-btn {
         right: 14px !important;
-        bottom: 68px !important;
+        bottom: 72px !important;
     }
 }
 

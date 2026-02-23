@@ -43,20 +43,20 @@
                 top: 0 !important;
                 left: 0 !important;
                 right: 0 !important;
-                height: 112px !important;
+                height: 104px !important;
                 box-sizing: border-box !important;
-                padding: 14px 14px 10px !important;
+                padding: 10px 12px 8px !important;
                 background: #f8fafc !important;
                 z-index: 20 !important;
             }
             #contenitore-dati {
                 position: absolute !important;
-                top: 112px !important;
+                top: 104px !important;
                 left: 0 !important;
                 right: 0 !important;
-                bottom: 56px !important;
+                bottom: 60px !important;
                 overflow-y: auto !important;
-                padding: 0 14px 14px 14px !important;
+                padding: 4px 12px 12px 12px !important;
                 margin: 0 !important;
             }
             .mobile-tab-bar {
@@ -64,7 +64,9 @@
                 left: 0 !important;
                 right: 0 !important;
                 bottom: 0 !important;
-                height: 56px !important;
+                height: 60px !important;
+                padding: 0 8px 4px !important;
+                box-sizing: border-box !important;
                 display: flex !important;
                 align-items: center !important;
                 justify-content: space-around !important;
@@ -74,7 +76,7 @@
             }
             .tab-item {
                 flex: 1 !important;
-                height: 56px !important;
+                height: 52px !important;
                 border: 0 !important;
                 background: transparent !important;
                 color: #9ca3af !important;
@@ -82,12 +84,12 @@
                 flex-direction: column !important;
                 align-items: center !important;
                 justify-content: center !important;
-                gap: 2px !important;
+                gap: 1px !important;
             }
             .tab-item.active { color: #ffffff !important; }
             .tab-fab {
-                width: 44px !important;
-                height: 44px !important;
+                width: 40px !important;
+                height: 40px !important;
                 border-radius: 50% !important;
                 border: 0 !important;
                 color: white !important;
@@ -106,7 +108,7 @@
         };
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="style.css?v=20260223ac">
+    <link rel="stylesheet" href="style.css?v=20260223ad">
     <script>
         // Gate visuale del login: non dipendere dal caricamento di script.js
         // - se NON c'è sessione → mostra overlay (classe needs-login)
