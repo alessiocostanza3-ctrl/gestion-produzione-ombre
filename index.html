@@ -179,6 +179,16 @@
             }
         }
 
+        function creaAccount() {
+            const errorDiv = document.getElementById('login-error');
+            if (errorDiv) errorDiv.innerText = '';
+            if (typeof _creaAccountUtente === 'function') {
+                _creaAccountUtente();
+            } else if (errorDiv) {
+                errorDiv.innerText = 'Caricamento in corso, riprova tra un secondo.';
+            }
+        }
+
         // Fallback: se esiste già una sessione salvata, non bloccare l'app dietro al login
         // anche nel caso in cui script.js sia lento o non venga caricato.
         document.addEventListener('DOMContentLoaded', function () {
@@ -199,7 +209,7 @@
             }
         });
     </script>
-    <script src="script.js?v=20260223n" defer></script>
+    <script src="script.js?v=20260223o" defer></script>
 </head>
 
 <body>
@@ -225,6 +235,9 @@
                     </div>
                     <button id="btn-login" class="btn-login" onclick="verificaAccesso()">
                         Entra nel Sistema <i class="fas fa-arrow-right"></i>
+                    </button>
+                    <button type="button" id="btn-signup" class="btn-login-admin-link" onclick="creaAccount()">
+                        <i class="fas fa-user-plus"></i> Nuovo utente? Crea account
                     </button>
                 </div>
                 <button class="btn-login-admin-link" onclick="setLoginMode('admin')">

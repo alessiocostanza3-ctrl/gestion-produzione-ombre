@@ -169,6 +169,7 @@ async function hashSHA256(text) {
 async function _verificaAccessoUtente() {
     const errorDiv = document.getElementById('login-error');
     errorDiv.innerText = "";
+    errorDiv.style.color = "";
 
     const isAdmin = document.getElementById('login-view-admin')?.style.display !== 'none';
 
@@ -210,6 +211,66 @@ async function _verificaAccessoUtente() {
     }
     btn.disabled = false;
     btn.innerHTML = 'Entra nel Sistema <i class="fas fa-arrow-right"></i>';
+}
+async function _creaAccountUtente() {
+    const errorDiv = document.getElementById('login-error');
+    if (errorDiv) errorDiv.innerText = "";
+    if (errorDiv) errorDiv.style.color = "";
+
+    const email    = (document.getElementById('login-email')?.value    || '').trim().toLowerCase();
+    const username = (document.getElementById('login-username')?.value || '').trim();
+    const password = (document.getElementById('login-password')?.value || '');
+
+    if (!email || !username || !password) {
+        if (errorDiv) errorDiv.innerText = "Per creare l'account compila email, nome utente e password.";
+        return;
+    }
+
+    const btnLogin = document.getElementById('btn-login');
+    const btnSignup = document.getElementById('btn-signup');
+    const oldLogin = btnLogin ? btnLogin.innerHTML : '';
+    const oldSignup = btnSignup ? btnSignup.innerHTML : '';
+
+    if (btnLogin) btnLogin.disabled = true;
+    if (btnSignup) {
+        btnSignup.disabled = true;
+        btnSignup.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creazione...';
+    }
+
+    try {
+        const hash = await hashSHA256(password);
+        const res = await fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify({
+                azione: 'creaUtentePubblico',
+                email,
+                username,
+                hash
+            })
+        });
+        const r = await res.json();
+
+        if (r.status === 'success') {
+            if (errorDiv) errorDiv.style.color = '#22c55e';
+            if (errorDiv) errorDiv.innerText = 'Account creato. Accesso in corso...';
+            await _verificaAccessoUtente();
+        } else {
+            if (errorDiv) errorDiv.style.color = '';
+            if (errorDiv) errorDiv.innerText = r.message || 'Impossibile creare l\'account.';
+        }
+    } catch (e) {
+        if (errorDiv) errorDiv.style.color = '';
+        if (errorDiv) errorDiv.innerText = 'Errore di connessione. Riprova.';
+    } finally {
+        if (btnLogin) {
+            btnLogin.disabled = false;
+            btnLogin.innerHTML = oldLogin || 'Entra nel Sistema <i class="fas fa-arrow-right"></i>';
+        }
+        if (btnSignup) {
+            btnSignup.disabled = false;
+            btnSignup.innerHTML = oldSignup || '<i class="fas fa-user-plus"></i> Nuovo utente? Crea account';
+        }
+    }
 }
 function aggiornaProfiloSidebar() {
     // Cerchiamo solo gli elementi effettivamente presenti nell'HTML
