@@ -2251,8 +2251,8 @@ h1 {
     }
 
     .tab-fab {
-        width: 52px;
-        height: 52px;
+        width: 48px;
+        height: 48px;
         border-radius: 50%;
         background: linear-gradient(135deg, #3b82f6, #8b5cf6);
         color: white;
@@ -2260,16 +2260,15 @@ h1 {
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 24px;
+        font-size: 22px;
         box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
         cursor: pointer;
         flex-shrink: 0;
-        margin: 0 8px;
-        transform: translateY(-10px); /* Lo fa sporgere un po' in alto */
+        margin: 0;
     }
 
     .tab-fab:active {
-        transform: translateY(-10px) scale(0.95);
+        transform: scale(0.92);
     }
 
     /* Badge richieste sul tab */
