@@ -28,9 +28,9 @@
             }
             body { display: flex !important; flex-direction: column !important; }
             /* MOBILE: nascondi la barra superiore, usiamo solo mobile-topbar */
-            .mobile-header { display: none !important; }
+            .mobile-header { display: none !important; height: 0 !important; overflow: hidden !important; }
             /* sidebar desktop: mai visibile su mobile */
-            .sidebar { display: none !important; }
+            .sidebar { display: none !important; height: 0 !important; overflow: hidden !important; visibility: hidden !important; }
             .main-content {
                 flex: 1 !important;
                 display: flex !important;
@@ -39,8 +39,8 @@
                 padding: 0 !important;
                 background: #f8fafc !important;
             }
-            /* padding-bottom lascia spazio alla nav fissa */
-            #contenitore-dati { flex: 1 !important; overflow-y: auto !important; padding: 14px 14px 72px !important; }
+            /* contenitore senza padding extra */
+            #contenitore-dati { flex: 1 !important; overflow-y: auto !important; padding: 14px 14px 0 !important; }
             .mobile-topbar { background: #ffffff; flex-shrink: 0; }
             /* MOBILE TAB BAR */
             .mobile-tab-bar {
@@ -70,7 +70,7 @@
         };
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="style.css?v=20260223q">
+    <link rel="stylesheet" href="style.css?v=20260223s">
     <script>
         // Gate visuale del login: non dipendere dal caricamento di script.js
         // - se NON c'è sessione → mostra overlay (classe needs-login)
