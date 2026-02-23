@@ -38,25 +38,26 @@
                 background: #f8fafc !important;
             }
             /* padding-bottom lascia spazio alla nav fissa */
-            #contenitore-dati { flex: 1 !important; overflow-y: auto !important; padding: 14px 14px 76px !important; }
+            #contenitore-dati { flex: 1 !important; overflow-y: auto !important; padding: 14px 14px 72px !important; }
             .mobile-topbar { background: #ffffff; flex-shrink: 0; }
-            /* NUOVA TAB BAR MOBILE */
+            /* MOBILE TAB BAR */
             .mobile-tab-bar {
                 position: fixed !important;
                 bottom: 0 !important;
                 left: 0 !important;
                 right: 0 !important;
                 display: flex !important;
-                height: calc(60px + env(safe-area-inset-bottom)) !important;
-                padding-bottom: env(safe-area-inset-bottom) !important;
+                height: 56px !important;
+                padding: 0 12px !important;
                 background-color: #111827 !important;
-                border-top: 1px solid #374151 !important;
+                border-top: 1px solid rgba(255,255,255,0.08) !important;
                 z-index: 9999 !important;
                 align-items: center !important;
                 justify-content: space-around !important;
                 box-sizing: border-box !important;
+                gap: 0 !important;
             }
-            .tab-item { height: 60px !important; }
+            .tab-item { height: 56px !important; min-height: 56px !important; box-sizing: border-box !important; }
         }
     </style>
     <script>
@@ -67,7 +68,7 @@
         };
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="style.css?v=20260223o">
+    <link rel="stylesheet" href="style.css?v=20260223p">
     <script>
         // Gate visuale del login: non dipendere dal caricamento di script.js
         // - se NON c'è sessione → mostra overlay (classe needs-login)
