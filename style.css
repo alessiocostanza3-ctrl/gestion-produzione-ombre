@@ -279,52 +279,6 @@ button, .menu-item, .btn-sos, .btn-login, .btn-modal-send {
 }
 
 /* 2. Posizionamento ASSOLUTO per il footer */
-.sidebar-footer {
-    position: absolute !important;
-    bottom: 20px !important; /* Lo blocca a 20px dal bordo inferiore */
-    left: 15px !important;   /* Lo allinea al padding sinistro */
-    width: calc(100% - 30px) !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-    padding-top: 15px !important;
-}
-
-/* 3. Forza l'allineamento orizzontale come se fosse una riga di testo */
-.sidebar-footer-logo {
-    display: block !important; /* Cambiamo da flex a block */
-    white-space: nowrap !important; /* Impedisce di andare a capo */
-    text-align: left !important;
-}
-
-.logo-img-footer,
-.footer-divider-vertical,
-.alpha-text {
-    display: inline-block !important; /* Li mette come parole una accanto all'altra */
-    vertical-align: middle !important; /* Li centra sulla stessa linea */
-    margin: 0 !important;
-}
-
-.logo-img-footer {
-    width: 22px !important;
-    height: auto !important;
-    margin-right: 8px !important;
-}
-
-.footer-divider-vertical {
-    width: 1px !important;
-    height: 14px !important;
-    background-color: rgba(255, 255, 255, 0.2) !important;
-    margin-right: 10px !important;
-}
-
-.alpha-text {
-    color: #3b82f6 !important;
-    font-size: 10px !important;
-    font-weight: 800 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 1px !important;
-}
-
-
 /* 1. SEZIONE UTENTE (IN ALTO) [cite: 36] */
 /* this rule was expanded to include styles previously inline in index.html so layout stays identical */
 .sidebar-user-section {
@@ -461,45 +415,72 @@ button.menu-item {
     box-sizing: border-box;
 }
 
-/* Il contenitore che spinge in basso: deve avere width 100% */
+/* FOOTER SIDEBAR — brand block stile Linear/Notion */
 .sidebar-footer {
-    margin-top: auto !important; /* La molla */
+    margin-top: auto !important;
     width: 100% !important;
-    padding-bottom: 5px;
+    padding: 0 0 6px 0;
+    border-top: 1px solid rgba(255,255,255,0.07);
 }
 
-/* LA RIGA ORIZZONTALE: Usiamo inline-flex per essere sicuri */
-.sidebar-footer-logo {
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-    padding-top: 15px !important;
+.sidebar-footer-brand {
     display: flex !important;
-    flex-direction: row !important; /* Forza orizzontale */
-    align-items: center !important;  /* Centra verticalmente */
-    flex-wrap: nowrap !important;    /* VIETA di andare a capo */
-    gap: 8px !important;
+    align-items: center !important;
+    gap: 11px !important;
+    padding: 11px 10px !important;
+    border-radius: 12px !important;
+    transition: background 0.2s ease !important;
+    cursor: default;
 }
 
-.logo-img-footer {
-    width: 20px !important; /* Leggermente più piccolo per stare comodo */
-    height: auto !important;
-    flex-shrink: 0 !important; /* Gli impedisce di rimpicciolirsi */
+.sidebar-footer-brand:hover {
+    background: rgba(255,255,255,0.06) !important;
 }
 
-.footer-divider-vertical {
-    width: 1px !important;
-    height: 12px !important;
-    background-color: rgba(255, 255, 255, 0.2) !important;
+.sidebar-brand-icon {
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 9px !important;
+    background: #ffffff !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
     flex-shrink: 0 !important;
+    overflow: hidden !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.25) !important;
 }
 
-.alpha-text {
-    color: #3b82f6 !important;
-    font-size: 10px !important;
-    font-weight: 800 !important;
+.sidebar-brand-img {
+    width: 22px !important;
+    height: 22px !important;
+    object-fit: contain !important;
+}
+
+.sidebar-brand-text {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1px !important;
+    overflow: hidden !important;
+}
+
+.sidebar-brand-name {
+    color: #ffffff !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.08em !important;
+    white-space: nowrap !important;
+    line-height: 1.2 !important;
+}
+
+.sidebar-brand-sub {
+    color: #6b7280 !important;
+    font-size: 9.5px !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.04em !important;
     text-transform: uppercase !important;
-    letter-spacing: 1px !important;
-    white-space: nowrap !important; /* Testo su una sola riga */
-    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
 }
 
 
@@ -2861,7 +2842,7 @@ button.menu-item-opt {
     .mobile-header,
     .sidebar,
     .menu-section-label,
-    .sidebar-footer-logo {
+    .sidebar-footer-brand {
         display: none !important;
         height: 0 !important;
         overflow: hidden !important;
@@ -3452,7 +3433,7 @@ button.menu-item-opt {
         line-height: 1.2;
     }
 
-    .menu-section-label, .sidebar-footer-logo, .user-info-top {
+    .menu-section-label, .user-info-top {
         display: block !important;
     }
 }
