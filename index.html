@@ -37,13 +37,13 @@
             }
             #contenitore-dati { flex: 1 !important; overflow-y: auto !important; padding: 14px !important; }
             .mobile-topbar { background: #ffffff; flex-shrink: 0; }
-            /* NAV: static nel flusso flex (no fixed!), content-box 56px, padding-bottom estende solo lo sfondo */
+            /* NAV: static nel flusso flex (no fixed!), una sola barra da 56px */
             .bottom-nav { position: static !important;
                           display: flex !important;
                           flex-shrink: 0 !important;
                           box-sizing: content-box !important;
                           height: 56px !important;
-                          padding: 0 12px env(safe-area-inset-bottom, 0px) 12px !important;
+                          padding: 0 12px 0 12px !important;
                           background: #111827 !important;
                           align-items: center !important;
                           justify-content: space-around !important; }
@@ -59,7 +59,7 @@
         };
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="style.css?v=20260223j">
+    <link rel="stylesheet" href="style.css?v=20260223k">
     <script>
         // Gate visuale del login: non dipendere dal caricamento di script.js
         // - se NON c'è sessione → mostra overlay (classe needs-login)
@@ -150,7 +150,7 @@
             }
         });
     </script>
-    <script src="script.js?v=20260223j" defer></script>
+    <script src="script.js?v=20260223k" defer></script>
 </head>
 
 <body>

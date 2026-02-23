@@ -2199,11 +2199,10 @@ h1 {
         /* STATIC: resta nel flusso flex, sempre all'ultimo posto nella colonna */
         position: static;
         flex-shrink: 0;
-        /* content-box: height=56px è solo l'area contenuto;
-           padding-bottom estende lo SFONDO nella safe-area senza gonfiare i bottoni */
+        /* content-box: una sola barra da 56px */
         box-sizing: content-box;
         height: 56px;
-        padding: 0 max(12px, env(safe-area-inset-right, 12px)) env(safe-area-inset-bottom, 0px) max(12px, env(safe-area-inset-left, 12px));
+        padding: 0 12px;
         background: #111827;
         z-index: 9100;
         align-items: center;
