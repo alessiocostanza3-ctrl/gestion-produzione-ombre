@@ -631,6 +631,7 @@ h1 {
     padding: 20px 30px;
     margin-bottom: 20px;
     animation: slideIn 0.3s ease-out;
+    overflow: visible; /* permette ai popup dei dropdown di uscire dal contenitore */
 }
 
 @keyframes slideIn {
@@ -651,6 +652,13 @@ h1 {
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     transition: box-shadow var(--transition-fast) ease, transform var(--transition-fast) ease;
     min-width: 0;
+    position: relative; /* necessario per z-index */
+    z-index: 0;         /* stacking context esplicito e neutro */
+}
+
+/* Quando un dropdown è aperto, porta la card in primo piano sopra le sorelle */
+.item-card.stato-aperto {
+    z-index: 50 !important;
 }
 
 .item-card:hover {

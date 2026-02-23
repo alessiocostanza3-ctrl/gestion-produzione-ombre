@@ -698,10 +698,18 @@ function generaCardArticolo(art, nOrd) {
 /* ---- STATO DROPDOWN CUSTOM ---- */
 function toggleStatoDropdown(btn) {
     const dropdown = btn.closest('.stato-dropdown');
+    const itemCard = btn.closest('.item-card');
     const isOpen = dropdown.classList.contains('open');
-    // chiudi tutti gli altri
-    document.querySelectorAll('.stato-dropdown.open').forEach(d => d.classList.remove('open'));
-    if (!isOpen) dropdown.classList.add('open');
+    // chiudi tutti gli altri e togli la classe di elevazione
+    document.querySelectorAll('.stato-dropdown.open').forEach(d => {
+        d.classList.remove('open');
+        const c = d.closest('.item-card');
+        if (c) c.classList.remove('stato-aperto');
+    });
+    if (!isOpen) {
+        dropdown.classList.add('open');
+        if (itemCard) itemCard.classList.add('stato-aperto');
+    }
 }
 function selezionaStato(optBtn, idRiga, colore) {
     const nuovoStato = optBtn.querySelector('span:not(.stato-opt-dot)').textContent.trim();
@@ -724,13 +732,19 @@ function selezionaStato(optBtn, idRiga, colore) {
     optBtn.appendChild(checkIcon);
     // chiudi
     dropdown.classList.remove('open');
+    const card = dropdown.closest('.item-card');
+    if (card) card.classList.remove('stato-aperto');
     // salva
     aggiornaDato(null, idRiga, 'stato', nuovoStato);
 }
 // chiudi dropdown cliccando fuori
 document.addEventListener('click', function(e) {
     if (!e.target.closest('.stato-dropdown')) {
-        document.querySelectorAll('.stato-dropdown.open').forEach(d => d.classList.remove('open'));
+        document.querySelectorAll('.stato-dropdown.open').forEach(d => {
+            d.classList.remove('open');
+            const c = d.closest('.item-card');
+            if (c) c.classList.remove('stato-aperto');
+        });
     }
 }, true);
 /* ---- FINE STATO DROPDOWN CUSTOM ---- */
