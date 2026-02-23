@@ -751,6 +751,33 @@ button.menu-item {
     padding-bottom: 16px;
 }
 
+/* ── Header sticky pagina (desktop) ── */
+.desk-page-header {
+    position: sticky;
+    top: 0;
+    z-index: 15;
+    margin: -40px -60px 28px -60px;
+    padding: 26px 60px 16px;
+    background: #f8fafc;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 2px solid #e2e8f0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.desk-page-header h1 {
+    font-size: 1.5rem;
+    font-weight: 800;
+    margin: 0;
+    letter-spacing: -0.03em;
+    color: #0f172a;
+}
+.desk-page-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 h1 {
     font-size: 1.5rem;
     font-weight: 800;
@@ -3071,7 +3098,8 @@ button.menu-item-opt {
         top: 0 !important;
         left: 0 !important;
         right: 0 !important;
-        height: 104px !important;
+        height: auto !important;
+        min-height: 104px !important;
         box-sizing: border-box !important;
         padding: 10px 12px 8px !important;
         background: #f8fafc !important;
@@ -3557,6 +3585,24 @@ button.menu-item-opt {
     #login-overlay { align-items: flex-end !important; padding: 0 !important; }
 
     .scroll-btn { font-size: 12px !important; padding: 8px 14px !important; }
+
+    /* Azioni rapide pagina - barra mobile */
+    .mobile-page-actions {
+        display: flex !important;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 4px 0 6px;
+    }
+    .mobile-page-actions:empty {
+        display: none !important;
+        padding: 0;
+    }
+    .mobile-page-actions .scroll-btn {
+        flex: 1;
+        justify-content: center;
+        font-size: 12px !important;
+        padding: 8px 12px !important;
+    }
     .riga-ordine:hover, .item-card:hover, .materiale-card:hover, .chat-card:hover {
         transform: none !important;
         box-shadow: none !important;

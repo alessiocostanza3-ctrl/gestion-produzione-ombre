@@ -43,15 +43,17 @@
                 top: 0 !important;
                 left: 0 !important;
                 right: 0 !important;
-                height: 104px !important;
+                height: auto !important;
+                min-height: 104px !important;
                 box-sizing: border-box !important;
                 padding: 10px 12px 8px !important;
                 background: #f8fafc !important;
                 z-index: 20 !important;
             }
+            .desk-page-header { display: none !important; }
             #contenitore-dati {
                 position: absolute !important;
-                top: 104px !important;
+                top: 104px;
                 left: 0 !important;
                 right: 0 !important;
                 bottom: 60px !important;
@@ -86,7 +88,7 @@
                 justify-content: center !important;
                 gap: 1px !important;
             }
-            .page-title-desktop, #desk-main-header { display: none !important; }
+            .page-title-desktop, #desk-main-header, .desk-page-header { display: none !important; }
             .tab-item.active { color: #ffffff !important; }
             .tab-fab {
                 width: 40px !important;
@@ -337,6 +339,12 @@
     </div>
 
     <div class="main-content">
+        <!-- Header sticky desktop: titolo pagina + azioni -->
+        <div id="desk-page-header" class="desk-page-header">
+            <h1 id="page-title-desktop">Dashboard Produzione</h1>
+            <div id="desk-page-actions" class="desk-page-actions"></div>
+        </div>
+
         <div class="mobile-topbar">
             <div class="top-bar">
                 <h1 id="titolo-pagina">Dashboard Produzione</h1>
@@ -345,6 +353,8 @@
                 <i class="fas fa-search"></i>
                 <input type="text" id="mobile-search" placeholder="Cerca" oninput="filtraUniversale()" onkeyup="filtraUniversale()">
             </div>
+            <!-- Azioni rapide pagina corrente (mobile) -->
+            <div id="mobile-page-actions" class="mobile-page-actions"></div>
         </div>
         <div id="contenitore-dati"></div>
 
