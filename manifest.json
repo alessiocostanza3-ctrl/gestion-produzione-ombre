@@ -1,6 +1,6 @@
 {
-  "name": "ProdLab",
-  "short_name": "ProdLab",
+  "name": "Prod",
+  "short_name": "Prod",
   "description": "Dashboard Produzione",
   "start_url": "./index.html",
   "display": "standalone",
