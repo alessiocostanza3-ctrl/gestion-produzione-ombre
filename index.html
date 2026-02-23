@@ -39,10 +39,10 @@
                 padding: 0 !important;
                 background: #f8fafc !important;
             }
-            /* topbar fisso in alto su mobile */
-            .mobile-topbar { position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; background: #ffffff !important; z-index: 100 !important; flex-shrink: 0 !important; width: 100% !important; box-sizing: border-box !important; }
-            /* contenitore parte dopo la topbar fissa */
-            #contenitore-dati { flex: 1 !important; overflow-y: auto !important; padding: 130px 14px 0 14px !important; margin-top: 0 !important; }
+            /* TEST ISOLAMENTO: topbar mobile disattivata */
+            .mobile-topbar { display: none !important; height: 0 !important; overflow: hidden !important; }
+            /* contenitore normale senza offset top */
+            #contenitore-dati { flex: 1 !important; overflow-y: auto !important; padding: 14px 14px 0 14px !important; margin-top: 0 !important; }
             /* MOBILE TAB BAR */
             .mobile-tab-bar {
                 position: fixed !important;
@@ -71,7 +71,7 @@
         };
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="style.css?v=20260223v">
+    <link rel="stylesheet" href="style.css?v=20260223w">
     <script>
         // Gate visuale del login: non dipendere dal caricamento di script.js
         // - se NON c'è sessione → mostra overlay (classe needs-login)

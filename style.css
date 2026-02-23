@@ -2699,25 +2699,16 @@ button.menu-item-opt {
         flex: 1;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
-        padding: 130px 14px 0 14px !important;
+        padding: 14px 14px 0 14px !important;
         box-sizing: border-box;
         margin-top: 0 !important;
     }
 
-    /* === MOBILE TOPBAR (titolo + ricerca) ===
-       FIXED in alto, non scorre */
+    /* === TEST ISOLAMENTO: topbar mobile disattivata === */
     .mobile-topbar {
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        width: 100% !important;
-        flex-shrink: 0;
-        z-index: 9090;
-        background: #ffffff;
-        padding: env(safe-area-inset-top, 0px) 14px 10px;
-        box-shadow: 0 2px 14px rgba(0,0,0,0.08);
-        box-sizing: border-box;
+        display: none !important;
+        height: 0 !important;
+        overflow: hidden !important;
     }
 
     /* === TOP BAR (titolo pagina) – versione mobile elegante === */
