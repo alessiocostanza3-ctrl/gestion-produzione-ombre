@@ -2612,6 +2612,17 @@ document.addEventListener('click', () => {
 
 
 //FUNZIONI UNIVERSALI//
+
+// Escapa i caratteri speciali regex nell'input utente
+function _escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+// Restituisce true se una parola della stringa inizia con il termine cercato
+function _matchWordStart(text, term) {
+    if (!term) return true;
+    const re = new RegExp('(?:^|\\s)' + _escapeRegex(term), 'i');
+    return re.test(text);
+}
+
 function filtraUniversale() {
     clearTimeout(ricercaTimeout);
     ricercaTimeout = setTimeout(() => {
@@ -2624,32 +2635,30 @@ function filtraUniversale() {
         if (!elementiDaFiltrareCache) aggiornaListaFiltrabili();
         if (!elementiDaFiltrareCache) return;
 
-        // ── Smart matching ────────────────────────────────────────────────────
-        // Solo cifre  → cerca per numero ordine
-        // Solo lettere/spazi → cerca per nome cliente (o testo libero se no data-cliente)
-        // Misto       → cerca in tutti i campi
+        // ── Smart matching (word-start) ────────────────────────────────────────
+        // Solo cifre  → cerca per numero ordine (startsWith)
+        // Testo       → cerca inizio-parola nel nome cliente / data-search
+        // Misto       → cerca in tutti i campi con word-start
         const isNumericOnly = input !== '' && /^\d+$/.test(input);
-        const isTextOnly    = input !== '' && /^[^\d]+$/.test(input);
 
         elementiDaFiltrareCache.forEach(el => {
             let match;
             if (input === '') {
                 match = true;
             } else if (el.classList.contains('ordine-wrapper') || el.classList.contains('chat-card')) {
-                // Produzione / Richieste: smart per ordine o cliente
                 const ordine  = String(el.dataset.ordine  || '');
                 const cliente = String(el.dataset.cliente || '');
                 if (isNumericOnly) {
-                    match = ordine.includes(input);
-                } else if (isTextOnly) {
-                    match = cliente.includes(input);
+                    // Numero ordine: match dall'inizio
+                    match = ordine.startsWith(input);
                 } else {
-                    match = ordine.includes(input) || cliente.includes(input);
+                    // Testo: almeno una parola del nome cliente inizia con le lettere digitate
+                    match = _matchWordStart(cliente, input);
                 }
             } else {
-                // Acquisti (materiale-card): usa sempre data-search (già lowercase)
+                // Acquisti (materiale-card): word-start su data-search
                 const ds = String(el.dataset.search || el.textContent || '').toLowerCase();
-                match = ds.includes(input);
+                match = _matchWordStart(ds, input);
             }
             el.classList.toggle('hidden-search', !match);
         });
