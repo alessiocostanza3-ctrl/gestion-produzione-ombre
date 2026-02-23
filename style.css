@@ -2662,7 +2662,7 @@ button.menu-item-opt {
         height: 100vh !important;
         height: -webkit-fill-available !important;
         overflow: hidden !important;
-        background: #111827 !important;
+        background: #f8fafc !important;
     }
     body {
         display: flex !important;
