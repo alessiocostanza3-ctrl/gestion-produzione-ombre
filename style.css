@@ -2196,11 +2196,13 @@ h1 {
 @media (max-width: 768px) {
     .bottom-nav {
         display: flex;
-        /* STATIC: resta nel flusso flex, sempre all'ultimo posto nella colonna */
-        position: static;
+        /* Unica nav reale, fissa in basso */
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
         flex-shrink: 0;
-        /* content-box: una sola barra da 56px */
-        box-sizing: content-box;
+        box-sizing: border-box;
         height: 56px;
         padding: 0 12px;
         background: #111827;
@@ -2734,18 +2736,6 @@ button.menu-item-opt {
         gap: 8px !important;
     }
 }
-/* Spacer post-nav: copre la safe-area con lo stesso sfondo della nav */
-.nav-safe-spacer { display: none; }
-@media (max-width: 768px) {
-    .nav-safe-spacer {
-        display: block;
-        flex-shrink: 0;
-        height: env(safe-area-inset-bottom, 0px);
-        background: #111827;
-    }
-}
-body.keyboard-open .nav-safe-spacer { display: none !important; }
-
 /* === TASTIERA APERTA: nasconde bottom-nav per evitare sovrapposizioni === */
 body.keyboard-open .bottom-nav { display: none !important; }
 
@@ -2783,6 +2773,8 @@ body.keyboard-open .bottom-nav { display: none !important; }
     body {
         display: flex !important;
         flex-direction: column !important;
+        /* evita sovrapposizione contenuto/nav fixed */
+        padding-bottom: 56px !important;
     }
 
     /* === APP BAR: nascosta su mobile === */
