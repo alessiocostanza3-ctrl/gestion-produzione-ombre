@@ -3408,7 +3408,7 @@ button.menu-item-opt {
         overflow: hidden !important;
     }
 
-    /* Main panel come card bianca staccata */
+    /* Main panel come card bianca staccata — flex column: header fisso + contenuto scorrevole */
     .main-content {
         margin: 10px 10px 10px 272px !important;
         width: calc(100% - 282px) !important;
@@ -3416,8 +3416,23 @@ button.menu-item-opt {
         background: #ffffff !important;
         border-radius: 20px !important;
         box-shadow: 0 2px 16px rgba(0,0,0,0.07) !important;
-        padding: 28px 44px !important;
-        overflow-y: auto !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    /* Header fisso: titolo + search */
+    #desk-main-header {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 20px !important;
+        flex-shrink: 0 !important;
+        padding: 28px 44px 18px !important;
+        border-bottom: 1.5px solid #f1f5f9 !important;
+        background: #fff !important;
+        border-radius: 20px 20px 0 0 !important;
     }
 
     /* Titolo pagina desktop */
@@ -3427,10 +3442,61 @@ button.menu-item-opt {
         font-weight: 700;
         color: #111827;
         letter-spacing: -0.02em;
-        margin-bottom: 24px;
-        padding-bottom: 16px;
-        border-bottom: 2px solid #f1f5f9;
         line-height: 1.2;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    /* Barra ricerca desktop nell'header */
+    .desk-search-bar {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        background: #f8fafc !important;
+        border: 1.5px solid #e2e8f0 !important;
+        border-radius: 10px !important;
+        padding: 7px 14px !important;
+        max-width: 280px !important;
+        width: 100% !important;
+        transition: border-color 0.15s !important;
+    }
+    .desk-search-bar:focus-within {
+        border-color: #2563eb !important;
+        background: #fff !important;
+    }
+    .desk-search-icon {
+        color: #94a3b8 !important;
+        font-size: 13px !important;
+        flex-shrink: 0 !important;
+    }
+    #desk-search-input {
+        border: none !important;
+        background: transparent !important;
+        outline: none !important;
+        font-size: 13px !important;
+        color: #374151 !important;
+        width: 100% !important;
+        font-family: inherit !important;
+    }
+    #desk-search-input::placeholder { color: #94a3b8 !important; }
+
+    /* Area contenuto scrollabile */
+    #contenitore-dati {
+        flex: 1 !important;
+        overflow-y: auto !important;
+        min-height: 0 !important;
+        padding: 24px 44px 28px !important;
+    }
+
+    /* Toolbar Acquisti sticky dentro il contenitore */
+    .acquisti-header.header-flex {
+        position: sticky !important;
+        top: -24px !important;
+        z-index: 6 !important;
+        background: #fff !important;
+        padding: 8px 0 12px !important;
+        margin: -8px 0 16px !important;
+        border-bottom: 1.5px solid #f1f5f9 !important;
     }
 
     .menu-section-label, .user-info-top {

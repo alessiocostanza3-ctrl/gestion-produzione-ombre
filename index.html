@@ -86,7 +86,7 @@
                 justify-content: center !important;
                 gap: 1px !important;
             }
-            .page-title-desktop { display: none !important; }
+            .page-title-desktop, #desk-main-header { display: none !important; }
             .tab-item.active { color: #ffffff !important; }
             .tab-fab {
                 width: 40px !important;
@@ -322,7 +322,13 @@
                 <input type="text" id="universal-search" placeholder="Cerca" oninput="filtraUniversale()" onkeyup="filtraUniversale()">
             </div>
         </div>
-        <div id="page-title-desktop" class="page-title-desktop">Dashboard Produzione</div>
+        <div id="desk-main-header" class="desk-main-header">
+            <div id="page-title-desktop" class="page-title-desktop">Dashboard Produzione</div>
+            <div class="desk-search-bar">
+                <i class="fas fa-search desk-search-icon"></i>
+                <input type="text" id="desk-search-input" placeholder="Cerca..." oninput="filtraUniversale()" onkeyup="filtraUniversale()">
+            </div>
+        </div>
         <div id="contenitore-dati"></div>
 
         <div class="mobile-tab-bar" id="mobile-tab-bar">

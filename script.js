@@ -437,6 +437,8 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
     // 1. Reset immediato della ricerca (per evitare di vedere dati filtrati della pagina precedente)
     const searchInput = document.getElementById('universal-search');
     if (searchInput) searchInput.value = "";
+    const deskSearch = document.getElementById('desk-search-input');
+    if (deskSearch) deskSearch.value = "";
 
     // 2. Validazione e salvataggio Stato
     if (!nomeFoglio || nomeFoglio === "undefined" || nomeFoglio === "null") {
@@ -2613,7 +2615,10 @@ document.addEventListener('click', () => {
 function filtraUniversale() {
     clearTimeout(ricercaTimeout);
     ricercaTimeout = setTimeout(() => {
-        const input = document.getElementById('universal-search').value.toLowerCase().trim();
+        // Legge da entrambi gli input (mobile e desktop)
+        const mobileVal = (document.getElementById('universal-search')?.value || '').toLowerCase().trim();
+        const deskVal   = (document.getElementById('desk-search-input')?.value  || '').toLowerCase().trim();
+        const input = mobileVal || deskVal;
         const grid = document.getElementById('lista-materiali-grid');
 
         if (!elementiDaFiltrareCache) aggiornaListaFiltrabili();
