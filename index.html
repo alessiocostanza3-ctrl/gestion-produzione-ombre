@@ -38,7 +38,7 @@
                 background: #f8fafc !important;
             }
             /* contenitore normale senza offset top */
-            #contenitore-dati { flex: 1 !important; overflow-y: auto !important; padding: 14px 14px 0 14px !important; margin-top: 0 !important; }
+            #contenitore-dati { flex: 1 !important; overflow-y: auto !important; padding: 0 14px 0 14px !important; margin-top: 0 !important; }
         }
     </style>
     <script>
@@ -49,7 +49,7 @@
         };
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="style.css?v=20260223y">
+    <link rel="stylesheet" href="style.css?v=20260223z">
     <script>
         // Gate visuale del login: non dipendere dal caricamento di script.js
         // - se NON c'è sessione → mostra overlay (classe needs-login)
@@ -237,14 +237,6 @@
     </div>
 
     <div class="main-content">
-        <div class="top-bar">
-            <h1 id="titolo-pagina">Dashboard</h1>
-        </div>
-        <div class="search-container">
-            <i class="fas fa-search"></i>
-            <input type="text" id="universal-search" placeholder="Cerca" oninput="filtraUniversale()" onkeyup="filtraUniversale()">
-        </div>
-
         <div id="contenitore-dati"></div>
     </div>
 

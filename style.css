@@ -2699,7 +2699,7 @@ button.menu-item-opt {
         flex: 1;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
-        padding: 14px 14px 0 14px !important;
+        padding: 0 14px 0 14px !important;
         box-sizing: border-box;
         margin-top: 0 !important;
     }
