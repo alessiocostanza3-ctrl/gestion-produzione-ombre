@@ -2188,111 +2188,109 @@ h1 {
 }
 
 /* ============================================================
-   BOTTOM NAVIGATION (mobile YouTube-style)
+   NUOVA MOBILE TAB BAR
    ============================================================ */
-.bottom-nav {
-    display: none; /* mostrata solo su mobile */
+.mobile-tab-bar {
+    display: none;
 }
+
 @media (max-width: 768px) {
-    .bottom-nav {
+    .mobile-tab-bar {
         display: flex;
-        /* Unica nav reale, fissa in basso */
         position: fixed;
+        bottom: 0;
         left: 0;
         right: 0;
-        bottom: 0;
-        flex-shrink: 0;
-        box-sizing: border-box;
-        height: 56px;
-        padding: 0 12px;
-        background: #111827;
-        z-index: 9100;
+        background-color: #111827;
+        border-top: 1px solid #374151;
+        z-index: 9999;
         align-items: center;
         justify-content: space-around;
-        border-top: 1px solid rgba(255,255,255,0.08);
-        gap: 0;
+        /* Altezza base + safe area per iPhone */
+        height: calc(60px + env(safe-area-inset-bottom));
+        padding-bottom: env(safe-area-inset-bottom);
+        box-sizing: border-box;
     }
-    .bottom-nav-item {
+
+    .tab-item {
         flex: 1;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 3px;
+        height: 60px;
         background: transparent;
         border: none;
-        color: #6b7280;
-        cursor: pointer;
-        padding: 0 2px;
-        /* altezza fissa 56px */
-        height: 56px;
-        min-height: 56px;
-        box-sizing: border-box;
-        position: relative;
-        transition: color 0.18s;
+        color: #9ca3af;
         font-family: inherit;
+        cursor: pointer;
+        position: relative;
+        padding: 0;
+        margin: 0;
+        transition: color 0.2s;
     }
-    .bottom-nav-item i {
-        font-size: 20px;
-        transition: transform 0.18s;
-        line-height: 1;
+
+    .tab-item i {
+        font-size: 22px;
+        margin-bottom: 4px;
+        transition: transform 0.2s;
     }
-    .bottom-nav-item span:first-of-type {
-        font-size: 10px;
+
+    .tab-item span:first-of-type {
+        font-size: 11px;
         font-weight: 600;
-        letter-spacing: 0.2px;
-        white-space: nowrap;
         line-height: 1;
     }
-    .bottom-nav-item.active {
+
+    .tab-item.active {
         color: #ffffff;
     }
-    .bottom-nav-item.active i {
-        transform: translateY(-1px);
+
+    .tab-item.active i {
+        transform: translateY(-2px);
     }
+
+    .tab-fab {
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+        color: white;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        cursor: pointer;
+        flex-shrink: 0;
+        margin: 0 8px;
+        transform: translateY(-10px); /* Lo fa sporgere un po' in alto */
+    }
+
+    .tab-fab:active {
+        transform: translateY(-10px) scale(0.95);
+    }
+
     /* Badge richieste sul tab */
     .badge-bottom {
         position: absolute;
-        top: 5px;
-        right: calc(50% - 16px);
+        top: 4px;
+        right: calc(50% - 20px);
         background: #ef4444;
         color: white;
-        font-size: 9px;
-        font-weight: 900;
-        padding: 1px 5px;
-        border-radius: 10px;
-        min-width: 16px;
+        font-size: 10px;
+        font-weight: bold;
+        padding: 2px 6px;
+        border-radius: 12px;
+        min-width: 18px;
         text-align: center;
-        border: 1.5px solid #111827;
+        border: 2px solid #111827;
         pointer-events: none;
     }
     .badge-bottom.badge-sollecito-attivo {
         background: #f97316;
         animation: badge-pulse 1.4s ease-in-out infinite;
-    }
-    /* FAB centrale "+" */
-    .bottom-nav-fab {
-        width: 50px;
-        height: 50px;
-        background: linear-gradient(135deg, #2563eb, #7c3aed);
-        border: none;
-        border-radius: 50%;
-        color: white;
-        font-size: 22px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        box-shadow: 0 4px 20px rgba(37,99,235,0.5);
-        flex-shrink: 0;
-        transition: transform 0.2s, box-shadow 0.2s;
-        margin: 3px 0; /* spazio verticale → entra nei 56px dell'item */
-        position: relative;
-        z-index: 1;
-    }
-    .bottom-nav-fab:active {
-        transform: scale(0.9);
-        box-shadow: 0 2px 10px rgba(37,99,235,0.4);
     }
 }
 
@@ -2737,7 +2735,7 @@ button.menu-item-opt {
     }
 }
 /* === TASTIERA APERTA: nasconde bottom-nav per evitare sovrapposizioni === */
-body.keyboard-open .bottom-nav { display: none !important; }
+body.keyboard-open .mobile-tab-bar { display: none !important; }
 
 /* compensa il padding safe-area nel calcolo dello spazio sotto il contenuto */
 /* NESSUN override su html: evita flash scuro in cima al caricamento */

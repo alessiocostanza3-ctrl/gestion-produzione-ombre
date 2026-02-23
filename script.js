@@ -372,15 +372,15 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
     localStorage.setItem('ultimaPaginaProduzione', nomeFoglio);
     paginaAttuale = nomeFoglio;
 
-    // 3. UI: Gestione Sidebar (Classe Active) + Bottom Nav active
+    // 3. UI: Gestione Sidebar (Classe Active) + Tab Bar active
     document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
-    document.querySelectorAll('.bottom-nav-item').forEach(item => item.classList.remove('active'));
+    document.querySelectorAll('.tab-item').forEach(item => item.classList.remove('active'));
     if (!elementoMenu) {
         elementoMenu = document.querySelector(`.menu-item[data-page="${nomeFoglio}"]`);
     }
     if (elementoMenu) elementoMenu.classList.add('active');
-    // Bottom nav: marca attivo il tab corrispondente
-    const bottomTab = document.querySelector(`.bottom-nav-item[data-page="${nomeFoglio}"]`);
+    // Tab bar: marca attivo il tab corrispondente
+    const bottomTab = document.querySelector(`.tab-item[data-page="${nomeFoglio}"]`);
     if (bottomTab) bottomTab.classList.add('active');
 
     // 4. UI: Aggiornamento Titolo Dinamico
@@ -2656,8 +2656,8 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // === FIX TASTIERA iOS: nasconde bottom-nav quando la tastiera è aperta ===
-    // Evita che bottom-nav (position:fixed) si sovrapponga alla tastiera o al contenuto
+    // === FIX TASTIERA iOS: nasconde mobile-tab-bar quando la tastiera è aperta ===
+    // Evita che mobile-tab-bar (position:fixed) si sovrapponga alla tastiera o al contenuto
     if (window.innerWidth <= 768) {
         let _keyboardTimer = null;
         document.addEventListener('focusin', function (e) {

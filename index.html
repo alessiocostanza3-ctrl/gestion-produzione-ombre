@@ -38,22 +38,25 @@
                 background: #f8fafc !important;
             }
             /* padding-bottom lascia spazio alla nav fissa */
-            #contenitore-dati { flex: 1 !important; overflow-y: auto !important; padding: 14px 14px 72px !important; }
+            #contenitore-dati { flex: 1 !important; overflow-y: auto !important; padding: 14px 14px 90px !important; }
             .mobile-topbar { background: #ffffff; flex-shrink: 0; }
-            /* NAV: unica barra reale fissa in basso, 56px */
-            .bottom-nav { position: fixed !important;
-                          left: 0 !important; right: 0 !important; bottom: 0 !important;
-                          display: flex !important;
-                          box-sizing: border-box !important;
-                          height: 56px !important;
-                          padding: 0 12px !important;
-                          background: #111827 !important;
-                          align-items: center !important;
-                          justify-content: space-around !important;
-                          z-index: 9100 !important;
-                          border-top: 1px solid rgba(255,255,255,0.08) !important; }
-            .bottom-nav-item { height: 56px !important; min-height: 56px !important; box-sizing: border-box !important; }
-            .bottom-nav-fab  { flex-shrink: 0 !important; }
+            /* NUOVA TAB BAR MOBILE */
+            .mobile-tab-bar {
+                position: fixed !important;
+                bottom: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                display: flex !important;
+                height: calc(60px + env(safe-area-inset-bottom)) !important;
+                padding-bottom: env(safe-area-inset-bottom) !important;
+                background-color: #111827 !important;
+                border-top: 1px solid #374151 !important;
+                z-index: 9999 !important;
+                align-items: center !important;
+                justify-content: space-around !important;
+                box-sizing: border-box !important;
+            }
+            .tab-item { height: 60px !important; }
         }
     </style>
     <script>
@@ -300,29 +303,29 @@
         </div>
     </div>
 
-        <!-- BOTTOM NAVIGATION (solo mobile) -->
-    <nav class="bottom-nav" id="bottom-nav">
-        <button type="button" class="bottom-nav-item active" data-page="PROGRAMMA PRODUZIONE DEL MESE" onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', this)">
+        <!-- NUOVA MOBILE TAB BAR -->
+    <div class="mobile-tab-bar" id="mobile-tab-bar">
+        <button type="button" class="tab-item active" data-page="PROGRAMMA PRODUZIONE DEL MESE" onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', this)">
             <i class="fas fa-boxes-stacked"></i>
             <span>Produzione</span>
         </button>
-        <button type="button" class="bottom-nav-item" data-page="STORICO_RICHIESTE" onclick="cambiaPagina('STORICO_RICHIESTE', this)">
+        <button type="button" class="tab-item" data-page="STORICO_RICHIESTE" onclick="cambiaPagina('STORICO_RICHIESTE', this)">
             <i class="fas fa-envelope"></i>
             <span>Richieste</span>
             <span id="badge-bottom-richieste" class="badge-bottom" style="display:none">0</span>
         </button>
-        <button type="button" class="bottom-nav-fab" id="btn-nuova-richiesta" onclick="apriNuovaRichiesta()" aria-label="Nuova richiesta">
+        <button type="button" class="tab-fab" id="btn-nuova-richiesta" onclick="apriNuovaRichiesta()" aria-label="Nuova richiesta">
             <i class="fas fa-plus"></i>
         </button>
-        <button type="button" class="bottom-nav-item" data-page="MATERIALE DA ORDINARE" onclick="cambiaPagina('MATERIALE DA ORDINARE', this)">
+        <button type="button" class="tab-item" data-page="MATERIALE DA ORDINARE" onclick="cambiaPagina('MATERIALE DA ORDINARE', this)">
             <i class="fas fa-cart-shopping"></i>
             <span>Acquisti</span>
         </button>
-        <button type="button" class="bottom-nav-item" data-page="IMPOSTAZIONI" onclick="cambiaPagina('IMPOSTAZIONI', this)">
+        <button type="button" class="tab-item" data-page="IMPOSTAZIONI" onclick="cambiaPagina('IMPOSTAZIONI', this)">
             <i class="fas fa-gear"></i>
             <span>Impostazioni</span>
         </button>
-    </nav>
+    </div>
 
     <button id="floating-cart-btn" onclick="apriModalCarrello()" style="display:none">
             <i class="fas fa-shopping-cart"></i>
