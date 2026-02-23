@@ -515,6 +515,7 @@ button.menu-item {
 .sidebar-footer-brand {
     display: flex !important;
     align-items: center !important;
+    justify-content: center !important;
     gap: 11px !important;
     padding: 11px 10px !important;
     border-radius: 12px !important;
