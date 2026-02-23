@@ -284,6 +284,13 @@ button, .menu-item, .btn-sos, .btn-login, .btn-modal-send {
     display: none !important;
 }
 
+/* Emoji nelle voci menu: 5px più grandi del testo */
+.menu-content > span:first-child {
+    font-size: 18px !important;
+    line-height: 1 !important;
+    flex-shrink: 0 !important;
+}
+
 /* Toggle icon ruotata quando collapsed */
 .sidebar.collapsed .sidebar-toggle-icon {
     transform: rotate(0deg) !important;
