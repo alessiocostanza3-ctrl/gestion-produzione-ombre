@@ -674,13 +674,13 @@ function generaCardArticolo(art, nOrd) {
         <div>
             <span class="label-sm ${TW.label}">Stato</span>
             <div class="stato-dropdown" data-id-riga="${art.id_riga}">
-                <button type="button" class="stato-trigger" style="--stato-color:${configStato.colore}" onclick="toggleStatoDropdown(this)">
-                    <span class="stato-dot"></span>
+                <button type="button" class="stato-trigger" onclick="toggleStatoDropdown(this)">
+                    <span class="stato-dot" style="background:${configStato.colore}"></span>
                     <span class="stato-label-txt">${statoAttuale}</span>
                     <i class="fas fa-chevron-down stato-chevron"></i>
                 </button>
                 <div class="stato-popup">
-                    ${listaStati.map(s => `<button type="button" class="stato-option${s.nome === statoAttuale ? ' is-selected' : ''}" style="--ocolor:${s.colore}" onclick="selezionaStato(this, '${art.id_riga}')"><span class="stato-opt-dot"></span><span>${s.nome}</span>${s.nome === statoAttuale ? '<i class="fas fa-check stato-check-icon"></i>' : ''}</button>`).join('')}
+                    ${listaStati.map(s => `<button type="button" class="stato-option${s.nome === statoAttuale ? ' is-selected' : ''}" onclick="selezionaStato(this, '${art.id_riga}', '${s.colore}')"><span class="stato-opt-dot" style="background:${s.colore}"></span><span>${s.nome}</span>${s.nome === statoAttuale ? '<i class="fas fa-check stato-check-icon"></i>' : ''}</button>`).join('')}
                 </div>
             </div>
         </div>
@@ -703,18 +703,16 @@ function toggleStatoDropdown(btn) {
     document.querySelectorAll('.stato-dropdown.open').forEach(d => d.classList.remove('open'));
     if (!isOpen) dropdown.classList.add('open');
 }
-function selezionaStato(optBtn, idRiga) {
+function selezionaStato(optBtn, idRiga, colore) {
     const nuovoStato = optBtn.querySelector('span:not(.stato-opt-dot)').textContent.trim();
     const dropdown = optBtn.closest('.stato-dropdown');
     const trigger = dropdown.querySelector('.stato-trigger');
     const labelEl = trigger.querySelector('.stato-label-txt');
-    // trova colore del nuovo stato
-    const configStato = listaStati.find(s => s.nome === nuovoStato) || {};
-    const nuovoColore = configStato.colore || '#e2e8f0';
-    // aggiorna trigger
-    trigger.style.setProperty('--stato-color', nuovoColore);
+    const dot = trigger.querySelector('.stato-dot');
+    // aggiorna dot e testo del trigger direttamente via style inline
+    if (dot) dot.style.background = colore || '#94a3b8';
     labelEl.textContent = nuovoStato;
-    // aggiorna check nelle opzioni
+    // aggiorna selezione nelle opzioni
     dropdown.querySelectorAll('.stato-option').forEach(o => {
         o.classList.remove('is-selected');
         const existing = o.querySelector('.stato-check-icon');
