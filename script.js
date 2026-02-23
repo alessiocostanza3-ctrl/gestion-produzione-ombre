@@ -2616,7 +2616,7 @@ document.addEventListener('click', () => {
 // Escapa i caratteri speciali regex nell'input utente
 function _escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
-// Restituisce true se la stringa inizia ESATTAMENTE con il termine (prima parola)
+// Restituisce true se la stringa inizia con il termine (prima parola)
 function _matchFirstWord(text, term) {
     if (!term) return true;
     return text.trimStart().startsWith(term);
@@ -2634,32 +2634,38 @@ function filtraUniversale() {
         if (!elementiDaFiltrareCache) aggiornaListaFiltrabili();
         if (!elementiDaFiltrareCache) return;
 
-        // ── Smart matching (word-start) ────────────────────────────────────────
-        // Solo cifre  → cerca per numero ordine (startsWith)
-        // Testo       → cerca inizio-parola nel nome cliente / data-search
-        // Misto       → cerca in tutti i campi con word-start
-        const isNumericOnly = input !== '' && /^\d+$/.test(input);
+        // ── Matching a due livelli ──────────────────────────────────────────
+        // PRIMARIO  : il testo inizia per il termine digitato (sempre attivo)
+        // SECONDARIO: il testo contiene il termine (attivo solo da 3 caratteri)
+        const isNumericOnly  = input !== '' && /^\d+$/.test(input);
+        const secondaryOn    = input.length >= 3;
 
         elementiDaFiltrareCache.forEach(el => {
-            let match;
+            let primary = false;
+            let secondary = false;
+
             if (input === '') {
-                match = true;
+                primary = true;
             } else if (el.classList.contains('ordine-wrapper') || el.classList.contains('chat-card')) {
                 const ordine  = String(el.dataset.ordine  || '');
                 const cliente = String(el.dataset.cliente || '');
                 if (isNumericOnly) {
-                    // Numero ordine: match dall'inizio
-                    match = ordine.startsWith(input);
+                    primary = ordine.startsWith(input);
                 } else {
-                    // Testo: la stringa del cliente INIZIA con le lettere digitate
-                    match = _matchFirstWord(cliente, input);
+                    primary = _matchFirstWord(cliente, input);
+                    if (!primary && secondaryOn) secondary = cliente.includes(input);
                 }
             } else {
-                // Acquisti (materiale-card): la prima parola di data-search inizia con il termine
+                // Acquisti (materiale-card)
                 const ds = String(el.dataset.search || el.textContent || '').toLowerCase();
-                match = _matchFirstWord(ds, input);
+                primary = _matchFirstWord(ds, input);
+                if (!primary && secondaryOn) secondary = ds.includes(input);
             }
-            el.classList.toggle('hidden-search', !match);
+
+            const visible = primary || secondary;
+            el.classList.toggle('hidden-search', !visible);
+            // Marca visivamente i risultati secondari (sfondo leggermente distinto)
+            el.classList.toggle('search-secondary', !primary && secondary);
         });
 
         // ── Modalità ricerca acquisti: appiattisce le sezioni ─────────────────

@@ -1206,6 +1206,12 @@ h1 {
     text-align: center;
 }
 .hidden-search { display: none !important; }
+
+/* Risultati secondari (contengono il termine ma non iniziano con esso) */
+.search-secondary {
+    opacity: 0.62;
+    border-style: dashed !important;
+}
 .separatore-archivio {
     margin: 60px 0 30px 0;
     text-align: center;
