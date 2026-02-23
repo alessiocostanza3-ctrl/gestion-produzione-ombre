@@ -205,7 +205,101 @@ button, .menu-item, .btn-sos, .btn-login, .btn-modal-send {
 }
 
 /* STILE PULSANTE LOGOUT ELEGANTE (POSIZIONE TOP) */
-/* ---- AVATAR CIRCOLARE CLICCABILE ---- */
+/* ============================================================
+   SIDEBAR COLLASSABILE
+   ============================================================ */
+
+/* --- Toggle button --- */
+.sidebar-toggle-btn {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    width: 100% !important;
+    padding: 8px 10px 4px !important;
+    background: transparent !important;
+    border: none !important;
+    cursor: pointer !important;
+    outline: none !important;
+    color: #6b7280 !important;
+    transition: color 0.2s !important;
+    flex-shrink: 0 !important;
+}
+.sidebar-toggle-btn:hover {
+    color: #ffffff !important;
+}
+.sidebar-toggle-icon {
+    font-size: 18px !important;
+    line-height: 1 !important;
+    pointer-events: none !important;
+    transition: transform 0.3s ease !important;
+}
+
+/* --- Sidebar expanded (default) --- */
+.sidebar {
+    transition: width 0.28s cubic-bezier(0.4,0,0.2,1) !important;
+    overflow: hidden !important;
+}
+
+/* --- Sidebar COLLAPSED --- */
+.sidebar.collapsed {
+    width: 62px !important;
+    padding: 20px 8px !important;
+}
+
+/* Nascondi testi sidebar quando collapsed */
+.sidebar.collapsed .sidebar-brand-text,
+.sidebar.collapsed #user-info-top,
+.sidebar.collapsed .menu-item .menu-label {
+    display: none !important;
+    width: 0 !important;
+    overflow: hidden !important;
+}
+
+/* Menu item centrato su emoji quando collapsed */
+.sidebar.collapsed .menu-item {
+    justify-content: center !important;
+    padding: 12px 0 !important;
+}
+.sidebar.collapsed .menu-content {
+    gap: 0 !important;
+    justify-content: center !important;
+}
+
+/* Brand home button quando collapsed: solo icona centrata */
+.sidebar.collapsed .sidebar-brand-home-btn {
+    justify-content: center !important;
+    padding: 10px 0 !important;
+}
+
+/* Avatar centrato quando collapsed */
+.sidebar.collapsed .sidebar-user-section {
+    justify-content: center !important;
+    padding: 12px 0 !important;
+}
+.sidebar.collapsed .sidebar-toggle-btn {
+    justify-content: center !important;
+}
+/* Nascondi badge inline quando collapsed */
+.sidebar.collapsed .badge-sidebar-inline {
+    display: none !important;
+}
+
+/* Toggle icon ruotata quando collapsed */
+.sidebar.collapsed .sidebar-toggle-icon {
+    transform: rotate(0deg) !important;
+}
+.sidebar:not(.collapsed) .sidebar-toggle-icon {
+    transform: rotate(0deg) !important;
+}
+
+/* main-content si sposta a seconda dello stato --- */
+/* (gestito via JS con classe su body) */
+body.sidebar-collapsed .main-content {
+    margin-left: 82px !important;
+    width: calc(100% - 92px) !important;
+}
+
+/* ---- FINE SIDEBAR COLLASSABILE ---- */
 .user-avatar-btn {
     width: 40px !important;
     height: 40px !important;
@@ -464,6 +558,16 @@ button.menu-item {
     display: flex;
     align-items: center;
     gap: 12px;
+    flex-grow: 1;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+/* Il testo delle label del menu (da nascondere in collapsed) */
+.menu-label {
+    overflow: hidden;
+    white-space: nowrap;
+    transition: opacity 0.2s, width 0.2s;
 }
 
 /* Badge rosso accanto a Richieste [cite: 44] */
@@ -3494,6 +3598,12 @@ button.menu-item-opt {
         display: flex !important;
         flex-direction: column !important;
         overflow: hidden !important;
+        transition: width 0.28s cubic-bezier(0.4,0,0.2,1) !important;
+    }
+
+    /* Sidebar COLLAPSED su desktop */
+    .sidebar.collapsed {
+        width: 62px !important;
     }
 
     /* Main panel come card bianca staccata — flex column: header fisso + contenuto scorrevole */
@@ -3508,6 +3618,13 @@ button.menu-item-opt {
         overflow: hidden !important;
         display: flex !important;
         flex-direction: column !important;
+        transition: margin-left 0.28s cubic-bezier(0.4,0,0.2,1), width 0.28s cubic-bezier(0.4,0,0.2,1) !important;
+    }
+
+    /* Main content quando sidebar è collapsed su desktop */
+    body.sidebar-collapsed .main-content {
+        margin: 10px 10px 10px 86px !important;
+        width: calc(100% - 96px) !important;
     }
 
     /* Header fisso: titolo + search */

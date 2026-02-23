@@ -312,7 +312,36 @@ document.addEventListener('click', function(e) {
             dropdown.classList.remove('open');
         }
     }
-}); // QUESTA FUNZIONE È QUELLA CHE SCRIVE I DATI NELLA TUA SIDEBAR
+});
+
+/* ---- SIDEBAR TOGGLE ---- */
+function toggleSidebar() {
+    const sidebar = document.getElementById('main-sidebar');
+    const icon = document.querySelector('.sidebar-toggle-icon');
+    if (!sidebar) return;
+    const isCollapsed = sidebar.classList.toggle('collapsed');
+    document.body.classList.toggle('sidebar-collapsed', isCollapsed);
+    if (icon) icon.textContent = isCollapsed ? '\u2630' : '\u00AB';
+    try { localStorage.setItem('sidebarCollapsed', isCollapsed ? '1' : '0'); } catch(e) {}
+}
+
+function initSidebarState() {
+    try {
+        const saved = localStorage.getItem('sidebarCollapsed');
+        const sidebar = document.getElementById('main-sidebar');
+        const icon = document.querySelector('.sidebar-toggle-icon');
+        if (saved === '1') {
+            if (sidebar) sidebar.classList.add('collapsed');
+            document.body.classList.add('sidebar-collapsed');
+            if (icon) icon.textContent = '\u2630';
+        } else {
+            if (icon) icon.textContent = '\u00AB';
+        }
+    } catch(e) {}
+}
+
+document.addEventListener('DOMContentLoaded', initSidebarState);
+/* ---- FINE SIDEBAR TOGGLE ---- */ // QUESTA FUNZIONE È QUELLA CHE SCRIVE I DATI NELLA TUA SIDEBAR
 function salvaEApriDashboard() {
     try { localStorage.setItem('sessioneUtente', JSON.stringify(utenteAttuale)); } catch (e) {}
     try { sessionStorage.setItem('sessioneUtente', JSON.stringify(utenteAttuale)); } catch (e) {}

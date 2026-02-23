@@ -264,7 +264,12 @@
         </div>
     </div>
 
-    <div class="sidebar">
+    <div class="sidebar" id="main-sidebar">
+        <!-- Toggle hamburger -->
+        <button class="sidebar-toggle-btn" id="sidebar-toggle" onclick="toggleSidebar()" title="Espandi/Chiudi menu">
+            <span class="sidebar-toggle-icon">«</span>
+        </button>
+
         <!-- TOP: Logo + PROD — home button -->
         <button class="sidebar-brand-home-btn" onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', null)" title="Home">
             <div class="sidebar-brand-icon">
@@ -275,22 +280,22 @@
             </div>
         </button>
 
-        <button type="button" class="menu-item" data-page="PROGRAMMA PRODUZIONE DEL MESE" onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', this)">
-            <div class="menu-content"><span>📦</span> Produzione</div>
+        <button type="button" class="menu-item" title="Produzione" data-page="PROGRAMMA PRODUZIONE DEL MESE" onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', this)">
+            <div class="menu-content"><span>📦</span><span class="menu-label"> Produzione</span></div>
         </button>
 
-        <button type="button" class="menu-item" data-page="STORICO_RICHIESTE" onclick="cambiaPagina('STORICO_RICHIESTE', this)">
-            <div class="menu-content"><span>📩</span> Richieste</div>
+        <button type="button" class="menu-item" title="Richieste" data-page="STORICO_RICHIESTE" onclick="cambiaPagina('STORICO_RICHIESTE', this)">
+            <div class="menu-content"><span>📩</span><span class="menu-label"> Richieste</span></div>
             <span id="badge-richieste-count" class="badge-sidebar-inline">0</span>
         </button>
 
-        <button type="button" class="menu-item" data-page="MATERIALE DA ORDINARE" onclick="cambiaPagina('MATERIALE DA ORDINARE', this)">
-            <div class="menu-content"><span>🛒</span> Acquisti</div>
+        <button type="button" class="menu-item" title="Acquisti" data-page="MATERIALE DA ORDINARE" onclick="cambiaPagina('MATERIALE DA ORDINARE', this)">
+            <div class="menu-content"><span>🛒</span><span class="menu-label"> Acquisti</span></div>
             <span id="badge-carrello-count" class="badge-sidebar-inline">0</span>
         </button>
 
-        <button type="button" class="menu-item" data-page="IMPOSTAZIONI" onclick="cambiaPagina('IMPOSTAZIONI', this)">
-            <div class="menu-content"><span>⚙️</span> Impostazioni</div>
+        <button type="button" class="menu-item" title="Impostazioni" data-page="IMPOSTAZIONI" onclick="cambiaPagina('IMPOSTAZIONI', this)">
+            <div class="menu-content"><span>⚙️</span><span class="menu-label"> Impostazioni</span></div>
         </button>
 
         <!-- BOTTOM: Account section -->
