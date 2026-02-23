@@ -21,6 +21,13 @@ const cacheContenuti = {};
 const cacheFetchTime = {}; // timestamp dell'ultimo fetch per pagina
 const CACHE_TTL_MS = 30000; // 30 secondi: sotto questa soglia non fare background refresh
 
+// ---- runtime guards (anti doppio init / race rendering) ----
+let _bootCompleted = false;
+let _pageInitDone = false;
+let _bindingsInitDone = false;
+let _navRequestSerial = 0;
+let _latestNavRequest = 0;
+
 // ---- search optimisation helpers ----
 let elementiDaFiltrareCache = null;
 let ricercaTimeout = null;
@@ -75,6 +82,8 @@ let utenteAttuale = {
 };
 
 window.onload = async function() {
+    if (_bootCompleted) return;
+    _bootCompleted = true;
     console.log("Inizializzazione sistema...");
 
     // 1. Gestione immediata dell'interfaccia per evitare "lampi"
@@ -358,6 +367,9 @@ function aggiornaBadgeSidebar(messaggi) {
     }
 }
 function cambiaPagina(nomeFoglio, elementoMenu) {
+    const requestId = ++_navRequestSerial;
+    _latestNavRequest = requestId;
+
     // reset possible filter cache when switching pages
     elementiDaFiltrareCache = null;
 
@@ -439,7 +451,7 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
         const ora = Date.now();
         const ultimoFetch = cacheFetchTime[nomeFoglio] || 0;
         if (ora - ultimoFetch > CACHE_TTL_MS) {
-            if (nomeFoglio === "PROGRAMMA PRODUZIONE DEL MESE") caricaDati(nomeFoglio, true);
+            if (nomeFoglio === "PROGRAMMA PRODUZIONE DEL MESE") caricaDati(nomeFoglio, true, requestId);
             if (nomeFoglio === "MATERIALE DA ORDINARE") caricaMateriali(true);
         }
         return;
@@ -462,7 +474,7 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
             caricaMateriali(false);
             break;
         default:
-            caricaDati(nomeFoglio, false);
+            caricaDati(nomeFoglio, false, requestId);
     }
 }
 
@@ -474,7 +486,7 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
 
 //PAGINA PRODUZIONE//
 
-async function caricaDati(nomeFoglio, isBackgroundUpdate = false) {
+async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedRequestId = null) {
     const contenitore = document.getElementById('contenitore-dati');
     if (!isBackgroundUpdate) {
         contenitore.innerHTML = "<div class='inline-msg'>Caricamento Dashboard...</div>";
@@ -489,6 +501,7 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false) {
         ]);
 
         if (paginaAttuale !== nomeFoglio) return;
+        if (expectedRequestId !== null && expectedRequestId !== _latestNavRequest) return;
 
         // --- SEZIONE ATTIVA ---
         let htmlAttivi = generaBloccoOrdiniUnificato(datiProd, false);
@@ -2576,6 +2589,12 @@ function notificaElegante(messaggio) {
     }, 3000);
 }
 document.addEventListener('DOMContentLoaded', async function() {
+    if (_pageInitDone) return;
+    _pageInitDone = true;
+
+    let hasSession = false;
+    try { hasSession = !!(localStorage.getItem('sessioneUtente') || sessionStorage.getItem('sessioneUtente')); } catch (e) {}
+    if (!hasSession) return;
 
     // 1️⃣ Carica prima le impostazioni (operatori + stati)
     await caricaImpostazioni();
@@ -2626,9 +2645,12 @@ function toggleMobileMenu() {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+    if (_bindingsInitDone) return;
+    _bindingsInitDone = true;
+
     // Bind login button safely (keeps existing inline onclick as fallback)
     const btnLogin = document.getElementById('btn-login');
-    if (btnLogin && typeof verificaAccesso === 'function') {
+    if (btnLogin && !btnLogin.hasAttribute('onclick') && typeof verificaAccesso === 'function') {
         btnLogin.addEventListener('click', function (ev) {
             ev.preventDefault();
             try { verificaAccesso(); } catch (e) { console.error('verificaAccesso error', e); }
@@ -2637,7 +2659,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Bind logout
     const btnLogout = document.getElementById('btn-logout');
-    if (btnLogout && typeof logout === 'function') {
+    if (btnLogout && !btnLogout.hasAttribute('onclick') && typeof logout === 'function') {
         btnLogout.addEventListener('click', function (ev) {
             ev.preventDefault();
             try { logout(); } catch (e) { console.error('logout error', e); }

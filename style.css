@@ -2366,6 +2366,7 @@ h1 {
     line-height: 1.35;
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
@@ -2460,7 +2461,7 @@ h1 {
     box-shadow: 0 4px 14px rgba(29,78,216,0.4);
     transform: translateY(-1px);
 }
-.btn-cart-txt { /* testo "Aggiungi" nel bottone */ }
+
 
 /* === MENU OPZIONI ⋮ === */
 .mat-card-opts {
@@ -2648,6 +2649,12 @@ button.menu-item-opt {
 .sezione-empty b { color: #64748b; font-style: normal; }
 .btn-sezione-new { color: #3b82f6 !important; }
 
+/* Mobile-only structural bars: hidden by default */
+.mobile-topbar,
+.mobile-tab-bar {
+    display: none;
+}
+
 /* ============================================================
    13. AREA MOBILE - SMARTPHONE (MAX 768px)
    ============================================================ */
@@ -2689,6 +2696,7 @@ button.menu-item-opt {
     }
 
     .mobile-topbar {
+        display: block !important;
         position: absolute !important;
         top: 0 !important;
         left: 0 !important;
@@ -2757,6 +2765,7 @@ button.menu-item-opt {
     }
 
     .mobile-tab-bar {
+        display: flex !important;
         position: absolute !important;
         left: 0 !important;
         right: 0 !important;
@@ -3042,6 +3051,7 @@ button.menu-item-opt {
     }
     .materiale-nome {
         -webkit-line-clamp: 2 !important;
+        line-clamp: 2 !important;
         font-size: 13px !important;
         font-weight: 700 !important;
         color: #1e293b !important;
@@ -3199,6 +3209,11 @@ button.menu-item-opt {
 
 @media (min-width: 769px) {
     .mobile-header {
+        display: none !important;
+    }
+
+    .mobile-topbar,
+    .mobile-tab-bar {
         display: none !important;
     }
 
