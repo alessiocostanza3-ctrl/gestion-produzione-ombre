@@ -92,13 +92,14 @@
                 width: 54px !important;
                 height: 54px !important;
                 border-radius: 50% !important;
-                border: 0 !important;
                 color: #111827 !important;
                 background: #ffffff !important;
                 display: flex !important;
                 align-items: center !important;
                 justify-content: center !important;
-                transform: translateY(0) !important;
+                border: 2px solid rgba(0,0,0,0.08) !important;
+                border-bottom: 4px solid #a0a0a0 !important;
+                box-shadow: 0 6px 14px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.9) !important;
                 margin: 0 8px !important;
             }
         }
@@ -111,7 +112,7 @@
         };
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="style.css?v=20260224b">
+    <link rel="stylesheet" href="style.css?v=20260224c">
     <script>
         // Gate visuale del login: non dipendere dal caricamento di script.js
         // - se NON c'è sessione → mostra overlay (classe needs-login)

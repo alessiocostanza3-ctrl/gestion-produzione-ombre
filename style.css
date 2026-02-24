@@ -3266,8 +3266,7 @@ button.menu-item-opt {
     .tab-item {
         flex: 1 !important;
         height: 52px !important;
-        border: 0 !important;
-        background: transparent !important;
+        background: rgba(255,255,255,0.06) !important;
         color: #6b7280 !important;
         display: flex !important;
         flex-direction: column !important;
@@ -3277,15 +3276,27 @@ button.menu-item-opt {
         position: relative !important;
         border-radius: 12px !important;
         padding: 0 4px !important;
-        transition: background 0.18s, color 0.18s !important;
+        /* Effetto 3D: bordo inferiore scuro + ombra sfumata */
+        border: 1px solid rgba(255,255,255,0.07) !important;
+        border-bottom: 3px solid rgba(0,0,0,0.45) !important;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08) !important;
+        transition: background 0.15s, box-shadow 0.15s, transform 0.1s !important;
+    }
+    .tab-item:active {
+        transform: translateY(2px) !important;
+        border-bottom-width: 1px !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.3) !important;
     }
 
     .tab-item i { font-size: 17px !important; }
     .tab-item span { font-size: 10px !important; line-height: 1.1 !important; font-weight: 600 !important; }
 
     .tab-item.active {
-        background: rgba(255,255,255,0.12) !important;
+        background: rgba(255,255,255,0.16) !important;
         color: #ffffff !important;
+        border-color: rgba(255,255,255,0.12) !important;
+        border-bottom-color: rgba(0,0,0,0.5) !important;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.14) !important;
     }
     .tab-item.active i {
         color: #ffffff !important;
@@ -3295,22 +3306,24 @@ button.menu-item-opt {
         width: 54px !important;
         height: 54px !important;
         border-radius: 50% !important;
-        border: 0 !important;
         color: #111827 !important;
         background: #ffffff !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
         flex-shrink: 0 !important;
-        /* Ombra 3D che dà profondità e risalto */ 
-        box-shadow:
-            0 2px 0 #c8c8c8,
-            0 4px 0 #b0b0b0,
-            0 8px 20px rgba(0,0,0,0.6),
-            0 2px 6px rgba(0,0,0,0.4) !important;
+        /* Effetto 3D: bordo inferiore scuro + ombra profonda */
+        border: 2px solid rgba(0,0,0,0.08) !important;
+        border-bottom: 4px solid #a0a0a0 !important;
+        box-shadow: 0 6px 14px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.9) !important;
         font-size: 20px !important;
-        transform: translateY(0) !important;
         margin: 0 8px !important;
+        transition: box-shadow 0.15s, transform 0.1s, border-bottom-width 0.1s !important;
+    }
+    .tab-fab:active {
+        transform: translateY(3px) !important;
+        border-bottom-width: 1px !important;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.35) !important;
     }
 
     .badge-bottom {
