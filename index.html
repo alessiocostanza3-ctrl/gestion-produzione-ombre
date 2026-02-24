@@ -266,14 +266,19 @@
 
     <!-- TOP BAR FLOTTANTE: brand card + search card -->
     <div class="top-float-bar" id="top-float-bar">
-        <button class="top-brand-card" id="top-brand-card" onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', null)" title="Home">
-            <div class="sidebar-brand-icon">
-                <img src="logo.png" alt="PROD Logo" class="sidebar-brand-img">
-            </div>
-            <div class="sidebar-brand-text">
-                <span class="sidebar-brand-name">PROD</span>
-            </div>
-        </button>
+        <div class="top-brand-card" id="top-brand-card">
+            <button class="top-brand-home-btn" onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', null)" title="Home">
+                <div class="sidebar-brand-icon">
+                    <img src="logo.png" alt="PROD Logo" class="sidebar-brand-img">
+                </div>
+                <div class="sidebar-brand-text">
+                    <span class="sidebar-brand-name">PROD</span>
+                </div>
+            </button>
+            <button class="top-hamburger-btn" id="top-hamburger-btn" onclick="toggleSidebar()" title="Espandi/Chiudi menu">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
         <div class="top-search-card">
             <i class="fas fa-search top-search-icon"></i>
             <input type="text" id="universal-search" class="top-search-input" placeholder="Cerca in tutte le pagine..." oninput="filtraUniversale()" onkeyup="filtraUniversale()">
@@ -281,10 +286,6 @@
     </div>
 
     <div class="sidebar" id="main-sidebar">
-        <!-- Toggle hamburger -->
-        <button class="sidebar-toggle-btn" id="sidebar-toggle" onclick="toggleSidebar()" title="Espandi/Chiudi menu">
-            <span class="sidebar-toggle-icon">&#9776;</span>
-        </button>
 
         <button type="button" class="menu-item" title="Produzione" data-page="PROGRAMMA PRODUZIONE DEL MESE" onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', this)">
             <div class="menu-content"><span>📦</span><span class="menu-label"> Produzione</span></div>
