@@ -1099,36 +1099,38 @@ h1 {
 
 .scroll-wrapper { text-align: right; margin: 10px 0; }
 .scroll-btn {
-    background: #242424;
-    color: #f3f4f6;
+    background: #111827;
+    color: #ffffff;
     padding: 6px 12px;
     border-radius: 8px;
     font-size: 12px;
-    border: none;
+    border: 1px solid #111827;
     cursor: pointer;
     box-shadow: 0 2px 8px rgba(0,0,0,0.18);
-    transition: background 0.2s;
+    transition: background 0.2s, color 0.2s;
 }
-.scroll-btn:hover { background: #111827; }
+.scroll-btn:hover { background: #ffffff; color: #111827; }
 
-/* Step 2: Chiedi/Assegna e Archivia - palette nero/grigio */
+/* Step 2: Chiedi/Assegna e Archivia - palette nero/bianco */
 .btn-chiedi-assegna {
-    background: #242424 !important;
-    color: #f3f4f6 !important;
-    border: 1px solid #374151 !important;
-}
-.btn-chiedi-assegna:hover {
     background: #111827 !important;
     color: #ffffff !important;
+    border: 1px solid #111827 !important;
+    transition: background 0.2s, color 0.2s !important;
+}
+.btn-chiedi-assegna:hover {
+    background: #ffffff !important;
+    color: #111827 !important;
 }
 .btn-archivia-prod {
-    background: #4b5563 !important;
-    color: #f9fafb !important;
-    border: 1px solid #6b7280 !important;
+    background: #111827 !important;
+    color: #ffffff !important;
+    border: 1px solid #111827 !important;
+    transition: background 0.2s, color 0.2s !important;
 }
 .btn-archivia-prod:hover {
-    background: #374151 !important;
-    color: #ffffff !important;
+    background: #ffffff !important;
+    color: #111827 !important;
 }
 
 
@@ -1632,12 +1634,12 @@ h1 {
 .button-small { padding: 6px 15px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; }
 .btn-cancel { background: white; color: #475569; border: 1px solid #e2e8f0; }
 .btn-archive-action { background: #16a34a; color: white; border: none; }
-.btn-reply { background: #374151 !important; color: #f3f4f6 !important; border: 1px solid #4b5563 !important; }
-.btn-reply:hover { background: #1f2937 !important; color: #ffffff !important; }
-.btn-alert { background: #242424 !important; color: #f3f4f6 !important; border: 1px solid #374151 !important; }
-.btn-alert:hover { background: #111827 !important; color: #ffffff !important; }
-.btn-archive { background: #4b5563 !important; color: #f9fafb !important; border: 1px solid #6b7280 !important; }
-.btn-archive:hover { background: #374151 !important; color: #ffffff !important; }
+.btn-reply { background: #111827 !important; color: #ffffff !important; border: 1px solid #111827 !important; transition: background 0.2s, color 0.2s !important; }
+.btn-reply:hover { background: #ffffff !important; color: #111827 !important; }
+.btn-alert { background: #111827 !important; color: #ffffff !important; border: 1px solid #111827 !important; transition: background 0.2s, color 0.2s !important; }
+.btn-alert:hover { background: #ffffff !important; color: #111827 !important; }
+.btn-archive { background: #111827 !important; color: #ffffff !important; border: 1px solid #111827 !important; transition: background 0.2s, color 0.2s !important; }
+.btn-archive:hover { background: #ffffff !important; color: #111827 !important; }
 .chat-to { font-size: 10px; color: #94a3b8; margin-left: auto; }
 .chat-archiviata-note { padding: 10px 20px; border-top: 1px solid #f1f5f9; background: #f8fafc; text-align: right; }
 .chat-archiviata-label { font-size: 11px; color: #16a34a; font-weight: 700; }
