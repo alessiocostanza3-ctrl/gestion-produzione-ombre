@@ -103,6 +103,43 @@
             }
         }
     </style>
+    <style>
+        /* Blocco orientamento landscape su smartphone */
+        @media (orientation: landscape) and (max-height: 500px) {
+            #rotate-overlay { display: flex !important; }
+        }
+        #rotate-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 999999;
+            background: #111827;
+            color: #ffffff;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            text-align: center;
+            padding: 30px;
+        }
+        #rotate-overlay i {
+            font-size: 52px;
+            animation: rotatePulse 1.4s ease-in-out infinite;
+        }
+        #rotate-overlay p {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0;
+            line-height: 1.5;
+            opacity: 0.85;
+        }
+        @keyframes rotatePulse {
+            0%   { transform: rotate(0deg);  }
+            40%  { transform: rotate(90deg); }
+            60%  { transform: rotate(90deg); }
+            100% { transform: rotate(0deg);  }
+        }
+    </style>
     <script>
         // Tailwind via CDN (no build step). Disable preflight to avoid breaking existing styles.
         tailwind = window.tailwind || {};
@@ -111,7 +148,7 @@
         };
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="style.css?v=20260224j">
+    <link rel="stylesheet" href="style.css?v=20260224k">
     <script>
         // Gate visuale del login: non dipendere dal caricamento di script.js
         // - se NON c'è sessione → mostra overlay (classe needs-login)
@@ -216,6 +253,11 @@
 </head>
 
 <body>
+
+    <div id="rotate-overlay">
+        <i class="fas fa-mobile-alt"></i>
+        <p>Ruota il dispositivo<br>per usare l'app</p>
+    </div>
 
     <div id="login-overlay">
         <div class="login-card">
