@@ -684,7 +684,7 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
             : `<button class="${TW.btnPrimary}" onclick="event.stopPropagation(); apriModalAiuto(null, 'INTERO ORDINE', '${nOrd}')">
                    <i class="fa-regular fa-envelope"></i> <span class="btn-txt">Chiedi/Assegna</span>
                </button>
-               <button class="${TW.btnSuccess}" onclick="event.stopPropagation(); gestisciArchiviazione('${nOrd}')">
+               <button class="btn-archivia-prod ${TW.btnSuccess}" onclick="event.stopPropagation(); gestisciArchiviazione('${nOrd}')">
                    <i class="fa-solid fa-check"></i> <span class="btn-txt">Archivia</span>
                </button>`;
 

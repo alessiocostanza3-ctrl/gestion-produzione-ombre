@@ -1111,6 +1111,26 @@ h1 {
 }
 .scroll-btn:hover { background: #111827; }
 
+/* Step 2: Chiedi/Assegna e Archivia - palette nero/grigio */
+.btn-chiedi-assegna {
+    background: #242424 !important;
+    color: #f3f4f6 !important;
+    border: 1px solid #374151 !important;
+}
+.btn-chiedi-assegna:hover {
+    background: #111827 !important;
+    color: #ffffff !important;
+}
+.btn-archivia-prod {
+    background: #4b5563 !important;
+    color: #f9fafb !important;
+    border: 1px solid #6b7280 !important;
+}
+.btn-archivia-prod:hover {
+    background: #374151 !important;
+    color: #ffffff !important;
+}
+
 
 
 
