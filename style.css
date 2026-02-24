@@ -2455,8 +2455,8 @@ h1 {
     position: fixed;
     bottom: 20px;
     right: 20px;
-    background: #f59e0b;
-    color: white;
+    background: #111827;
+    color: #ffffff;
     padding: 12px 20px;
     border-radius: 12px;
     cursor: pointer;
@@ -2465,8 +2465,15 @@ h1 {
     display: flex;
     align-items: center;
     gap: 10px;
-    border: 2px solid white;
+    border: 2px solid rgba(255,255,255,0.15);
     pointer-events: auto !important;
+    transition: background 0.18s, box-shadow 0.18s;
+}
+#floating-cart-btn:hover {
+    background: #ffffff;
+    color: #111827;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+    border-color: #111827;
 }
 /* === MODAL CARRELLO — fade overlay + slide-up box === */
 #modal-carrello {
@@ -3198,7 +3205,7 @@ button.menu-item-opt {
         left: 0;
         width: 40px;
         height: 3px;
-        background: linear-gradient(90deg, #2563eb, #7c3aed);
+        background: #111827;
         border-radius: 2px;
     }
 
@@ -3245,7 +3252,7 @@ button.menu-item-opt {
         left: 0 !important;
         right: 0 !important;
         bottom: 0 !important;
-        height: 60px !important;
+        height: 70px !important;
         padding: 0 8px 4px !important;
         box-sizing: border-box !important;
         display: flex !important;
@@ -3283,12 +3290,13 @@ button.menu-item-opt {
         height: 40px !important;
         border-radius: 50% !important;
         border: 0 !important;
-        color: white !important;
-        background: linear-gradient(135deg, #2563eb, #7c3aed) !important;
+        color: #111827 !important;
+        background: #8fe45e !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
         flex-shrink: 0 !important;
+        box-shadow: 0 2px 10px rgba(143,228,94,0.45) !important;
     }
 
     .badge-bottom {
