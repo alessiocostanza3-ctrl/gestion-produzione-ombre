@@ -677,12 +677,14 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
         const classHeader = isArchivio ? 'archivio-header' : '';
         const colorCliente = isArchivio ? '#475569' : 'inherit';
 
+        const nOrdBadge = nOrd.length > 14 ? nOrd.substring(0, 14) + '…' : nOrd;
+
         const bottoniHeader = isArchivio
             ? `<button class="btn-ripristina ${TW.btnWarning}" onclick="event.stopPropagation(); gestisciRipristino('${nOrd}', 'ORDINE')">
                    <i class="fa-solid fa-rotate-left"></i> <span class="btn-txt">Ripristina</span>
                </button>`
             : `<button class="btn-chiedi-assegna ${TW.btnPrimary}" onclick="event.stopPropagation(); apriModalAiuto(null, 'INTERO ORDINE', '${nOrd}')">
-                   <i class="fa-regular fa-envelope"></i> <span class="btn-txt">Chiedi/Assegna</span>
+                   <i class="fa-regular fa-envelope"></i> <span class="btn-txt">Chiedi</span>
                </button>
                <button class="btn-archivia-prod ${TW.btnSuccess}" onclick="event.stopPropagation(); gestisciArchiviazione('${nOrd}')">
                    <i class="fa-solid fa-check"></i> <span class="btn-txt">Archivia</span>
@@ -692,10 +694,10 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
         <div class="ordine-wrapper ${classWrapper}" data-ordine="${nOrd}" data-cliente="${(cliente || '').toLowerCase().replace(/"/g, '')}">
             <div class="riga-ordine ${classHeader}" onclick="toggleAccordion(this)">
                 <div class="flex-grow">
-                    <span class="order-title" style="--order-color:${colorCliente}">${cliente} ${htmlRiferimento}</span>
+                    <span class="order-title" style="--order-color:${colorCliente}" title="${cliente}">${cliente} ${htmlRiferimento}</span>
                 </div>
                 <div class="order-info">
-                    <div class="badge-count ${TW.pill}"><span class="badge-ord-num">ORD.${nOrd}</span><span class="badge-sep">·</span>${righe.length} ART.</div>
+                    <div class="badge-count ${TW.pill}" title="ORD.${nOrd}"><span class="badge-ord-num">ORD.${nOrdBadge}</span><span class="badge-sep">·</span>${righe.length} ART.</div>
                     ${bottoniHeader}
                 </div>
             </div>
