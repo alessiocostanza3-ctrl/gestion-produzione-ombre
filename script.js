@@ -1947,11 +1947,11 @@ async function salvaTutteImpostazioni() {
                 </div>
                 <div class="acquisti-actions-wrapper">
                     <div class="acquisti-actions-row">
-                        <button id="btn-mode-select" type="button" onclick="toggleSelezioneMultipla()" class="${TW.btn}">
-                            <i class="fas fa-tasks"></i> Seleziona
-                        </button>
                         <button id="btn-delete-selected" type="button" onclick="eliminaSelezionati()" class="${TW.btnDanger} btn-fade-action">
-                            <i class="fas fa-trash"></i> Elimina (<span id="count-selected">0</span>)
+                            <i class="fas fa-trash"></i><span class="btn-elimina-label"> Elimina (<span id="count-selected">0</span>)</span>
+                        </button>
+                        <button id="btn-mode-select" type="button" onclick="toggleSelezioneMultipla()" class="${TW.btn}">
+                            <i class="fas fa-tasks"></i><span class="btn-sel-txt"> Seleziona</span>
                         </button>
                     </div>
                     <button type="button" class="btn-nuovo-fisso btn-sezione-new ${TW.btn}" onclick="apriModalNuovaSezione()" title="Nuova sezione">
@@ -1963,6 +1963,8 @@ async function salvaTutteImpostazioni() {
                 </div>
             </div>
             <div id="lista-materiali-grid">`;
+
+        const isMobile = window.innerWidth <= 768;
 
         sezioniMateriali.forEach((sez, si) => {
             const sezItems = _groups[sez] || [];
@@ -1977,10 +1979,11 @@ async function salvaTutteImpostazioni() {
                         </div>
                         <div class="sezione-header-right">
                             <button type="button" class="btn-sezione-edit" title="Rinomina sezione" onclick="event.stopPropagation(); apriModalRinominaSezione('${sez}')"><i class="fas fa-pen"></i></button>
-                            <i class="fas fa-chevron-down sezione-arrow"></i>
+                            <i class="fas fa-chevron-down sezione-arrow"${isMobile ? ' style="transform:rotate(-90deg)"' : ''}></i>
                         </div>
                     </div>
-                    <div class="sezione-grid materiali-grid" id="sezione-grid-${si}" data-sezione="${sez}">`;
+                    <div class="sezione-grid materiali-grid" id="sezione-grid-${si}" data-sezione="${sez}"${isMobile ? ' style="display:none"' : ''}>`;
+
 
             if (sezItems.length === 0) {
                 html += `<p class="sezione-empty">Nessun articolo. Usa <b>Sezione</b> dal menu ⋮ per spostare qui un articolo.</p>`;

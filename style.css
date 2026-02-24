@@ -3494,6 +3494,35 @@ button.menu-item-opt {
         gap: 8px !important;
         width: 100% !important;
     }
+    /* Acquisti mobile: nascondi titolo/sottotitolo */
+    .acquisti-title,
+    .acquisti-subtitle { display: none !important; }
+
+    /* Seleziona: solo icona */
+    #btn-mode-select .btn-sel-txt { display: none !important; }
+    #btn-mode-select {
+        width: 36px !important;
+        min-width: 36px !important;
+        padding: 0 !important;
+        justify-content: center !important;
+    }
+
+    /* Cestino elimina: solo icona, rosso, quadrato */
+    #btn-delete-selected .btn-elimina-label { display: none !important; }
+    #btn-delete-selected {
+        width: 36px !important;
+        min-width: 36px !important;
+        padding: 0 !important;
+        justify-content: center !important;
+        background: #ef4444 !important;
+        color: #ffffff !important;
+        border: none !important;
+    }
+    #btn-delete-selected:hover {
+        background: #dc2626 !important;
+        color: #ffffff !important;
+    }
+
     .acquisti-actions-row {
         flex: 1 !important;
         min-width: 0 !important;
