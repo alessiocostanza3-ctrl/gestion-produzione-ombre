@@ -2123,8 +2123,9 @@ h1 {
 .centered-fullwidth { width:100%; text-align:center; }
 .my-30 { margin: 30px 0; }
 .acquisti-header.header-flex { margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; padding:0 10px; }
-.acquisti-title { margin:0; font-size:16px; color:#1e293b; }
-.acquisti-subtitle { color:#64748b; font-size:12px; margin:0; }
+.acquisti-actions-wrapper { display: flex; align-items: center; gap: 8px; }
+.acquisti-title { margin:0; font-size:22px; font-weight:800; color:#111827; letter-spacing:-0.02em; }
+.acquisti-subtitle { color:#94a3b8; font-size:13px; margin:4px 0 0; }
 
 /* nuovo: acquisition page utilities */
 .hidden { display: none; }
@@ -2679,13 +2680,13 @@ h1 {
 
 .materiale-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 16px 40px rgba(37, 99, 235, 0.13);
-    border-color: #bfdbfe;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.10);
+    border-color: #cbd5e1;
 }
 
 .materiale-card:has(.menu-popup-opzioni.open) {
     z-index: 100 !important;
-    border-color: #2563eb;
+    border-color: #111827;
 }
 
 /* DnD handle – appare solo su hover */
@@ -2716,7 +2717,7 @@ h1 {
 .mat-card-img {
     width: 100% !important;
     height: 150px !important;
-    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
     border-radius: 14px 14px 0 0 !important;
     display: flex !important;
     align-items: center !important;
@@ -2730,16 +2731,16 @@ h1 {
     border: none !important;
 }
 .mat-card-img:hover {
-    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%) !important;
+    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%) !important;
 }
 .mat-card-img .mat-img-icon {
     font-size: 32px;
-    color: #93c5fd;
+    color: #cbd5e1;
     transition: all 0.25s;
     pointer-events: none;
 }
 .mat-card-img:hover .mat-img-icon {
-    color: #2563eb;
+    color: #111827;
     transform: scale(1.18);
 }
 /* Hint "Scatta foto" appare sull'hover */
@@ -2749,7 +2750,7 @@ h1 {
     left: 0; right: 0;
     text-align: center;
     font-size: 11px;
-    color: #2563eb;
+    color: #111827;
     font-weight: 700;
     letter-spacing: 0.5px;
     opacity: 0;
@@ -2816,7 +2817,7 @@ h1 {
 }
 .materiale-codice {
     font-size: 10px;
-    color: #2563eb;
+    color: #64748b;
     font-weight: 700;
 }
 
@@ -3042,13 +3043,13 @@ button.menu-item-opt {
     margin-bottom: 10px;
     transition: background 0.15s;
 }
-.sezione-header:hover { background: #f0f6ff; border-color: #bfdbfe; }
+.sezione-header:hover { background: #f1f5f9; border-color: #cbd5e1; }
 .sezione-header-left { display: flex; align-items: center; gap: 10px; }
-.sezione-icon { color: #3b82f6; font-size: 14px; }
+.sezione-icon { color: #111827; font-size: 14px; }
 .sezione-nome  { font-weight: 700; font-size: 14px; color: #1e293b; }
 .sezione-count {
-    background: #e0e7ff;
-    color: #3730a3;
+    background: #111827;
+    color: #ffffff;
     font-size: 10px;
     font-weight: 800;
     padding: 2px 8px;
@@ -3090,6 +3091,14 @@ button.menu-item-opt {
     margin: 4px 0 10px;
 }
 .sezione-empty b { color: #64748b; font-style: normal; }
+/* Pulsanti header acquisti - palette #111827 */
+#btn-mode-select { background: #111827 !important; color: #ffffff !important; border: none !important; transition: background 0.2s, color 0.2s !important; }
+#btn-mode-select:hover { background: #ffffff !important; color: #111827 !important; box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important; }
+#btn-delete-selected { background: #111827 !important; color: #ffffff !important; border: none !important; transition: background 0.2s, color 0.2s !important; }
+#btn-delete-selected:hover { background: #ffffff !important; color: #111827 !important; box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important; }
+.btn-nuovo-fisso { background: #111827 !important; color: #ffffff !important; border: none !important; transition: background 0.2s, color 0.2s !important; }
+.btn-nuovo-fisso:hover { background: #ffffff !important; color: #111827 !important; box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important; }
+
 .btn-sezione-new { color: #ffffff !important; }
 
 /* Mobile-only structural bars: hidden by default */
@@ -3397,7 +3406,7 @@ button.menu-item-opt {
         padding: 0 2px !important;
         margin-bottom: 14px !important;
     }
-    .acquisti-title { font-size: 15px !important; }
+    .acquisti-title { font-size: 18px !important; }
     .acquisti-subtitle { font-size: 11px !important; }
 
     .acquisti-actions-wrapper {
@@ -3478,7 +3487,7 @@ button.menu-item-opt {
         align-self: center !important;
         margin-bottom: 12px !important;
     }
-    .mat-card-img .mat-img-icon { font-size: 24px !important; color: #93c5fd !important; }
+    .mat-card-img .mat-img-icon { font-size: 24px !important; color: #cbd5e1 !important; }
     .mat-card-img img.modal-img { border-radius: 12px !important; }
     .mat-badge-fornitore, .mat-img-hint { display: none !important; }
 
