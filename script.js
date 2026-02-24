@@ -1214,55 +1214,62 @@ function _buildOverviewInnerHtml(attivi) {
         const isEmpty = righe.length === 0;
 
         let contenuto = '';
+        let totLabel = '0';
         if (isArtMode) {
-            // Raggruppa per codice articolo
+            // Raggruppa per codice articolo, somma qty
             const byArt = {};
             righe.forEach(r => {
                 const key = (r.codice || r.riferimento || '—').trim();
-                if (!byArt[key]) byArt[key] = { key, count: 0, ordini: new Set() };
-                byArt[key].count++;
+                if (!byArt[key]) byArt[key] = { key, qty: 0, ordini: new Set() };
+                byArt[key].qty += parseInt(r.qty) || 1;
                 if (r.ordine) byArt[key].ordini.add(r.ordine);
             });
-            contenuto = Object.values(byArt)
-                .sort((a,b) => b.count - a.count)
-                .map(a => {
-                    const lbl = a.key.length > 24 ? a.key.substring(0,24)+'…' : a.key;
-                    return `<div class="ov-stato-row">
-                        <span class="ov-row-label" title="${a.key}">${lbl}</span>
-                        <span class="ov-row-badges">
-                            <span class="ov-badge-count">${a.count}</span>
-                            <span class="ov-badge-ord">${a.ordini.size} ord.</span>
-                        </span>
-                    </div>`;
-                }).join('');
+            const artList = Object.values(byArt).sort((a, b) => b.qty - a.qty);
+            totLabel = artList.length + ' cod.';
+            contenuto = artList.map(a => {
+                const lbl = a.key.length > 28 ? a.key.substring(0, 28) + '…' : a.key;
+                return `<div class="ov-stato-row">
+                    <span class="ov-row-label" title="${a.key}">${lbl}</span>
+                    <span class="ov-row-badges">
+                        <span class="ov-badge-qty">${a.qty} pz</span>
+                        <span class="ov-badge-ord">${a.ordini.size} ord.</span>
+                    </span>
+                </div>`;
+            }).join('');
         } else {
-            // Raggruppa per ordine
+            // Raggruppa per ordine, mostra operatori
             const byOrd = {};
             righe.forEach(r => {
                 const key = r.ordine || '—';
-                if (!byOrd[key]) byOrd[key] = { ordine: key, cliente: r.cliente || '', count: 0 };
+                if (!byOrd[key]) byOrd[key] = { ordine: key, cliente: r.cliente || '', operatori: new Set(), count: 0 };
                 byOrd[key].count++;
+                if (r.assegna && r.assegna.trim() && r.assegna !== 'undefined') {
+                    r.assegna.split(',').forEach(op => byOrd[key].operatori.add(op.trim()));
+                }
             });
-            contenuto = Object.values(byOrd)
-                .sort((a,b) => b.count - a.count)
-                .map(o => {
-                    const cli = o.cliente.length > 16 ? o.cliente.substring(0,16)+'…' : o.cliente;
-                    const lbl = o.ordine + (cli ? ' · '+cli : '');
-                    return `<div class="ov-stato-row">
-                        <span class="ov-row-label" title="${o.ordine} – ${o.cliente}">${lbl}</span>
-                        <span class="ov-badge-count">${o.count} art.</span>
-                    </div>`;
-                }).join('');
+            const ordList = Object.values(byOrd).sort((a, b) => b.count - a.count);
+            totLabel = ordList.length + ' ord.';
+            contenuto = ordList.map(o => {
+                const cli = o.cliente.length > 14 ? o.cliente.substring(0, 14) + '…' : o.cliente;
+                const ops = o.operatori.size ? [...o.operatori].join(', ') : 'Libero';
+                const opsShort = ops.length > 20 ? ops.substring(0, 20) + '…' : ops;
+                const ordLabel = o.ordine + (cli ? ' · ' + cli : '');
+                return `<div class="ov-stato-row">
+                    <span class="ov-row-label" title="${o.ordine} – ${o.cliente}">${ordLabel}</span>
+                    <span class="ov-badge-op" title="${ops}">${opsShort}</span>
+                </div>`;
+            }).join('');
         }
 
-        return `<div class="ov-stato-card${isEmpty ? ' ov-stato-card-empty' : ''}">
-            <div class="ov-stato-header" style="--ov-col:${colore}">
+        return `<details class="ov-stato-card${isEmpty ? ' ov-stato-card-empty' : ''}"${isEmpty ? '' : ' open'}>
+            <summary class="ov-stato-header" style="--ov-col:${colore}">
                 <span class="ov-stato-dot" style="background:${colore}"></span>
                 <span class="ov-stato-nome">${stato}</span>
-                <span class="ov-stato-tot" style="background:${colore}22;color:${colore}">${righe.length}</span>
-            </div>
-            <div class="ov-stato-body">${isEmpty ? '<span class="ov-empty-lbl">—</span>' : contenuto}</div>
-        </div>`;
+                <span class="ov-stato-tot" style="background:${colore}22;color:${colore}">${totLabel}</span>
+                <i class="fas fa-chevron-down ov-sub-chevron"></i>
+            </summary>
+            <div class="ov-stato-body">${isEmpty ? '<span class="ov-empty-lbl">— nessun articolo</span>' : contenuto}</div>
+        </details>`;
     }).join('');
 
     return `<div class="ov-stati-grid">${cardsHtml}</div>`;

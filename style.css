@@ -4327,9 +4327,11 @@ button:active {
 .ov-stati-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
+    gap: 12px;
     padding-bottom: 4px;
 }
+
+/* Sub-card: <details> per ogni stato */
 .ov-stato-card {
     background: #0f172a;
     border-radius: 10px;
@@ -4338,24 +4340,30 @@ button:active {
     flex-direction: column;
     min-width: 0;
 }
-.ov-stato-card-empty { opacity: 0.45; }
+.ov-stato-card-empty { opacity: 0.4; }
 .ov-stato-header {
+    list-style: none;
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 7px 10px;
+    gap: 7px;
+    padding: 8px 12px;
     border-left: 3px solid var(--ov-col, #94a3b8);
     background: #1e293b;
     flex-shrink: 0;
+    /* desktop: non cliccare */
+    cursor: default;
+    user-select: none;
 }
+.ov-stato-header::-webkit-details-marker { display: none; }
+.ov-stato-header:focus { outline: none; }
 .ov-stato-dot {
-    width: 7px;
-    height: 7px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     flex-shrink: 0;
 }
 .ov-stato-nome {
-    font-size: 0.62rem;
+    font-size: 0.63rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: .04em;
@@ -4369,16 +4377,24 @@ button:active {
 .ov-stato-tot {
     font-size: 0.68rem;
     font-weight: 700;
-    padding: 1px 6px;
+    padding: 2px 7px;
     border-radius: 20px;
     flex-shrink: 0;
 }
+.ov-sub-chevron {
+    font-size: 0.68rem;
+    color: #475569;
+    transition: transform .22s ease;
+    flex-shrink: 0;
+    /* nascosto su desktop */
+    display: none;
+}
 .ov-stato-body {
-    padding: 6px 8px;
+    padding: 8px 10px;
     display: flex;
     flex-direction: column;
-    gap: 3px;
-    max-height: 160px;
+    gap: 4px;
+    max-height: 220px;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: #334155 transparent;
@@ -4387,11 +4403,14 @@ button:active {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 5px;
+    gap: 6px;
     min-width: 0;
+    padding: 2px 0;
+    border-bottom: 1px solid #1e293b;
 }
+.ov-stato-row:last-child { border-bottom: none; }
 .ov-row-label {
-    font-size: 0.70rem;
+    font-size: 0.73rem;
     color: #cbd5e1;
     flex: 1;
     min-width: 0;
@@ -4401,16 +4420,16 @@ button:active {
 }
 .ov-row-badges {
     display: flex;
-    gap: 4px;
+    gap: 5px;
     flex-shrink: 0;
     align-items: center;
 }
-.ov-badge-count {
-    font-size: 0.65rem;
+.ov-badge-qty {
+    font-size: 0.68rem;
     font-weight: 700;
     color: #f1f5f9;
     background: #1e293b;
-    padding: 1px 5px;
+    padding: 1px 6px;
     border-radius: 4px;
     white-space: nowrap;
 }
@@ -4419,19 +4438,42 @@ button:active {
     color: #64748b;
     white-space: nowrap;
 }
+.ov-badge-op {
+    font-size: 0.63rem;
+    font-weight: 600;
+    color: #818cf8;
+    background: #1e1b4b;
+    padding: 1px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
+}
 .ov-empty-lbl {
     font-size: 0.72rem;
     color: #334155;
     padding: 4px 0;
+    font-style: italic;
 }
 
+/* ── Mobile: sub-card collassabili ── */
 @media (max-width: 600px) {
-    .ov-stati-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .ov-stati-grid {
+        grid-template-columns: 1fr;
+        gap: 7px;
+    }
     .ov-accordion .riepilogo-page { padding: 0 10px 12px; }
     .ov-accordion-summary { padding: 11px 12px; font-size: 0.73rem; }
-}
-@media (max-width: 360px) {
-    .ov-stati-grid { grid-template-columns: 1fr; }
+    /* rendi cliccabili le sub-card */
+    .ov-stato-header { cursor: pointer; }
+    .ov-sub-chevron { display: block; }
+    /* quando collassata nascondi il body */
+    .ov-stato-card:not([open]) > .ov-stato-body { display: none; }
+    .ov-stato-card[open] .ov-sub-chevron { transform: rotate(180deg); }
+    .ov-stato-body { max-height: 180px; }
+    .ov-row-label { font-size: 0.70rem; }
 }
 
 /* ============================================================
