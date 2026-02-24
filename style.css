@@ -3609,13 +3609,17 @@ button.menu-item-opt {
         box-shadow: 0 4px 18px rgba(0,0,0,0.22) !important;
         display: flex !important;
         align-items: center !important;
-        justify-content: flex-start !important;
+        justify-content: center !important;
         overflow: hidden !important;
-        padding: 0 4px 0 4px !important;
+        position: relative !important;
+        padding: 0 !important;
     }
-    /* Hamburger a sinistra */
+    /* Hamburger assoluto a sinistra: non toglie spazio al centering del logo */
     .top-hamburger-btn {
-        flex-shrink: 0 !important;
+        position: absolute !important;
+        left: 6px !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
         width: 38px !important;
         height: 38px !important;
         display: flex !important;
@@ -3628,15 +3632,16 @@ button.menu-item-opt {
         font-size: 16px !important;
         cursor: pointer !important;
         outline: none !important;
+        z-index: 2 !important;
         transition: color 0.2s, background 0.15s !important;
     }
     .top-hamburger-btn:hover {
         color: #ffffff !important;
         background: rgba(255,255,255,0.08) !important;
     }
-    /* Parte logo+testo cliccabile per Home */
+    /* Logo+testo centrati nella card intera */
     .top-brand-home-btn {
-        flex: 1 !important;
+        width: 100% !important;
         height: 100% !important;
         background: transparent !important;
         border: none !important;
@@ -3646,14 +3651,11 @@ button.menu-item-opt {
         align-items: center !important;
         justify-content: center !important;
         gap: 11px !important;
-        padding: 0 8px 0 4px !important;
-        min-width: 0 !important;
-        overflow: hidden !important;
-        border-radius: 0 20px 20px 0 !important;
-        transition: background 0.15s !important;
+        padding: 0 !important;
+        border-radius: 20px !important;
     }
     .top-brand-home-btn:hover {
-        background: rgba(255,255,255,0.06) !important;
+        background: transparent !important;
     }
 
     /* Card search */
