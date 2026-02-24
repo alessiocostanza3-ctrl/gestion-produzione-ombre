@@ -148,7 +148,8 @@
         };
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="style.css?v=20260224k">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="style.css?v=20260224m">
     <script>
         // Gate visuale del login: non dipendere dal caricamento di script.js
         // - se NON c'è sessione → mostra overlay (classe needs-login)
@@ -331,6 +332,10 @@
 
     <div class="sidebar" id="main-sidebar">
 
+        <button type="button" class="menu-item" title="Riepilogo" data-page="RIEPILOGO" onclick="cambiaPagina('RIEPILOGO', this)">
+            <div class="menu-content"><span>📊</span><span class="menu-label"> Riepilogo</span></div>
+        </button>
+
         <button type="button" class="menu-item" title="Produzione" data-page="PROGRAMMA PRODUZIONE DEL MESE" onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', this)">
             <div class="menu-content"><span>📦</span><span class="menu-label"> Produzione</span></div>
         </button>
@@ -401,6 +406,10 @@
         </div>
 
         <div class="mobile-tab-bar" id="mobile-tab-bar">
+            <button type="button" class="tab-item" data-page="RIEPILOGO" onclick="cambiaPagina('RIEPILOGO', this)">
+                <i class="fas fa-chart-pie"></i>
+                <span>Overview</span>
+            </button>
             <button type="button" class="tab-item active" data-page="PROGRAMMA PRODUZIONE DEL MESE" onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', this)">
                 <i class="fas fa-boxes-stacked"></i>
                 <span>Produzione</span>
@@ -416,10 +425,6 @@
             <button type="button" class="tab-item" data-page="MATERIALE DA ORDINARE" onclick="cambiaPagina('MATERIALE DA ORDINARE', this)">
                 <i class="fas fa-cart-shopping"></i>
                 <span>Acquisti</span>
-            </button>
-            <button type="button" class="tab-item" data-page="IMPOSTAZIONI" onclick="cambiaPagina('IMPOSTAZIONI', this)">
-                <i class="fas fa-gear"></i>
-                <span>Impostazioni</span>
             </button>
         </div>
     </div>

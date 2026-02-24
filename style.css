@@ -4251,3 +4251,200 @@ button:active {
 @media (max-width: 480px) {
     .form-utente-grid { grid-template-columns: 1fr !important; }
 }
+
+/* ============================================================
+   PAGINA RIEPILOGO OPERATORI
+   ============================================================ */
+
+.riepilogo-page {
+    padding: 18px 14px 100px;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+/* ── Chart section ── */
+.riepilogo-chart-section {
+    background: #1e293b;
+    border-radius: 16px;
+    padding: 20px 18px;
+    margin-bottom: 22px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+}
+.riepilogo-chart-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+.riepilogo-chart-title i { color: #6366f1; }
+.riepilogo-totale {
+    margin-left: auto;
+    font-size: 0.76rem;
+    color: #64748b;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: 0;
+}
+.riepilogo-chart-wrap {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    flex-wrap: wrap;
+}
+.riepilogo-chart-wrap canvas {
+    max-width: 180px;
+    max-height: 180px;
+    flex-shrink: 0;
+}
+.riepilogo-legenda {
+    flex: 1;
+    min-width: 160px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.riepilogo-legenda-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.78rem;
+    color: #cbd5e1;
+}
+.riepilogo-legenda-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.riepilogo-legenda-label {
+    flex: 1;
+    text-transform: uppercase;
+    font-size: 0.72rem;
+    letter-spacing: .04em;
+}
+.riepilogo-legenda-val {
+    font-weight: 700;
+    color: #f1f5f9;
+    font-size: 0.78rem;
+}
+
+/* ── Section title ── */
+.riepilogo-section-title {
+    font-size: 0.80rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+.riepilogo-section-title i { color: #6366f1; }
+
+/* ── Cards grid ── */
+.riepilogo-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
+}
+
+/* ── Operator card ── */
+.riepilogo-card {
+    background: #1e293b;
+    border-radius: 14px;
+    padding: 16px 14px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    transition: transform .15s, box-shadow .15s;
+}
+.riepilogo-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.45);
+}
+.riepilogo-card-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 4px;
+}
+.riepilogo-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1, #818cf8);
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.90rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    letter-spacing: .03em;
+}
+.riepilogo-avatar-libero {
+    background: linear-gradient(135deg, #475569, #64748b);
+}
+.riepilogo-card-info {
+    min-width: 0;
+    flex: 1;
+}
+.riepilogo-op-nome {
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: #f1f5f9;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.riepilogo-op-meta {
+    display: flex;
+    gap: 10px;
+    margin-top: 3px;
+    font-size: 0.73rem;
+    color: #64748b;
+}
+.riepilogo-op-meta i {
+    margin-right: 3px;
+    color: #475569;
+}
+.riepilogo-barre {
+    height: 6px;
+    border-radius: 99px;
+    overflow: hidden;
+}
+.riepilogo-stati-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 10px;
+}
+.riepilogo-stato-badge {
+    font-size: 0.65rem;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: #0f172a;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    font-weight: 500;
+}
+.riepilogo-stato-badge b {
+    color: #f1f5f9;
+    margin-left: 3px;
+}
+
+/* ── Mobile tweaks ── */
+@media (max-width: 480px) {
+    .riepilogo-page { padding: 12px 10px 100px; }
+    .riepilogo-cards-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .riepilogo-chart-wrap { flex-direction: column; align-items: center; }
+    .riepilogo-chart-wrap canvas { max-width: 160px; max-height: 160px; }
+    .riepilogo-legenda { width: 100%; }
+    .riepilogo-card { padding: 12px 10px; }
+    .riepilogo-op-nome { font-size: 0.78rem; }
+}

@@ -505,6 +505,7 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
 
     // 4. UI: Aggiornamento Titolo Dinamico
     const titoli = {
+        'RIEPILOGO': "Overview Operatori",
         'IMPOSTAZIONI': "Impostazioni Sistema",
         'STORICO_RICHIESTE': "La mia Casella",
         'ARCHIVIO_ORDINI': "Archivio Ordini",
@@ -571,6 +572,9 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
     console.log("Caricamento dal server:", nomeFoglio);
 
     switch (nomeFoglio) {
+        case 'RIEPILOGO':
+            caricaRiepilogoOperatori();
+            break;
         case 'IMPOSTAZIONI':
             caricaInterfacciaImpostazioni();
             break;
@@ -1177,6 +1181,151 @@ async function gestisciRipristino(id_o_numero, tipo) {
 
 
 
+//PAGINA RIEPILOGO OPERATORI//
+
+async function caricaRiepilogoOperatori() {
+    const contenitore = document.getElementById('contenitore-dati');
+    if (!contenitore) return;
+    contenitore.innerHTML = "<div class='centered-msg'><i class='fas fa-spinner fa-spin'></i> Caricamento riepilogo...</div>";
+    applicaFade(contenitore);
+
+    try {
+        const dati = await fetchJson("PROGRAMMA PRODUZIONE DEL MESE");
+        const attivi = dati.filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE');
+
+        // ── Raggruppa per stato (globale) ──────────────────────────
+        const conteggioStati = {};
+        attivi.forEach(r => {
+            const s = (r.stato || 'IN ATTESA').toUpperCase();
+            conteggioStati[s] = (conteggioStati[s] || 0) + 1;
+        });
+
+        // ── Raggruppa per operatore ────────────────────────────────
+        const perOperatore = {};
+        attivi.forEach(r => {
+            const ops = r.assegna && r.assegna.trim()
+                ? r.assegna.split(',').map(o => o.trim()).filter(Boolean)
+                : ['— Libero'];
+            ops.forEach(op => {
+                if (!perOperatore[op]) perOperatore[op] = { articoli: [], ordini: new Set() };
+                perOperatore[op].articoli.push(r);
+                if (r.ordine) perOperatore[op].ordini.add(r.ordine);
+            });
+        });
+
+        // ── Colori per stati ───────────────────────────────────────
+        const coloriStati = {};
+        (listaStati || []).forEach(s => { coloriStati[s.nome.toUpperCase()] = s.colore; });
+        const coloreDefault = '#94a3b8';
+        const etichette = Object.keys(conteggioStati);
+        const valori    = etichette.map(e => conteggioStati[e]);
+        const colori    = etichette.map(e => coloriStati[e] || coloreDefault);
+
+        // ── HTML ───────────────────────────────────────────────────
+        const operatoriOrdinati = Object.entries(perOperatore)
+            .sort((a, b) => b[1].articoli.length - a[1].articoli.length);
+
+        const cardsHtml = operatoriOrdinati.map(([nome, dati]) => {
+            // Mini histogram degli stati per questo operatore
+            const miei = {};
+            dati.articoli.forEach(r => {
+                const s = (r.stato || 'IN ATTESA').toUpperCase();
+                miei[s] = (miei[s] || 0) + 1;
+            });
+            const tot = dati.articoli.length;
+            const barre = Object.entries(miei).map(([s, n]) => {
+                const pct = Math.round((n / tot) * 100);
+                const col = coloriStati[s] || coloreDefault;
+                return `<div title="${s}: ${n}" style="height:6px;flex:${pct};background:${col};border-radius:3px;min-width:4px"></div>`;
+            }).join('');
+            const iniziali = nome === '— Libero' ? '?' :
+                nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
+            const isLibero = nome === '— Libero';
+            return `
+            <div class="riepilogo-card">
+                <div class="riepilogo-card-top">
+                    <div class="riepilogo-avatar${isLibero ? ' riepilogo-avatar-libero' : ''}">${iniziali}</div>
+                    <div class="riepilogo-card-info">
+                        <div class="riepilogo-op-nome">${nome}</div>
+                        <div class="riepilogo-op-meta">
+                            <span><i class="fas fa-layer-group"></i> ${tot} art.</span>
+                            <span><i class="fas fa-file-alt"></i> ${dati.ordini.size} ord.</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="riepilogo-barre" style="display:flex;gap:3px;margin-top:10px">${barre}</div>
+                <div class="riepilogo-stati-list">
+                    ${Object.entries(miei).map(([s, n]) =>
+                        `<span class="riepilogo-stato-badge" style="border-left:3px solid ${coloriStati[s] || coloreDefault}">${s} <b>${n}</b></span>`
+                    ).join('')}
+                </div>
+            </div>`;
+        }).join('');
+
+        contenitore.innerHTML = `
+            <div class="riepilogo-page">
+                <div class="riepilogo-chart-section">
+                    <div class="riepilogo-chart-title">
+                        <i class="fas fa-chart-pie"></i> Avanzamento Globale
+                        <span class="riepilogo-totale">${attivi.length} articoli attivi</span>
+                    </div>
+                    <div class="riepilogo-chart-wrap">
+                        <canvas id="chart-stati" width="220" height="220"></canvas>
+                        <div class="riepilogo-legenda">
+                            ${etichette.map((e, i) => `
+                            <div class="riepilogo-legenda-item">
+                                <span class="riepilogo-legenda-dot" style="background:${colori[i]}"></span>
+                                <span class="riepilogo-legenda-label">${e}</span>
+                                <span class="riepilogo-legenda-val">${valori[i]}</span>
+                            </div>`).join('')}
+                        </div>
+                    </div>
+                </div>
+                <div class="riepilogo-section-title">
+                    <i class="fas fa-users"></i> Operatori (${operatoriOrdinati.length})
+                </div>
+                <div class="riepilogo-cards-grid">
+                    ${cardsHtml}
+                </div>
+            </div>`;
+
+        applicaFade(contenitore);
+
+        // ── Disegna grafico ────────────────────────────────────────
+        requestAnimationFrame(() => {
+            const canvas = document.getElementById('chart-stati');
+            if (!canvas || !window.Chart) return;
+            new Chart(canvas, {
+                type: 'doughnut',
+                data: {
+                    labels: etichette,
+                    datasets: [{
+                        data: valori,
+                        backgroundColor: colori,
+                        borderWidth: 2,
+                        borderColor: '#f8fafc',
+                    }]
+                },
+                options: {
+                    cutout: '68%',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => ` ${ctx.label}: ${ctx.parsed} (${Math.round(ctx.parsed / attivi.length * 100)}%)`
+                            }
+                        }
+                    },
+                    animation: { duration: 600, easing: 'easeOutQuart' }
+                }
+            });
+        });
+
+    } catch (e) {
+        console.error("Errore riepilogo:", e);
+        contenitore.innerHTML = "<div class='centered-msg text-danger'><i class='fas fa-exclamation-triangle'></i> Errore caricamento riepilogo.</div>";
+    }
+}
 
 //PAGINA RICHIESTE//
 
