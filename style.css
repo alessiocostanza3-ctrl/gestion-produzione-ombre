@@ -4252,6 +4252,82 @@ button:active {
     .form-utente-grid { grid-template-columns: 1fr !important; }
 }
 
+/* ── Card espandibili (click per aprire dettaglio) ── */
+.riepilogo-card {
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+.riepilogo-card-expand {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height .28s ease, opacity .28s ease;
+    opacity: 0;
+}
+.riepilogo-card.riepilogo-card-open .riepilogo-card-expand {
+    max-height: 200px;
+    opacity: 1;
+}
+.riepilogo-card-chevron {
+    margin-left: auto;
+    font-size: 0.70rem;
+    color: #475569;
+    transition: transform .25s ease;
+    flex-shrink: 0;
+}
+.riepilogo-card.riepilogo-card-open .riepilogo-card-chevron {
+    transform: rotate(180deg);
+}
+
+/* ── Accordion overview nella pagina produzione ── */
+.ov-accordion {
+    background: #1e293b;
+    border-radius: 14px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    overflow: hidden;
+}
+.ov-accordion[open] .ov-summary-chevron { transform: rotate(180deg); }
+.ov-accordion-summary {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 13px 16px;
+    cursor: pointer;
+    color: #94a3b8;
+    font-size: 0.80rem;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    -webkit-tap-highlight-color: transparent;
+}
+.ov-accordion-summary::-webkit-details-marker { display: none; }
+.ov-accordion-summary:focus { outline: none; }
+.ov-summary-label i { color: #6366f1; margin-right: 4px; }
+.ov-summary-meta {
+    margin-left: auto;
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: #475569;
+    text-transform: none;
+    letter-spacing: 0;
+}
+.ov-summary-chevron {
+    font-size: 0.72rem;
+    color: #475569;
+    transition: transform .25s ease;
+    flex-shrink: 0;
+}
+.ov-accordion .riepilogo-page {
+    padding: 0 14px 16px;
+}
+
+@media (max-width: 480px) {
+    .ov-accordion-summary { padding: 11px 12px; font-size: 0.73rem; }
+    .ov-accordion .riepilogo-page { padding: 0 10px 12px; }
+}
+
 /* ============================================================
    PAGINA RIEPILOGO OPERATORI
    ============================================================ */
@@ -4370,7 +4446,6 @@ button:active {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 4px;
 }
 .riepilogo-avatar {
     width: 40px;

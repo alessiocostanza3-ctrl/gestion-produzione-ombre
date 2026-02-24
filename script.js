@@ -58,6 +58,7 @@ function aggiornaListaFiltrabili() {
 // helper per richieste REST
 // Cache raw ordini per autocomplete nel modal
 let _ordiniAutocompleteCache = [];
+let _attiviProd = [];  // cache per il chart overview nella pagina produzione
 
 async function fetchJson(pagina) {
     const url = URL_GOOGLE + "?pagina=" + encodeURIComponent(pagina);
@@ -505,7 +506,6 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
 
     // 4. UI: Aggiornamento Titolo Dinamico
     const titoli = {
-        'RIEPILOGO': "Overview Operatori",
         'IMPOSTAZIONI': "Impostazioni Sistema",
         'STORICO_RICHIESTE': "La mia Casella",
         'ARCHIVIO_ORDINI': "Archivio Ordini",
@@ -572,9 +572,6 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
     console.log("Caricamento dal server:", nomeFoglio);
 
     switch (nomeFoglio) {
-        case 'RIEPILOGO':
-            caricaRiepilogoOperatori();
-            break;
         case 'IMPOSTAZIONI':
             caricaInterfacciaImpostazioni();
             break;
@@ -617,6 +614,15 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
         if (paginaAttuale !== nomeFoglio) return;
         if (expectedRequestId !== null && expectedRequestId !== _latestNavRequest) return;
 
+        // --- OVERVIEW OPERATORI ---
+        const attivi = datiProd.filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE');
+        _attiviProd = attivi;
+        const numOp = (() => {
+            const s = new Set();
+            attivi.forEach(r => (r.assegna && r.assegna.trim() ? r.assegna.split(',').map(o=>o.trim()) : []).forEach(o=>s.add(o)));
+            return s.size;
+        })();
+
         // --- SEZIONE ATTIVA ---
         let htmlAttivi = generaBloccoOrdiniUnificato(datiProd, false);
 
@@ -624,6 +630,16 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
         let htmlArchiviati = generaBloccoOrdiniUnificato(datiArch, true);
 
         contenitore.innerHTML = `
+            <details class="ov-accordion" id="ov-accordion" open>
+                <summary class="ov-accordion-summary" onclick="if(!this.parentElement.open) requestAnimationFrame(()=>_buildOverviewChart(_attiviProd))">
+                    <span class="ov-summary-label"><i class="fas fa-chart-pie"></i> Riepilogo Operatori</span>
+                    <span class="ov-summary-meta">${attivi.length} art. &middot; ${numOp} op.</span>
+                    <i class="fas fa-chevron-down ov-summary-chevron"></i>
+                </summary>
+                <div class="riepilogo-page">
+                    ${_buildOverviewInnerHtml(attivi)}
+                </div>
+            </details>
             <div class="scroll-wrapper">
                 <button class="scroll-btn" onclick="document.getElementById('sezione-archivio').scrollIntoView({behavior:'smooth'})">
                     <i class="fa-solid fa-box-archive"></i> Archivio
@@ -645,6 +661,7 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
         cacheFetchTime[nomeFoglio] = Date.now();
         applicaFade(contenitore);
         aggiornaListaFiltrabili();
+        requestAnimationFrame(() => _buildOverviewChart(attivi));
 
         // Salva raw data per autocomplete del modal
         _ordiniAutocompleteCache = datiProd.filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE').map(r => ({ ordine: r.ordine || '', cliente: r.cliente || '' }));
@@ -1181,150 +1198,129 @@ async function gestisciRipristino(id_o_numero, tipo) {
 
 
 
-//PAGINA RIEPILOGO OPERATORI//
+//OVERVIEW HELPERS (usati da caricaDati)//
 
-async function caricaRiepilogoOperatori() {
-    const contenitore = document.getElementById('contenitore-dati');
-    if (!contenitore) return;
-    contenitore.innerHTML = "<div class='centered-msg'><i class='fas fa-spinner fa-spin'></i> Caricamento riepilogo...</div>";
-    applicaFade(contenitore);
+function _buildOverviewInnerHtml(attivi) {
+    const coloriStati = {};
+    (listaStati || []).forEach(s => { coloriStati[s.nome.toUpperCase()] = s.colore; });
+    const coloreDefault = '#94a3b8';
 
-    try {
-        const dati = await fetchJson("PROGRAMMA PRODUZIONE DEL MESE");
-        const attivi = dati.filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE');
+    const conteggioStati = {};
+    attivi.forEach(r => {
+        const s = (r.stato || 'IN ATTESA').toUpperCase();
+        conteggioStati[s] = (conteggioStati[s] || 0) + 1;
+    });
+    const etichette = Object.keys(conteggioStati);
+    const valori    = etichette.map(e => conteggioStati[e]);
+    const colori    = etichette.map(e => coloriStati[e] || coloreDefault);
 
-        // ── Raggruppa per stato (globale) ──────────────────────────
-        const conteggioStati = {};
-        attivi.forEach(r => {
+    const perOperatore = {};
+    attivi.forEach(r => {
+        const ops = r.assegna && r.assegna.trim()
+            ? r.assegna.split(',').map(o => o.trim()).filter(Boolean)
+            : ['— Libero'];
+        ops.forEach(op => {
+            if (!perOperatore[op]) perOperatore[op] = { articoli: [], ordini: new Set() };
+            perOperatore[op].articoli.push(r);
+            if (r.ordine) perOperatore[op].ordini.add(r.ordine);
+        });
+    });
+    const operatoriOrdinati = Object.entries(perOperatore)
+        .sort((a, b) => b[1].articoli.length - a[1].articoli.length);
+
+    const cardsHtml = operatoriOrdinati.map(([nome, dati]) => {
+        const miei = {};
+        dati.articoli.forEach(r => {
             const s = (r.stato || 'IN ATTESA').toUpperCase();
-            conteggioStati[s] = (conteggioStati[s] || 0) + 1;
+            miei[s] = (miei[s] || 0) + 1;
         });
-
-        // ── Raggruppa per operatore ────────────────────────────────
-        const perOperatore = {};
-        attivi.forEach(r => {
-            const ops = r.assegna && r.assegna.trim()
-                ? r.assegna.split(',').map(o => o.trim()).filter(Boolean)
-                : ['— Libero'];
-            ops.forEach(op => {
-                if (!perOperatore[op]) perOperatore[op] = { articoli: [], ordini: new Set() };
-                perOperatore[op].articoli.push(r);
-                if (r.ordine) perOperatore[op].ordini.add(r.ordine);
-            });
-        });
-
-        // ── Colori per stati ───────────────────────────────────────
-        const coloriStati = {};
-        (listaStati || []).forEach(s => { coloriStati[s.nome.toUpperCase()] = s.colore; });
-        const coloreDefault = '#94a3b8';
-        const etichette = Object.keys(conteggioStati);
-        const valori    = etichette.map(e => conteggioStati[e]);
-        const colori    = etichette.map(e => coloriStati[e] || coloreDefault);
-
-        // ── HTML ───────────────────────────────────────────────────
-        const operatoriOrdinati = Object.entries(perOperatore)
-            .sort((a, b) => b[1].articoli.length - a[1].articoli.length);
-
-        const cardsHtml = operatoriOrdinati.map(([nome, dati]) => {
-            // Mini histogram degli stati per questo operatore
-            const miei = {};
-            dati.articoli.forEach(r => {
-                const s = (r.stato || 'IN ATTESA').toUpperCase();
-                miei[s] = (miei[s] || 0) + 1;
-            });
-            const tot = dati.articoli.length;
-            const barre = Object.entries(miei).map(([s, n]) => {
-                const pct = Math.round((n / tot) * 100);
-                const col = coloriStati[s] || coloreDefault;
-                return `<div title="${s}: ${n}" style="height:6px;flex:${pct};background:${col};border-radius:3px;min-width:4px"></div>`;
-            }).join('');
-            const iniziali = nome === '— Libero' ? '?' :
-                nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
-            const isLibero = nome === '— Libero';
-            return `
-            <div class="riepilogo-card">
-                <div class="riepilogo-card-top">
-                    <div class="riepilogo-avatar${isLibero ? ' riepilogo-avatar-libero' : ''}">${iniziali}</div>
-                    <div class="riepilogo-card-info">
-                        <div class="riepilogo-op-nome">${nome}</div>
-                        <div class="riepilogo-op-meta">
-                            <span><i class="fas fa-layer-group"></i> ${tot} art.</span>
-                            <span><i class="fas fa-file-alt"></i> ${dati.ordini.size} ord.</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="riepilogo-barre" style="display:flex;gap:3px;margin-top:10px">${barre}</div>
-                <div class="riepilogo-stati-list">
-                    ${Object.entries(miei).map(([s, n]) =>
-                        `<span class="riepilogo-stato-badge" style="border-left:3px solid ${coloriStati[s] || coloreDefault}">${s} <b>${n}</b></span>`
-                    ).join('')}
-                </div>
-            </div>`;
+        const tot = dati.articoli.length;
+        const barre = Object.entries(miei).map(([s, n]) => {
+            const pct = Math.round((n / tot) * 100);
+            const col = coloriStati[s] || coloreDefault;
+            return `<div title="${s}: ${n}" style="height:6px;flex:${pct};background:${col};border-radius:3px;min-width:4px"></div>`;
         }).join('');
-
-        contenitore.innerHTML = `
-            <div class="riepilogo-page">
-                <div class="riepilogo-chart-section">
-                    <div class="riepilogo-chart-title">
-                        <i class="fas fa-chart-pie"></i> Avanzamento Globale
-                        <span class="riepilogo-totale">${attivi.length} articoli attivi</span>
-                    </div>
-                    <div class="riepilogo-chart-wrap">
-                        <canvas id="chart-stati" width="220" height="220"></canvas>
-                        <div class="riepilogo-legenda">
-                            ${etichette.map((e, i) => `
-                            <div class="riepilogo-legenda-item">
-                                <span class="riepilogo-legenda-dot" style="background:${colori[i]}"></span>
-                                <span class="riepilogo-legenda-label">${e}</span>
-                                <span class="riepilogo-legenda-val">${valori[i]}</span>
-                            </div>`).join('')}
-                        </div>
+        const iniziali = nome === '— Libero' ? '?' :
+            nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
+        const isLibero = nome === '— Libero';
+        const dettagliBadge = Object.entries(miei).map(([s, n]) =>
+            `<span class="riepilogo-stato-badge" style="border-left:3px solid ${coloriStati[s] || coloreDefault}">${s} <b>${n}</b></span>`
+        ).join('');
+        return `
+        <div class="riepilogo-card" onclick="this.classList.toggle('riepilogo-card-open')">
+            <div class="riepilogo-card-top">
+                <div class="riepilogo-avatar${isLibero ? ' riepilogo-avatar-libero' : ''}">${iniziali}</div>
+                <div class="riepilogo-card-info">
+                    <div class="riepilogo-op-nome">${nome}</div>
+                    <div class="riepilogo-op-meta">
+                        <span><i class="fas fa-layer-group"></i> ${tot} art.</span>
+                        <span><i class="fas fa-file-alt"></i> ${dati.ordini.size} ord.</span>
                     </div>
                 </div>
-                <div class="riepilogo-section-title">
-                    <i class="fas fa-users"></i> Operatori (${operatoriOrdinati.length})
-                </div>
-                <div class="riepilogo-cards-grid">
-                    ${cardsHtml}
-                </div>
-            </div>`;
+                <i class="fas fa-chevron-down riepilogo-card-chevron"></i>
+            </div>
+            <div class="riepilogo-card-expand">
+                <div class="riepilogo-barre" style="display:flex;gap:3px;margin-top:4px">${barre}</div>
+                <div class="riepilogo-stati-list">${dettagliBadge}</div>
+            </div>
+        </div>`;
+    }).join('');
 
-        applicaFade(contenitore);
+    return `
+    <div class="riepilogo-chart-section">
+        <div class="riepilogo-chart-title">
+            <i class="fas fa-chart-pie"></i> Avanzamento Globale
+            <span class="riepilogo-totale">${attivi.length} articoli attivi</span>
+        </div>
+        <div class="riepilogo-chart-wrap">
+            <canvas id="chart-stati-prod" width="200" height="200"></canvas>
+            <div class="riepilogo-legenda">
+                ${etichette.map((e, i) => `
+                <div class="riepilogo-legenda-item">
+                    <span class="riepilogo-legenda-dot" style="background:${colori[i]}"></span>
+                    <span class="riepilogo-legenda-label">${e}</span>
+                    <span class="riepilogo-legenda-val">${valori[i]}</span>
+                </div>`).join('')}
+            </div>
+        </div>
+    </div>
+    <div class="riepilogo-section-title">
+        <i class="fas fa-users"></i> Operatori (${operatoriOrdinati.length})
+    </div>
+    <div class="riepilogo-cards-grid">${cardsHtml}</div>`;
+}
 
-        // ── Disegna grafico ────────────────────────────────────────
-        requestAnimationFrame(() => {
-            const canvas = document.getElementById('chart-stati');
-            if (!canvas || !window.Chart) return;
-            new Chart(canvas, {
-                type: 'doughnut',
-                data: {
-                    labels: etichette,
-                    datasets: [{
-                        data: valori,
-                        backgroundColor: colori,
-                        borderWidth: 2,
-                        borderColor: '#f8fafc',
-                    }]
-                },
-                options: {
-                    cutout: '68%',
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: ctx => ` ${ctx.label}: ${ctx.parsed} (${Math.round(ctx.parsed / attivi.length * 100)}%)`
-                            }
-                        }
-                    },
-                    animation: { duration: 600, easing: 'easeOutQuart' }
+function _buildOverviewChart(attivi) {
+    const coloriStati = {};
+    (listaStati || []).forEach(s => { coloriStati[s.nome.toUpperCase()] = s.colore; });
+    const coloreDefault = '#94a3b8';
+    const conteggioStati = {};
+    attivi.forEach(r => {
+        const s = (r.stato || 'IN ATTESA').toUpperCase();
+        conteggioStati[s] = (conteggioStati[s] || 0) + 1;
+    });
+    const etichette = Object.keys(conteggioStati);
+    const valori    = etichette.map(e => conteggioStati[e]);
+    const colori    = etichette.map(e => coloriStati[e] || coloreDefault);
+    const canvas = document.getElementById('chart-stati-prod');
+    if (!canvas || !window.Chart) return;
+    new Chart(canvas, {
+        type: 'doughnut',
+        data: {
+            labels: etichette,
+            datasets: [{ data: valori, backgroundColor: colori, borderWidth: 2, borderColor: '#0f172a' }]
+        },
+        options: {
+            cutout: '68%',
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed} (${Math.round(ctx.parsed / attivi.length * 100)}%)` }
                 }
-            });
-        });
-
-    } catch (e) {
-        console.error("Errore riepilogo:", e);
-        contenitore.innerHTML = "<div class='centered-msg text-danger'><i class='fas fa-exclamation-triangle'></i> Errore caricamento riepilogo.</div>";
-    }
+            },
+            animation: { duration: 500, easing: 'easeOutQuart' }
+        }
+    });
 }
 
 //PAGINA RICHIESTE//
