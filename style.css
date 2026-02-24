@@ -3268,35 +3268,42 @@ button.menu-item-opt {
         height: 52px !important;
         border: 0 !important;
         background: transparent !important;
-        color: #9ca3af !important;
+        color: #6b7280 !important;
         display: flex !important;
         flex-direction: column !important;
         align-items: center !important;
         justify-content: center !important;
-        gap: 1px !important;
+        gap: 2px !important;
         position: relative !important;
-        border-radius: 10px !important;
+        border-radius: 12px !important;
+        padding: 0 4px !important;
+        transition: background 0.18s, color 0.18s !important;
     }
 
     .tab-item i { font-size: 17px !important; }
-    .tab-item span { font-size: 10px !important; line-height: 1.1 !important; }
+    .tab-item span { font-size: 10px !important; line-height: 1.1 !important; font-weight: 600 !important; }
 
     .tab-item.active {
+        background: rgba(255,255,255,0.12) !important;
         color: #ffffff !important;
+    }
+    .tab-item.active i {
+        color: #8fe45e !important;
     }
 
     .tab-fab {
-        width: 40px !important;
-        height: 40px !important;
+        width: 44px !important;
+        height: 44px !important;
         border-radius: 50% !important;
         border: 0 !important;
-        color: #ffffff !important;
-        background: #111827 !important;
+        color: #111827 !important;
+        background: #ffffff !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
         flex-shrink: 0 !important;
-        box-shadow: 0 4px 14px rgba(0,0,0,0.35) !important;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.5) !important;
+        font-size: 18px !important;
     }
 
     .badge-bottom {
