@@ -677,7 +677,16 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
         const classHeader = isArchivio ? 'archivio-header' : '';
         const colorCliente = isArchivio ? '#475569' : 'inherit';
 
-        const nOrdBadge = nOrd.length > 14 ? nOrd.substring(0, 14) + '…' : nOrd;
+        let nOrdBadge;
+        if (nOrd.includes('/')) {
+            const slashIdx = nOrd.indexOf('/');
+            const base = nOrd.substring(0, slashIdx);
+            const sez  = nOrd.substring(slashIdx + 1);
+            const sezTrunc = sez.length > 3 ? sez.substring(0, 3) + '.' : sez;
+            nOrdBadge = `${base}/${sezTrunc}`;
+        } else {
+            nOrdBadge = nOrd.length > 14 ? nOrd.substring(0, 14) + '…' : nOrd;
+        }
 
         const bottoniHeader = isArchivio
             ? `<button class="btn-ripristina ${TW.btnWarning}" onclick="event.stopPropagation(); gestisciRipristino('${nOrd}', 'ORDINE')">
@@ -687,7 +696,7 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
                    <i class="fa-regular fa-envelope"></i> <span class="btn-txt">Chiedi</span>
                </button>
                <button class="btn-archivia-prod ${TW.btnSuccess}" onclick="event.stopPropagation(); gestisciArchiviazione('${nOrd}')">
-                   <i class="fa-solid fa-check"></i> <span class="btn-txt">Archivia</span>
+                   <i class="fa-solid fa-box-archive"></i> <span class="btn-txt">Archivia</span>
                </button>`;
 
         html += `
