@@ -2072,10 +2072,15 @@ h1 {
 .input-flat {
     border: none;
     background: transparent;
-    font-weight: 600;
-    font-size: 14px;
-    color: #1e293b;
+    font-weight: 700;
+    font-size: 11px;
+    color: #334155;
     outline: none;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    flex: 1;
+    min-width: 0;
+    font-family: inherit;
 }
 
 .input-field-modern {
@@ -2096,13 +2101,15 @@ h1 {
 }
 
 .status-dot-custom {
-    width: 32px;
-    height: 32px;
-    border-radius: 10px;
-    border: 2px solid white;
-    box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.9);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
     cursor: pointer;
     background: var(--bg-color, #e2e8f0);
+    flex-shrink: 0;
+    box-sizing: content-box;
 }
 
 /* additional classes for script refactor */
@@ -2113,11 +2120,20 @@ h1 {
 .btn-archive-action.primary:hover { background:#ffffff !important; color:#111827 !important; box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important; }
 .btn-archive-action.warning { background:#111827 !important; color:#ffffff !important; border:none !important; }
 .btn-archive-action.warning:hover { background:#ffffff !important; color:#111827 !important; box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important; }
-.color-picker-wrapper { position: relative; width: 32px; height: 32px; }
+.color-picker-wrapper { position: relative; width: 16px; height: 16px; }
 .color-overlay { position: absolute; opacity:0; width:100%; height:100%; cursor:pointer; z-index:2; }
 
 .status-select { border-left: 5px solid var(--border-color); }
-.config-row-modern.row { flex-direction: row; align-items: center; gap: 12px; }
+.config-row-modern.row {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 20px;
+    padding: 7px 12px 7px 10px;
+    margin-bottom: 8px;
+}
 .settings-actions-row { display: flex; align-items: center; justify-content: space-between; }
 .settings-options-row { display: flex; align-items: center; gap: 10px; }
 .grid-2col { display: grid; grid-template-columns: 1fr 1fr; }
