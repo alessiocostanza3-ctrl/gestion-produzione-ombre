@@ -3869,6 +3869,46 @@ button.menu-item-opt {
     }
 }
 
+/* --- PULL TO REFRESH --- */
+#ptr-indicator {
+    display: none;
+    position: absolute;
+    top: 108px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 25;
+    align-items: center;
+    gap: 8px;
+    background: #111827;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 7px 16px;
+    border-radius: 20px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.22);
+    pointer-events: none;
+    white-space: nowrap;
+    transition: opacity 0.2s;
+}
+#ptr-indicator.ptr-visible { display: flex; }
+#ptr-indicator.ptr-loading .ptr-arrow { display: none; }
+#ptr-indicator.ptr-loading .ptr-spinner { display: inline-block; }
+#ptr-indicator:not(.ptr-loading) .ptr-spinner { display: none; }
+.ptr-spinner {
+    width: 13px;
+    height: 13px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: ptr-spin 0.7s linear infinite;
+}
+.ptr-arrow {
+    font-size: 13px;
+    transition: transform 0.2s;
+}
+.ptr-arrow.rotated { transform: rotate(180deg); }
+@keyframes ptr-spin { to { transform: rotate(360deg); } }
+
 /* --- EFFETTI FINALI --- */
 
 /* Mobile sidebar backdrop */

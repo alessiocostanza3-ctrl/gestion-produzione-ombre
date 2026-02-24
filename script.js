@@ -2977,4 +2977,77 @@ document.addEventListener('DOMContentLoaded', function () {
             if (e.target === this) chiudiModal();
         });
     }
+
+    // ── PULL TO REFRESH (solo mobile) ────────────────────────────
+    (function initPullToRefresh() {
+        const scroller = document.getElementById('contenitore-dati');
+        const indicator = document.getElementById('ptr-indicator');
+        if (!scroller || !indicator) return;
+
+        const THRESHOLD = 70;   // px da trascinare per attivare refresh
+        const MAX_PULL  = 100;  // limite visivo massimo
+        let startY = 0, pulling = false, currentY = 0;
+
+        function _isMobile() { return window.innerWidth <= 768; }
+
+        function _refresh() {
+            indicator.classList.add('ptr-loading');
+            // Svuota cache della pagina attuale e ricarica
+            if (typeof paginaAttuale !== 'undefined' && paginaAttuale) {
+                delete cacheContenuti[paginaAttuale];
+                cambiaPagina(paginaAttuale);
+            }
+            // Nascondi indicatore dopo breve attesa
+            setTimeout(() => {
+                indicator.classList.remove('ptr-visible', 'ptr-loading');
+                scroller.style.transform = '';
+                const arrow = indicator.querySelector('.ptr-arrow');
+                if (arrow) arrow.classList.remove('rotated');
+            }, 900);
+        }
+
+        scroller.addEventListener('touchstart', function(e) {
+            if (!_isMobile()) return;
+            if (scroller.scrollTop > 0) return;
+            startY = e.touches[0].clientY;
+            pulling = true;
+        }, { passive: true });
+
+        scroller.addEventListener('touchmove', function(e) {
+            if (!pulling || !_isMobile()) return;
+            if (scroller.scrollTop > 2) { pulling = false; return; }
+            const dy = Math.min(e.touches[0].clientY - startY, MAX_PULL);
+            if (dy <= 0) return;
+            currentY = dy;
+            // Mostra indicatore
+            indicator.classList.add('ptr-visible');
+            indicator.classList.remove('ptr-loading');
+            const arrow = indicator.querySelector('.ptr-arrow');
+            const label = indicator.querySelector('.ptr-label');
+            if (dy >= THRESHOLD) {
+                if (arrow) arrow.classList.add('rotated');
+                if (label) label.textContent = 'Rilascia per aggiornare';
+            } else {
+                if (arrow) arrow.classList.remove('rotated');
+                if (label) label.textContent = 'Tira per aggiornare';
+            }
+            // Resistenza elastica: scorri il contenuto leggermente
+            scroller.style.transform = `translateY(${dy * 0.4}px)`;
+        }, { passive: true });
+
+        scroller.addEventListener('touchend', function() {
+            if (!pulling || !_isMobile()) return;
+            pulling = false;
+            scroller.style.transform = '';
+            if (currentY >= THRESHOLD) {
+                _refresh();
+            } else {
+                indicator.classList.remove('ptr-visible');
+                const arrow = indicator.querySelector('.ptr-arrow');
+                if (arrow) arrow.classList.remove('rotated');
+            }
+            currentY = 0;
+        });
+    })();
+    // ────────────────────────────────────────────────────────────
 });
