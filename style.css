@@ -3047,6 +3047,27 @@ button.menu-item-opt {
 }
 .sezione-header:hover { background: #f1f5f9; border-color: #cbd5e1; }
 .sezione-header-left { display: flex; align-items: center; gap: 10px; }
+.sezione-header-right { display: flex; align-items: center; gap: 8px; }
+.btn-sezione-edit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: transparent;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    color: #94a3b8;
+    font-size: 11px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    flex-shrink: 0;
+}
+.btn-sezione-edit:hover {
+    background: #111827;
+    color: #ffffff;
+    border-color: #111827;
+}
 .sezione-icon { color: #111827; font-size: 14px; }
 .sezione-nome  { font-weight: 700; font-size: 14px; color: #1e293b; }
 .sezione-count {

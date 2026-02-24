@@ -490,5 +490,20 @@
       </div>
   </div>
 
+  <div id="modal-rinomina-sezione" class="modal-overlay" onclick="if(event.target===this) chiudiModalRinominaSezione()">
+      <div class="modal-content">
+          <h2><i class="fas fa-pen" style="margin-right:8px;font-size:16px"></i>Rinomina sezione</h2>
+          <p class="modal-label" style="margin-top:18px">Nuovo nome:</p>
+          <input type="text" id="rinomina-sezione-nome" class="input-field-modern" placeholder="Es. Colori, Nastri, Pulizia..." style="width:100%;margin-top:8px;box-sizing:border-box" onkeydown="if(event.key==='Enter') confermaRinominaSezione()">
+          <input type="hidden" id="rinomina-sezione-vecchio">
+          <div class="modal-footer" style="margin-top:24px">
+              <button type="button" onclick="chiudiModalRinominaSezione()" class="btn-modal-cancel">Annulla</button>
+              <button type="button" onclick="confermaRinominaSezione()" class="btn-modal-send">
+                  <i class="fas fa-check"></i> Salva
+              </button>
+          </div>
+      </div>
+  </div>
+
 </body>
 </html>

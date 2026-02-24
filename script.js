@@ -1901,7 +1901,25 @@ async function salvaTutteImpostazioni() {
         }
 
         // Raggruppa per sezione
-        const _sezIcons = { 'Strumenti': 'fa-screwdriver-wrench', 'Bombolette': 'fa-spray-can', 'Rifiuti': 'fa-trash-can' };
+        function _iconaPerNome(nome) {
+            const n = nome.toLowerCase();
+            if (/strument|utensil|attrez|chiave|cacciavit|trapan|pinze|martell/.test(n)) return 'fa-screwdriver-wrench';
+            if (/bombole|spray|aerosol|vernic|smalto|lacca/.test(n)) return 'fa-spray-can';
+            if (/rifiut|spazzatur|scarto|smalt/.test(n)) return 'fa-trash-can';
+            if (/pulizia|detersi|detergent|solvente|diluente|sgras/.test(n)) return 'fa-broom';
+            if (/nastro|carta|fogli|sacch|busta|plastica/.test(n)) return 'fa-tape';
+            if (/scatol|imball|cartone|pacch|box/.test(n)) return 'fa-box-open';
+            if (/vite|bullone|dado|chiod|rivett|raccord/.test(n)) return 'fa-gear';
+            if (/elettr|cavo|filo|led|presa|batteria/.test(n)) return 'fa-bolt';
+            if (/sicurezz|protezione|guant|occhial|mascherina|elmett/.test(n)) return 'fa-shield-halved';
+            if (/colori|pigment|tint|inchiostro|pennello/.test(n)) return 'fa-palette';
+            if (/tessuto|stoffa|panno|tela|gomma|schiuma/.test(n)) return 'fa-layer-group';
+            if (/cibo|aliment|acqua|bevand|coff/.test(n)) return 'fa-utensils';
+            if (/ufficio|penna|matita|block|quadern/.test(n)) return 'fa-pen';
+            if (/misura|metro|calibro|riga|squadra/.test(n)) return 'fa-ruler';
+            if (/prodotto|articol|merce|stock|magazzin/.test(n)) return 'fa-boxes-stacked';
+            return 'fa-folder';
+        }
         const _groups = {};
         sezioniMateriali.forEach(s => { _groups[s] = []; });
         materiali.forEach((item, gi) => {
@@ -1937,7 +1955,7 @@ async function salvaTutteImpostazioni() {
 
         sezioniMateriali.forEach((sez, si) => {
             const sezItems = _groups[sez] || [];
-            const icon = _sezIcons[sez] || 'fa-folder';
+            const icon = _iconaPerNome(sez);
             html += `
                 <div class="sezione-materiali-wrapper">
                     <div class="sezione-header" onclick="toggleSezione('sezione-grid-${si}')">
@@ -1946,7 +1964,10 @@ async function salvaTutteImpostazioni() {
                             <span class="sezione-nome">${sez}</span>
                             <span class="sezione-count">${sezItems.length}</span>
                         </div>
-                        <i class="fas fa-chevron-down sezione-arrow"></i>
+                        <div class="sezione-header-right">
+                            <button type="button" class="btn-sezione-edit" title="Rinomina sezione" onclick="event.stopPropagation(); apriModalRinominaSezione('${sez}')"><i class="fas fa-pen"></i></button>
+                            <i class="fas fa-chevron-down sezione-arrow"></i>
+                        </div>
                     </div>
                     <div class="sezione-grid materiali-grid" id="sezione-grid-${si}" data-sezione="${sez}">`;
 
@@ -2469,6 +2490,37 @@ document.addEventListener('click', () => {
           delete cacheContenuti['MATERIALE DA ORDINARE'];
           caricaMateriali(false);
       } catch (e) { notificaElegante('Errore durante lo spostamento.', 'error'); }
+  }
+
+  function apriModalRinominaSezione(nomeVecchio) {
+      document.getElementById('rinomina-sezione-nome').value = nomeVecchio;
+      document.getElementById('rinomina-sezione-vecchio').value = nomeVecchio;
+      const modal = document.getElementById('modal-rinomina-sezione');
+      modal.style.display = 'flex';
+      modal.offsetHeight;
+      modal.classList.add('active');
+      setTimeout(() => { const inp = document.getElementById('rinomina-sezione-nome'); if (inp) { inp.focus(); inp.select(); } }, 100);
+  }
+  function chiudiModalRinominaSezione() {
+      const modal = document.getElementById('modal-rinomina-sezione');
+      modal.classList.remove('active');
+      setTimeout(() => { if (!modal.classList.contains('active')) modal.style.display = 'none'; }, 300);
+  }
+  async function confermaRinominaSezione() {
+      const nuovoNome = document.getElementById('rinomina-sezione-nome').value.trim();
+      const vecchioNome = document.getElementById('rinomina-sezione-vecchio').value;
+      if (!nuovoNome || nuovoNome === vecchioNome) { chiudiModalRinominaSezione(); return; }
+      if (sezioniMateriali.includes(nuovoNome)) { notificaElegante('Esiste già una sezione con questo nome.', 'error'); return; }
+      chiudiModalRinominaSezione();
+      // Aggiorna array locale
+      sezioniMateriali = sezioniMateriali.map(s => s === vecchioNome ? nuovoNome : s);
+      localStorage.setItem('sezioniMateriali', JSON.stringify(sezioniMateriali));
+      try {
+          await fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify({ azione: 'rinominaSezione', vecchioNome, nuovoNome }) });
+          delete cacheContenuti['MATERIALE DA ORDINARE'];
+          caricaMateriali(false);
+          notificaElegante(`Sezione rinominata in "${nuovoNome}"`, 'success');
+      } catch (e) { notificaElegante('Errore durante il salvataggio.', 'error'); }
   }
 
   function apriModalNuovaSezione() {
