@@ -614,14 +614,11 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
         if (paginaAttuale !== nomeFoglio) return;
         if (expectedRequestId !== null && expectedRequestId !== _latestNavRequest) return;
 
-        // --- OVERVIEW OPERATORI ---
+        // --- OVERVIEW STATI ---
         const attivi = datiProd.filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE');
         _attiviProd = attivi;
-        const numOp = (() => {
-            const s = new Set();
-            attivi.forEach(r => (r.assegna && r.assegna.trim() ? r.assegna.split(',').map(o=>o.trim()) : []).forEach(o=>s.add(o)));
-            return s.size;
-        })();
+        const STATI_OV = ['CONTROLLARE MAGAZZINO','PREPARARE PER LAVORAZIONE','IN LAVORAZIONE','TORNATO DALLA LAVORAZIONE','IN PRODUZIONE','IMBALLATO'];
+        const numInFocus = attivi.filter(r => STATI_OV.includes((r.stato||'').toUpperCase())).length;
 
         // --- SEZIONE ATTIVA ---
         let htmlAttivi = generaBloccoOrdiniUnificato(datiProd, false);
@@ -631,9 +628,9 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
 
         contenitore.innerHTML = `
             <details class="ov-accordion" id="ov-accordion" open>
-                <summary class="ov-accordion-summary" onclick="if(!this.parentElement.open) requestAnimationFrame(()=>_buildOverviewChart(_attiviProd))">
-                    <span class="ov-summary-label"><i class="fas fa-chart-pie"></i> Riepilogo Operatori</span>
-                    <span class="ov-summary-meta">${attivi.length} art. &middot; ${numOp} op.</span>
+                <summary class="ov-accordion-summary">
+                    <span class="ov-summary-label"><i class="fas fa-layer-group"></i> Stato Avanzamento</span>
+                    <span class="ov-summary-meta">${numInFocus} art. in lavorazione</span>
                     <i class="fas fa-chevron-down ov-summary-chevron"></i>
                 </summary>
                 <div class="riepilogo-page">
@@ -661,7 +658,6 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
         cacheFetchTime[nomeFoglio] = Date.now();
         applicaFade(contenitore);
         aggiornaListaFiltrabili();
-        requestAnimationFrame(() => _buildOverviewChart(attivi));
 
         // Salva raw data per autocomplete del modal
         _ordiniAutocompleteCache = datiProd.filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE').map(r => ({ ordine: r.ordine || '', cliente: r.cliente || '' }));
@@ -1200,128 +1196,79 @@ async function gestisciRipristino(id_o_numero, tipo) {
 
 //OVERVIEW HELPERS (usati da caricaDati)//
 
+// 4 stati: focus su articolo (raggruppati per codice)
+// 2 stati: focus su ordine completo
+const _OV_STATI_ART  = ['CONTROLLARE MAGAZZINO','PREPARARE PER LAVORAZIONE','IN LAVORAZIONE','TORNATO DALLA LAVORAZIONE'];
+const _OV_STATI_ORD  = ['IN PRODUZIONE','IMBALLATO'];
+const _OV_STATI_ALL  = [..._OV_STATI_ART, ..._OV_STATI_ORD];
+
 function _buildOverviewInnerHtml(attivi) {
     const coloriStati = {};
     (listaStati || []).forEach(s => { coloriStati[s.nome.toUpperCase()] = s.colore; });
     const coloreDefault = '#94a3b8';
 
-    const conteggioStati = {};
-    attivi.forEach(r => {
-        const s = (r.stato || 'IN ATTESA').toUpperCase();
-        conteggioStati[s] = (conteggioStati[s] || 0) + 1;
-    });
-    const etichette = Object.keys(conteggioStati);
-    const valori    = etichette.map(e => conteggioStati[e]);
-    const colori    = etichette.map(e => coloriStati[e] || coloreDefault);
+    const cardsHtml = _OV_STATI_ALL.map(stato => {
+        const righe = attivi.filter(r => (r.stato || '').toUpperCase() === stato);
+        const colore = coloriStati[stato] || coloreDefault;
+        const isArtMode = _OV_STATI_ART.includes(stato);
+        const isEmpty = righe.length === 0;
 
-    const perOperatore = {};
-    attivi.forEach(r => {
-        const ops = r.assegna && r.assegna.trim()
-            ? r.assegna.split(',').map(o => o.trim()).filter(Boolean)
-            : ['— Libero'];
-        ops.forEach(op => {
-            if (!perOperatore[op]) perOperatore[op] = { articoli: [], ordini: new Set() };
-            perOperatore[op].articoli.push(r);
-            if (r.ordine) perOperatore[op].ordini.add(r.ordine);
-        });
-    });
-    const operatoriOrdinati = Object.entries(perOperatore)
-        .sort((a, b) => b[1].articoli.length - a[1].articoli.length);
+        let contenuto = '';
+        if (isArtMode) {
+            // Raggruppa per codice articolo
+            const byArt = {};
+            righe.forEach(r => {
+                const key = (r.codice || r.riferimento || '—').trim();
+                if (!byArt[key]) byArt[key] = { key, count: 0, ordini: new Set() };
+                byArt[key].count++;
+                if (r.ordine) byArt[key].ordini.add(r.ordine);
+            });
+            contenuto = Object.values(byArt)
+                .sort((a,b) => b.count - a.count)
+                .map(a => {
+                    const lbl = a.key.length > 24 ? a.key.substring(0,24)+'…' : a.key;
+                    return `<div class="ov-stato-row">
+                        <span class="ov-row-label" title="${a.key}">${lbl}</span>
+                        <span class="ov-row-badges">
+                            <span class="ov-badge-count">${a.count}</span>
+                            <span class="ov-badge-ord">${a.ordini.size} ord.</span>
+                        </span>
+                    </div>`;
+                }).join('');
+        } else {
+            // Raggruppa per ordine
+            const byOrd = {};
+            righe.forEach(r => {
+                const key = r.ordine || '—';
+                if (!byOrd[key]) byOrd[key] = { ordine: key, cliente: r.cliente || '', count: 0 };
+                byOrd[key].count++;
+            });
+            contenuto = Object.values(byOrd)
+                .sort((a,b) => b.count - a.count)
+                .map(o => {
+                    const cli = o.cliente.length > 16 ? o.cliente.substring(0,16)+'…' : o.cliente;
+                    const lbl = o.ordine + (cli ? ' · '+cli : '');
+                    return `<div class="ov-stato-row">
+                        <span class="ov-row-label" title="${o.ordine} – ${o.cliente}">${lbl}</span>
+                        <span class="ov-badge-count">${o.count} art.</span>
+                    </div>`;
+                }).join('');
+        }
 
-    const cardsHtml = operatoriOrdinati.map(([nome, dati]) => {
-        const miei = {};
-        dati.articoli.forEach(r => {
-            const s = (r.stato || 'IN ATTESA').toUpperCase();
-            miei[s] = (miei[s] || 0) + 1;
-        });
-        const tot = dati.articoli.length;
-        const barre = Object.entries(miei).map(([s, n]) => {
-            const pct = Math.round((n / tot) * 100);
-            const col = coloriStati[s] || coloreDefault;
-            return `<div title="${s}: ${n}" style="height:6px;flex:${pct};background:${col};border-radius:3px;min-width:4px"></div>`;
-        }).join('');
-        const iniziali = nome === '— Libero' ? '?' :
-            nome.split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
-        const isLibero = nome === '— Libero';
-        const dettagliBadge = Object.entries(miei).map(([s, n]) =>
-            `<span class="riepilogo-stato-badge" style="border-left:3px solid ${coloriStati[s] || coloreDefault}">${s} <b>${n}</b></span>`
-        ).join('');
-        return `
-        <div class="riepilogo-card" onclick="this.classList.toggle('riepilogo-card-open')">
-            <div class="riepilogo-card-top">
-                <div class="riepilogo-avatar${isLibero ? ' riepilogo-avatar-libero' : ''}">${iniziali}</div>
-                <div class="riepilogo-card-info">
-                    <div class="riepilogo-op-nome">${nome}</div>
-                    <div class="riepilogo-op-meta">
-                        <span><i class="fas fa-layer-group"></i> ${tot} art.</span>
-                        <span><i class="fas fa-file-alt"></i> ${dati.ordini.size} ord.</span>
-                    </div>
-                </div>
-                <i class="fas fa-chevron-down riepilogo-card-chevron"></i>
+        return `<div class="ov-stato-card${isEmpty ? ' ov-stato-card-empty' : ''}">
+            <div class="ov-stato-header" style="--ov-col:${colore}">
+                <span class="ov-stato-dot" style="background:${colore}"></span>
+                <span class="ov-stato-nome">${stato}</span>
+                <span class="ov-stato-tot" style="background:${colore}22;color:${colore}">${righe.length}</span>
             </div>
-            <div class="riepilogo-card-expand">
-                <div class="riepilogo-barre" style="display:flex;gap:3px;margin-top:4px">${barre}</div>
-                <div class="riepilogo-stati-list">${dettagliBadge}</div>
-            </div>
+            <div class="ov-stato-body">${isEmpty ? '<span class="ov-empty-lbl">—</span>' : contenuto}</div>
         </div>`;
     }).join('');
 
-    return `
-    <div class="riepilogo-chart-section">
-        <div class="riepilogo-chart-title">
-            <i class="fas fa-chart-pie"></i> Avanzamento Globale
-            <span class="riepilogo-totale">${attivi.length} articoli attivi</span>
-        </div>
-        <div class="riepilogo-chart-wrap">
-            <canvas id="chart-stati-prod" width="200" height="200"></canvas>
-            <div class="riepilogo-legenda">
-                ${etichette.map((e, i) => `
-                <div class="riepilogo-legenda-item">
-                    <span class="riepilogo-legenda-dot" style="background:${colori[i]}"></span>
-                    <span class="riepilogo-legenda-label">${e}</span>
-                    <span class="riepilogo-legenda-val">${valori[i]}</span>
-                </div>`).join('')}
-            </div>
-        </div>
-    </div>
-    <div class="riepilogo-section-title">
-        <i class="fas fa-users"></i> Operatori (${operatoriOrdinati.length})
-    </div>
-    <div class="riepilogo-cards-grid">${cardsHtml}</div>`;
+    return `<div class="ov-stati-grid">${cardsHtml}</div>`;
 }
 
-function _buildOverviewChart(attivi) {
-    const coloriStati = {};
-    (listaStati || []).forEach(s => { coloriStati[s.nome.toUpperCase()] = s.colore; });
-    const coloreDefault = '#94a3b8';
-    const conteggioStati = {};
-    attivi.forEach(r => {
-        const s = (r.stato || 'IN ATTESA').toUpperCase();
-        conteggioStati[s] = (conteggioStati[s] || 0) + 1;
-    });
-    const etichette = Object.keys(conteggioStati);
-    const valori    = etichette.map(e => conteggioStati[e]);
-    const colori    = etichette.map(e => coloriStati[e] || coloreDefault);
-    const canvas = document.getElementById('chart-stati-prod');
-    if (!canvas || !window.Chart) return;
-    new Chart(canvas, {
-        type: 'doughnut',
-        data: {
-            labels: etichette,
-            datasets: [{ data: valori, backgroundColor: colori, borderWidth: 2, borderColor: '#0f172a' }]
-        },
-        options: {
-            cutout: '68%',
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed} (${Math.round(ctx.parsed / attivi.length * 100)}%)` }
-                }
-            },
-            animation: { duration: 500, easing: 'easeOutQuart' }
-        }
-    });
-}
+function _buildOverviewChart() { /* non più usato */ }
 
 //PAGINA RICHIESTE//
 

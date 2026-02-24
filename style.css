@@ -4323,9 +4323,115 @@ button:active {
     padding: 0 14px 16px;
 }
 
-@media (max-width: 480px) {
-    .ov-accordion-summary { padding: 11px 12px; font-size: 0.73rem; }
+/* ── Griglia stati overview ── */
+.ov-stati-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    padding-bottom: 4px;
+}
+.ov-stato-card {
+    background: #0f172a;
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+.ov-stato-card-empty { opacity: 0.45; }
+.ov-stato-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 10px;
+    border-left: 3px solid var(--ov-col, #94a3b8);
+    background: #1e293b;
+    flex-shrink: 0;
+}
+.ov-stato-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.ov-stato-nome {
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #94a3b8;
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.ov-stato-tot {
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 20px;
+    flex-shrink: 0;
+}
+.ov-stato-body {
+    padding: 6px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    max-height: 160px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #334155 transparent;
+}
+.ov-stato-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 5px;
+    min-width: 0;
+}
+.ov-row-label {
+    font-size: 0.70rem;
+    color: #cbd5e1;
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.ov-row-badges {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+    align-items: center;
+}
+.ov-badge-count {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #f1f5f9;
+    background: #1e293b;
+    padding: 1px 5px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+.ov-badge-ord {
+    font-size: 0.63rem;
+    color: #64748b;
+    white-space: nowrap;
+}
+.ov-empty-lbl {
+    font-size: 0.72rem;
+    color: #334155;
+    padding: 4px 0;
+}
+
+@media (max-width: 600px) {
+    .ov-stati-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
     .ov-accordion .riepilogo-page { padding: 0 10px 12px; }
+    .ov-accordion-summary { padding: 11px 12px; font-size: 0.73rem; }
+}
+@media (max-width: 360px) {
+    .ov-stati-grid { grid-template-columns: 1fr; }
 }
 
 /* ============================================================
