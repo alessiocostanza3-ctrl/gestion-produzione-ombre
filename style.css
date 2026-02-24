@@ -464,7 +464,7 @@ body.sidebar-collapsed .main-content {
    /* --- SIDEBAR PRINCIPALE --- */
    /* 1. Forza la Sidebar a essere il punto di riferimento */
 .sidebar {
-    width: 240px;
+    width: 176px;
     height: 100vh !important;
     position: fixed !important;
     top: 0;
@@ -3601,7 +3601,7 @@ button.menu-item-opt {
 
     /* Card brand — larghezza FISSA, non si muove mai */
     .top-brand-card {
-        width: 248px !important;
+        width: 176px !important;
         flex-shrink: 0 !important;
         height: 56px !important;
         background: #242424 !important;
@@ -3698,7 +3698,7 @@ button.menu-item-opt {
         position: fixed !important;
         left: 10px !important;
         top: 76px !important;
-        width: 248px !important;
+        width: 176px !important;
         height: calc(100vh - 86px) !important;
         border-radius: 20px !important;
         box-shadow: 0 8px 32px rgba(0,0,0,0.22) !important;
@@ -3717,8 +3717,8 @@ button.menu-item-opt {
 
     /* Main panel: sotto la top bar */
     .main-content {
-        margin: 76px 10px 10px 272px !important;
-        width: calc(100% - 282px) !important;
+        margin: 76px 10px 10px 200px !important;
+        width: calc(100% - 210px) !important;
         height: calc(100vh - 86px) !important;
         background: #ffffff !important;
         border-radius: 20px !important;
