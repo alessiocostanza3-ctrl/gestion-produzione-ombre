@@ -1514,6 +1514,8 @@ h1 {
     border: 1px solid #f1f5f9;
 }
 .chat-card.archiviata { opacity: 0.8; }
+.chat-card.archiviata.sollecitata { animation: none !important; border-color: #f1f5f9 !important; }
+.chat-card.archiviata .badge-sollecito { display: none !important; }
 
 /* --- SOLLECITO: lampeggio card + badge --- */
 @keyframes sollecito-pulse {
