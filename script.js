@@ -622,7 +622,7 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
         contenitore.innerHTML = `
             <div class="scroll-wrapper">
                 <button class="scroll-btn" onclick="document.getElementById('sezione-archivio').scrollIntoView({behavior:'smooth'})">
-                    <i class="fa-solid fa-arrow-down"></i> Vai a Archivio
+                    <i class="fa-solid fa-box-archive"></i> Archivio
                 </button>
             </div>
             <div class="sezione-attiva">
@@ -1201,7 +1201,7 @@ async function caricaPaginaRichieste() {
         let html = `
             <div class="scroll-wrapper">
                 <button class="scroll-btn" onclick="document.getElementById('sezione-archivio').scrollIntoView({behavior:'smooth'})">
-                    ⬇️ Vai a Richieste Archiviate
+                    <i class="fa-solid fa-box-archive"></i> Archivio
                 </button>
             </div>
             <div class="chat-inbox">`;
