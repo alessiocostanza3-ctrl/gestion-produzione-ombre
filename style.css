@@ -1101,65 +1101,36 @@ h1 {
 .scroll-btn {
     background: #111827;
     color: #ffffff;
-    font-weight: 700;
     padding: 6px 12px;
     border-radius: 8px;
     font-size: 12px;
-    border: none;
+    border: 1px solid #111827;
     cursor: pointer;
-    box-shadow: 0 4px 0 rgba(0,0,0,0.45), 0 2px 12px rgba(0,0,0,0.2);
-    transform: translateY(0);
-    transition: background 0.18s, color 0.18s, transform 0.12s, box-shadow 0.12s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+    transition: background 0.2s, color 0.2s;
 }
-.scroll-btn:hover {
-    background: #ffffff;
-    color: #111827;
-    box-shadow: 0 6px 0 rgba(0,0,0,0.25), 0 4px 18px rgba(0,0,0,0.15);
-    transform: translateY(-2px);
-}
-.scroll-btn:active {
-    transform: translateY(2px);
-    box-shadow: 0 2px 0 rgba(0,0,0,0.3), 0 1px 5px rgba(0,0,0,0.12);
-}
+.scroll-btn:hover { background: #ffffff; color: #111827; }
 
-/* Step 2: Chiedi/Assegna e Archivia - palette nero/bianco 3D */
+/* Step 2: Chiedi/Assegna e Archivia - palette nero/bianco */
 .btn-chiedi-assegna {
     background: #111827 !important;
     color: #ffffff !important;
-    font-weight: 700 !important;
-    border: none !important;
-    box-shadow: 0 4px 0 rgba(0,0,0,0.45), 0 2px 12px rgba(0,0,0,0.2) !important;
-    transform: translateY(0) !important;
-    transition: background 0.18s, color 0.18s, transform 0.12s, box-shadow 0.12s !important;
+    border: 1px solid #111827 !important;
+    transition: background 0.2s, color 0.2s !important;
 }
 .btn-chiedi-assegna:hover {
     background: #ffffff !important;
     color: #111827 !important;
-    box-shadow: 0 6px 0 rgba(0,0,0,0.25), 0 4px 18px rgba(0,0,0,0.15) !important;
-    transform: translateY(-2px) !important;
-}
-.btn-chiedi-assegna:active {
-    transform: translateY(2px) !important;
-    box-shadow: 0 2px 0 rgba(0,0,0,0.3), 0 1px 5px rgba(0,0,0,0.12) !important;
 }
 .btn-archivia-prod {
     background: #111827 !important;
     color: #ffffff !important;
-    font-weight: 700 !important;
-    border: none !important;
-    box-shadow: 0 4px 0 rgba(0,0,0,0.45), 0 2px 12px rgba(0,0,0,0.2) !important;
-    transform: translateY(0) !important;
-    transition: background 0.18s, color 0.18s, transform 0.12s, box-shadow 0.12s !important;
+    border: 1px solid #111827 !important;
+    transition: background 0.2s, color 0.2s !important;
 }
 .btn-archivia-prod:hover {
     background: #ffffff !important;
     color: #111827 !important;
-    box-shadow: 0 6px 0 rgba(0,0,0,0.25), 0 4px 18px rgba(0,0,0,0.15) !important;
-    transform: translateY(-2px) !important;
-}
-.btn-archivia-prod:active {
-    transform: translateY(2px) !important;
-    box-shadow: 0 2px 0 rgba(0,0,0,0.3), 0 1px 5px rgba(0,0,0,0.12) !important;
 }
 
 
@@ -1663,15 +1634,12 @@ h1 {
 .button-small { padding: 6px 15px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; }
 .btn-cancel { background: white; color: #475569; border: 1px solid #e2e8f0; }
 .btn-archive-action { background: #16a34a; color: white; border: none; }
-.btn-reply { background: #111827 !important; color: #ffffff !important; font-weight: 700 !important; border: none !important; box-shadow: 0 4px 0 rgba(0,0,0,0.45), 0 2px 12px rgba(0,0,0,0.2) !important; transform: translateY(0) !important; transition: background 0.18s, color 0.18s, transform 0.12s, box-shadow 0.12s !important; }
-.btn-reply:hover { background: #ffffff !important; color: #111827 !important; box-shadow: 0 6px 0 rgba(0,0,0,0.25), 0 4px 18px rgba(0,0,0,0.15) !important; transform: translateY(-2px) !important; }
-.btn-reply:active { transform: translateY(2px) !important; box-shadow: 0 2px 0 rgba(0,0,0,0.3) !important; }
-.btn-alert { background: #111827 !important; color: #ffffff !important; font-weight: 700 !important; border: none !important; box-shadow: 0 4px 0 rgba(0,0,0,0.45), 0 2px 12px rgba(0,0,0,0.2) !important; transform: translateY(0) !important; transition: background 0.18s, color 0.18s, transform 0.12s, box-shadow 0.12s !important; }
-.btn-alert:hover { background: #ffffff !important; color: #111827 !important; box-shadow: 0 6px 0 rgba(0,0,0,0.25), 0 4px 18px rgba(0,0,0,0.15) !important; transform: translateY(-2px) !important; }
-.btn-alert:active { transform: translateY(2px) !important; box-shadow: 0 2px 0 rgba(0,0,0,0.3) !important; }
-.btn-archive { background: #111827 !important; color: #ffffff !important; font-weight: 700 !important; border: none !important; box-shadow: 0 4px 0 rgba(0,0,0,0.45), 0 2px 12px rgba(0,0,0,0.2) !important; transform: translateY(0) !important; transition: background 0.18s, color 0.18s, transform 0.12s, box-shadow 0.12s !important; }
-.btn-archive:hover { background: #ffffff !important; color: #111827 !important; box-shadow: 0 6px 0 rgba(0,0,0,0.25), 0 4px 18px rgba(0,0,0,0.15) !important; transform: translateY(-2px) !important; }
-.btn-archive:active { transform: translateY(2px) !important; box-shadow: 0 2px 0 rgba(0,0,0,0.3) !important; }
+.btn-reply { background: #111827 !important; color: #ffffff !important; border: 1px solid #111827 !important; transition: background 0.2s, color 0.2s !important; }
+.btn-reply:hover { background: #ffffff !important; color: #111827 !important; }
+.btn-alert { background: #111827 !important; color: #ffffff !important; border: 1px solid #111827 !important; transition: background 0.2s, color 0.2s !important; }
+.btn-alert:hover { background: #ffffff !important; color: #111827 !important; }
+.btn-archive { background: #111827 !important; color: #ffffff !important; border: 1px solid #111827 !important; transition: background 0.2s, color 0.2s !important; }
+.btn-archive:hover { background: #ffffff !important; color: #111827 !important; }
 .chat-to { font-size: 10px; color: #94a3b8; margin-left: auto; }
 .chat-archiviata-note { padding: 10px 20px; border-top: 1px solid #f1f5f9; background: #f8fafc; text-align: right; }
 .chat-archiviata-label { font-size: 11px; color: #16a34a; font-weight: 700; }
