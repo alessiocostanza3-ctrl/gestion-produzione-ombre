@@ -3479,31 +3479,37 @@ button.menu-item-opt {
     }
 
     .acquisti-header.header-flex {
-        flex-direction: column !important;
-        align-items: flex-start !important;
-        gap: 10px !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+        gap: 0 !important;
         padding: 0 2px !important;
         margin-bottom: 14px !important;
     }
-    .acquisti-title { font-size: 18px !important; }
-    .acquisti-subtitle { font-size: 11px !important; }
 
-    .acquisti-actions-wrapper {
-        display: flex !important;
-        align-items: center !important;
-        gap: 8px !important;
-        width: 100% !important;
-    }
     /* Acquisti mobile: nascondi titolo/sottotitolo */
     .acquisti-title,
     .acquisti-subtitle { display: none !important; }
 
-    /* Seleziona: solo icona */
+    /* Tutti i bottoni nella wrapper: allineati a destra, compatti */
+    .acquisti-actions-wrapper {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        gap: 7px !important;
+        align-items: center !important;
+        flex-shrink: 0 !important;
+        margin-left: auto !important;
+    }
+
+    /* Seleziona: solo icona, quadrato */
     #btn-mode-select .btn-sel-txt { display: none !important; }
     #btn-mode-select {
         width: 36px !important;
+        height: 36px !important;
         min-width: 36px !important;
         padding: 0 !important;
+        display: flex !important;
+        align-items: center !important;
         justify-content: center !important;
     }
 
@@ -3511,8 +3517,11 @@ button.menu-item-opt {
     #btn-delete-selected .btn-elimina-label { display: none !important; }
     #btn-delete-selected {
         width: 36px !important;
+        height: 36px !important;
         min-width: 36px !important;
         padding: 0 !important;
+        display: flex !important;
+        align-items: center !important;
         justify-content: center !important;
         background: #ef4444 !important;
         color: #ffffff !important;
@@ -3521,14 +3530,6 @@ button.menu-item-opt {
     #btn-delete-selected:hover {
         background: #dc2626 !important;
         color: #ffffff !important;
-    }
-
-    .acquisti-actions-wrapper {
-        display: flex !important;
-        flex-wrap: nowrap !important;
-        gap: 7px !important;
-        align-items: center !important;
-        flex-shrink: 0 !important;
     }
     .btn-nuovo-fisso {
         flex-shrink: 0 !important;
