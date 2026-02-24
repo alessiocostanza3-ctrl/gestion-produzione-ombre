@@ -1946,14 +1946,12 @@ async function salvaTutteImpostazioni() {
                     <p class="acquisti-subtitle">Gestisci o ordina i materiali.</p>
                 </div>
                 <div class="acquisti-actions-wrapper">
-                    <div class="acquisti-actions-row">
-                        <button id="btn-delete-selected" type="button" onclick="eliminaSelezionati()" class="${TW.btnDanger} btn-fade-action">
-                            <i class="fas fa-trash"></i><span class="btn-elimina-label"> Elimina (<span id="count-selected">0</span>)</span>
-                        </button>
-                        <button id="btn-mode-select" type="button" onclick="toggleSelezioneMultipla()" class="${TW.btn}">
-                            <i class="fas fa-tasks"></i><span class="btn-sel-txt"> Seleziona</span>
-                        </button>
-                    </div>
+                    <button id="btn-delete-selected" type="button" onclick="eliminaSelezionati()" class="${TW.btnDanger} btn-fade-action">
+                        <i class="fas fa-trash"></i><span class="btn-elimina-label"> Elimina (<span id="count-selected">0</span>)</span>
+                    </button>
+                    <button id="btn-mode-select" type="button" onclick="toggleSelezioneMultipla()" class="${TW.btn}">
+                        <i class="fas fa-tasks"></i><span class="btn-sel-txt"> Seleziona</span>
+                    </button>
                     <button type="button" class="btn-nuovo-fisso btn-sezione-new ${TW.btn}" onclick="apriModalNuovaSezione()" title="Nuova sezione">
                         <i class="fas fa-folder-plus"></i>
                     </button>

@@ -3523,25 +3523,12 @@ button.menu-item-opt {
         color: #ffffff !important;
     }
 
-    .acquisti-actions-row {
-        flex: 1 !important;
-        min-width: 0 !important;
+    .acquisti-actions-wrapper {
         display: flex !important;
         flex-wrap: nowrap !important;
         gap: 7px !important;
-        overflow-x: auto !important;
-        -webkit-overflow-scrolling: touch !important;
-        padding-bottom: 3px !important;
-        scrollbar-width: none !important;
-    }
-    .acquisti-actions-row::-webkit-scrollbar { display: none !important; }
-    .acquisti-actions-row > button {
-        white-space: nowrap !important;
+        align-items: center !important;
         flex-shrink: 0 !important;
-        height: 36px !important;
-        padding: 0 14px !important;
-        font-size: 12px !important;
-        border-radius: 8px !important;
     }
     .btn-nuovo-fisso {
         flex-shrink: 0 !important;
