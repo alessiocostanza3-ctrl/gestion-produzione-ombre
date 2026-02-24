@@ -1228,12 +1228,13 @@ function _buildOverviewInnerHtml(attivi) {
             totLabel = artList.length + ' cod.';
             contenuto = artList.map(a => {
                 const lbl = a.key.length > 28 ? a.key.substring(0, 28) + '…' : a.key;
-                return `<div class="ov-stato-row">
+                const ordiniStr = [...a.ordini].join(', ');
+                return `<div class="ov-stato-row ov-stato-row-art">
                     <span class="ov-row-label" title="${a.key}">${lbl}</span>
                     <span class="ov-row-badges">
                         <span class="ov-badge-qty">${a.qty} pz</span>
-                        <span class="ov-badge-ord">${a.ordini.size} ord.</span>
                     </span>
+                    <span class="ov-row-ordini" title="${ordiniStr}">${ordiniStr}</span>
                 </div>`;
             }).join('');
         } else {

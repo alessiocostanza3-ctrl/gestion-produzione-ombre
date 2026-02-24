@@ -4438,6 +4438,19 @@ button:active {
     color: #64748b;
     white-space: nowrap;
 }
+.ov-stato-row-art {
+    flex-wrap: wrap;
+    row-gap: 1px;
+}
+.ov-row-ordini {
+    width: 100%;
+    font-size: 0.62rem;
+    color: #475569;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-bottom: 3px;
+}
 .ov-badge-op {
     font-size: 0.63rem;
     font-weight: 600;
