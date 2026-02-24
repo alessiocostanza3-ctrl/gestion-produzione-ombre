@@ -863,7 +863,11 @@ function apriModalAiuto(idRiga, riferimento, nOrdine) {
 }
 
 // Apri modal per creare una nuova richiesta libera (da bottom nav "+")
+let _apriNuovaRichiestaLock = false;
 function apriNuovaRichiesta() {
+    if (_apriNuovaRichiestaLock) return;
+    _apriNuovaRichiestaLock = true;
+    setTimeout(() => { _apriNuovaRichiestaLock = false; }, 600);
     const modal = document.getElementById('modalAiuto');
     modal.style.display = 'flex';
     modal.offsetHeight;
