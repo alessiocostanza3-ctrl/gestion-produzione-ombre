@@ -556,6 +556,8 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
         contenitore.innerHTML = cacheContenuti[nomeFoglio];
         applicaFade(contenitore);
         aggiornaListaFiltrabili();
+        if (nomeFoglio === 'PROGRAMMA PRODUZIONE DEL MESE') _setupLazyObserver('prod');
+        if (nomeFoglio === 'STORICO_RICHIESTE') _setupLazyObserver('rich');
         console.log("Rendering da cache:", nomeFoglio);
 
         // Aggiornamento dati in background solo se la cache è scaduta (> 30s)
@@ -605,11 +607,7 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
     }
 
     try {
-        // Scarichiamo entrambi i fogli in parallelo
-        const [datiProd, datiArch] = await Promise.all([
-            fetchJson("PROGRAMMA PRODUZIONE DEL MESE"),
-            fetchJson("ARCHIVIO_ORDINI")
-        ]);
+        const datiProd = await fetchJson("PROGRAMMA PRODUZIONE DEL MESE");
 
         if (paginaAttuale !== nomeFoglio) return;
         if (expectedRequestId !== null && expectedRequestId !== _latestNavRequest) return;
@@ -623,11 +621,10 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
         // --- SEZIONE ATTIVA ---
         let htmlAttivi = generaBloccoOrdiniUnificato(datiProd, false);
 
-        // --- SEZIONE ARCHIVIATA ---
-        let htmlArchiviati = generaBloccoOrdiniUnificato(datiArch, true);
+        const ovOpen = window.innerWidth > 600 ? ' open' : '';
 
         contenitore.innerHTML = `
-            <details class="ov-accordion" id="ov-accordion" open>
+            <details class="ov-accordion" id="ov-accordion"${ovOpen}>
                 <summary class="ov-accordion-summary">
                     <span class="ov-summary-label"><i class="fas fa-layer-group"></i> Stato Avanzamento</span>
                     <span class="ov-summary-meta">${numInFocus} art. in lavorazione</span>
@@ -638,7 +635,7 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
                 </div>
             </details>
             <div class="scroll-wrapper">
-                <button class="scroll-btn" onclick="document.getElementById('sezione-archivio').scrollIntoView({behavior:'smooth'})">
+                <button class="scroll-btn" onclick="_lazyScrollArchivio('prod')">
                     <i class="fa-solid fa-box-archive"></i> Archivio
                 </button>
             </div>
@@ -646,18 +643,19 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
                 ${htmlAttivi || "<div class='empty-msg'>Nessun ordine in produzione.</div>"}
             </div>
 
-            <div id="sezione-archivio" class="separatore-archivio">
+            <div id="sezione-archivio" class="separatore-archivio" style="cursor:pointer" onclick="_caricaArchivioOrdiniLazy()">
                 <span>📦 ARCHIVIO STORICO ORDINI</span>
             </div>
 
-            <div class="sezione-archiviata">
-                ${htmlArchiviati || "<div class='empty-msg'>L'archivio è vuoto.</div>"}
+            <div class="sezione-archiviata" id="sezione-archiviata-content">
+                <div class="lazy-archive-ph"><i class="fas fa-inbox"></i> Clicca su "Archivio" per caricare</div>
             </div>
         `;
         cacheContenuti[nomeFoglio] = contenitore.innerHTML;
         cacheFetchTime[nomeFoglio] = Date.now();
         applicaFade(contenitore);
         aggiornaListaFiltrabili();
+        _setupLazyObserver('prod');
 
         // Salva raw data per autocomplete del modal
         _ordiniAutocompleteCache = datiProd.filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE').map(r => ({ ordine: r.ordine || '', cliente: r.cliente || '' }));
@@ -1194,6 +1192,63 @@ async function gestisciRipristino(id_o_numero, tipo) {
 
 
 
+//LAZY ARCHIVE HELPERS//
+
+async function _caricaArchivioOrdiniLazy() {
+    const el = document.getElementById('sezione-archiviata-content');
+    if (!el || el.dataset.loaded === '1') return;
+    el.dataset.loaded = '1';
+    el.innerHTML = "<div class='lazy-archive-ph'><i class='fas fa-spinner fa-spin'></i> Caricamento archivio...</div>";
+    try {
+        const datiArch = await fetchJson('ARCHIVIO_ORDINI');
+        el.innerHTML = generaBloccoOrdiniUnificato(datiArch, true) || "<div class='empty-msg'>L'archivio è vuoto.</div>";
+        aggiornaListaFiltrabili();
+    } catch(e) {
+        el.innerHTML = "<div class='inline-error'>Errore caricamento archivio.</div>";
+    }
+}
+
+async function _caricaArchivioRichiesteLazy() {
+    const el = document.getElementById('sezione-richieste-archivio-content');
+    if (!el || el.dataset.loaded === '1') return;
+    el.dataset.loaded = '1';
+    el.innerHTML = "<div class='lazy-archive-ph'><i class='fas fa-spinner fa-spin'></i> Caricamento archivio...</div>";
+    try {
+        const messaggiArchivio = await fetchJson('ARCHIVIO_RICHIESTE');
+        const io = utenteAttuale.nome.toUpperCase().trim();
+        const gruppi = {};
+        messaggiArchivio.forEach(m => { if (!gruppi[m.ORDINE]) gruppi[m.ORDINE] = []; gruppi[m.ORDINE].push(m); });
+        if (Object.keys(gruppi).length === 0) {
+            el.innerHTML = "<div class='empty-msg' style='margin:20px 0'>Nessuna richiesta archiviata.</div>";
+        } else {
+            let html = '';
+            Object.keys(gruppi).reverse().forEach(nOrd => { html += generaCardRichiesta(gruppi[nOrd], io, true); });
+            el.innerHTML = html;
+        }
+        aggiornaListaFiltrabili();
+    } catch(e) {
+        el.innerHTML = "<div class='inline-error'>Errore caricamento archivio richieste.</div>";
+    }
+}
+
+function _setupLazyObserver(tipo) {
+    const sentinel = document.getElementById('sezione-archivio');
+    if (!sentinel) return;
+    const obs = new IntersectionObserver(entries => {
+        if (entries[0].isIntersecting) {
+            tipo === 'prod' ? _caricaArchivioOrdiniLazy() : _caricaArchivioRichiesteLazy();
+            obs.disconnect();
+        }
+    }, { rootMargin: '300px' });
+    obs.observe(sentinel);
+}
+
+function _lazyScrollArchivio(tipo) {
+    tipo === 'prod' ? _caricaArchivioOrdiniLazy() : _caricaArchivioRichiesteLazy();
+    const el = document.getElementById('sezione-archivio');
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+}
+
 //OVERVIEW HELPERS (usati da caricaDati)//
 
 // 4 stati: focus su articolo (raggruppati per codice)
@@ -1287,10 +1342,8 @@ async function caricaPaginaRichieste() {
     contenitore.innerHTML = "<div class='centered-msg'>Caricamento messaggi in corso...</div>";
 
     try {
-        const [messaggiAttivi, messaggiArchivio] = await Promise.all([
-            fetchJson("STORICO_RICHIESTE"),
-            fetchJson("ARCHIVIO_RICHIESTE")
-        ]);
+        const messaggiAttivi = await fetchJson("STORICO_RICHIESTE");
+        const messaggiArchivio = []; // archivio caricato in lazy
 
         // Aggiorna sempre badge sidebar e campanellina (indipendentemente dalla pagina corrente)
         aggiornaBadgeSidebar(messaggiAttivi);
@@ -1311,11 +1364,11 @@ async function caricaPaginaRichieste() {
         };
 
         const gruppiAttivi = raggruppa(messaggiAttivi);
-        const gruppiArchivio = raggruppa(messaggiArchivio);
+
 
         let html = `
             <div class="scroll-wrapper">
-                <button class="scroll-btn" onclick="document.getElementById('sezione-archivio').scrollIntoView({behavior:'smooth'})">
+                <button class="scroll-btn" onclick="_lazyScrollArchivio('rich')">
                     <i class="fa-solid fa-box-archive"></i> Archivio
                 </button>
             </div>
@@ -1328,24 +1381,19 @@ async function caricaPaginaRichieste() {
 
         // 2. DIVISORE ARCHIVIO
         html += `
-            <div id="sezione-archivio" class="separatore-archivio">
+            <div id="sezione-archivio" class="separatore-archivio" style="cursor:pointer" onclick="_caricaArchivioRichiesteLazy()">
                 <span>ARCHIVIO</span>
+            </div>
+            <div id="sezione-richieste-archivio-content">
+                <div class="lazy-archive-ph"><i class="fas fa-inbox"></i> Clicca su "Archivio" per caricare</div>
             </div>`;
-
-        // 3. RICHIESTE ARCHIVIATE
-        if (Object.keys(gruppiArchivio).length === 0) {
-            html += `<div class="empty-msg" style="margin:20px 0">Nessuna richiesta archiviata.</div>`;
-        } else {
-            Object.keys(gruppiArchivio).reverse().forEach(nOrd => {
-                html += generaCardRichiesta(gruppiArchivio[nOrd], io, true);
-            });
-        }
 
         html += `</div>`;
         contenitore.innerHTML = html;
-        cacheContenuti['STORICO_RICHIESTE'] = html; // salva dopo archivio
+        cacheContenuti['STORICO_RICHIESTE'] = html;
         applicaFade(contenitore);
         aggiornaListaFiltrabili();
+        _setupLazyObserver('rich');
 
         // Reset barra di ricerca al caricamento
         ['universal-search', 'mobile-search'].forEach(id => {
