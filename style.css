@@ -3599,7 +3599,7 @@ button.menu-item-opt {
         z-index: 200 !important;
     }
 
-    /* Card brand (stessa larghezza sidebar) */
+    /* Card brand — larghezza FISSA, non si muove mai */
     .top-brand-card {
         width: 248px !important;
         flex-shrink: 0 !important;
@@ -3609,33 +3609,11 @@ button.menu-item-opt {
         box-shadow: 0 4px 18px rgba(0,0,0,0.22) !important;
         display: flex !important;
         align-items: center !important;
-        justify-content: space-between !important;
+        justify-content: flex-start !important;
         overflow: hidden !important;
-        transition: width 0.28s cubic-bezier(0.4,0,0.2,1) !important;
-        padding: 0 4px 0 0 !important;
+        padding: 0 4px 0 4px !important;
     }
-    /* Parte logo+testo cliccabile per Home */
-    .top-brand-home-btn {
-        flex: 1 !important;
-        height: 100% !important;
-        background: transparent !important;
-        border: none !important;
-        cursor: pointer !important;
-        outline: none !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        gap: 11px !important;
-        padding: 0 0 0 12px !important;
-        min-width: 0 !important;
-        overflow: hidden !important;
-        border-radius: 20px 0 0 20px !important;
-        transition: background 0.15s !important;
-    }
-    .top-brand-home-btn:hover {
-        background: rgba(255,255,255,0.06) !important;
-    }
-    /* Hamburger nella brand card */
+    /* Hamburger a sinistra */
     .top-hamburger-btn {
         flex-shrink: 0 !important;
         width: 38px !important;
@@ -3656,20 +3634,26 @@ button.menu-item-opt {
         color: #ffffff !important;
         background: rgba(255,255,255,0.08) !important;
     }
-    body.sidebar-collapsed .top-brand-card {
-        width: 62px !important;
-        padding: 0 !important;
+    /* Parte logo+testo cliccabile per Home */
+    .top-brand-home-btn {
+        flex: 1 !important;
+        height: 100% !important;
+        background: transparent !important;
+        border: none !important;
+        cursor: pointer !important;
+        outline: none !important;
+        display: flex !important;
+        align-items: center !important;
         justify-content: center !important;
+        gap: 11px !important;
+        padding: 0 8px 0 4px !important;
+        min-width: 0 !important;
+        overflow: hidden !important;
+        border-radius: 0 20px 20px 0 !important;
+        transition: background 0.15s !important;
     }
-    body.sidebar-collapsed .top-brand-card .sidebar-brand-text {
-        display: none !important;
-    }
-    body.sidebar-collapsed .top-brand-home-btn {
-        display: none !important;
-    }
-    body.sidebar-collapsed .top-hamburger-btn {
-        width: 100% !important;
-        border-radius: 16px !important;
+    .top-brand-home-btn:hover {
+        background: rgba(255,255,255,0.06) !important;
     }
 
     /* Card search */
