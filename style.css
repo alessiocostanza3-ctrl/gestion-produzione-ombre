@@ -3252,7 +3252,7 @@ button.menu-item-opt {
         left: 0 !important;
         right: 0 !important;
         bottom: 0 !important;
-        height: 70px !important;
+        height: 100px !important;
         padding: 0 8px 4px !important;
         box-sizing: border-box !important;
         display: flex !important;
@@ -3288,7 +3288,7 @@ button.menu-item-opt {
         color: #ffffff !important;
     }
     .tab-item.active i {
-        color: #8fe45e !important;
+        color: #ffffff !important;
     }
 
     .tab-fab {
