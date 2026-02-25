@@ -4471,16 +4471,6 @@ button:active {
     font-style: italic;
 }
 
-/* Placeholder archivio lazy */
-.lazy-archive-ph {
-    padding: 22px 16px;
-    text-align: center;
-    color: #475569;
-    font-size: 0.80rem;
-    font-style: italic;
-}
-.lazy-archive-ph i { margin-right: 6px; color: #334155; }
-
 /* ── Mobile: sub-card collassabili ── */
 @media (max-width: 600px) {
     .ov-stati-grid {
