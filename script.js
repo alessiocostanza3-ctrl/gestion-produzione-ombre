@@ -1234,19 +1234,7 @@ function _apriArchivio(id) {
 }
 
 // IntersectionObserver: apre l'archivio quando si scorre fino al summary
-function _osservaArchivio(id) {
-    const det = document.getElementById(id);
-    if (!det || !window.IntersectionObserver) return;
-    const summary = det.querySelector('summary');
-    if (!summary) return;
-    const obs = new IntersectionObserver(entries => {
-        if (entries[0].isIntersecting) {
-            det.open = true;
-            obs.disconnect();
-        }
-    }, { threshold: 0.1 });
-    obs.observe(summary);
-}
+function _osservaArchivio(id) { /* disabilitato: apri solo col tasto */ }
 
 function _buildOverviewInnerHtml(attivi) {
     const coloriStati = {};
