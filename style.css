@@ -4279,6 +4279,34 @@ button:active {
     transform: rotate(180deg);
 }
 
+/* ── Archivio collassabile ── */
+.archivio-details { display: block; }
+.archivio-details > summary { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.archivio-details > summary::-webkit-details-marker { display: none; }
+.archivio-details > summary:focus { outline: none; }
+.archivio-summary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    user-select: none;
+}
+.archivio-chevron {
+    font-size: 0.72rem;
+    color: #64748b;
+    transition: transform .22s ease;
+}
+.archivio-details[open] .archivio-chevron { transform: rotate(180deg); }
+
+/* ── Placeholder caricamento lazy overview ── */
+.ov-lazy-placeholder {
+    display: flex;
+    justify-content: center;
+    padding: 18px 0;
+    color: #475569;
+    font-size: 1rem;
+}
+
 /* ── Accordion overview nella pagina produzione ── */
 .ov-accordion {
     background: #1e293b;

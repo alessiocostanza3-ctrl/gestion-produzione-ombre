@@ -626,19 +626,24 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
         // --- SEZIONE ARCHIVIATA ---
         let htmlArchiviati = generaBloccoOrdiniUnificato(datiArch, true);
 
+        const isMobileOv = window.innerWidth <= 600;
+        const ovContent = isMobileOv
+            ? '<div class="ov-lazy-placeholder"><i class="fas fa-spinner fa-spin"></i></div>'
+            : _buildOverviewInnerHtml(attivi);
+
         contenitore.innerHTML = `
-            <details class="ov-accordion" id="ov-accordion" open>
-                <summary class="ov-accordion-summary">
+            <details class="ov-accordion" id="ov-accordion"${isMobileOv ? '' : ' open'}>
+                <summary class="ov-accordion-summary" onclick="_ovLoadIfNeeded(this)">
                     <span class="ov-summary-label"><i class="fas fa-layer-group"></i> Stato Avanzamento</span>
                     <span class="ov-summary-meta">${numInFocus} art. in lavorazione</span>
                     <i class="fas fa-chevron-down ov-summary-chevron"></i>
                 </summary>
-                <div class="riepilogo-page">
-                    ${_buildOverviewInnerHtml(attivi)}
+                <div class="riepilogo-page" id="ov-content">
+                    ${ovContent}
                 </div>
             </details>
             <div class="scroll-wrapper">
-                <button class="scroll-btn" onclick="document.getElementById('sezione-archivio').scrollIntoView({behavior:'smooth'})">
+                <button class="scroll-btn" onclick="_apriArchivio('archivio-prod-details')">
                     <i class="fa-solid fa-box-archive"></i> Archivio
                 </button>
             </div>
@@ -646,18 +651,22 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
                 ${htmlAttivi || "<div class='empty-msg'>Nessun ordine in produzione.</div>"}
             </div>
 
-            <div id="sezione-archivio" class="separatore-archivio">
-                <span>📦 ARCHIVIO STORICO ORDINI</span>
-            </div>
-
-            <div class="sezione-archiviata">
-                ${htmlArchiviati || "<div class='empty-msg'>L'archivio è vuoto.</div>"}
-            </div>
+            <details id="archivio-prod-details" class="archivio-details">
+                <summary class="separatore-archivio archivio-summary">
+                    <span>📦 ARCHIVIO STORICO ORDINI</span>
+                    <i class="fas fa-chevron-down archivio-chevron"></i>
+                </summary>
+                <div class="sezione-archiviata">
+                    ${htmlArchiviati || "<div class='empty-msg'>L'archivio è vuoto.</div>"}
+                </div>
+            </details>
         `;
         cacheContenuti[nomeFoglio] = contenitore.innerHTML;
         cacheFetchTime[nomeFoglio] = Date.now();
         applicaFade(contenitore);
         aggiornaListaFiltrabili();
+        // Observer: apri archivio quando ci si scorre sopra
+        _osservaArchivio('archivio-prod-details');
 
         // Salva raw data per autocomplete del modal
         _ordiniAutocompleteCache = datiProd.filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE').map(r => ({ ordine: r.ordine || '', cliente: r.cliente || '' }));
@@ -1202,6 +1211,43 @@ const _OV_STATI_ART  = ['CONTROLLARE MAGAZZINO','PREPARARE PER LAVORAZIONE','IN 
 const _OV_STATI_ORD  = ['IN PRODUZIONE','IMBALLATO'];
 const _OV_STATI_ALL  = [..._OV_STATI_ART, ..._OV_STATI_ORD];
 
+// Lazy load overview su mobile
+function _ovLoadIfNeeded(summary) {
+    const details = summary.parentElement;
+    // Se si sta aprendo (era chiuso), costruisci il contenuto se non ancora fatto
+    if (!details.open) {
+        const contentDiv = document.getElementById('ov-content');
+        if (contentDiv && contentDiv.querySelector('.ov-lazy-placeholder')) {
+            contentDiv.innerHTML = _buildOverviewInnerHtml(_attiviProd);
+        }
+    }
+}
+
+// Apri archivio collassabile e scrolla
+function _apriArchivio(id) {
+    const det = document.getElementById(id);
+    if (!det) return;
+    det.open = true;
+    requestAnimationFrame(() => {
+        det.querySelector('summary').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+}
+
+// IntersectionObserver: apre l'archivio quando si scorre fino al summary
+function _osservaArchivio(id) {
+    const det = document.getElementById(id);
+    if (!det || !window.IntersectionObserver) return;
+    const summary = det.querySelector('summary');
+    if (!summary) return;
+    const obs = new IntersectionObserver(entries => {
+        if (entries[0].isIntersecting) {
+            det.open = true;
+            obs.disconnect();
+        }
+    }, { threshold: 0.1 });
+    obs.observe(summary);
+}
+
 function _buildOverviewInnerHtml(attivi) {
     const coloriStati = {};
     (listaStati || []).forEach(s => { coloriStati[s.nome.toUpperCase()] = s.colore; });
@@ -1315,7 +1361,7 @@ async function caricaPaginaRichieste() {
 
         let html = `
             <div class="scroll-wrapper">
-                <button class="scroll-btn" onclick="document.getElementById('sezione-archivio').scrollIntoView({behavior:'smooth'})">
+                <button class="scroll-btn" onclick="_apriArchivio('archivio-req-details')">
                     <i class="fa-solid fa-box-archive"></i> Archivio
                 </button>
             </div>
@@ -1326,26 +1372,30 @@ async function caricaPaginaRichieste() {
             html += generaCardRichiesta(gruppiAttivi[nOrd], io, false);
         });
 
-        // 2. DIVISORE ARCHIVIO
-        html += `
-            <div id="sezione-archivio" class="separatore-archivio">
-                <span>ARCHIVIO</span>
-            </div>`;
-
-        // 3. RICHIESTE ARCHIVIATE
+        // 2. DIVISORE + ARCHIVIO COLLASSABILE
+        let htmlArchReq = '';
         if (Object.keys(gruppiArchivio).length === 0) {
-            html += `<div class="empty-msg" style="margin:20px 0">Nessuna richiesta archiviata.</div>`;
+            htmlArchReq = `<div class="empty-msg" style="margin:20px 0">Nessuna richiesta archiviata.</div>`;
         } else {
             Object.keys(gruppiArchivio).reverse().forEach(nOrd => {
-                html += generaCardRichiesta(gruppiArchivio[nOrd], io, true);
+                htmlArchReq += generaCardRichiesta(gruppiArchivio[nOrd], io, true);
             });
         }
+        html += `
+        </div>
+        <details id="archivio-req-details" class="archivio-details">
+            <summary class="separatore-archivio archivio-summary" style="list-style:none">
+                <span>ARCHIVIO</span>
+                <i class="fas fa-chevron-down archivio-chevron"></i>
+            </summary>
+            <div class="chat-inbox">${htmlArchReq}</div>
+        </details>`;
 
-        html += `</div>`;
         contenitore.innerHTML = html;
         cacheContenuti['STORICO_RICHIESTE'] = html; // salva dopo archivio
         applicaFade(contenitore);
         aggiornaListaFiltrabili();
+        _osservaArchivio('archivio-req-details');
 
         // Reset barra di ricerca al caricamento
         ['universal-search', 'mobile-search'].forEach(id => {
