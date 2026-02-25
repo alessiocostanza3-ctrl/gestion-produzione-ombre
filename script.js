@@ -30,6 +30,100 @@ let _latestNavRequest = 0;
 let _navAbortController = null; // annulla fetch in-volo a ogni cambio pagina
 let _lastNavClickTime = 0;     // debounce click rapidissimi (<80ms)
 
+/*******************************************************************************
+* NOTIFICHE PUSH  –  OneSignal
+*******************************************************************************/
+
+/**
+ * Identifica l'utente su OneSignal e applica le sue preferenze di notifica.
+ * Da chiamare dopo ogni login / avvio con sessione valida.
+ */
+function _initOneSignal() {
+    if (!window.OneSignal && !window.OneSignalDeferred) return;
+    (window.OneSignalDeferred = window.OneSignalDeferred || []).push(async function(OneSignal) {
+        try {
+            // Associa questo browser all'utente (External User ID = nome uppercase)
+            await OneSignal.login(utenteAttuale.nome.toUpperCase());
+
+            // Sincronizza tag preferenze
+            const p = _getNotifPrefs();
+            await OneSignal.User.addTags({
+                notif_richieste:    p.richieste    ? '1' : '0',
+                notif_assegnazioni: p.assegnazioni ? '1' : '0',
+                notif_stato:        p.stato        ? '1' : '0'
+            });
+        } catch (err) {
+            console.warn('OneSignal init:', err);
+        }
+    });
+}
+
+function _getNotifPrefs() {
+    try {
+        return JSON.parse(localStorage.getItem('notifPrefs') ||
+            '{"richieste":true,"assegnazioni":true,"stato":false}');
+    } catch { return { richieste: true, assegnazioni: true, stato: false }; }
+}
+
+function _saveNotifPrefs(prefs) {
+    try { localStorage.setItem('notifPrefs', JSON.stringify(prefs)); } catch {}
+    // Aggiorna tag OneSignal in tempo reale
+    (window.OneSignalDeferred = window.OneSignalDeferred || []).push(async function(OneSignal) {
+        try {
+            await OneSignal.User.addTags({
+                notif_richieste:    prefs.richieste    ? '1' : '0',
+                notif_assegnazioni: prefs.assegnazioni ? '1' : '0',
+                notif_stato:        prefs.stato        ? '1' : '0'
+            });
+        } catch {}
+    });
+    notificaElegante('Preferenze notifiche salvate ✓');
+}
+
+function _onNotifPrefChange() {
+    const prefs = {
+        richieste:    !!(document.getElementById('np-richieste')?.checked),
+        assegnazioni: !!(document.getElementById('np-assegnazioni')?.checked),
+        stato:        !!(document.getElementById('np-stato')?.checked)
+    };
+    _saveNotifPrefs(prefs);
+}
+
+async function _togglePushPermission() {
+    if (!window.OneSignalDeferred && !window.OneSignal) {
+        notificaElegante('Configura prima App ID in index.html', 'error');
+        return;
+    }
+    (window.OneSignalDeferred = window.OneSignalDeferred || []).push(async function(OneSignal) {
+        try {
+            const isOptedIn = OneSignal.User.PushSubscription.optedIn;
+            if (isOptedIn) {
+                await OneSignal.User.PushSubscription.optOut();
+                notificaElegante('Notifiche push disattivate');
+            } else {
+                const granted = await OneSignal.Notifications.requestPermission();
+                if (granted) notificaElegante('Notifiche push attivate ✓');
+                else notificaElegante('Permesso negato dal browser', 'error');
+            }
+            setTimeout(_aggiornaUINotifiche, 500);
+        } catch (err) { console.warn('togglePush:', err); }
+    });
+}
+
+function _aggiornaUINotifiche() {
+    (window.OneSignalDeferred = window.OneSignalDeferred || []).push(async function(OneSignal) {
+        try {
+            const optedIn = !!OneSignal.User.PushSubscription.optedIn;
+            const btn    = document.getElementById('btn-toggle-push');
+            const dot    = document.getElementById('push-status-dot');
+            const label  = document.getElementById('push-status-text');
+            if (btn)   { btn.innerHTML = optedIn ? '<i class="fas fa-bell-slash"></i> Disattiva notifiche' : '<i class="fas fa-bell"></i> Attiva notifiche push'; }
+            if (dot)   { dot.style.background = optedIn ? '#22c55e' : '#6b7280'; }
+            if (label) { label.textContent = optedIn ? 'Attive su questo dispositivo' : 'Non attive su questo dispositivo'; }
+        } catch {}
+    });
+}
+
 // ---- search optimisation helpers ----
 let elementiDaFiltrareCache = null;
 let ricercaTimeout = null;
@@ -101,6 +195,7 @@ window.onload = async function() {
         // AGGIORNAMENTO IMMEDIATO: Prima ancora di scaricare i dati da Sheets
         // Questo sovrascrive "MASTER" o "Caricamento..." all'istante
         aggiornaProfiloSidebar();
+        _initOneSignal(); // Identifica l'utente su OneSignal (sessione preesistente)
 
         if (overlay) overlay.style.display = 'none';
         console.log("Sessione trovata per:", utenteAttuale.nome);
@@ -357,6 +452,7 @@ async function salvaEApriDashboard() {
 
     overlay.style.display = 'none';
     if (typeof aggiornaProfiloSidebar === 'function') aggiornaProfiloSidebar();
+    _initOneSignal(); // Identifica l'utente su OneSignal per le notifiche push
 
     // Naviga alla pagina salvata (stessa logica del DOMContentLoaded normale)
     let paginaSalvata = null;
@@ -1914,6 +2010,47 @@ function caricaInterfacciaImpostazioni() {
                     </div>
                 </div>
                 ` : ''}
+
+                <!-- ROW: Notifiche Push -->
+                <div class="settings-row" onclick="toggleSettingsSection('section-notifiche', this); setTimeout(_aggiornaUINotifiche, 200)">
+                    <div class="settings-row-left">
+                        <div class="settings-row-icon"><i class="fas fa-bell"></i></div>
+                        <div>
+                            <div class="settings-row-title">Notifiche Push</div>
+                            <div class="settings-row-sub">Ricevi avvisi su questo dispositivo</div>
+                        </div>
+                    </div>
+                    <i class="fas fa-chevron-down settings-row-arrow"></i>
+                </div>
+                <div id="section-notifiche" class="settings-section-body" style="display:none">
+                    <div class="card-settings">
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+                            <span id="push-status-dot" style="width:10px;height:10px;border-radius:50%;background:#6b7280;flex-shrink:0"></span>
+                            <span id="push-status-text" style="font-size:0.85rem;color:#9ca3af">Controlla stato...</span>
+                        </div>
+                        <button id="btn-toggle-push" class="settings-action-btn" onclick="_togglePushPermission()">
+                            <i class="fas fa-bell"></i> Attiva notifiche push
+                        </button>
+                        <div style="margin-top:20px;border-top:1px solid rgba(255,255,255,0.07);padding-top:16px">
+                            <div style="font-size:0.78rem;font-weight:600;color:#9ca3af;letter-spacing:.5px;margin-bottom:12px">TIPOLOGIE DI AVVISI</div>
+                            <label class="notif-pref-row">
+                                <input type="checkbox" id="np-richieste" onchange="_onNotifPrefChange()"
+                                    ${_getNotifPrefs().richieste ? 'checked' : ''}>
+                                <span><i class="fas fa-comment-dots" style="color:#60a5fa"></i>&nbsp;Nuove richieste / messaggi</span>
+                            </label>
+                            <label class="notif-pref-row">
+                                <input type="checkbox" id="np-assegnazioni" onchange="_onNotifPrefChange()"
+                                    ${_getNotifPrefs().assegnazioni ? 'checked' : ''}>
+                                <span><i class="fas fa-user-check" style="color:#34d399"></i>&nbsp;Assegnazioni ordine</span>
+                            </label>
+                            <label class="notif-pref-row">
+                                <input type="checkbox" id="np-stato" onchange="_onNotifPrefChange()"
+                                    ${_getNotifPrefs().stato ? 'checked' : ''}>
+                                <span><i class="fas fa-sync-alt" style="color:#f59e0b"></i>&nbsp;Cambi di stato articoli</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
 
             </div>
 

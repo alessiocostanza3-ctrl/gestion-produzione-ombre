@@ -4739,3 +4739,43 @@ button:active {
     0%   { background-position:  200% 0; }
     100% { background-position: -200% 0; }
 }
+
+/* ══════════════════════════════════════════════════════
+   NOTIFICHE PUSH – sezione Impostazioni
+   ══════════════════════════════════════════════════════ */
+.settings-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border: 1.5px solid rgba(255,255,255,0.15);
+    border-radius: 10px;
+    background: rgba(255,255,255,0.06);
+    color: #e2e8f0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .18s, border-color .18s;
+}
+.settings-action-btn:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.3); }
+.settings-action-btn.settings-btn-danger { border-color: #ef444455; color: #fca5a5; }
+.settings-action-btn.settings-btn-danger:hover { background: rgba(239,68,68,0.12); }
+
+.notif-pref-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 4px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    cursor: pointer;
+    font-size: 0.88rem;
+    color: #cbd5e1;
+}
+.notif-pref-row:last-child { border-bottom: none; }
+.notif-pref-row input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #2563eb;
+    cursor: pointer;
+    flex-shrink: 0;
+}
