@@ -339,7 +339,7 @@ function initSidebarState() {
 
 document.addEventListener('DOMContentLoaded', initSidebarState);
 /* ---- FINE SIDEBAR TOGGLE ---- */ // QUESTA FUNZIONE È QUELLA CHE SCRIVE I DATI NELLA TUA SIDEBAR
-function salvaEApriDashboard() {
+async function salvaEApriDashboard() {
     try { localStorage.setItem('sessioneUtente', JSON.stringify(utenteAttuale)); } catch (e) {}
     try { sessionStorage.setItem('sessioneUtente', JSON.stringify(utenteAttuale)); } catch (e) {}
 
@@ -347,12 +347,25 @@ function salvaEApriDashboard() {
     overlay.style.transition = "opacity 0.4s ease";
     overlay.style.opacity = '0';
 
-    setTimeout(() => {
-        overlay.style.display = 'none';
-        // Ora caricaPaginaRichieste userà utenteAttuale correttamente
-        caricaPaginaRichieste();
-        if(typeof aggiornaProfiloSidebar === 'function') aggiornaProfiloSidebar();
-    }, 400);
+    // Carica impostazioni (stati, operatori, sezioni, ecc.) IN PARALLELO col fade
+    // così quando la dashboard appare tutti i controlli sono già pronti.
+    // L'errore di rete non blocca l'accesso: l'utente può rientrare normalmente.
+    await Promise.all([
+        caricaImpostazioni().catch(e => console.warn("caricaImpostazioni post-login:", e)),
+        new Promise(r => setTimeout(r, 400))
+    ]);
+
+    overlay.style.display = 'none';
+    if (typeof aggiornaProfiloSidebar === 'function') aggiornaProfiloSidebar();
+
+    // Naviga alla pagina salvata (stessa logica del DOMContentLoaded normale)
+    let paginaSalvata = null;
+    try { paginaSalvata = localStorage.getItem('ultimaPaginaProduzione'); } catch (e) {}
+    if (!paginaSalvata || paginaSalvata === "undefined" || paginaSalvata === "null") {
+        paginaSalvata = "PROGRAMMA PRODUZIONE DEL MESE";
+    }
+    const tastoMenu = document.querySelector(`.menu-item[data-page="${paginaSalvata}"]`);
+    cambiaPagina(paginaSalvata, tastoMenu);
 }
 function logout() {
     try {
