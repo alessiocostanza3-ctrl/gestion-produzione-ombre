@@ -739,6 +739,8 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
         contenitore.innerHTML = cacheContenuti[nomeFoglio];
         applicaFade(contenitore);
         aggiornaListaFiltrabili();
+        // Riattiva DnD kanban dopo restore da cache
+        requestAnimationFrame(_initKanbanDnd);
         console.log("Rendering da cache:", nomeFoglio);
 
         // Aggiornamento dati in background solo se la cache è scaduta (> 30s)
@@ -862,6 +864,8 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
         aggiornaListaFiltrabili();
         // Observer: apri archivio quando ci si scorre sopra
         _osservaArchivio('archivio-prod-details');
+        // Attiva drag & drop kanban (solo desktop)
+        requestAnimationFrame(_initKanbanDnd);
 
         // Salva raw data per autocomplete del modal
         _ordiniAutocompleteCache = datiProd.filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE').map(r => ({ ordine: r.ordine || '', cliente: r.cliente || '' }));
@@ -1419,6 +1423,7 @@ function _ovLoadIfNeeded(summary) {
         const contentDiv = document.getElementById('ov-content');
         if (contentDiv && contentDiv.querySelector('.ov-lazy-placeholder')) {
             contentDiv.innerHTML = _buildOverviewInnerHtml(_attiviProd);
+            requestAnimationFrame(_initKanbanDnd);
         }
     }
 }
@@ -1444,73 +1449,178 @@ function _buildOverviewInnerHtml(attivi) {
     const cardsHtml = _OV_STATI_ALL.map(stato => {
         const righe = attivi.filter(r => (r.stato || '').toUpperCase() === stato);
         const colore = coloriStati[stato] || coloreDefault;
-        const isArtMode = _OV_STATI_ART.includes(stato);
         const isEmpty = righe.length === 0;
 
-        let contenuto = '';
-        let totLabel = '0';
-        if (isArtMode) {
-            // Raggruppa per codice articolo, somma qty
-            const byArt = {};
-            righe.forEach(r => {
-                const key = (r.codice || r.riferimento || '—').trim();
-                if (!byArt[key]) byArt[key] = { key, qty: 0, ordini: new Set() };
-                byArt[key].qty += parseInt(r.qty) || 1;
-                if (r.ordine) byArt[key].ordini.add(r.ordine);
-            });
-            const artList = Object.values(byArt).sort((a, b) => b.qty - a.qty);
-            totLabel = artList.length + ' cod.';
-            contenuto = artList.map(a => {
-                const lbl = a.key.length > 28 ? a.key.substring(0, 28) + '…' : a.key;
-                const ordiniStr = [...a.ordini].join(', ');
-                return `<div class="ov-stato-row ov-stato-row-art">
-                    <span class="ov-row-label" title="${a.key}">${lbl}</span>
-                    <span class="ov-row-badges">
-                        <span class="ov-badge-qty">${a.qty} pz</span>
-                    </span>
-                    <span class="ov-row-ordini" title="${ordiniStr}">${ordiniStr}</span>
-                </div>`;
-            }).join('');
-        } else {
-            // Raggruppa per ordine, mostra operatori
-            const byOrd = {};
-            righe.forEach(r => {
-                const key = r.ordine || '—';
-                if (!byOrd[key]) byOrd[key] = { ordine: key, cliente: r.cliente || '', operatori: new Set(), count: 0 };
-                byOrd[key].count++;
-                if (r.assegna && r.assegna.trim() && r.assegna !== 'undefined') {
-                    r.assegna.split(',').forEach(op => byOrd[key].operatori.add(op.trim()));
-                }
-            });
-            const ordList = Object.values(byOrd).sort((a, b) => b.count - a.count);
-            totLabel = ordList.length + ' ord.';
-            contenuto = ordList.map(o => {
-                const cli = o.cliente.length > 14 ? o.cliente.substring(0, 14) + '…' : o.cliente;
-                const ops = o.operatori.size ? [...o.operatori].join(', ') : 'Libero';
-                const opsShort = ops.length > 20 ? ops.substring(0, 20) + '…' : ops;
-                const ordLabel = o.ordine + (cli ? ' · ' + cli : '');
-                return `<div class="ov-stato-row">
-                    <span class="ov-row-label" title="${o.ordine} – ${o.cliente}">${ordLabel}</span>
-                    <span class="ov-badge-op" title="${ops}">${opsShort}</span>
-                </div>`;
-            }).join('');
-        }
+        // Righe individuali per articolo (draggabili su desktop)
+        const contenuto = righe.map(r => {
+            const codice = (r.codice && r.codice !== 'false' ? r.codice : r.riferimento || '—').trim();
+            const lbl = codice.length > 24 ? codice.substring(0, 24) + '…' : codice;
+            const ord = r.ordine || '';
+            const ordShort = ord.length > 12 ? ord.substring(0, 12) + '…' : ord;
+            const opPrimo = (r.assegna && r.assegna.trim() && r.assegna !== 'undefined')
+                ? r.assegna.split(',')[0].trim() : '';
+            const subLine = [ordShort, opPrimo].filter(Boolean).join(' · ');
+            return `<div class="ov-stato-row ov-kanban-item" draggable="true"
+                data-id-riga="${r.id_riga}"
+                data-codice="${codice.replace(/"/g, '&quot;')}"
+                data-ordine="${ord}"
+                data-stato-corrente="${stato}">
+                <span class="ov-drag-handle"><i class="fas fa-grip-vertical"></i></span>
+                <span class="ov-row-main">
+                    <span class="ov-row-label" title="${codice}">${lbl}</span>
+                    ${subLine ? `<span class="ov-row-sub">${subLine}</span>` : ''}
+                </span>
+                <span class="ov-badge-qty">${r.qty || 1} pz</span>
+            </div>`;
+        }).join('');
+
+        const totLabel = righe.length + ' art.';
 
         return `<details class="ov-stato-card${isEmpty ? ' ov-stato-card-empty' : ''}"${isEmpty ? '' : ' open'}>
             <summary class="ov-stato-header" style="--ov-col:${colore}">
                 <span class="ov-stato-dot" style="background:${colore}"></span>
                 <span class="ov-stato-nome">${stato}</span>
-                <span class="ov-stato-tot" style="background:${colore}22;color:${colore}">${totLabel}</span>
+                <span class="ov-stato-tot" style="background:${colore}22;color:${colore}" data-stato-count="${stato}">${totLabel}</span>
                 <i class="fas fa-chevron-down ov-sub-chevron"></i>
             </summary>
-            <div class="ov-stato-body">${isEmpty ? '<span class="ov-empty-lbl">— nessun articolo</span>' : contenuto}</div>
+            <div class="ov-stato-body" data-stato-drop="${stato}">${isEmpty ? '<span class="ov-empty-lbl">— nessun articolo</span>' : contenuto}</div>
         </details>`;
     }).join('');
 
-    return `<div class="ov-stati-grid">${cardsHtml}</div>`;
+    return `<div class="ov-stati-grid" id="ov-kanban-grid">${cardsHtml}</div>`;
 }
 
 function _buildOverviewChart() { /* non più usato */ }
+
+/* ────────────────────────────────────────────────────────────────
+   KANBAN DRAG & DROP  –  solo desktop (≥ 601 px)
+   Consente di trascinare gli articoli tra le colonne dello stato
+   avanzamento. Al rilascio aggiorna il backend via aggiornaDato()
+   e sincronizza il dropdown nell'item-card sottostante.
+   ──────────────────────────────────────────────────────────────── */
+function _initKanbanDnd() {
+    if (window.innerWidth <= 600) return;
+    const grid = document.getElementById('ov-kanban-grid');
+    if (!grid || grid._dndInit) return;
+    grid._dndInit = true;
+
+    let dragEl  = null;
+    let srcStato = null;
+
+    grid.addEventListener('dragstart', e => {
+        dragEl = e.target.closest('.ov-kanban-item');
+        if (!dragEl) return;
+        srcStato = dragEl.dataset.statoCorrente;
+        dragEl.classList.add('ov-drag-active');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', dragEl.dataset.idRiga || '');
+    });
+
+    grid.addEventListener('dragend', () => {
+        if (dragEl) dragEl.classList.remove('ov-drag-active', 'ov-drag-exit');
+        grid.querySelectorAll('.ov-stato-body').forEach(b => b.classList.remove('ov-drop-over'));
+        dragEl   = null;
+        srcStato = null;
+    });
+
+    grid.addEventListener('dragover', e => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        const body = e.target.closest('.ov-stato-body');
+        grid.querySelectorAll('.ov-stato-body').forEach(b => b.classList.remove('ov-drop-over'));
+        if (body && dragEl && body.dataset.statoDrop !== srcStato) {
+            body.classList.add('ov-drop-over');
+        }
+    });
+
+    grid.addEventListener('drop', e => {
+        e.preventDefault();
+        const body = e.target.closest('.ov-stato-body');
+        grid.querySelectorAll('.ov-stato-body').forEach(b => b.classList.remove('ov-drop-over'));
+        if (!body || !dragEl) return;
+        const newStato = body.dataset.statoDrop;
+        if (!newStato || newStato === srcStato) return;
+
+        const idRiga   = dragEl.dataset.idRiga;
+        const colore   = (listaStati.find(s => s.nome === newStato) || {}).colore || '#94a3b8';
+
+        // Animazione uscita
+        dragEl.classList.add('ov-drag-exit');
+        const elRef = dragEl; // snapshot prima del timeout
+
+        setTimeout(() => {
+            // Rimuovi placeholder "nessun articolo" se presente
+            body.querySelectorAll('.ov-empty-lbl').forEach(el => el.remove());
+            // Aggiorna attributo stato e sposta nel nuovo body
+            elRef.dataset.statoCorrente = newStato;
+            elRef.classList.remove('ov-drag-active', 'ov-drag-exit');
+            body.appendChild(elRef);
+            // Assicura che la colonna destinazione sia aperta
+            const destCard = body.closest('.ov-stato-card');
+            if (destCard) destCard.open = true;
+            // Aggiorna contatori e placeholder colonne vuote
+            _aggiornaKanbanCount(grid);
+            _checkKanbanEmpty(grid);
+        }, 140);
+
+        // Salva sul backend
+        aggiornaDato(null, idRiga, 'stato', newStato);
+        // Aggiorna cache locale _attiviProd
+        if (_attiviProd) {
+            const r = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
+            if (r) r.stato = newStato;
+        }
+        // Sincronizza il dropdown stato nell'item-card
+        _syncStatoItemCard(idRiga, newStato, colore);
+        notificaElegante(`Stato → ${newStato}`);
+    });
+}
+
+function _aggiornaKanbanCount(grid) {
+    grid.querySelectorAll('.ov-stato-body').forEach(body => {
+        const stato = body.dataset.statoDrop;
+        const count = body.querySelectorAll('.ov-kanban-item').length;
+        const badge = grid.querySelector(`[data-stato-count="${stato}"]`);
+        if (badge) badge.textContent = count + ' art.';
+        const card = body.closest('.ov-stato-card');
+        if (card) card.classList.toggle('ov-stato-card-empty', count === 0);
+    });
+}
+
+function _checkKanbanEmpty(grid) {
+    grid.querySelectorAll('.ov-stato-body').forEach(body => {
+        const hasItems = body.querySelectorAll('.ov-kanban-item').length > 0;
+        if (!hasItems && !body.querySelector('.ov-empty-lbl')) {
+            const lbl = document.createElement('span');
+            lbl.className = 'ov-empty-lbl';
+            lbl.textContent = '— nessun articolo';
+            body.appendChild(lbl);
+        }
+    });
+}
+
+function _syncStatoItemCard(idRiga, newStato, colore) {
+    // Aggiorna il dropdown stato nel pannello articoli (item-card) corrispondente
+    const dropdown = document.querySelector(`.stato-dropdown[data-id-riga="${idRiga}"]`);
+    if (!dropdown) return;
+    const trigger = dropdown.querySelector('.stato-trigger');
+    if (!trigger) return;
+    const dot = trigger.querySelector('.stato-dot');
+    const lbl = trigger.querySelector('.stato-label-txt');
+    if (dot) dot.style.background = colore;
+    if (lbl) lbl.textContent = newStato;
+    dropdown.querySelectorAll('.stato-option').forEach(o => {
+        const oName = o.querySelector('span:not(.stato-opt-dot)')?.textContent.trim();
+        o.classList.toggle('is-selected', oName === newStato);
+        const existing = o.querySelector('.stato-check-icon');
+        if (existing) existing.remove();
+        if (oName === newStato) {
+            const chk = document.createElement('i');
+            chk.className = 'fas fa-check stato-check-icon';
+            o.appendChild(chk);
+        }
+    });
+}
 
 //PAGINA RICHIESTE//
 

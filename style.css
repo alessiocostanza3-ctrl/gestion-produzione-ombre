@@ -4515,6 +4515,67 @@ button:active {
     .ov-stato-card[open] .ov-sub-chevron { transform: rotate(180deg); }
     .ov-stato-body { max-height: 180px; }
     .ov-row-label { font-size: 0.70rem; }
+    /* nascondi drag handle su mobile */
+    .ov-drag-handle { display: none; }
+    .ov-row-main { flex: 1; min-width: 0; }
+}
+
+/* ── Kanban drag & drop (solo desktop ≥ 601px) ────────────────── */
+@media (min-width: 601px) {
+    /* Struttura riga articolo */
+    .ov-kanban-item {
+        cursor: grab;
+        border-radius: 6px;
+        padding: 4px 6px;
+        transition: background 0.15s, opacity 0.2s, transform 0.2s;
+        align-items: flex-start;
+        gap: 6px;
+    }
+    .ov-kanban-item:hover { background: #1e293b; }
+    .ov-kanban-item:active { cursor: grabbing; }
+    /* Elemento in corso di trascinamento */
+    .ov-kanban-item.ov-drag-active {
+        opacity: 0.3;
+        cursor: grabbing;
+    }
+    /* Animazione di uscita dalla colonna sorgente */
+    .ov-kanban-item.ov-drag-exit {
+        opacity: 0;
+        transform: scale(0.88);
+    }
+    /* Handle */
+    .ov-drag-handle {
+        color: #475569;
+        font-size: 0.68rem;
+        flex-shrink: 0;
+        cursor: grab;
+        padding-top: 3px;
+        transition: color 0.15s;
+    }
+    .ov-kanban-item:hover .ov-drag-handle { color: #818cf8; }
+    /* Testo principale + riga secondaria */
+    .ov-row-main {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-width: 0;
+        gap: 1px;
+    }
+    .ov-row-sub {
+        font-size: 0.60rem;
+        color: #64748b;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    /* Colonna destinazione evidenziata durante il drag-over */
+    .ov-stato-body.ov-drop-over {
+        background: rgba(99, 102, 241, 0.07);
+        outline: 2px dashed #6366f1;
+        outline-offset: -2px;
+        border-radius: 0 0 10px 10px;
+        transition: background 0.15s;
+    }
 }
 
 /* ============================================================
