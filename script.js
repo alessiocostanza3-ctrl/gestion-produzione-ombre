@@ -31,31 +31,34 @@ let _navAbortController = null; // annulla fetch in-volo a ogni cambio pagina
 let _lastNavClickTime = 0;     // debounce click rapidissimi (<80ms)
 
 /*******************************************************************************
-* NOTIFICHE PUSH  –  OneSignal
+* NOTIFICHE PUSH  –  VAPID native (nessun servizio di terze parti)
+* Chiavi gestite in Google Apps Script (ScriptProperties).
+* Requisiti: browser con Push API; iPhone richiede iOS 16.4+ e PWA installata.
 *******************************************************************************/
 
+// Chiave VAPID pubblica (la privata sta SOLO in GAS > ScriptProperties)
+const _VAPID_PUBLIC_KEY = 'BAHqp3uv56mQSAeTv_66-f4GYkzaESwuJNOP5DJCVMi197n-EKl9TW9XPrKeIIDpzBz0HTM42AcUCXWmOP5BSYI';
+
 /**
- * Identifica l'utente su OneSignal e applica le sue preferenze di notifica.
+ * Registra / aggiorna la sottoscrizione push VAPID per l'utente corrente.
  * Da chiamare dopo ogni login / avvio con sessione valida.
  */
-function _initOneSignal() {
-    if (!window.OneSignal && !window.OneSignalDeferred) return;
-    (window.OneSignalDeferred = window.OneSignalDeferred || []).push(async function(OneSignal) {
-        try {
-            // Associa questo browser all'utente (External User ID = nome uppercase)
-            await OneSignal.login(utenteAttuale.nome.toUpperCase());
-
-            // Sincronizza tag preferenze
-            const p = _getNotifPrefs();
-            await OneSignal.User.addTags({
-                notif_richieste:    p.richieste    ? '1' : '0',
-                notif_assegnazioni: p.assegnazioni ? '1' : '0',
-                notif_stato:        p.stato        ? '1' : '0'
-            });
-        } catch (err) {
-            console.warn('OneSignal init:', err);
+async function _initPush() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    try {
+        const reg = await navigator.serviceWorker.register('sw.js', { scope: './' });
+        await navigator.serviceWorker.ready;
+        // Salva username nel Cache API: accessibile dal Service Worker
+        if ('caches' in window) {
+            const c = await caches.open('prod-auth');
+            await c.put('username', new Response(utenteAttuale.nome.toUpperCase()));
         }
-    });
+        // Se già iscritto, aggiorna la subscription su GAS (endpoint può cambiare)
+        const sub = await reg.pushManager.getSubscription();
+        if (!sub) return;
+        const j = sub.toJSON();
+        await _salvaSubVAPID_({ endpoint: j.endpoint, p256dh: j.keys?.p256dh, auth: j.keys?.auth });
+    } catch (err) { console.warn('[Push] initPush:', err); }
 }
 
 function _getNotifPrefs() {
@@ -67,16 +70,6 @@ function _getNotifPrefs() {
 
 function _saveNotifPrefs(prefs) {
     try { localStorage.setItem('notifPrefs', JSON.stringify(prefs)); } catch {}
-    // Aggiorna tag OneSignal in tempo reale
-    (window.OneSignalDeferred = window.OneSignalDeferred || []).push(async function(OneSignal) {
-        try {
-            await OneSignal.User.addTags({
-                notif_richieste:    prefs.richieste    ? '1' : '0',
-                notif_assegnazioni: prefs.assegnazioni ? '1' : '0',
-                notif_stato:        prefs.stato        ? '1' : '0'
-            });
-        } catch {}
-    });
     notificaElegante('Preferenze notifiche salvate ✓');
 }
 
@@ -89,39 +82,96 @@ function _onNotifPrefChange() {
     _saveNotifPrefs(prefs);
 }
 
+/** Attiva o disattiva le push per questo dispositivo. */
 async function _togglePushPermission() {
-    if (!window.OneSignalDeferred && !window.OneSignal) {
-        notificaElegante('Configura prima App ID in index.html', 'error');
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        notificaElegante('Questo browser non supporta le notifiche push', 'error');
         return;
     }
-    (window.OneSignalDeferred = window.OneSignalDeferred || []).push(async function(OneSignal) {
-        try {
-            const isOptedIn = OneSignal.User.PushSubscription.optedIn;
-            if (isOptedIn) {
-                await OneSignal.User.PushSubscription.optOut();
-                notificaElegante('Notifiche push disattivate');
-            } else {
-                const granted = await OneSignal.Notifications.requestPermission();
-                if (granted) notificaElegante('Notifiche push attivate ✓');
-                else notificaElegante('Permesso negato dal browser', 'error');
+    try {
+        const reg = await navigator.serviceWorker.register('sw.js', { scope: './' });
+        await navigator.serviceWorker.ready;
+        let sub = await reg.pushManager.getSubscription();
+        if (sub) {
+            // ── Disattiva ──────────────────────────────────────────────────
+            const endpt = sub.endpoint;
+            await sub.unsubscribe();
+            try {
+                await fetch(URL_GOOGLE, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ azione: 'eliminaSottoscrizione', endpoint: endpt })
+                });
+            } catch {}
+            notificaElegante('Notifiche push disattivate');
+        } else {
+            // ── Attiva ─────────────────────────────────────────────────────
+            const perm = await Notification.requestPermission();
+            if (perm !== 'granted') { notificaElegante('Permesso notifiche negato', 'error'); return; }
+            sub = await reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: _vapidB64ToUint8_(_VAPID_PUBLIC_KEY)
+            });
+            const j = sub.toJSON();
+            await _salvaSubVAPID_({ endpoint: j.endpoint, p256dh: j.keys?.p256dh, auth: j.keys?.auth });
+            if ('caches' in window) {
+                const c = await caches.open('prod-auth');
+                await c.put('username', new Response(utenteAttuale.nome.toUpperCase()));
             }
-            setTimeout(_aggiornaUINotifiche, 500);
-        } catch (err) { console.warn('togglePush:', err); }
-    });
+            notificaElegante('Notifiche push attivate ✓');
+        }
+        setTimeout(_aggiornaUINotifiche, 400);
+    } catch (err) {
+        console.warn('[Push] toggle:', err);
+        notificaElegante('Errore attivazione notifiche push', 'error');
+    }
 }
 
-function _aggiornaUINotifiche() {
-    (window.OneSignalDeferred = window.OneSignalDeferred || []).push(async function(OneSignal) {
-        try {
-            const optedIn = !!OneSignal.User.PushSubscription.optedIn;
-            const btn    = document.getElementById('btn-toggle-push');
-            const dot    = document.getElementById('push-status-dot');
-            const label  = document.getElementById('push-status-text');
-            if (btn)   { btn.innerHTML = optedIn ? '<i class="fas fa-bell-slash"></i> Disattiva notifiche' : '<i class="fas fa-bell"></i> Attiva notifiche push'; }
-            if (dot)   { dot.style.background = optedIn ? '#22c55e' : '#6b7280'; }
-            if (label) { label.textContent = optedIn ? 'Attive su questo dispositivo' : 'Non attive su questo dispositivo'; }
-        } catch {}
-    });
+async function _aggiornaUINotifiche() {
+    const btn   = document.getElementById('btn-toggle-push');
+    const dot   = document.getElementById('push-status-dot');
+    const label = document.getElementById('push-status-text');
+    if (!btn && !dot) return;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        if (label) label.textContent = 'Non supportate da questo browser';
+        if (btn)   btn.disabled = true;
+        return;
+    }
+    try {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        const on  = !!sub;
+        if (btn)   btn.innerHTML = on
+            ? '<i class="fas fa-bell-slash"></i> Disattiva notifiche'
+            : '<i class="fas fa-bell"></i> Attiva notifiche push';
+        if (dot)   dot.style.background = on ? '#22c55e' : '#6b7280';
+        if (label) label.textContent    = on ? 'Attive su questo dispositivo' : 'Non attive su questo dispositivo';
+    } catch {}
+}
+
+/** base64url → Uint8Array (serve a pushManager.subscribe) */
+function _vapidB64ToUint8_(b64url) {
+    const pad  = '='.repeat((4 - b64url.length % 4) % 4);
+    const b64  = (b64url + pad).replace(/-/g, '+').replace(/_/g, '/');
+    const raw  = window.atob(b64);
+    return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+
+/** POST una subscription VAPID al backend GAS. */
+async function _salvaSubVAPID_(sub) {
+    try {
+        await fetch(URL_GOOGLE, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                azione:   'salvaSottoscrizione',
+                username: utenteAttuale.nome.toUpperCase(),
+                endpoint: sub.endpoint,
+                p256dh:   sub.p256dh  || '',
+                auth:     sub.auth    || ''
+            })
+        });
+    } catch {}
 }
 
 // ---- search optimisation helpers ----
@@ -195,7 +245,7 @@ window.onload = async function() {
         // AGGIORNAMENTO IMMEDIATO: Prima ancora di scaricare i dati da Sheets
         // Questo sovrascrive "MASTER" o "Caricamento..." all'istante
         aggiornaProfiloSidebar();
-        _initOneSignal(); // Identifica l'utente su OneSignal (sessione preesistente)
+        _initPush();      // Registra / aggiorna subscription push VAPID
 
         if (overlay) overlay.style.display = 'none';
         console.log("Sessione trovata per:", utenteAttuale.nome);
@@ -452,7 +502,7 @@ async function salvaEApriDashboard() {
 
     overlay.style.display = 'none';
     if (typeof aggiornaProfiloSidebar === 'function') aggiornaProfiloSidebar();
-    _initOneSignal(); // Identifica l'utente su OneSignal per le notifiche push
+    _initPush();      // Registra / aggiorna subscription push VAPID
 
     // Naviga alla pagina salvata (stessa logica del DOMContentLoaded normale)
     let paginaSalvata = null;
