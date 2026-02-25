@@ -1453,7 +1453,7 @@ function _buildOverviewInnerHtml(attivi) {
 
         // Righe individuali per articolo (draggabili su desktop)
         const contenuto = righe.map(r => {
-            const codice = (r.codice && r.codice !== 'false' ? r.codice : r.riferimento || '—').trim();
+            const codice = String(r.codice && r.codice !== 'false' ? r.codice : r.riferimento || '—').trim();
             const lbl = codice.length > 24 ? codice.substring(0, 24) + '…' : codice;
             const ord = r.ordine || '';
             const ordShort = ord.length > 12 ? ord.substring(0, 12) + '…' : ord;
