@@ -104,10 +104,8 @@
         }
     </style>
     <style>
-        /* Blocco orientamento landscape su smartphone */
-        @media (orientation: landscape) and (max-height: 500px) and (max-width: 768px) {
-            #rotate-overlay { display: flex !important; }
-        }
+        /* Blocco orientamento landscape: attivato solo via JS su dispositivi touch */
+        body.is-touch-device #rotate-overlay.landscape-active { display: flex !important; }
         #rotate-overlay {
             display: none;
             position: fixed;
@@ -141,6 +139,23 @@
         }
     </style>
     <script>
+        // Rileva touch reale e gestisci overlay landscape
+        (function() {
+            const isTouchDevice = ('ontouchstart' in window) && navigator.maxTouchPoints > 0;
+            if (isTouchDevice) document.body.classList.add('is-touch-device');
+            function checkOrientation() {
+                const overlay = document.getElementById('rotate-overlay');
+                if (!overlay) return;
+                if (isTouchDevice && window.innerWidth > window.innerHeight && window.innerHeight < 500) {
+                    overlay.classList.add('landscape-active');
+                } else {
+                    overlay.classList.remove('landscape-active');
+                }
+            }
+            window.addEventListener('resize', checkOrientation);
+            window.addEventListener('orientationchange', checkOrientation);
+            document.addEventListener('DOMContentLoaded', checkOrientation);
+        })();
         // Tailwind via CDN (no build step). Disable preflight to avoid breaking existing styles.
         tailwind = window.tailwind || {};
         tailwind.config = {
