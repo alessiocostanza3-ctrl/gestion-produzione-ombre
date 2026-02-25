@@ -27,6 +27,8 @@ let _pageInitDone = false;
 let _bindingsInitDone = false;
 let _navRequestSerial = 0;
 let _latestNavRequest = 0;
+let _navAbortController = null; // annulla fetch in-volo a ogni cambio pagina
+let _lastNavClickTime = 0;     // debounce click rapidissimi (<80ms)
 
 // ---- search optimisation helpers ----
 let elementiDaFiltrareCache = null;
@@ -60,9 +62,9 @@ function aggiornaListaFiltrabili() {
 let _ordiniAutocompleteCache = [];
 let _attiviProd = [];  // cache per il chart overview nella pagina produzione
 
-async function fetchJson(pagina) {
+async function fetchJson(pagina, signal) {
     const url = URL_GOOGLE + "?pagina=" + encodeURIComponent(pagina);
-    const res = await fetch(url);
+    const res = await fetch(url, signal ? { signal } : {});
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
 }
@@ -474,8 +476,33 @@ function aggiornaBadgeSidebar(messaggi) {
     }
 }
 function cambiaPagina(nomeFoglio, elementoMenu) {
+    // ── Debounce: ignora click entro 80ms dal precedente ──
+    const now = Date.now();
+    if (now - _lastNavClickTime < 80) return;
+    _lastNavClickTime = now;
+
+    // ── Abort qualsiasi fetch in-volo della navigazione precedente ──
+    if (_navAbortController) {
+        try { _navAbortController.abort(); } catch (_) {}
+    }
+    _navAbortController = new AbortController();
+    const navSignal = _navAbortController.signal;
+
     const requestId = ++_navRequestSerial;
     _latestNavRequest = requestId;
+
+    // Scheletro di caricamento istantaneo (feedback visivo prima del fetch)
+    if (!cacheContenuti[nomeFoglio]) {
+        const contenitorePreview = document.getElementById('contenitore-dati');
+        if (contenitorePreview) {
+            contenitorePreview.innerHTML = `<div class="nav-skeleton">
+                <div class="nav-skel-bar" style="width:60%"></div>
+                <div class="nav-skel-bar" style="width:85%"></div>
+                <div class="nav-skel-bar" style="width:45%"></div>
+                <div class="nav-skel-bar" style="width:75%"></div>
+            </div>`;
+        }
+    }
 
     // reset possible filter cache when switching pages
     elementiDaFiltrareCache = null;
@@ -562,8 +589,8 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
         const ora = Date.now();
         const ultimoFetch = cacheFetchTime[nomeFoglio] || 0;
         if (ora - ultimoFetch > CACHE_TTL_MS) {
-            if (nomeFoglio === "PROGRAMMA PRODUZIONE DEL MESE") caricaDati(nomeFoglio, true, requestId);
-            if (nomeFoglio === "MATERIALE DA ORDINARE") caricaMateriali(true);
+            if (nomeFoglio === "PROGRAMMA PRODUZIONE DEL MESE") caricaDati(nomeFoglio, true, requestId, navSignal);
+            if (nomeFoglio === "MATERIALE DA ORDINARE") caricaMateriali(true, requestId, navSignal);
         }
         return;
     }
@@ -576,16 +603,16 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
             caricaInterfacciaImpostazioni();
             break;
         case 'STORICO_RICHIESTE':
-            caricaPaginaRichieste();
+            caricaPaginaRichieste(requestId, navSignal);
             break;
         case 'ARCHIVIO_ORDINI':
             caricaArchivio();
             break;
         case 'MATERIALE DA ORDINARE':
-            caricaMateriali(false);
+            caricaMateriali(false, requestId, navSignal);
             break;
         default:
-            caricaDati(nomeFoglio, false, requestId);
+            caricaDati(nomeFoglio, false, requestId, navSignal);
     }
 }
 
@@ -597,7 +624,7 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
 
 //PAGINA PRODUZIONE//
 
-async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedRequestId = null) {
+async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedRequestId = null, signal = null) {
     const contenitore = document.getElementById('contenitore-dati');
     if (!isBackgroundUpdate) {
         contenitore.innerHTML = "<div class='inline-msg'>Caricamento Dashboard...</div>";
@@ -607,8 +634,8 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
     try {
         // Scarichiamo entrambi i fogli in parallelo
         const [datiProd, datiArch] = await Promise.all([
-            fetchJson("PROGRAMMA PRODUZIONE DEL MESE"),
-            fetchJson("ARCHIVIO_ORDINI")
+            fetchJson("PROGRAMMA PRODUZIONE DEL MESE", signal),
+            fetchJson("ARCHIVIO_ORDINI", signal)
         ]);
 
         if (paginaAttuale !== nomeFoglio) return;
@@ -675,6 +702,7 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
         _ordiniAutocompleteCache = _ordiniAutocompleteCache.filter(o => { if (seen.has(o.ordine)) return false; seen.add(o.ordine); return true; });
 
     } catch (e) {
+        if (e.name === 'AbortError') return; // navigazione annullata, fetch interrotto
         console.error("Errore Dashboard:", e);
         contenitore.innerHTML = "<div class='inline-error'>Errore nel caricamento dati.</div>";
         applicaFade(contenitore);
@@ -1314,7 +1342,7 @@ function _buildOverviewChart() { /* non più usato */ }
 
 //PAGINA RICHIESTE//
 
-async function caricaPaginaRichieste() {
+async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
     const contenitore = document.getElementById('contenitore-dati');
     if (!contenitore) return;
 
@@ -1322,16 +1350,17 @@ async function caricaPaginaRichieste() {
 
     try {
         const [messaggiAttivi, messaggiArchivio] = await Promise.all([
-            fetchJson("STORICO_RICHIESTE"),
-            fetchJson("ARCHIVIO_RICHIESTE")
+            fetchJson("STORICO_RICHIESTE", signal),
+            fetchJson("ARCHIVIO_RICHIESTE", signal)
         ]);
 
-        // Aggiorna sempre badge sidebar e campanellina (indipendentemente dalla pagina corrente)
+        // Guard: se l'utente ha navigato altrove durante il fetch, ignorare
+        if (expectedRequestId !== null && expectedRequestId !== _latestNavRequest) return;
+        if (paginaAttuale !== 'STORICO_RICHIESTE') return;
+
+        // Aggiorna badge sidebar e campanellina
         aggiornaBadgeSidebar(messaggiAttivi);
         aggiornaBadgeNotifiche(messaggiAttivi);
-
-        // Guard anti-stale: se l'utente ha cambiato pagina mentre il fetch era in corso, ignorare
-        if (paginaAttuale !== 'STORICO_RICHIESTE') return;
 
         const io = utenteAttuale.nome.toUpperCase().trim();
 
@@ -1392,6 +1421,7 @@ async function caricaPaginaRichieste() {
         });
 
     } catch (e) {
+        if (e.name === 'AbortError') return; // navigazione annullata
         console.error("Errore:", e);
         contenitore.innerHTML = "<div class='centered-error-bold'>Errore nel caricamento. Riprova.</div>";
         applicaFade(contenitore);
@@ -2010,7 +2040,7 @@ async function salvaTutteImpostazioni() {
     }
   }
 
-  async function caricaMateriali(silenzioso = false) {
+  async function caricaMateriali(silenzioso = false, expectedRequestId = null, signal = null) {
     // --- PROTEZIONE AGGIORNAMENTO ---
     const isInSelectionMode = document.getElementById('btn-delete-selected')?.classList.contains('visible');
     if (silenzioso && isInSelectionMode) {
@@ -2031,9 +2061,11 @@ async function salvaTutteImpostazioni() {
     }
 
     try {
-        const materiali = await fetchJson("MATERIALE DA ORDINARE");
+        const materiali = await fetchJson("MATERIALE DA ORDINARE", signal);
 
-        // Aggiorna la lista sezioni dal backend prima di renderizzare
+        // Guard anti-stale
+        if (expectedRequestId !== null && expectedRequestId !== _latestNavRequest) return;
+        if (!silenzioso && paginaAttuale !== 'MATERIALE DA ORDINARE') return;
         await _caricaSezioniDaBackend();
 
         // Aggiungi in sezioniMateriali eventuali sezioni già presenti nei dati ma non ancora in lista
@@ -2191,6 +2223,7 @@ async function salvaTutteImpostazioni() {
         aggiornaListaFiltrabili();
 
     } catch (e) {
+        if (e.name === 'AbortError') return; // navigazione annullata
         console.error("Errore caricamento materiali:", e);
         if (contenitore) {
             contenitore.innerHTML = "<div class='centered-error-bold'>Errore nel caricamento del catalogo.</div>";
