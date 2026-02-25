@@ -504,19 +504,6 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
     const requestId = ++_navRequestSerial;
     _latestNavRequest = requestId;
 
-    // Scheletro di caricamento istantaneo (feedback visivo prima del fetch)
-    if (!cacheContenuti[nomeFoglio]) {
-        const contenitorePreview = document.getElementById('contenitore-dati');
-        if (contenitorePreview) {
-            contenitorePreview.innerHTML = `<div class="nav-skeleton">
-                <div class="nav-skel-bar" style="width:60%"></div>
-                <div class="nav-skel-bar" style="width:85%"></div>
-                <div class="nav-skel-bar" style="width:45%"></div>
-                <div class="nav-skel-bar" style="width:75%"></div>
-            </div>`;
-        }
-    }
-
     // reset possible filter cache when switching pages
     elementiDaFiltrareCache = null;
 
@@ -567,7 +554,17 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
 
     // 6. Rendering Contenuto (Cache o Server)
     const contenitore = document.getElementById('contenitore-dati');
-    contenitore.innerHTML = ""; // Svuotamento preventivo per evitare accavallamenti
+    // Skeleton istantaneo solo se non c'è cache (rimane visibile fino a che il loader scrive)
+    if (!cacheContenuti[nomeFoglio]) {
+        contenitore.innerHTML = `<div class="nav-skeleton">
+            <div class="nav-skel-bar" style="width:60%"></div>
+            <div class="nav-skel-bar" style="width:85%"></div>
+            <div class="nav-skel-bar" style="width:45%"></div>
+            <div class="nav-skel-bar" style="width:75%"></div>
+        </div>`;
+    } else {
+        contenitore.innerHTML = ""; // sarà sovrascritto subito dalla cache sotto
+    }
 
     // Chiudi tutti i modali aperti quando si cambia pagina
     ['modalAiuto', 'modal-conferma', 'modal-gestione-articolo', 'modal-carrello'].forEach(id => {
@@ -640,9 +637,20 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
 async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedRequestId = null, signal = null) {
     const contenitore = document.getElementById('contenitore-dati');
     if (!isBackgroundUpdate) {
-        contenitore.innerHTML = "<div class='inline-msg'>Caricamento Dashboard...</div>";
+        contenitore.innerHTML = "<div class='inline-msg' id='_prod-loader'>Caricamento Dashboard...</div>";
         applicaFade(contenitore);
     }
+
+    // Retry button dopo 12s se ancora in caricamento
+    const retryTimer = isBackgroundUpdate ? null : setTimeout(() => {
+        const el = document.getElementById('_prod-loader');
+        if (el) el.innerHTML = `⚠️ Connessione lenta o server non raggiungibile.<br>
+            <button onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', null)"
+                style="margin-top:12px;padding:8px 20px;background:#2563eb;color:#fff;
+                       border:none;border-radius:8px;cursor:pointer;font-size:0.9rem">
+                &#x21bb; Riprova
+            </button>`;
+    }, 12000);
 
     try {
         // Scarichiamo entrambi i fogli in parallelo
@@ -650,6 +658,7 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
             fetchJson("PROGRAMMA PRODUZIONE DEL MESE", signal),
             fetchJson("ARCHIVIO_ORDINI", signal)
         ]);
+        if (retryTimer) clearTimeout(retryTimer);
 
         if (paginaAttuale !== nomeFoglio) return;
         if (expectedRequestId !== null && expectedRequestId !== _latestNavRequest) return;
@@ -715,9 +724,13 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
         _ordiniAutocompleteCache = _ordiniAutocompleteCache.filter(o => { if (seen.has(o.ordine)) return false; seen.add(o.ordine); return true; });
 
     } catch (e) {
+        if (retryTimer) clearTimeout(retryTimer);
         if (e.name === 'AbortError') return; // navigazione annullata, fetch interrotto
         console.error("Errore Dashboard:", e);
-        contenitore.innerHTML = "<div class='inline-error'>Errore nel caricamento dati.</div>";
+        contenitore.innerHTML = `<div class='inline-error'>Errore nel caricamento dati.
+            <button onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', null)"
+                style="margin-left:8px;padding:4px 12px;background:#2563eb;color:#fff;border:none;border-radius:6px;cursor:pointer">
+                &#x21bb; Riprova</button></div>`;
         applicaFade(contenitore);
     }
 }
@@ -1359,21 +1372,39 @@ async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
     const contenitore = document.getElementById('contenitore-dati');
     if (!contenitore) return;
 
-    contenitore.innerHTML = "<div class='centered-msg'>Caricamento messaggi in corso...</div>";
+    // Messaggio di caricamento con id univoco per il retry-timer
+    contenitore.innerHTML = "<div class='centered-msg' id='_ric-loader'>Caricamento messaggi in corso...</div>";
+
+    // Retry button dopo 12s se ancora in caricamento (GAS cold-start / rete lenta)
+    const retryTimer = setTimeout(() => {
+        const el = document.getElementById('_ric-loader');
+        if (el) el.innerHTML = `⚠️ Connessione lenta o server non raggiungibile.<br>
+            <button onclick="cambiaPagina('STORICO_RICHIESTE', null)"
+                style="margin-top:12px;padding:8px 20px;background:#2563eb;color:#fff;
+                       border:none;border-radius:8px;cursor:pointer;font-size:0.9rem">
+                &#x21bb; Riprova
+            </button>`;
+    }, 12000);
 
     try {
         const [messaggiAttivi, messaggiArchivio] = await Promise.all([
             fetchJson("STORICO_RICHIESTE", signal),
             fetchJson("ARCHIVIO_RICHIESTE", signal)
         ]);
+        clearTimeout(retryTimer);
 
-        // Guard: se l'utente ha navigato altrove durante il fetch, ignorare
-        if (expectedRequestId !== null && expectedRequestId !== _latestNavRequest) return;
-        if (paginaAttuale !== 'STORICO_RICHIESTE') return;
+        // Guard requestId: se arriva una risposta di una navigazione superata, aggiorna solo i badge
+        if (expectedRequestId !== null && expectedRequestId !== _latestNavRequest) {
+            aggiornaBadgeSidebar(messaggiAttivi);
+            return;
+        }
 
-        // Aggiorna badge sidebar e campanellina
+        // Aggiorna badge sidebar (sempre, indipendentemente dalla pagina attuale)
         aggiornaBadgeSidebar(messaggiAttivi);
         aggiornaBadgeNotifiche(messaggiAttivi);
+
+        // Guard pagina: renderizza HTML solo se siamo ancora su STORICO_RICHIESTE
+        if (paginaAttuale !== 'STORICO_RICHIESTE') return;
 
         const io = utenteAttuale.nome.toUpperCase().trim();
 
@@ -1434,9 +1465,10 @@ async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
         });
 
     } catch (e) {
+        clearTimeout(retryTimer);
         if (e.name === 'AbortError') return; // navigazione annullata
-        console.error("Errore:", e);
-        contenitore.innerHTML = "<div class='centered-error-bold'>Errore nel caricamento. Riprova.</div>";
+        console.error("Errore caricamento richieste:", e);
+        contenitore.innerHTML = "<div class='centered-error-bold'>Errore nel caricamento. <button onclick=\"cambiaPagina('STORICO_RICHIESTE',null)\" style=\"margin-left:8px;padding:4px 12px;background:#2563eb;color:#fff;border:none;border-radius:6px;cursor:pointer\">Riprova</button></div>";
         applicaFade(contenitore);
     }
 }
