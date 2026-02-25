@@ -4359,7 +4359,7 @@ button:active {
     padding-bottom: 4px;
 }
 
-/* Sub-card: div collassabile per ogni stato (NO <details> per compatibilità drag) */
+/* Sub-card: <details> per ogni stato */
 .ov-stato-card {
     background: #0f172a;
     border-radius: 10px;
@@ -4378,11 +4378,11 @@ button:active {
     border-left: 3px solid var(--ov-col, #94a3b8);
     background: #1e293b;
     flex-shrink: 0;
-    /* desktop: non cliccabile di default; su mobile diventa pointer via media query */
+    /* desktop: non cliccare */
     cursor: default;
     user-select: none;
 }
-/* rimuovere marker nativo solo se dovesse sopravvivere un <summary> */
+.ov-stato-header::-webkit-details-marker { display: none; }
 .ov-stato-header:focus { outline: none; }
 .ov-stato-dot {
     width: 8px;
@@ -4511,8 +4511,8 @@ button:active {
     .ov-stato-header { cursor: pointer; }
     .ov-sub-chevron { display: block; }
     /* quando collassata nascondi il body */
-    .ov-stato-card:not(.ov-card-open) > .ov-stato-body { display: none; }
-    .ov-stato-card.ov-card-open .ov-sub-chevron { transform: rotate(180deg); }
+    .ov-stato-card:not([open]) > .ov-stato-body { display: none; }
+    .ov-stato-card[open] .ov-sub-chevron { transform: rotate(180deg); }
     .ov-stato-body { max-height: 180px; }
     .ov-row-label { font-size: 0.70rem; }
 }
@@ -4738,87 +4738,4 @@ button:active {
 @keyframes nav-skel-shimmer {
     0%   { background-position:  200% 0; }
     100% { background-position: -200% 0; }
-}
-
-/* ══════════════════════════════════════════════════════
-   OV DRAG & DROP  –  trascinamento nel pannello avanzamento
-   ══════════════════════════════════════════════════════ */
-
-/* Handle grip + cursore */
-.ov-drag-handle {
-    opacity: 0;
-    margin-right: 6px;
-    font-size: 0.7rem;
-    color: var(--text-muted, #64748b);
-    pointer-events: none;
-    transition: opacity 0.15s;
-    flex-shrink: 0;
-}
-.ov-draggable {
-    cursor: grab;
-    border-radius: 6px;
-    transition: background 0.15s, opacity 0.15s, transform 0.12s;
-    user-select: none;
-    -webkit-user-select: none;
-}
-.ov-draggable:hover .ov-drag-handle { opacity: 0.55; }
-.ov-draggable:hover { background: rgba(255,255,255,0.04); }
-.ov-draggable:active { cursor: grabbing; }
-
-/* Riga in fase di trascinamento */
-.ov-row-dragging {
-    opacity: 0.35;
-    transform: scale(0.96);
-    pointer-events: none;
-}
-
-/* Drop zone attiva (dragover) */
-.ov-drop-over {
-    outline: 2.5px dashed var(--ov-col, #2563eb);
-    outline-offset: 3px;
-    background: color-mix(in srgb, var(--ov-col, #2563eb) 8%, transparent);
-    border-radius: 8px;
-}
-/* Indicatore testuale nella zona vuota */
-.ov-drop-over .ov-empty-lbl::before {
-    content: '⬇ Rilascia qui';
-    display: block;
-    font-size: 0.82rem;
-    color: var(--ov-col, #2563eb);
-    margin-bottom: 4px;
-    font-weight: 600;
-}
-
-/* Flash animazione al drop (3 lampeggi brevi) */
-@keyframes ov-drop-flash {
-    0%   { box-shadow: 0 0 0 2px var(--ov-col, #2563eb),  0 0 16px var(--ov-col, #2563eb)88; }
-    40%  { box-shadow: 0 0 0 5px var(--ov-col, #2563eb)66, 0 0 28px var(--ov-col, #2563eb)44; }
-    100% { box-shadow: none; }
-}
-.ov-card-drop-flash {
-    animation: ov-drop-flash 0.7s ease 3;
-}
-
-/* Glow 24h: bordo colorato persistente */
-.ov-card-glow {
-    outline: 2px solid var(--ov-col, #2563eb);
-    outline-offset: 2px;
-    box-shadow: 0 0 0 2px var(--ov-col, #2563eb)66, 0 4px 18px var(--ov-col, #2563eb)22;
-}
-
-/* Pallino pulsante "drop recente" nell'header */
-.ov-glow-dot {
-    display: inline-block;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--ov-col, #2563eb);
-    margin-left: 5px;
-    flex-shrink: 0;
-    animation: ov-glow-pulse 2s ease-in-out infinite;
-    vertical-align: middle;
-}
-@keyframes ov-glow-pulse {
-    0%, 100% { opacity: 1;   transform: scale(1);    }
-    50%       { opacity: 0.3; transform: scale(0.75); }
 }

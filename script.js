@@ -716,8 +716,6 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
         aggiornaListaFiltrabili();
         // Observer: apri archivio quando ci si scorre sopra
         _osservaArchivio('archivio-prod-details');
-        // Inizializza drag & drop nel pannello avanzamento (desktop: è già aperto)
-        _initOvDragDrop();
 
         // Salva raw data per autocomplete del modal
         _ordiniAutocompleteCache = datiProd.filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE').map(r => ({ ordine: r.ordine || '', cliente: r.cliente || '' }));
@@ -1275,7 +1273,6 @@ function _ovLoadIfNeeded(summary) {
         const contentDiv = document.getElementById('ov-content');
         if (contentDiv && contentDiv.querySelector('.ov-lazy-placeholder')) {
             contentDiv.innerHTML = _buildOverviewInnerHtml(_attiviProd);
-            _initOvDragDrop();
         }
     }
 }
@@ -1304,13 +1301,6 @@ function _buildOverviewInnerHtml(attivi) {
         const isArtMode = _OV_STATI_ART.includes(stato);
         const isEmpty = righe.length === 0;
 
-        // Glow 24h: se è stato ricevuto un drop su questo stato nelle ultime 24h
-        let hasGlow = false;
-        try {
-            const flashTs = parseInt(localStorage.getItem('ov_flash_' + stato) || '0');
-            hasGlow = (Date.now() - flashTs) < 86400000;
-        } catch (_) {}
-
         let contenuto = '';
         let totLabel = '0';
         if (isArtMode) {
@@ -1327,12 +1317,7 @@ function _buildOverviewInnerHtml(attivi) {
             contenuto = artList.map(a => {
                 const lbl = a.key.length > 28 ? a.key.substring(0, 28) + '…' : a.key;
                 const ordiniStr = [...a.ordini].join(', ');
-                return `<div class="ov-stato-row ov-stato-row-art ov-draggable"
-                    draggable="true"
-                    data-ov-key="${encodeURIComponent(a.key)}"
-                    data-ov-mode="art"
-                    data-ov-src="${stato}">
-                    <i class="fas fa-grip-vertical ov-drag-handle"></i>
+                return `<div class="ov-stato-row ov-stato-row-art">
                     <span class="ov-row-label" title="${a.key}">${lbl}</span>
                     <span class="ov-row-badges">
                         <span class="ov-badge-qty">${a.qty} pz</span>
@@ -1358,174 +1343,28 @@ function _buildOverviewInnerHtml(attivi) {
                 const ops = o.operatori.size ? [...o.operatori].join(', ') : 'Libero';
                 const opsShort = ops.length > 20 ? ops.substring(0, 20) + '…' : ops;
                 const ordLabel = o.ordine + (cli ? ' · ' + cli : '');
-                return `<div class="ov-stato-row ov-draggable"
-                    draggable="true"
-                    data-ov-key="${encodeURIComponent(o.ordine)}"
-                    data-ov-mode="ord"
-                    data-ov-src="${stato}">
-                    <i class="fas fa-grip-vertical ov-drag-handle"></i>
+                return `<div class="ov-stato-row">
                     <span class="ov-row-label" title="${o.ordine} – ${o.cliente}">${ordLabel}</span>
                     <span class="ov-badge-op" title="${ops}">${opsShort}</span>
                 </div>`;
             }).join('');
         }
 
-        const glowStyle = hasGlow ? `box-shadow:0 0 0 2px ${colore}99,0 4px 18px ${colore}33;` : '';
-        const openClass = isEmpty ? '' : ' ov-card-open';
-        return `<div class="ov-stato-card${isEmpty ? ' ov-stato-card-empty' : ''}${hasGlow ? ' ov-card-glow' : ''}${openClass}"
-            data-ov-stato="${stato}"
-            style="--ov-col:${colore};${glowStyle}">
-            <div class="ov-stato-header" onclick="_ovToggleCard(this)" style="--ov-col:${colore}" role="button" tabindex="0">
+        return `<details class="ov-stato-card${isEmpty ? ' ov-stato-card-empty' : ''}"${isEmpty ? '' : ' open'}>
+            <summary class="ov-stato-header" style="--ov-col:${colore}">
                 <span class="ov-stato-dot" style="background:${colore}"></span>
                 <span class="ov-stato-nome">${stato}</span>
                 <span class="ov-stato-tot" style="background:${colore}22;color:${colore}">${totLabel}</span>
-                ${hasGlow ? '<span class="ov-glow-dot" title="Drop recente (24h)"></span>' : ''}
                 <i class="fas fa-chevron-down ov-sub-chevron"></i>
-            </div>
-            <div class="ov-stato-body" data-ov-dest="${stato}">
-                ${isEmpty ? '<span class="ov-empty-lbl">— nessun articolo —</span>' : contenuto}
-            </div>
-        </div>`;
+            </summary>
+            <div class="ov-stato-body">${isEmpty ? '<span class="ov-empty-lbl">— nessun articolo</span>' : contenuto}</div>
+        </details>`;
     }).join('');
 
-    return `<div class="ov-stati-grid" id="ov-stati-grid">${cardsHtml}</div>`;
+    return `<div class="ov-stati-grid">${cardsHtml}</div>`;
 }
 
 function _buildOverviewChart() { /* non più usato */ }
-
-// Collassa/espande sub-card overview (sostituisce il toggle nativo di <details>)
-function _ovToggleCard(headerEl) {
-    const card = headerEl.closest('.ov-stato-card');
-    if (!card) return;
-    const isOpen = card.classList.contains('ov-card-open');
-    card.classList.toggle('ov-card-open', !isOpen);
-}
-
-// ── OV DRAG & DROP ────────────────────────────────────────────────────────
-let _ovDragData = null;
-
-function _initOvDragDrop() {
-    const grid = document.getElementById('ov-stati-grid');
-    if (!grid || grid._ddInit) return;
-    grid._ddInit = true;
-
-    grid.addEventListener('dragstart', e => {
-        const row = e.target.closest('.ov-draggable');
-        if (!row) { e.preventDefault(); return; }
-        _ovDragData = {
-            key:      decodeURIComponent(row.dataset.ovKey),
-            mode:     row.dataset.ovMode,
-            srcStato: row.dataset.ovSrc
-        };
-        row.classList.add('ov-row-dragging');
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', _ovDragData.key);
-    });
-
-    grid.addEventListener('dragend', () => {
-        document.querySelectorAll('.ov-row-dragging').forEach(r => r.classList.remove('ov-row-dragging'));
-        document.querySelectorAll('.ov-drop-over').forEach(r => r.classList.remove('ov-drop-over'));
-        _ovDragData = null;
-    });
-
-    grid.addEventListener('dragover', e => {
-        if (!_ovDragData) return;
-        const zone = e.target.closest('.ov-stato-body');
-        if (!zone) return;
-        if (zone.dataset.ovDest === _ovDragData.srcStato) return;
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        grid.querySelectorAll('.ov-drop-over').forEach(z => { if (z !== zone) z.classList.remove('ov-drop-over'); });
-        zone.classList.add('ov-drop-over');
-    });
-
-    grid.addEventListener('dragleave', e => {
-        const zone = e.target.closest('.ov-stato-body');
-        if (zone && !zone.contains(e.relatedTarget)) zone.classList.remove('ov-drop-over');
-    });
-
-    grid.addEventListener('drop', e => {
-        const zone = e.target.closest('.ov-stato-body');
-        if (!zone || !_ovDragData) return;
-        const destStato = zone.dataset.ovDest;
-        if (destStato === _ovDragData.srcStato) return;
-        e.preventDefault();
-        zone.classList.remove('ov-drop-over');
-        _ovApplyDrop(_ovDragData.key, _ovDragData.mode, _ovDragData.srcStato, destStato);
-        _ovDragData = null;
-    });
-}
-
-async function _ovApplyDrop(key, mode, srcStato, destStato) {
-    // Trova le righe da spostare in _attiviProd
-    const matches = (_attiviProd || []).filter(r => {
-        if ((r.stato || '').toUpperCase() !== srcStato) return false;
-        if (mode === 'art') {
-            return (r.codice || r.riferimento || '—').trim() === key;
-        } else {
-            return (r.ordine || '') === key;
-        }
-    });
-    if (!matches.length) return;
-
-    // Aggiornamento ottimistico in memoria (overview si aggiorna subito)
-    matches.forEach(r => { r.stato = destStato; });
-
-    // Salva timestamp flash per glow 24h
-    try { localStorage.setItem('ov_flash_' + destStato, String(Date.now())); } catch (_) {}
-
-    // Ricostruisci overview
-    const contentDiv = document.getElementById('ov-content');
-    if (contentDiv) {
-        contentDiv.innerHTML = _buildOverviewInnerHtml(_attiviProd);
-        _initOvDragDrop();
-        // Anima la card di destinazione (flash 3 volte)
-        requestAnimationFrame(() => {
-            const destCard = contentDiv.querySelector(`.ov-stato-card[data-ov-stato="${CSS.escape(destStato)}"]`);
-            if (destCard) {
-                destCard.classList.add('ov-card-drop-flash');
-                setTimeout(() => destCard.classList.remove('ov-card-drop-flash'), 2400);
-                destCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }
-        });
-    }
-
-    // Aggiorna anche i dropdown stato nelle card produzione se visibili
-    const coloriStatiMap = {};
-    (listaStati || []).forEach(s => { coloriStatiMap[s.nome.toUpperCase()] = s.colore; });
-    matches.forEach(r => {
-        const dropdown = document.querySelector(`.stato-dropdown[data-id-riga="${r.id_riga}"]`);
-        if (!dropdown) return;
-        const labelEl = dropdown.querySelector('.stato-label-txt');
-        const dot     = dropdown.querySelector('.stato-dot');
-        if (labelEl) labelEl.textContent = destStato;
-        if (dot) dot.style.background = coloriStatiMap[destStato] || '#94a3b8';
-        // aggiorna selezione opzioni
-        dropdown.querySelectorAll('.stato-option').forEach(o => {
-            const oNome = o.querySelector('span:not(.stato-opt-dot)')?.textContent.trim();
-            o.classList.toggle('is-selected', oNome === destStato);
-            const existing = o.querySelector('.stato-check-icon');
-            if (existing) existing.remove();
-            if (oNome === destStato) {
-                const ic = document.createElement('i');
-                ic.className = 'fas fa-check stato-check-icon';
-                o.appendChild(ic);
-            }
-        });
-    });
-
-    // Invalida cache produzione (richiederà nuovo fetch al prossimo accesso)
-    delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
-
-    // Invia aggiornamenti al server (tutti in parallelo, silenzioso)
-    notificaElegante(`Spostamento ${matches.length} art. → ${destStato}`, 'info');
-    try {
-        await Promise.all(matches.map(r => aggiornaDato(null, r.id_riga, 'stato', destStato)));
-    } catch(err) {
-        console.error('Errore aggiornamento stato DnD:', err);
-        notificaElegante('Errore salvataggio. Ricarica la pagina.', 'error');
-    }
-}
 
 //PAGINA RICHIESTE//
 
