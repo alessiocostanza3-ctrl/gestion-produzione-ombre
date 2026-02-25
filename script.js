@@ -1371,27 +1371,35 @@ function _buildOverviewInnerHtml(attivi) {
         }
 
         const glowStyle = hasGlow ? `box-shadow:0 0 0 2px ${colore}99,0 4px 18px ${colore}33;` : '';
-        return `<details class="ov-stato-card${isEmpty ? ' ov-stato-card-empty' : ''}${hasGlow ? ' ov-card-glow' : ''}"
-            ${isEmpty ? '' : 'open'}
+        const openClass = isEmpty ? '' : ' ov-card-open';
+        return `<div class="ov-stato-card${isEmpty ? ' ov-stato-card-empty' : ''}${hasGlow ? ' ov-card-glow' : ''}${openClass}"
             data-ov-stato="${stato}"
             style="--ov-col:${colore};${glowStyle}">
-            <summary class="ov-stato-header" style="--ov-col:${colore}">
+            <div class="ov-stato-header" onclick="_ovToggleCard(this)" style="--ov-col:${colore}" role="button" tabindex="0">
                 <span class="ov-stato-dot" style="background:${colore}"></span>
                 <span class="ov-stato-nome">${stato}</span>
                 <span class="ov-stato-tot" style="background:${colore}22;color:${colore}">${totLabel}</span>
                 ${hasGlow ? '<span class="ov-glow-dot" title="Drop recente (24h)"></span>' : ''}
                 <i class="fas fa-chevron-down ov-sub-chevron"></i>
-            </summary>
+            </div>
             <div class="ov-stato-body" data-ov-dest="${stato}">
                 ${isEmpty ? '<span class="ov-empty-lbl">— nessun articolo —</span>' : contenuto}
             </div>
-        </details>`;
+        </div>`;
     }).join('');
 
     return `<div class="ov-stati-grid" id="ov-stati-grid">${cardsHtml}</div>`;
 }
 
 function _buildOverviewChart() { /* non più usato */ }
+
+// Collassa/espande sub-card overview (sostituisce il toggle nativo di <details>)
+function _ovToggleCard(headerEl) {
+    const card = headerEl.closest('.ov-stato-card');
+    if (!card) return;
+    const isOpen = card.classList.contains('ov-card-open');
+    card.classList.toggle('ov-card-open', !isOpen);
+}
 
 // ── OV DRAG & DROP ────────────────────────────────────────────────────────
 let _ovDragData = null;

@@ -4359,7 +4359,7 @@ button:active {
     padding-bottom: 4px;
 }
 
-/* Sub-card: <details> per ogni stato */
+/* Sub-card: div collassabile per ogni stato (NO <details> per compatibilità drag) */
 .ov-stato-card {
     background: #0f172a;
     border-radius: 10px;
@@ -4378,11 +4378,11 @@ button:active {
     border-left: 3px solid var(--ov-col, #94a3b8);
     background: #1e293b;
     flex-shrink: 0;
-    /* desktop: non cliccare */
+    /* desktop: non cliccabile di default; su mobile diventa pointer via media query */
     cursor: default;
     user-select: none;
 }
-.ov-stato-header::-webkit-details-marker { display: none; }
+/* rimuovere marker nativo solo se dovesse sopravvivere un <summary> */
 .ov-stato-header:focus { outline: none; }
 .ov-stato-dot {
     width: 8px;
@@ -4511,8 +4511,8 @@ button:active {
     .ov-stato-header { cursor: pointer; }
     .ov-sub-chevron { display: block; }
     /* quando collassata nascondi il body */
-    .ov-stato-card:not([open]) > .ov-stato-body { display: none; }
-    .ov-stato-card[open] .ov-sub-chevron { transform: rotate(180deg); }
+    .ov-stato-card:not(.ov-card-open) > .ov-stato-body { display: none; }
+    .ov-stato-card.ov-card-open .ov-sub-chevron { transform: rotate(180deg); }
     .ov-stato-body { max-height: 180px; }
     .ov-row-label { font-size: 0.70rem; }
 }
