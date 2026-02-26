@@ -2454,12 +2454,25 @@ function initSortable(containerId, onReorder) {
 }
 async function salvaTutteImpostazioni() {
         try {
-            await fetch(URL_GOOGLE, {
+            const res = await fetch(URL_GOOGLE, {
                 method: 'POST',
                 body: JSON.stringify({ azione: 'salva_impostazioni_globali', stati: listaStati, operatori: [] })
             });
-            notificaElegante('Impostazioni salvate correttamente!');
-        } catch (e) { notificaElegante('Errore nel salvataggio.', 'error'); }
+            const json = await res.json().catch(() => ({}));
+            if (json.status === 'success') {
+                notificaElegante('Impostazioni salvate correttamente!');
+                modifichePendenti = false;
+                const btn = document.getElementById('btn-salva-globale');
+                if (btn) {
+                    btn.style.background = '';
+                    btn.innerHTML = "<i class='fas fa-save'></i> Salva Impostazioni";
+                }
+            } else {
+                notificaElegante('Errore: ' + (json.message || 'risposta inattesa dal server'), 'error');
+            }
+        } catch (e) {
+            notificaElegante('Errore nel salvataggio.', 'error');
+        }
     }
 
 
