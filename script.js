@@ -44,10 +44,14 @@ const _VAPID_PUBLIC_KEY = 'BAHqp3uv56mQSAeTv_66-f4GYkzaESwuJNOP5DJCVMi197n-EKl9T
  * Da chiamare dopo ogni login / avvio con sessione valida.
  */
 async function _initPush() {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        console.log('[Push] Non supportato da questo browser');
+        return;
+    }
     try {
         const reg = await navigator.serviceWorker.register('sw.js', { scope: './' });
         await navigator.serviceWorker.ready;
+        console.log('[Push] SW pronto');
         // Salva username nel Cache API: accessibile dal Service Worker
         if ('caches' in window) {
             const c = await caches.open('prod-auth');
@@ -55,6 +59,7 @@ async function _initPush() {
         }
         let sub = await reg.pushManager.getSubscription();
         const perm = Notification.permission;
+        console.log('[Push] permesso=' + perm + ' sub=' + (sub ? sub.endpoint.substring(0,50) : 'null'));
 
         // Se il permesso è già stato concesso ma non c'è subscription → sottoscrivi automaticamente
         if (!sub && perm === 'granted') {
@@ -66,16 +71,100 @@ async function _initPush() {
                 console.log('[Push] Auto-subscribed:', sub.endpoint.substring(0, 60));
             } catch (subErr) {
                 console.warn('[Push] Auto-subscribe failed:', subErr);
+                try { localStorage.setItem('_pushStato', 'errore-subscribe'); } catch {}
                 return;
             }
         }
-        if (!sub) return; // permesso non ancora concesso → aspetta azione utente
+        if (!sub) {
+            console.log('[Push] Nessuna subscription e permesso non concesso');
+            try { localStorage.setItem('_pushStato', 'no-permesso'); } catch {}
+            return;
+        }
 
         // Salva/aggiorna la subscription nel backend
         const j = sub.toJSON();
         const result = await _salvaSubVAPID_({ endpoint: j.endpoint, p256dh: j.keys?.p256dh, auth: j.keys?.auth });
         console.log('[Push] Subscription saved:', result);
-    } catch (err) { console.warn('[Push] initPush:', err); }
+        if (result && (result.status === 'saved' || result.status === 'updated')) {
+            try { localStorage.setItem('_pushStato', 'ok'); } catch {}
+        } else {
+            try { localStorage.setItem('_pushStato', 'errore-salvataggio'); } catch {}
+        }
+        _aggiornaUINotifiche();
+    } catch (err) {
+        console.warn('[Push] initPush:', err);
+        try { localStorage.setItem('_pushStato', 'errore:' + err.message); } catch {}
+    }
+}
+
+/** Forza una ri-registrazione completa: unsubscribe + re-subscribe + salva su GAS */
+async function _forzaRiregistraPush() {
+    const btn = document.getElementById('btn-force-regpush');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Registrazione...'; }
+    try {
+        const reg = await navigator.serviceWorker.register('sw.js', { scope: './' });
+        await navigator.serviceWorker.ready;
+        // 1. Elimina subscription esistente
+        let oldSub = await reg.pushManager.getSubscription();
+        if (oldSub) {
+            await fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify({ azione: 'eliminaSottoscrizione', endpoint: oldSub.endpoint }) }).catch(() => {});
+            await oldSub.unsubscribe();
+        }
+        // 2. Crea subscription nuova
+        const perm = await Notification.requestPermission();
+        if (perm !== 'granted') {
+            notificaElegante('Permesso notifiche negato', 'error');
+            if (btn) { btn.disabled = false; btn.textContent = '🔄 Ri-registra subscription'; }
+            return;
+        }
+        const sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: _vapidB64ToUint8_(_VAPID_PUBLIC_KEY)
+        });
+        // 3. Salva username in Cache
+        if ('caches' in window) {
+            const c = await caches.open('prod-auth');
+            await c.put('username', new Response(utenteAttuale.nome.toUpperCase()));
+        }
+        // 4. Salva su GAS
+        const j = sub.toJSON();
+        const result = await _salvaSubVAPID_({ endpoint: j.endpoint, p256dh: j.keys?.p256dh, auth: j.keys?.auth });
+        if (result && (result.status === 'saved' || result.status === 'updated')) {
+            try { localStorage.setItem('_pushStato', 'ok'); } catch {}
+            notificaElegante('✅ Subscription registrata con successo!');
+        } else {
+            notificaElegante('⚠️ Subscription creata ma salvataggio GAS incerto: ' + JSON.stringify(result), 'error');
+        }
+        _aggiornaUINotifiche();
+    } catch (err) {
+        console.warn('[Push] forzaRiregistra:', err);
+        notificaElegante('Errore ri-registrazione: ' + err.message, 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '🔄 Ri-registra subscription'; }
+    }
+}
+
+/** Invia una notifica push di test all'utente corrente */
+async function _testPushNotifica() {
+    const btn = document.getElementById('btn-test-push');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Invio...'; }
+    try {
+        const url = URL_GOOGLE + '?azione=testPush&username=' + encodeURIComponent(utenteAttuale.nome.toUpperCase());
+        const res = await fetch(url);
+        const json = await res.json().catch(() => ({}));
+        console.log('[Push] testPush:', json);
+        if (json.sent > 0) {
+            notificaElegante('\uD83D\uDCE4 Test inviato a ' + json.sent + ' dispositivo/i \u2013 attendi la notifica');
+        } else if (json.status === 'no_devices') {
+            notificaElegante('\u26A0\uFE0F Nessun dispositivo registrato. Clicca prima "Ri-registra subscription".', 'error');
+        } else {
+            notificaElegante('\u26A0\uFE0F ' + (json.msg || 'Risposta inattesa dal server'), 'error');
+        }
+    } catch (err) {
+        notificaElegante('Errore test push: ' + err.message, 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '📨 Invia notifica di test'; }
+    }
 }
 
 function _getNotifPrefs() {
@@ -119,6 +208,7 @@ async function _togglePushPermission() {
                     body: JSON.stringify({ azione: 'eliminaSottoscrizione', endpoint: endpt })
                 });
             } catch {}
+            try { localStorage.removeItem('_pushStato'); } catch {}
             notificaElegante('Notifiche push disattivate');
         } else {
             // ── Attiva ─────────────────────────────────────────────────────
@@ -129,12 +219,18 @@ async function _togglePushPermission() {
                 applicationServerKey: _vapidB64ToUint8_(_VAPID_PUBLIC_KEY)
             });
             const j = sub.toJSON();
-            await _salvaSubVAPID_({ endpoint: j.endpoint, p256dh: j.keys?.p256dh, auth: j.keys?.auth });
+            const saveResult = await _salvaSubVAPID_({ endpoint: j.endpoint, p256dh: j.keys?.p256dh, auth: j.keys?.auth });
+            if (saveResult && (saveResult.status === 'saved' || saveResult.status === 'updated')) {
+                try { localStorage.setItem('_pushStato', 'ok'); } catch {}
+                notificaElegante('Notifiche push attivate ✓ (registrate su server)');
+            } else {
+                try { localStorage.setItem('_pushStato', 'errore-salvataggio'); } catch {}
+                notificaElegante('⚠ Push attivate localmente ma salvataggio server incerto', 'error');
+            }
             if ('caches' in window) {
                 const c = await caches.open('prod-auth');
                 await c.put('username', new Response(utenteAttuale.nome.toUpperCase()));
             }
-            notificaElegante('Notifiche push attivate ✓');
         }
         setTimeout(_aggiornaUINotifiche, 400);
     } catch (err) {
@@ -157,11 +253,21 @@ async function _aggiornaUINotifiche() {
         const reg = await navigator.serviceWorker.ready;
         const sub = await reg.pushManager.getSubscription();
         const on  = !!sub;
+        let statoServer = '';
+        try {
+            const ps = localStorage.getItem('_pushStato');
+            if (ps === 'ok')                   statoServer = ' ✓ registrato sul server';
+            else if (ps === 'errore-salvataggio') statoServer = ' ⚠ non salvato sul server';
+            else if (ps === 'errore-subscribe')   statoServer = ' ⚠ errore subscribe';
+            else if (ps && ps.startsWith('errore:')) statoServer = ' ⚠ ' + ps.replace('errore:', '');
+        } catch {}
         if (btn)   btn.innerHTML = on
             ? '<i class="fas fa-bell-slash"></i> Disattiva notifiche'
             : '<i class="fas fa-bell"></i> Attiva notifiche push';
         if (dot)   dot.style.background = on ? '#22c55e' : '#6b7280';
-        if (label) label.textContent    = on ? 'Attive su questo dispositivo' : 'Non attive su questo dispositivo';
+        if (label) label.textContent    = on
+            ? 'Attive su questo dispositivo' + statoServer
+            : 'Non attive su questo dispositivo';
     } catch {}
 }
 
@@ -2326,6 +2432,14 @@ function caricaInterfacciaImpostazioni() {
                         <button id="btn-toggle-push" class="settings-action-btn" onclick="_togglePushPermission()">
                             <i class="fas fa-bell"></i> Attiva notifiche push
                         </button>
+                        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+                            <button id="btn-force-regpush" class="settings-action-btn" style="background:rgba(99,102,241,0.15);font-size:0.82rem;padding:8px 12px" onclick="_forzaRiregistraPush()">
+                                🔄 Ri-registra subscription
+                            </button>
+                            <button id="btn-test-push" class="settings-action-btn" style="background:rgba(34,197,94,0.12);font-size:0.82rem;padding:8px 12px" onclick="_testPushNotifica()">
+                                📨 Invia notifica di test
+                            </button>
+                        </div>
                         <div style="margin-top:20px;border-top:1px solid rgba(255,255,255,0.07);padding-top:16px">
                             <div style="font-size:0.78rem;font-weight:600;color:#9ca3af;letter-spacing:.5px;margin-bottom:12px">TIPOLOGIE DI AVVISI</div>
                             <label class="notif-pref-row">
