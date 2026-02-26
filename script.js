@@ -1026,6 +1026,13 @@ function selezionaStato(optBtn, idRiga, colore) {
     if (card) card.classList.remove('stato-aperto');
     // salva
     aggiornaDato(null, idRiga, 'stato', nuovoStato);
+    // aggiorna cache _attiviProd
+    if (_attiviProd) {
+        const r = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
+        if (r) r.stato = nuovoStato;
+    }
+    // sposta la card nel kanban senza ricaricare
+    _syncKanbanFromStato(idRiga, nuovoStato);
 }
 // chiudi dropdown cliccando fuori
 document.addEventListener('click', function(e) {
@@ -1046,12 +1053,17 @@ function toggleAccordion(elemento) {
 }
 async function aggiornaDato(selectEl, idRiga, campo, nuovoValore) {
     // Feedback visivo immediato sull'elemento
-    const original = selectEl ? selectEl.style.opacity : null;
     if (selectEl) selectEl.style.opacity = '0.5';
     try {
-        const res = await fetch(URL_GOOGLE, {
+        await fetch(URL_GOOGLE, {
             method: 'POST',
-            body: JSON.stringify({ azione: 'aggiorna_produzione', id_riga: idRiga, colonna: campo, valore: nuovoValore })
+            body: JSON.stringify({
+                azione:    'aggiorna_produzione',
+                id_riga:   idRiga,
+                colonna:   campo,
+                valore:    nuovoValore,
+                mittente:  (utenteAttuale && utenteAttuale.nome) ? utenteAttuale.nome.toUpperCase() : ''
+            })
         });
         if (selectEl) selectEl.style.opacity = '1';
     } catch (e) {
@@ -1059,6 +1071,33 @@ async function aggiornaDato(selectEl, idRiga, campo, nuovoValore) {
         if (selectEl) selectEl.style.opacity = '1';
         notificaElegante('Errore nel salvataggio dello stato. Riprova.');
     }
+}
+
+/* Sposta la card nel kanban alla colonna giusta (senza ricaricare). */
+function _syncKanbanFromStato(idRiga, newStato) {
+    const grid = document.getElementById('ov-kanban-grid');
+    if (!grid) return;
+    const item = grid.querySelector(`.ov-kanban-item[data-id-riga="${idRiga}"]`);
+    if (!item) return;
+    if (item.dataset.statoCorrente === newStato) return;
+    const destBody = grid.querySelector(`.ov-stato-body[data-stato-drop="${newStato}"]`);
+    if (!destBody) return;
+    destBody.querySelectorAll('.ov-empty-lbl').forEach(el => el.remove());
+    item.dataset.statoCorrente = newStato;
+    // Piccola animazione di ingresso
+    item.style.transition = 'opacity 0.18s, transform 0.18s';
+    item.style.opacity    = '0';
+    item.style.transform  = 'scale(0.92)';
+    destBody.appendChild(item);
+    const destCard = destBody.closest('.ov-stato-card');
+    if (destCard) destCard.open = true;
+    _aggiornaKanbanCount(grid);
+    _checkKanbanEmpty(grid);
+    requestAnimationFrame(() => {
+        item.style.opacity   = '1';
+        item.style.transform = '';
+        setTimeout(() => { item.style.transition = ''; }, 200);
+    });
 }
 function apriModalAiuto(idRiga, riferimento, nOrdine) {
     const modal = document.getElementById('modalAiuto');
