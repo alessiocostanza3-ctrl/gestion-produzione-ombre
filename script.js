@@ -1460,7 +1460,7 @@ function _buildOverviewInnerHtml(attivi) {
             const opPrimo = (r.assegna && r.assegna.trim() && r.assegna !== 'undefined')
                 ? r.assegna.split(',')[0].trim() : '';
             const subLine = [ordShort, opPrimo].filter(Boolean).join(' · ');
-            return `<div class="ov-stato-row ov-kanban-item" draggable="true"
+            return `<div class="ov-stato-row ov-kanban-item"
                 data-id-riga="${r.id_riga}"
                 data-codice="${codice.replace(/"/g, '&quot;')}"
                 data-ordine="${ord}"
@@ -1476,7 +1476,7 @@ function _buildOverviewInnerHtml(attivi) {
 
         const totLabel = righe.length + ' art.';
 
-        return `<details class="ov-stato-card${isEmpty ? ' ov-stato-card-empty' : ''}"${isEmpty ? '' : ' open'}>
+        return `<details class="ov-stato-card${isEmpty ? ' ov-stato-card-empty' : ''}" open>
             <summary class="ov-stato-header" style="--ov-col:${colore}">
                 <span class="ov-stato-dot" style="background:${colore}"></span>
                 <span class="ov-stato-nome">${stato}</span>
@@ -1493,10 +1493,10 @@ function _buildOverviewInnerHtml(attivi) {
 function _buildOverviewChart() { /* non più usato */ }
 
 /* ────────────────────────────────────────────────────────────────
-   KANBAN DRAG & DROP  –  solo desktop (≥ 601 px)
-   Consente di trascinare gli articoli tra le colonne dello stato
-   avanzamento. Al rilascio aggiorna il backend via aggiornaDato()
-   e sincronizza il dropdown nell'item-card sottostante.
+   KANBAN DRAG & DROP DINAMICO  –  solo desktop (≥ 601 px)
+   Usa pointer events per un ghost element che segue il cursore
+   in tempo reale. Al rilascio sposta l'elemento nel DOM senza
+   ricaricare e salva sul backend tramite aggiornaDato().
    ──────────────────────────────────────────────────────────────── */
 function _initKanbanDnd() {
     if (window.innerWidth <= 600) return;
@@ -1504,76 +1504,151 @@ function _initKanbanDnd() {
     if (!grid || grid._dndInit) return;
     grid._dndInit = true;
 
-    let dragEl  = null;
-    let srcStato = null;
+    let dragEl     = null;
+    let ghost      = null;
+    let srcStato   = null;
+    let activeBody = null;   // colonna attualmente evidenziata
+    let offX = 0, offY = 0;
 
-    grid.addEventListener('dragstart', e => {
-        dragEl = e.target.closest('.ov-kanban-item');
-        if (!dragEl) return;
-        srcStato = dragEl.dataset.statoCorrente;
-        dragEl.classList.add('ov-drag-active');
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', dragEl.dataset.idRiga || '');
-    });
+    /* ── Trova la colonna destinazione nascondendo temporaneamente il ghost ── */
+    function _bodyAtPoint(x, y) {
+        if (ghost) ghost.style.visibility = 'hidden';
+        const el = document.elementFromPoint(x, y);
+        if (ghost) ghost.style.visibility = '';
+        if (!el) return null;
+        // Caso 1: cursore sopra il body o un suo figlio
+        const body = el.closest('.ov-stato-body');
+        if (body) return body;
+        // Caso 2: cursore sopra il summary/header di una colonna → restituisce il body fratello
+        const header = el.closest('.ov-stato-header, .ov-stato-card > summary');
+        if (header) {
+            const card = header.closest('.ov-stato-card');
+            if (card) return card.querySelector('.ov-stato-body');
+        }
+        return null;
+    }
 
-    grid.addEventListener('dragend', () => {
-        if (dragEl) dragEl.classList.remove('ov-drag-active', 'ov-drag-exit');
+    /* ── Evidenziazione colonna ── */
+    function _highlight(body) {
+        if (body === activeBody) return;
         grid.querySelectorAll('.ov-stato-body').forEach(b => b.classList.remove('ov-drop-over'));
-        dragEl   = null;
-        srcStato = null;
-    });
-
-    grid.addEventListener('dragover', e => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        const body = e.target.closest('.ov-stato-body');
-        grid.querySelectorAll('.ov-stato-body').forEach(b => b.classList.remove('ov-drop-over'));
-        if (body && dragEl && body.dataset.statoDrop !== srcStato) {
+        activeBody = body;
+        if (body && body.dataset.statoDrop !== srcStato) {
             body.classList.add('ov-drop-over');
         }
+    }
+
+    /* ── Pulizia stato drag ── */
+    function _cleanup() {
+        if (ghost) { ghost.remove(); ghost = null; }
+        if (dragEl) { dragEl.classList.remove('ov-drag-active'); dragEl = null; }
+        grid.querySelectorAll('.ov-stato-body').forEach(b => b.classList.remove('ov-drop-over'));
+        srcStato = null;
+        activeBody = null;
+    }
+
+    /* ── Inizio del drag ── */
+    grid.addEventListener('pointerdown', e => {
+        // Solo tasto sinistro del mouse
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        const item = e.target.closest('.ov-kanban-item');
+        if (!item) return;
+
+        e.preventDefault();
+        dragEl   = item;
+        srcStato = item.dataset.statoCorrente;
+
+        const rect = item.getBoundingClientRect();
+        offX = e.clientX - rect.left;
+        offY = e.clientY - rect.top;
+
+        // Ghost: clone visivo che segue il cursore
+        ghost = item.cloneNode(true);
+        ghost.removeAttribute('id');
+        ghost.style.cssText = [
+            'position:fixed',
+            `width:${rect.width}px`,
+            `height:${rect.height}px`,
+            `left:${rect.left}px`,
+            `top:${rect.top}px`,
+            'opacity:0.92',
+            'pointer-events:none',
+            'z-index:99999',
+            'border-radius:8px',
+            'box-shadow:0 10px 32px rgba(0,0,0,0.55)',
+            'transform:scale(1.05) rotate(-1.2deg)',
+            'transition:transform 0.1s',
+            'background:#1e2d3d',
+            'border:1.5px solid #6366f1'
+        ].join(';');
+        document.body.appendChild(ghost);
+
+        // Placeholder opaco nella posizione originale
+        dragEl.classList.add('ov-drag-active');
+
+        // Pointer capture: riceve tutti gli eventi anche fuori dal grid
+        grid.setPointerCapture(e.pointerId);
     });
 
-    grid.addEventListener('drop', e => {
-        e.preventDefault();
-        const body = e.target.closest('.ov-stato-body');
-        grid.querySelectorAll('.ov-stato-body').forEach(b => b.classList.remove('ov-drop-over'));
-        if (!body || !dragEl) return;
-        const newStato = body.dataset.statoDrop;
-        if (!newStato || newStato === srcStato) return;
+    /* ── Movimento del ghost ── */
+    grid.addEventListener('pointermove', e => {
+        if (!dragEl || !ghost) return;
+        ghost.style.left = (e.clientX - offX) + 'px';
+        ghost.style.top  = (e.clientY - offY) + 'px';
+        _highlight(_bodyAtPoint(e.clientX, e.clientY));
+    });
 
-        const idRiga   = dragEl.dataset.idRiga;
-        const colore   = (listaStati.find(s => s.nome === newStato) || {}).colore || '#94a3b8';
+    /* ── Rilascio: sposta il nodo nel DOM ed aggiorna il backend ── */
+    grid.addEventListener('pointerup', e => {
+        if (!dragEl) return;
+        const body     = _bodyAtPoint(e.clientX, e.clientY);
+        const newStato = body?.dataset?.statoDrop;
+        const elDrop   = dragEl;   // snapshot prima di _cleanup()
+        const oldStato = srcStato; // snapshot
 
-        // Animazione uscita
-        dragEl.classList.add('ov-drag-exit');
-        const elRef = dragEl; // snapshot prima del timeout
+        _cleanup();
 
-        setTimeout(() => {
-            // Rimuovi placeholder "nessun articolo" se presente
-            body.querySelectorAll('.ov-empty-lbl').forEach(el => el.remove());
-            // Aggiorna attributo stato e sposta nel nuovo body
-            elRef.dataset.statoCorrente = newStato;
-            elRef.classList.remove('ov-drag-active', 'ov-drag-exit');
-            body.appendChild(elRef);
-            // Assicura che la colonna destinazione sia aperta
-            const destCard = body.closest('.ov-stato-card');
-            if (destCard) destCard.open = true;
-            // Aggiorna contatori e placeholder colonne vuote
-            _aggiornaKanbanCount(grid);
-            _checkKanbanEmpty(grid);
-        }, 140);
+        if (!newStato || newStato === oldStato || !body) return;
 
-        // Salva sul backend
+        const idRiga = elDrop.dataset.idRiga;
+        const colore = (listaStati.find(s => s.nome === newStato) || {}).colore || '#94a3b8';
+
+        // Sposta il nodo reale nel DOM immediatamente
+        body.querySelectorAll('.ov-empty-lbl').forEach(el => el.remove());
+        elDrop.dataset.statoCorrente = newStato;
+        body.appendChild(elDrop);
+
+        const destCard = body.closest('.ov-stato-card');
+        if (destCard) destCard.open = true;
+
+        _aggiornaKanbanCount(grid);
+        _checkKanbanEmpty(grid);
+
+        // Piccola animazione di "atterraggio"
+        elDrop.style.transition = 'transform 0.18s, opacity 0.18s';
+        elDrop.style.transform  = 'scale(1.04)';
+        elDrop.style.opacity    = '0.6';
+        requestAnimationFrame(() => {
+            elDrop.style.transform = '';
+            elDrop.style.opacity   = '';
+            setTimeout(() => { elDrop.style.transition = ''; }, 200);
+        });
+
+        // Salva backend e sincronizza UI
         aggiornaDato(null, idRiga, 'stato', newStato);
-        // Aggiorna cache locale _attiviProd
         if (_attiviProd) {
             const r = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
             if (r) r.stato = newStato;
         }
-        // Sincronizza il dropdown stato nell'item-card
         _syncStatoItemCard(idRiga, newStato, colore);
         notificaElegante(`Stato → ${newStato}`);
     });
+
+    /* ── Annullamento (es. tasto Esc o interruzione sistema) ── */
+    grid.addEventListener('pointercancel', _cleanup);
+
+    // Previeni il drag HTML5 nativo che interferisce
+    grid.addEventListener('dragstart', e => e.preventDefault());
 }
 
 function _aggiornaKanbanCount(grid) {

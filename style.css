@@ -4422,6 +4422,7 @@ button:active {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    min-height: 36px;          /* sempre raggiungibile come drop target */
     max-height: 220px;
     overflow-y: auto;
     scrollbar-width: thin;
@@ -4520,28 +4521,28 @@ button:active {
     .ov-row-main { flex: 1; min-width: 0; }
 }
 
-/* ── Kanban drag & drop (solo desktop ≥ 601px) ────────────────── */
+/* ── Kanban drag & drop dinamico (pointer events, solo desktop ≥ 601px) ── */
 @media (min-width: 601px) {
     /* Struttura riga articolo */
     .ov-kanban-item {
         cursor: grab;
         border-radius: 6px;
         padding: 4px 6px;
-        transition: background 0.15s, opacity 0.2s, transform 0.2s;
+        touch-action: none;          /* impedisce scroll durante il drag */
+        user-select: none;
+        -webkit-user-select: none;
+        transition: background 0.15s, opacity 0.18s, transform 0.18s;
         align-items: flex-start;
         gap: 6px;
     }
     .ov-kanban-item:hover { background: #1e293b; }
-    .ov-kanban-item:active { cursor: grabbing; }
-    /* Elemento in corso di trascinamento */
+    /* Placeholder opaco lasciato nella colonna sorgente durante il drag */
     .ov-kanban-item.ov-drag-active {
-        opacity: 0.3;
+        opacity: 0.22;
         cursor: grabbing;
-    }
-    /* Animazione di uscita dalla colonna sorgente */
-    .ov-kanban-item.ov-drag-exit {
-        opacity: 0;
-        transform: scale(0.88);
+        border: 1.5px dashed #4f5e78;
+        border-radius: 6px;
+        background: transparent !important;
     }
     /* Handle */
     .ov-drag-handle {
