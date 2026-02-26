@@ -53,11 +53,28 @@ async function _initPush() {
             const c = await caches.open('prod-auth');
             await c.put('username', new Response(utenteAttuale.nome.toUpperCase()));
         }
-        // Se già iscritto, aggiorna la subscription su GAS (endpoint può cambiare)
-        const sub = await reg.pushManager.getSubscription();
-        if (!sub) return;
+        let sub = await reg.pushManager.getSubscription();
+        const perm = Notification.permission;
+
+        // Se il permesso è già stato concesso ma non c'è subscription → sottoscrivi automaticamente
+        if (!sub && perm === 'granted') {
+            try {
+                sub = await reg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: _vapidB64ToUint8_(_VAPID_PUBLIC_KEY)
+                });
+                console.log('[Push] Auto-subscribed:', sub.endpoint.substring(0, 60));
+            } catch (subErr) {
+                console.warn('[Push] Auto-subscribe failed:', subErr);
+                return;
+            }
+        }
+        if (!sub) return; // permesso non ancora concesso → aspetta azione utente
+
+        // Salva/aggiorna la subscription nel backend
         const j = sub.toJSON();
-        await _salvaSubVAPID_({ endpoint: j.endpoint, p256dh: j.keys?.p256dh, auth: j.keys?.auth });
+        const result = await _salvaSubVAPID_({ endpoint: j.endpoint, p256dh: j.keys?.p256dh, auth: j.keys?.auth });
+        console.log('[Push] Subscription saved:', result);
     } catch (err) { console.warn('[Push] initPush:', err); }
 }
 
@@ -99,7 +116,6 @@ async function _togglePushPermission() {
             try {
                 await fetch(URL_GOOGLE, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ azione: 'eliminaSottoscrizione', endpoint: endpt })
                 });
             } catch {}
@@ -160,9 +176,9 @@ function _vapidB64ToUint8_(b64url) {
 /** POST una subscription VAPID al backend GAS. */
 async function _salvaSubVAPID_(sub) {
     try {
-        await fetch(URL_GOOGLE, {
+        // IMPORTANTE: nessun Content-Type custom → GAS non gestisce preflight CORS
+        const res = await fetch(URL_GOOGLE, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 azione:   'salvaSottoscrizione',
                 username: utenteAttuale.nome.toUpperCase(),
@@ -171,7 +187,12 @@ async function _salvaSubVAPID_(sub) {
                 auth:     sub.auth    || ''
             })
         });
-    } catch {}
+        const json = await res.json().catch(() => ({}));
+        console.log('[Push] salvaSottoscrizione:', json);
+        return json;
+    } catch (err) {
+        console.warn('[Push] _salvaSubVAPID_ error:', err);
+    }
 }
 
 // ---- search optimisation helpers ----
