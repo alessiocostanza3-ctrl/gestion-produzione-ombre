@@ -583,9 +583,8 @@ function _renderCustomSwatches() {
     const key = 'avatarColorRecenti_' + utenteAttuale.nome.toUpperCase().trim();
     let recenti = [];
     try { recenti = JSON.parse(localStorage.getItem(key) || '[]'); } catch {}
-    // Tieni solo l'ultimo colore custom
-    recenti = recenti.slice(0, 1);
-    try { localStorage.setItem(key, JSON.stringify(recenti)); } catch {}
+    // Tieni max 7 colori custom (seconda riga della grid: 7 + il "+" = 8)
+    recenti = recenti.slice(0, 7);
     container.innerHTML = '';
     recenti.forEach(color => {
         const btn = document.createElement('button');
@@ -619,10 +618,13 @@ function _setAvatarColor(color) {
     if (!utenteAttuale || !utenteAttuale.nome) return;
     const nomeKey = utenteAttuale.nome.toUpperCase().trim();
     try { localStorage.setItem('avatarColor_' + nomeKey, color); } catch {}
-    // Se non è un predefinito, salvalo come scelta rapida custom (1 solo)
+    // Se non è un predefinito, aggiungilo alle scelte rapide custom (max 7, no duplicati)
     if (!_PREDEFINED_AVATAR_COLORS.includes(color.toLowerCase())) {
         const key = 'avatarColorRecenti_' + nomeKey;
-        try { localStorage.setItem(key, JSON.stringify([color])); } catch {}
+        let recenti = [];
+        try { recenti = JSON.parse(localStorage.getItem(key) || '[]'); } catch {}
+        recenti = [color, ...recenti.filter(c => c !== color)].slice(0, 7);
+        try { localStorage.setItem(key, JSON.stringify(recenti)); } catch {}
         _renderCustomSwatches();
     }
     _applyAvatarColorUI(color);
