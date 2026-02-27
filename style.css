@@ -4479,31 +4479,12 @@ button:active {
     padding: 0 14px 16px;
 }
 
-/* ── Griglia stati overview ── */
-.ov-stati-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    padding-bottom: 4px;
-    min-width: 0;
-}
-
-/* Wrapper board: kanban a sinistra + pannello operatori a destra */
+/* Wrapper board kanban: 8 card in griglia 4 colonne × 2 righe */
 .ov-board-wrapper {
     display: grid;
-    grid-template-columns: repeat(3, 1fr) 1fr;
+    grid-template-columns: repeat(4, 1fr);
     gap: 12px;
     align-items: start;
-}
-.ov-stati-grid {
-    grid-column: 1 / 4;
-}
-.ov-operatori-panel {
-    grid-column: 4;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    min-width: 0;
 }
 /* Corpo card operatori: stessa altezza max ma senza drop zone */
 .ov-op-card-body {
@@ -4773,13 +4754,6 @@ button:active {
 @media (max-width: 600px) {
     .ov-board-wrapper {
         grid-template-columns: 1fr;
-    }
-    .ov-stati-grid {
-        grid-column: 1;
-    }
-    .ov-operatori-panel {
-        grid-column: 1;
-        width: 100%;
     }
     .ov-stati-grid {
         grid-template-columns: 1fr;
