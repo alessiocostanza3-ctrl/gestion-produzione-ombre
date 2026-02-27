@@ -4492,12 +4492,11 @@ button:active {
 .ov-operatori-panel {
     display: contents;
 }
-/* Corpo card operatori: stessa struttura flex della card stato */
+/* Corpo card operatori: stessa altezza esplicita */
 .ov-op-card-body {
-    flex: 1 !important;
-    min-height: 0 !important;
-    max-height: none !important;
+    height: calc(260px - 37px) !important;
     overflow-y: auto !important;
+    flex: none !important;
 }
 /* Riga operatore (card "chi sta lavorando") */
 .ov-op-row {
@@ -4621,11 +4620,10 @@ button:active {
 .ov-stato-card {
     background: #0f172a;
     border-radius: 10px;
-    overflow: clip;    /* clip il border-radius senza bloccare lo scroll del body */
     display: flex;
     flex-direction: column;
     min-width: 0;
-    height: 260px;     /* altezza fissa uguale per tutte le card */
+    height: 260px;
 }
 .ov-stato-card-empty { opacity: 0.4; }
 .ov-stato-header {
@@ -4681,8 +4679,7 @@ button:active {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    flex: 1;               /* occupa tutto lo spazio rimanente nella card */
-    min-height: 0;         /* necessario per flex child con overflow */
+    height: calc(260px - 37px);   /* 260 card - ~37px header */
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: #334155 transparent;
@@ -4773,7 +4770,7 @@ button:active {
     /* quando collassata nascondi il body */
     .ov-stato-card:not([open]) > .ov-stato-body { display: none; }
     .ov-stato-card[open] .ov-sub-chevron { transform: rotate(180deg); }
-    .ov-stato-body { max-height: 260px; }
+    .ov-stato-body { height: auto; max-height: 260px; }
     .ov-row-label { font-size: 0.70rem; }
     /* nascondi drag handle su mobile */
     .ov-drag-handle { display: none; }
