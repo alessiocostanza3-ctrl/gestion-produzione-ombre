@@ -1877,7 +1877,7 @@ function _buildCaricoOperatoriHtml(attivi) {
         </div>`;
     }).join('');
 
-    const card1 = `<details class="ov-stato-card" open>
+    const card1 = `<details class="ov-stato-card" open style="grid-column:4;grid-row:1">
         <summary class="ov-stato-header" style="--ov-col:#6366f1">
             <span class="ov-stato-dot" style="background:#6366f1"></span>
             <span class="ov-stato-nome">Operatori</span>
@@ -1887,7 +1887,7 @@ function _buildCaricoOperatoriHtml(attivi) {
         <div class="ov-stato-body ov-op-card-body">${card1Body}</div>
     </details>`;
 
-    const card2 = `<details class="ov-stato-card" open>
+    const card2 = `<details class="ov-stato-card" open style="grid-column:4;grid-row:2">
         <summary class="ov-stato-header" style="--ov-col:#f59e0b">
             <span class="ov-stato-dot" style="background:#f59e0b"></span>
             <span class="ov-stato-nome">Carico operatori</span>
