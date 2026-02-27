@@ -4483,36 +4483,29 @@ button:active {
 .ov-stati-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    grid-auto-rows: 1fr;
     gap: 12px;
     padding-bottom: 4px;
     flex: 1;
     min-width: 0;
-    align-items: stretch;
 }
 
 /* Wrapper board: kanban a sinistra + pannello operatori a destra */
 .ov-board-wrapper {
     display: flex;
     gap: 12px;
-    align-items: stretch;
+    align-items: flex-start;
 }
 .ov-operatori-panel {
-    width: 290px;
+    width: 230px;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
-.ov-operatori-panel .ov-stato-card {
-    flex: 1;
-}
-/* Corpo card operatori: si espande per riempire la card */
+/* Corpo card operatori: stessa altezza max ma senza drop zone */
 .ov-op-card-body {
-    flex: 1 !important;
     min-height: auto !important;
-    max-height: none !important;
-    overflow-y: auto !important;
+    max-height: 260px !important;
 }
 /* Riga operatore (card "chi sta lavorando") */
 .ov-op-row {
@@ -4640,7 +4633,6 @@ button:active {
     display: flex;
     flex-direction: column;
     min-width: 0;
-    height: 100%;
 }
 .ov-stato-card-empty { opacity: 0.4; }
 .ov-stato-header {
@@ -4696,9 +4688,8 @@ button:active {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    flex: 1;
     min-height: 36px;          /* sempre raggiungibile come drop target */
-    max-height: none;
+    max-height: 220px;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: #334155 transparent;
@@ -4785,13 +4776,8 @@ button:active {
     }
     .ov-stati-grid {
         grid-template-columns: 1fr;
-        grid-auto-rows: auto;
         gap: 7px;
     }
-    .ov-stato-card { height: auto; }
-    .ov-stato-body { flex: initial; }
-    .ov-operatori-panel .ov-stato-card { flex: initial; }
-    .ov-op-card-body { max-height: 220px !important; }
     .ov-accordion .riepilogo-page { padding: 0 10px 12px; }
     .ov-accordion-summary { padding: 11px 12px; font-size: 0.73rem; }
     /* rendi cliccabili le sub-card */
