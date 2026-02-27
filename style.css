@@ -468,9 +468,9 @@ body.sidebar-collapsed .main-content {
     display: block !important;
 }
 .avatar-color-swatches {
-    display: grid !important;
-    grid-template-columns: repeat(8, 22px) !important;
-    gap: 4px !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
     align-items: center !important;
 }
 #avatar-custom-swatches,

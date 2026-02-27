@@ -722,7 +722,6 @@ function _setAvatarColor(color) {
 function _initAvatarColor() {
     if (!utenteAttuale || !utenteAttuale.nome) return;
     const saved = _getOpColor(utenteAttuale.nome);
-    _renderPredefinedSwatches();
     _renderCustomSwatches();
     _applyAvatarColorUI(saved);
 }

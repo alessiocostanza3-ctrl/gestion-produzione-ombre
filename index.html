@@ -378,8 +378,6 @@
                     <div class="avatar-color-section">
                         <span class="avatar-color-label">Colore badge</span>
                         <div class="avatar-color-swatches" id="avatar-color-swatches">
-                            <!-- Generati dinamicamente da JS -->
-                            <span id="avatar-predefined-swatches"></span>
                             <!-- Colori personalizzati salvati -->
                             <span id="avatar-custom-swatches"></span>
                             <!-- Pulsante aggiungi -->
@@ -392,7 +390,6 @@
                             <button class="avatar-editor-btn avatar-editor-cancel" onclick="_avatarCancelEdit(event)" title="Annulla">✗</button>
                             <button class="avatar-editor-btn avatar-editor-delete" id="avatar-editor-delete" onclick="_avatarDeleteEdit(event)" title="Elimina">🗑</button>
                         </div>
-                        <button class="avatar-ripristina-btn" onclick="_avatarRipristinaPredefiniti(event)">↺ Ripristina predefiniti</button>
                     </div>
                     <div class="account-dropdown-divider"></div>
                     <button class="account-menu-item account-menu-logout" id="btn-logout">
