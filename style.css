@@ -4479,10 +4479,10 @@ button:active {
     padding: 0 14px 16px;
 }
 
-/* Wrapper board kanban: 4 colonne uguali + dense flow */
+/* Wrapper board kanban: 3 colonne più larghe + dense flow */
 .ov-board-wrapper {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     grid-auto-flow: dense;
     gap: 12px;
     align-items: start;
@@ -4625,7 +4625,7 @@ button:active {
     display: flex;
     flex-direction: column;
     min-width: 0;
-    height: 320px;     /* altezza fissa uguale per tutte le card */
+    height: 260px;     /* altezza fissa uguale per tutte le card */
 }
 .ov-stato-card-empty { opacity: 0.4; }
 .ov-stato-header {
@@ -4764,6 +4764,7 @@ button:active {
     .ov-board-wrapper {
         grid-template-columns: 1fr;
     }
+    .ov-stato-card { height: auto; grid-column: auto !important; grid-row: auto !important; }
     .ov-accordion .riepilogo-page { padding: 0 10px 12px; }
     .ov-accordion-summary { padding: 11px 12px; font-size: 0.73rem; }
     /* rendi cliccabili le sub-card */
@@ -4772,7 +4773,6 @@ button:active {
     /* quando collassata nascondi il body */
     .ov-stato-card:not([open]) > .ov-stato-body { display: none; }
     .ov-stato-card[open] .ov-sub-chevron { transform: rotate(180deg); }
-    .ov-stato-card { height: auto; }   /* su mobile altezza automatica */
     .ov-stato-body { max-height: 260px; }
     .ov-row-label { font-size: 0.70rem; }
     /* nascondi drag handle su mobile */
