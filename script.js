@@ -1788,88 +1788,100 @@ function _apriArchivio(id) {
 function _osservaArchivio(id) { /* disabilitato: apri solo col tasto */ }
 
 function _buildCaricoOperatoriHtml(attivi) {
-    // Costruisce mappa operatore → array di righe assegnate
+    // Operatori della produzione da mostrare (in ordine fisso)
+    const OPS_PROD = ['RICCARDO', 'FABIO T.', 'NICCOLÒ', 'ALESSIO'];
+    // Normalizza per confronto case-insensitive
+    function _matchOp(nome) {
+        const n = nome.trim().toUpperCase().replace("'", '\u2019').replace('\u00e0','\u00c0');
+        return OPS_PROD.some(op => op.toUpperCase() === n || op.toUpperCase().replace("'", '\u2019') === n
+            || op.toUpperCase().replace('\u00c0','A\'') === n
+            || nome.trim().toUpperCase() === op.toUpperCase()
+            || nome.trim().toUpperCase() === op.toUpperCase().replace('\u00d2','O\''));
+    }
+
+    // Costruisce mappa operatore → array di righe assegnate (solo ops prod)
     const map = new Map();
+    OPS_PROD.forEach(op => map.set(op, []));
     attivi.forEach(r => {
         if (!r.assegna || r.assegna === '' || r.assegna === 'undefined') return;
         r.assegna.split(',').forEach(op => {
             const nome = op.trim();
             if (!nome) return;
-            if (!map.has(nome)) map.set(nome, []);
-            map.get(nome).push(r);
+            // Cerca la corrispondenza nell'elenco fisso
+            const found = OPS_PROD.find(o => o.toUpperCase() === nome.toUpperCase());
+            if (found) {
+                map.get(found).push(r);
+            }
         });
     });
 
     const coloriStati = {};
     (listaStati || []).forEach(s => { coloriStati[s.nome.toUpperCase()] = s.colore; });
 
-    // ── Card 1: "Chi sta lavorando" ──
-    const attivi_ops = [...map.entries()].sort((a, b) => b[1].length - a[1].length);
-    const card1Body = attivi_ops.length === 0
-        ? '<span class="ov-empty-lbl">— nessun operatore assegnato</span>'
-        : attivi_ops.map(([nome, items]) => {
-            const col = _getOpColor(nome);
-            const itemsHtml = items.map(r => {
+    // Helper cliente/riferimento
+    function _clienteLabel(r) {
+        const cli = String(r.cliente || '').trim().toUpperCase();
+        if (!cli || cli === 'DA DEFINIRE') {
+            const rif = String(r.riferimento || '').trim();
+            return rif ? rif : '';
+        }
+        const w = r.cliente.trim().split(/\s+/).slice(0, 2).join(' ');
+        return w.length > 14 ? w.substring(0, 13) + '\u2026' : w;
+    }
+
+    // ── Card 1: "Operatori" ──
+    const card1Body = OPS_PROD.map(nome => {
+        const items = map.get(nome) || [];
+        const col = _getOpColor(nome);
+        const itemsHtml = items.length === 0
+            ? '<div class="ov-op-item ov-op-item-free"><span class="ov-op-item-cod" style="color:#475569">Libero</span></div>'
+            : items.map(r => {
                 const stato = (r.stato || 'IN ATTESA').toUpperCase().trim();
                 const colStato = coloriStati[stato] || '#94a3b8';
-                const cod = (r.codice && r.codice !== 'false') ? r.codice : (r.riferimento || '—');
-                const lbl = cod.length > 16 ? cod.substring(0, 15) + '\u2026' : cod;
+                const ordine = String(r.ordine || '').trim();
+                const cli = _clienteLabel(r);
+                const ordLbl = ordine.length > 10 ? ordine.substring(0, 9) + '\u2026' : ordine;
                 return `<div class="ov-op-item">
                     <span class="ov-op-item-dot" style="background:${colStato}"></span>
-                    <span class="ov-op-item-cod">${lbl}</span>
-                    <span class="ov-op-item-qty">${r.qty || 1} pz</span>
+                    <span class="ov-op-item-cod">${ordLbl}${cli ? ' <em style="color:#7c8fa8;font-style:italic">' + cli + '</em>' : ''}</span>
                 </div>`;
             }).join('');
-            return `<div class="ov-op-row">
-                <div class="ov-op-header">
-                    <span class="ov-op-badge" style="background:${col}">${nome.charAt(0).toUpperCase()}</span>
+        return `<div class="ov-op-row">
+            <div class="ov-op-header">
+                <span class="ov-op-badge" style="background:${col}">${nome.charAt(0).toUpperCase()}</span>
+                <span class="ov-op-nome">${nome}</span>
+                ${items.length > 0 ? `<span class="ov-op-count" style="background:${col}33;color:${col}">${items.length}</span>` : '<span class="ov-op-free-badge">Libero</span>'}
+            </div>
+            <div class="ov-op-items">${itemsHtml}</div>
+        </div>`;
+    }).join('');
+
+    // ── Card 2: "Carico operatori" ──
+    const maxCount = Math.max(...OPS_PROD.map(n => (map.get(n) || []).length), 1);
+    const card2Body = OPS_PROD.map(nome => {
+        const count = (map.get(nome) || []).length;
+        const col = _getOpColor(nome);
+        const pct = Math.round((count / maxCount) * 100);
+        const isLibero = count === 0;
+        return `<div class="ov-op-summary-row">
+            <span class="ov-op-badge" style="background:${isLibero ? '#374151' : col}">${nome.charAt(0).toUpperCase()}</span>
+            <div class="ov-op-summary-info">
+                <div class="ov-op-summary-top">
                     <span class="ov-op-nome">${nome}</span>
-                    <span class="ov-op-count" style="background:${col}33;color:${col}">${items.length}</span>
+                    ${isLibero
+                        ? '<span class="ov-op-free-badge">Libero</span>'
+                        : `<span class="ov-op-count" style="background:${col}33;color:${col}">${count} art.</span>`}
                 </div>
-                <div class="ov-op-items">${itemsHtml}</div>
-            </div>`;
-        }).join('');
-
-    // ── Card 2: "Riepilogo operatori" ──
-    const opNomiAssegnati = new Set(map.keys());
-    const tuttOps = (listaOperatori || []).map(op => {
-        const nome = op.nome;
-        const items = map.get(nome) || [];
-        return { nome, count: items.length, col: _getOpColor(nome) };
-    });
-    // Aggiungi operatori che risultano assegnati ma non in listaOperatori
-    map.forEach((items, nome) => {
-        if (!tuttOps.find(o => o.nome === nome)) {
-            tuttOps.push({ nome, count: items.length, col: _getOpColor(nome) });
-        }
-    });
-    tuttOps.sort((a, b) => b.count - a.count);
-
-    const maxCount = tuttOps.length > 0 ? Math.max(...tuttOps.map(o => o.count), 1) : 1;
-    const card2Body = tuttOps.length === 0
-        ? '<span class="ov-empty-lbl">— nessun operatore</span>'
-        : tuttOps.map(({ nome, count, col }) => {
-            const pct = Math.round((count / maxCount) * 100);
-            const isLibero = count === 0;
-            return `<div class="ov-op-summary-row">
-                <span class="ov-op-badge" style="background:${isLibero ? '#374151' : col}">${nome.charAt(0).toUpperCase()}</span>
-                <div class="ov-op-summary-info">
-                    <div class="ov-op-summary-top">
-                        <span class="ov-op-nome">${nome}</span>
-                        ${isLibero
-                            ? '<span class="ov-op-free-badge">Libero</span>'
-                            : `<span class="ov-op-count" style="background:${col}33;color:${col}">${count} art.</span>`}
-                    </div>
-                    ${isLibero ? '' : `<div class="ov-op-bar-track"><div class="ov-op-bar-fill" style="width:${pct}%;background:${col}"></div></div>`}
-                </div>
-            </div>`;
-        }).join('');
+                ${isLibero ? '' : `<div class="ov-op-bar-track"><div class="ov-op-bar-fill" style="width:${pct}%;background:${col}"></div></div>`}
+            </div>
+        </div>`;
+    }).join('');
 
     const card1 = `<details class="ov-stato-card" open>
         <summary class="ov-stato-header" style="--ov-col:#6366f1">
             <span class="ov-stato-dot" style="background:#6366f1"></span>
-            <span class="ov-stato-nome">Chi sta lavorando</span>
-            <span class="ov-stato-tot" style="background:#6366f133;color:#6366f1">${attivi_ops.length} op.</span>
+            <span class="ov-stato-nome">Operatori</span>
+            <span class="ov-stato-tot" style="background:#6366f133;color:#6366f1">${OPS_PROD.length} op.</span>
             <i class="fas fa-chevron-down ov-sub-chevron"></i>
         </summary>
         <div class="ov-stato-body ov-op-card-body">${card1Body}</div>
@@ -1879,7 +1891,7 @@ function _buildCaricoOperatoriHtml(attivi) {
         <summary class="ov-stato-header" style="--ov-col:#f59e0b">
             <span class="ov-stato-dot" style="background:#f59e0b"></span>
             <span class="ov-stato-nome">Carico operatori</span>
-            <span class="ov-stato-tot" style="background:#f59e0b33;color:#f59e0b">${tuttOps.length} tot.</span>
+            <span class="ov-stato-tot" style="background:#f59e0b33;color:#f59e0b">${OPS_PROD.length} tot.</span>
             <i class="fas fa-chevron-down ov-sub-chevron"></i>
         </summary>
         <div class="ov-stato-body ov-op-card-body">${card2Body}</div>

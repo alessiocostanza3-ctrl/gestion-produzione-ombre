@@ -4589,6 +4589,10 @@ button:active {
     color: #64748b;
     flex-shrink: 0;
 }
+.ov-op-item-free {
+    opacity: 0.45;
+    font-style: italic;
+}
 /* Riga riepilogo (card "carico operatori") */
 .ov-op-summary-row {
     display: flex;
