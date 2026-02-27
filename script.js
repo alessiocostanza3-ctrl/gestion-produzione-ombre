@@ -681,9 +681,19 @@ async function salvaEApriDashboard() {
 }
 function logout() {
     try {
+        // Preserva i colori avatar (sono per-device, non legati alla sessione)
+        const coloriAvatar = {};
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith('avatarColor_')) coloriAvatar[k] = localStorage.getItem(k);
+        }
+
         // 1. Pulizia totale della memoria del browser
         localStorage.clear();
         sessionStorage.clear();
+
+        // Ripristina i colori avatar
+        Object.entries(coloriAvatar).forEach(([k, v]) => { try { localStorage.setItem(k, v); } catch {} });
 
         // 2. Reindirizzamento pulito alla pagina iniziale
         // Aggiungiamo un parametro casuale per evitare che il browser usi la cache vecchia
