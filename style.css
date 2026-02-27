@@ -4479,10 +4479,10 @@ button:active {
     padding: 0 14px 16px;
 }
 
-/* Wrapper board kanban: 3 colonne più larghe + dense flow */
+/* Wrapper board kanban: 4 colonne, stati col1-3, operatori col4 */
 .ov-board-wrapper {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     grid-auto-flow: dense;
     gap: 12px;
     align-items: start;
