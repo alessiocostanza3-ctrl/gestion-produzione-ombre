@@ -2002,7 +2002,10 @@ function _buildOverviewInnerHtml(attivi) {
         </details>`;
     }).join('');
 
-    return `<div class="ov-board-wrapper" id="ov-kanban-grid">${cardsHtml}${_buildCaricoOperatoriHtml(attivi)}</div>`;
+    return `<div class="ov-board-wrapper">
+        <div class="ov-stati-grid" id="ov-kanban-grid">${cardsHtml}</div>
+        <div class="ov-operatori-panel">${_buildCaricoOperatoriHtml(attivi)}</div>
+    </div>`;
 }
 
 function _buildOverviewChart() { /* non più usato */ }
