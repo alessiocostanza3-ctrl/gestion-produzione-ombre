@@ -1204,7 +1204,13 @@ async function aggiornaDato(selectEl, idRiga, campo, nuovoValore) {
 function _syncKanbanFromStato(idRiga, newStato) {
     const grid = document.getElementById('ov-kanban-grid');
     if (!grid) return;
-    const item = grid.querySelector(`.ov-kanban-item[data-id-riga="${idRiga}"]`);
+    // Cerca per id_riga diretto o dentro un gruppo (data-id-righe)
+    let item = grid.querySelector(`.ov-kanban-item[data-id-riga="${idRiga}"]`);
+    if (!item) {
+        grid.querySelectorAll('.ov-kanban-item').forEach(el => {
+            if ((el.dataset.idRighe || '').split(',').map(s => s.trim()).includes(String(idRiga))) item = el;
+        });
+    }
     if (!item) return;
     if (item.dataset.statoCorrente === newStato) return;
     const destBody = grid.querySelector(`.ov-stato-body[data-stato-drop="${newStato}"]`);
@@ -1613,30 +1619,60 @@ function _buildOverviewInnerHtml(attivi) {
     const coloreDefault = '#94a3b8';
 
     const cardsHtml = _OV_STATI_ALL.map(stato => {
-        const righe = attivi.filter(r => (r.stato || '').toUpperCase() === stato);
+        // .trim() evita spazi extra nel nome stato (fix IN LAVORAZIONE)
+        const righe = attivi.filter(r => (r.stato || '').toUpperCase().trim() === stato.trim());
         const colore = coloriStati[stato] || coloreDefault;
         const isEmpty = righe.length === 0;
 
-        // Righe individuali per articolo (draggabili su desktop)
-        const contenuto = righe.map(r => {
+        // ── Raggruppa righe per codice (stesso articolo in più ordini = 1 card) ──
+        const gruppiMap = new Map();
+        const gruppiOrd = [];
+        righe.forEach(r => {
             const codice = String(r.codice && r.codice !== 'false' ? r.codice : r.riferimento || '—').trim();
-            const lbl = codice.length > 24 ? codice.substring(0, 24) + '…' : codice;
-            const ord = r.ordine || '';
-            const ordShort = ord.length > 12 ? ord.substring(0, 12) + '…' : ord;
-            const opPrimo = (r.assegna && r.assegna.trim() && r.assegna !== 'undefined')
-                ? r.assegna.split(',')[0].trim() : '';
-            const subLine = [ordShort, opPrimo].filter(Boolean).join(' · ');
+            if (gruppiMap.has(codice)) {
+                gruppiMap.get(codice).push(r);
+            } else {
+                const arr = [r];
+                gruppiMap.set(codice, arr);
+                gruppiOrd.push({ codice, rows: arr });
+            }
+        });
+
+        const contenuto = gruppiOrd.map(({ codice, rows }) => {
+            const lbl = codice.length > 24 ? codice.substring(0, 24) + '\u2026' : codice;
+            const ids = rows.map(r => String(r.id_riga)).join(',');
+
+            // Sub-riga: "61/00 · <em>Cliente</em>" – separati da " / " se più ordini
+            const subParts = rows.map(r => {
+                const ord = String(r.ordine || '').trim();
+                const ordShort = ord.length > 12 ? ord.substring(0, 12) + '\u2026' : ord;
+                const cli = String(r.cliente || '').trim();
+                // Abbreviazione cliente: prime 2 parole, max 14 char
+                const cliWords = cli.split(/\s+/).slice(0, 2).join(' ');
+                const cliShort = cliWords.length > 14 ? cliWords.substring(0, 13) + '\u2026' : cliWords;
+                if (!ordShort && !cliShort) return '';
+                return ordShort + (cliShort ? ' <em>' + cliShort + '</em>' : '');
+            }).filter(Boolean);
+            const subLine = subParts.join(' / ');
+
+            // Quantità: "7 pz" se singolo, "7pz+3pz" se multiplo
+            const qtyStr = rows.length > 1
+                ? rows.map(r => (r.qty || 1) + 'pz').join('+')
+                : (rows[0].qty || 1) + ' pz';
+
             return `<div class="ov-stato-row ov-kanban-item"
-                data-id-riga="${r.id_riga}"
+                data-id-riga="${rows[0].id_riga}"
+                data-id-righe="${ids}"
+                data-count="${rows.length}"
                 data-codice="${codice.replace(/"/g, '&quot;')}"
-                data-ordine="${ord}"
+                data-ordine="${rows.map(r => r.ordine || '').join(',')}"
                 data-stato-corrente="${stato}">
                 <span class="ov-drag-handle"><i class="fas fa-grip-vertical"></i></span>
                 <span class="ov-row-main">
                     <span class="ov-row-label" title="${codice}">${lbl}</span>
                     ${subLine ? `<span class="ov-row-sub">${subLine}</span>` : ''}
                 </span>
-                <span class="ov-badge-qty">${r.qty || 1} pz</span>
+                <span class="ov-badge-qty">${qtyStr}</span>
             </div>`;
         }).join('');
 
@@ -1776,7 +1812,9 @@ function _initKanbanDnd() {
 
         if (!newStato || newStato === oldStato || !body) return;
 
-        const idRiga = elDrop.dataset.idRiga;
+        const idRiga  = elDrop.dataset.idRiga;
+        // Supporto gruppi: aggiorna tutte le righe della card
+        const idRighe = (elDrop.dataset.idRighe || idRiga).split(',').map(s => s.trim()).filter(Boolean);
         const colore = (listaStati.find(s => s.nome === newStato) || {}).colore || '#94a3b8';
 
         // Sposta il nodo reale nel DOM immediatamente
@@ -1800,12 +1838,14 @@ function _initKanbanDnd() {
             setTimeout(() => { elDrop.style.transition = ''; }, 200);
         });
 
-        // Salva backend e sincronizza UI
-        aggiornaDato(null, idRiga, 'stato', newStato);
-        if (_attiviProd) {
-            const r = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
-            if (r) r.stato = newStato;
-        }
+        // Salva backend per tutte le righe del gruppo
+        idRighe.forEach(id => {
+            aggiornaDato(null, id, 'stato', newStato);
+            if (_attiviProd) {
+                const r = _attiviProd.find(x => String(x.id_riga) === id);
+                if (r) r.stato = newStato;
+            }
+        });
         _syncStatoItemCard(idRiga, newStato, colore);
         notificaElegante(`Stato → ${newStato}`);
     });
@@ -1820,7 +1860,11 @@ function _initKanbanDnd() {
 function _aggiornaKanbanCount(grid) {
     grid.querySelectorAll('.ov-stato-body').forEach(body => {
         const stato = body.dataset.statoDrop;
-        const count = body.querySelectorAll('.ov-kanban-item').length;
+        // Somma data-count di ogni card (una card può raggruppare più articoli)
+        let count = 0;
+        body.querySelectorAll('.ov-kanban-item').forEach(item => {
+            count += parseInt(item.dataset.count || '1', 10);
+        });
         const badge = grid.querySelector(`[data-stato-count="${stato}"]`);
         if (badge) badge.textContent = count + ' art.';
         const card = body.closest('.ov-stato-card');

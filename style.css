@@ -4569,6 +4569,12 @@ button:active {
         overflow: hidden;
         text-overflow: ellipsis;
     }
+    /* Cliente in corsivo, colore leggermente più chiaro */
+    .ov-row-sub em {
+        font-style: italic;
+        color: #7c8fa8;
+        font-weight: 400;
+    }
     /* Colonna destinazione evidenziata durante il drag-over */
     .ov-stato-body.ov-drop-over {
         background: rgba(99, 102, 241, 0.07);
