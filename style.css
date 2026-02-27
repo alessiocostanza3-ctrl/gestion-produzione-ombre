@@ -4621,7 +4621,7 @@ button:active {
 .ov-stato-card {
     background: #0f172a;
     border-radius: 10px;
-    overflow: hidden;
+    overflow: clip;    /* clip il border-radius senza bloccare lo scroll del body */
     display: flex;
     flex-direction: column;
     min-width: 0;
