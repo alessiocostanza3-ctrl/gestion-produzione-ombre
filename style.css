@@ -243,15 +243,13 @@ button, .menu-item, .btn-sos, .btn-login, .btn-modal-send {
 /* --- Sidebar expanded (default) --- */
 .sidebar {
     transition: width 0.28s cubic-bezier(0.4,0,0.2,1) !important;
-    overflow: hidden !important;
+    overflow: visible !important;
 }
 
 /* --- Sidebar COLLAPSED --- */
 .sidebar.collapsed {
     width: 62px !important;
     padding: 20px 8px !important;
-    /* Permetti al dropdown account di uscire oltre la sidebar */
-    overflow: visible !important;
 }
 
 /* Nascondi testi sidebar quando collapsed */
