@@ -576,19 +576,32 @@ function _getOpColor(nome) {
 
 /** Applica il colore al pulsante avatar, al ddrop-avatar, all'input colore e agli swatch */
 const _PREDEFINED_AVATAR_COLORS = ['#8fe45e','#6366f1','#f59e0b','#ec4899','#06b6d4','#f87171','#a78bfa','#34d399'];
-let _avatarEditIndex = null; // null = nuovo swatch, numero = modifica esistente
+// _avatarEditTarget: null = nuovo custom | {type:'custom', idx:N} | {type:'predefined', color:'#xxx'}
+let _avatarEditTarget = null;
 
-function _avatarCustomKey() {
-    if (!utenteAttuale || !utenteAttuale.nome) return null;
-    return 'avatarColorRecenti_' + utenteAttuale.nome.toUpperCase().trim();
-}
-function _avatarLoadRecenti() {
-    const key = _avatarCustomKey(); if (!key) return [];
-    try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; }
-}
-function _avatarSaveRecenti(list) {
-    const key = _avatarCustomKey(); if (!key) return;
-    try { localStorage.setItem(key, JSON.stringify(list.slice(0, 7))); } catch {}
+function _avatarCustomKey()  { if (!utenteAttuale?.nome) return null; return 'avatarColorRecenti_' + utenteAttuale.nome.toUpperCase().trim(); }
+function _avatarHiddenKey()  { if (!utenteAttuale?.nome) return null; return 'avatarColorHidden_'  + utenteAttuale.nome.toUpperCase().trim(); }
+
+function _avatarLoadRecenti() { const k = _avatarCustomKey(); if (!k) return []; try { return JSON.parse(localStorage.getItem(k)||'[]'); } catch { return []; } }
+function _avatarSaveRecenti(l){ const k = _avatarCustomKey(); if (!k) return; try { localStorage.setItem(k, JSON.stringify(l.slice(0,7))); } catch {} }
+function _avatarLoadHidden()  { const k = _avatarHiddenKey();  if (!k) return []; try { return JSON.parse(localStorage.getItem(k)||'[]'); } catch { return []; } }
+function _avatarSaveHidden(l) { const k = _avatarHiddenKey();  if (!k) return; try { localStorage.setItem(k, JSON.stringify(l)); } catch {} }
+
+function _renderPredefinedSwatches() {
+    const container = document.getElementById('avatar-predefined-swatches');
+    if (!container) return;
+    const hidden = _avatarLoadHidden();
+    container.innerHTML = '';
+    _PREDEFINED_AVATAR_COLORS.forEach(color => {
+        if (hidden.includes(color)) return;
+        const btn = document.createElement('button');
+        btn.className = 'avatar-color-swatch';
+        btn.style.background = color;
+        btn.dataset.color = color;
+        btn.title = 'Clicca per applicare o eliminare';
+        btn.onclick = (e) => { e.stopPropagation(); _avatarEditPredefined(color, e); };
+        container.appendChild(btn);
+    });
 }
 
 function _renderCustomSwatches() {
@@ -602,7 +615,7 @@ function _renderCustomSwatches() {
         btn.style.background = color;
         btn.dataset.color = color;
         btn.title = 'Clicca per modificare o eliminare';
-        btn.onclick = (e) => _avatarEditCustom(idx, e);
+        btn.onclick = (e) => { e.stopPropagation(); _avatarEditCustom(idx, e); };
         container.appendChild(btn);
     });
 }
@@ -619,33 +632,43 @@ function _avatarShowEditor(color, showDelete) {
 function _avatarHideEditor() {
     const ed = document.getElementById('avatar-color-editor');
     if (ed) ed.style.display = 'none';
-    _avatarEditIndex = null;
+    _avatarEditTarget = null;
 }
 function _avatarStartAdd(e) {
     if (e) e.stopPropagation();
-    _avatarEditIndex = null;
+    _avatarEditTarget = null;
     _avatarShowEditor('#ff0000', false);
 }
 function _avatarEditCustom(idx, e) {
     if (e) e.stopPropagation();
     const recenti = _avatarLoadRecenti();
-    _avatarEditIndex = idx;
+    _avatarEditTarget = { type: 'custom', idx };
     _avatarShowEditor(recenti[idx] || '#ff0000', true);
+}
+function _avatarEditPredefined(color, e) {
+    if (e) e.stopPropagation();
+    _avatarEditTarget = { type: 'predefined', color };
+    _avatarShowEditor(color, true);
 }
 function _avatarConfirmEdit(e) {
     if (e) e.stopPropagation();
     const inp = document.getElementById('avatar-color-edit-input');
     if (!inp) return;
     const color = inp.value;
-    let recenti = _avatarLoadRecenti();
-    if (_avatarEditIndex === null) {
+    if (_avatarEditTarget === null) {
+        // Nuovo custom
+        const recenti = _avatarLoadRecenti();
         recenti.unshift(color);
-    } else {
-        recenti[_avatarEditIndex] = color;
+        _avatarSaveRecenti(recenti);
+        _renderCustomSwatches();
+    } else if (_avatarEditTarget.type === 'custom') {
+        const recenti = _avatarLoadRecenti();
+        recenti[_avatarEditTarget.idx] = color;
+        _avatarSaveRecenti(recenti);
+        _renderCustomSwatches();
     }
-    _avatarSaveRecenti(recenti);
+    // Per predefiniti: il click applica il colore direttamente, ✓ lo conferma
     _avatarHideEditor();
-    _renderCustomSwatches();
     _setAvatarColor(color);
 }
 function _avatarCancelEdit(e) {
@@ -654,12 +677,24 @@ function _avatarCancelEdit(e) {
 }
 function _avatarDeleteEdit(e) {
     if (e) e.stopPropagation();
-    if (_avatarEditIndex === null) return;
-    let recenti = _avatarLoadRecenti();
-    recenti.splice(_avatarEditIndex, 1);
-    _avatarSaveRecenti(recenti);
+    if (!_avatarEditTarget) return;
+    if (_avatarEditTarget.type === 'custom') {
+        const recenti = _avatarLoadRecenti();
+        recenti.splice(_avatarEditTarget.idx, 1);
+        _avatarSaveRecenti(recenti);
+        _renderCustomSwatches();
+    } else if (_avatarEditTarget.type === 'predefined') {
+        const hidden = _avatarLoadHidden();
+        if (!hidden.includes(_avatarEditTarget.color)) hidden.push(_avatarEditTarget.color);
+        _avatarSaveHidden(hidden);
+        _renderPredefinedSwatches();
+    }
     _avatarHideEditor();
-    _renderCustomSwatches();
+}
+function _avatarRipristinaPredefiniti(e) {
+    if (e) e.stopPropagation();
+    _avatarSaveHidden([]);
+    _renderPredefinedSwatches();
 }
 
 function _applyAvatarColorUI(color) {
@@ -687,6 +722,7 @@ function _setAvatarColor(color) {
 function _initAvatarColor() {
     if (!utenteAttuale || !utenteAttuale.nome) return;
     const saved = _getOpColor(utenteAttuale.nome);
+    _renderPredefinedSwatches();
     _renderCustomSwatches();
     _applyAvatarColorUI(saved);
 }
@@ -771,7 +807,7 @@ function logout() {
         const coloriAvatar = {};
         for (let i = 0; i < localStorage.length; i++) {
             const k = localStorage.key(i);
-            if (k && (k.startsWith('avatarColor_') || k.startsWith('avatarColorRecenti_'))) coloriAvatar[k] = localStorage.getItem(k);
+            if (k && (k.startsWith('avatarColor_') || k.startsWith('avatarColorRecenti_') || k.startsWith('avatarColorHidden_'))) coloriAvatar[k] = localStorage.getItem(k);
         }
 
         // 1. Pulizia totale della memoria del browser

@@ -473,7 +473,8 @@ body.sidebar-collapsed .main-content {
     gap: 4px !important;
     align-items: center !important;
 }
-#avatar-custom-swatches {
+#avatar-custom-swatches,
+#avatar-predefined-swatches {
     display: contents !important;
 }
 .avatar-color-swatch {
@@ -552,6 +553,21 @@ body.sidebar-collapsed .main-content {
 .avatar-editor-cancel:hover { background: rgba(255,255,255,0.18) !important; }
 .avatar-editor-delete { background: rgba(239,68,68,0.18) !important; color: #f87171 !important; }
 .avatar-editor-delete:hover { background: rgba(239,68,68,0.35) !important; }
+/* Link ripristina predefiniti */
+.avatar-ripristina-btn {
+    background: none !important;
+    border: none !important;
+    color: #4b5563 !important;
+    font-size: 10px !important;
+    cursor: pointer !important;
+    padding: 4px 0 0 !important;
+    display: block !important;
+    text-align: left !important;
+    font-family: inherit !important;
+    transition: color 0.15s !important;
+    outline: none !important;
+}
+.avatar-ripristina-btn:hover { color: #9ca3af !important; }
 
 
 
