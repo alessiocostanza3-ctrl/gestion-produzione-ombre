@@ -576,38 +576,100 @@ function _getOpColor(nome) {
 
 /** Applica il colore al pulsante avatar, al ddrop-avatar, all'input colore e agli swatch */
 const _PREDEFINED_AVATAR_COLORS = ['#8fe45e','#6366f1','#f59e0b','#ec4899','#06b6d4','#f87171','#a78bfa','#34d399'];
+let _avatarEditIndex = null; // null = nuovo swatch, numero = modifica esistente
+
+function _avatarCustomKey() {
+    if (!utenteAttuale || !utenteAttuale.nome) return null;
+    return 'avatarColorRecenti_' + utenteAttuale.nome.toUpperCase().trim();
+}
+function _avatarLoadRecenti() {
+    const key = _avatarCustomKey(); if (!key) return [];
+    try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; }
+}
+function _avatarSaveRecenti(list) {
+    const key = _avatarCustomKey(); if (!key) return;
+    try { localStorage.setItem(key, JSON.stringify(list.slice(0, 7))); } catch {}
+}
 
 function _renderCustomSwatches() {
     const container = document.getElementById('avatar-custom-swatches');
-    if (!container || !utenteAttuale || !utenteAttuale.nome) return;
-    const key = 'avatarColorRecenti_' + utenteAttuale.nome.toUpperCase().trim();
-    let recenti = [];
-    try { recenti = JSON.parse(localStorage.getItem(key) || '[]'); } catch {}
-    // Tieni max 7 colori custom (seconda riga della grid: 7 + il "+" = 8)
-    recenti = recenti.slice(0, 7);
+    if (!container) return;
+    const recenti = _avatarLoadRecenti();
     container.innerHTML = '';
-    recenti.forEach(color => {
+    recenti.forEach((color, idx) => {
         const btn = document.createElement('button');
-        btn.className = 'avatar-color-swatch';
+        btn.className = 'avatar-color-swatch avatar-color-custom-swatch';
         btn.style.background = color;
         btn.dataset.color = color;
-        btn.title = color;
-        btn.onclick = () => _setAvatarColor(color);
+        btn.title = 'Clicca per modificare o eliminare';
+        btn.onclick = (e) => _avatarEditCustom(idx, e);
         container.appendChild(btn);
     });
 }
 
+function _avatarShowEditor(color, showDelete) {
+    const ed  = document.getElementById('avatar-color-editor');
+    const inp = document.getElementById('avatar-color-edit-input');
+    const del = document.getElementById('avatar-editor-delete');
+    if (!ed || !inp) return;
+    inp.value = color || '#ff0000';
+    if (del) del.style.display = showDelete ? '' : 'none';
+    ed.style.display = 'flex';
+}
+function _avatarHideEditor() {
+    const ed = document.getElementById('avatar-color-editor');
+    if (ed) ed.style.display = 'none';
+    _avatarEditIndex = null;
+}
+function _avatarStartAdd(e) {
+    if (e) e.stopPropagation();
+    _avatarEditIndex = null;
+    _avatarShowEditor('#ff0000', false);
+}
+function _avatarEditCustom(idx, e) {
+    if (e) e.stopPropagation();
+    const recenti = _avatarLoadRecenti();
+    _avatarEditIndex = idx;
+    _avatarShowEditor(recenti[idx] || '#ff0000', true);
+}
+function _avatarConfirmEdit(e) {
+    if (e) e.stopPropagation();
+    const inp = document.getElementById('avatar-color-edit-input');
+    if (!inp) return;
+    const color = inp.value;
+    let recenti = _avatarLoadRecenti();
+    if (_avatarEditIndex === null) {
+        recenti.unshift(color);
+    } else {
+        recenti[_avatarEditIndex] = color;
+    }
+    _avatarSaveRecenti(recenti);
+    _avatarHideEditor();
+    _renderCustomSwatches();
+    _setAvatarColor(color);
+}
+function _avatarCancelEdit(e) {
+    if (e) e.stopPropagation();
+    _avatarHideEditor();
+}
+function _avatarDeleteEdit(e) {
+    if (e) e.stopPropagation();
+    if (_avatarEditIndex === null) return;
+    let recenti = _avatarLoadRecenti();
+    recenti.splice(_avatarEditIndex, 1);
+    _avatarSaveRecenti(recenti);
+    _avatarHideEditor();
+    _renderCustomSwatches();
+}
+
 function _applyAvatarColorUI(color) {
-    const btn  = document.getElementById('user-avatar-btn');
-    const ddp  = document.getElementById('account-ddrop-avatar');
-    const inp  = document.getElementById('avatar-color-input');
+    const btn = document.getElementById('user-avatar-btn');
+    const ddp = document.getElementById('account-ddrop-avatar');
     if (btn) {
         btn.style.setProperty('background', color, 'important');
         btn.style.setProperty('box-shadow', `0 2px 8px ${color}66`, 'important');
     }
     if (ddp) ddp.style.setProperty('background', color, 'important');
-    if (inp) inp.value = color;
-    // Segna lo swatch attivo
     document.querySelectorAll('.avatar-color-swatch').forEach(sw => {
         sw.classList.toggle('active', sw.dataset.color === color);
     });
@@ -618,15 +680,6 @@ function _setAvatarColor(color) {
     if (!utenteAttuale || !utenteAttuale.nome) return;
     const nomeKey = utenteAttuale.nome.toUpperCase().trim();
     try { localStorage.setItem('avatarColor_' + nomeKey, color); } catch {}
-    // Se non è un predefinito, aggiungilo alle scelte rapide custom (max 7, no duplicati)
-    if (!_PREDEFINED_AVATAR_COLORS.includes(color.toLowerCase())) {
-        const key = 'avatarColorRecenti_' + nomeKey;
-        let recenti = [];
-        try { recenti = JSON.parse(localStorage.getItem(key) || '[]'); } catch {}
-        recenti = [color, ...recenti.filter(c => c !== color)].slice(0, 7);
-        try { localStorage.setItem(key, JSON.stringify(recenti)); } catch {}
-        _renderCustomSwatches();
-    }
     _applyAvatarColorUI(color);
 }
 
