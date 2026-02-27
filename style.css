@@ -4485,22 +4485,25 @@ button:active {
     grid-template-columns: repeat(3, 1fr);
     gap: 12px;
     padding-bottom: 4px;
-    flex: 1;
     min-width: 0;
 }
 
 /* Wrapper board: kanban a sinistra + pannello operatori a destra */
 .ov-board-wrapper {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr) 1fr;
     gap: 12px;
-    align-items: flex-start;
+    align-items: start;
+}
+.ov-stati-grid {
+    grid-column: 1 / 4;
 }
 .ov-operatori-panel {
-    width: 230px;
-    flex-shrink: 0;
+    grid-column: 4;
     display: flex;
     flex-direction: column;
     gap: 12px;
+    min-width: 0;
 }
 /* Corpo card operatori: stessa altezza max ma senza drop zone */
 .ov-op-card-body {
@@ -4769,9 +4772,13 @@ button:active {
 /* ── Mobile: sub-card collassabili ── */
 @media (max-width: 600px) {
     .ov-board-wrapper {
-        flex-direction: column;
+        grid-template-columns: 1fr;
+    }
+    .ov-stati-grid {
+        grid-column: 1;
     }
     .ov-operatori-panel {
+        grid-column: 1;
         width: 100%;
     }
     .ov-stati-grid {
