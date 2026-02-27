@@ -583,6 +583,9 @@ function _renderCustomSwatches() {
     const key = 'avatarColorRecenti_' + utenteAttuale.nome.toUpperCase().trim();
     let recenti = [];
     try { recenti = JSON.parse(localStorage.getItem(key) || '[]'); } catch {}
+    // Tieni solo l'ultimo colore custom
+    recenti = recenti.slice(0, 1);
+    try { localStorage.setItem(key, JSON.stringify(recenti)); } catch {}
     container.innerHTML = '';
     recenti.forEach(color => {
         const btn = document.createElement('button');
@@ -616,13 +619,10 @@ function _setAvatarColor(color) {
     if (!utenteAttuale || !utenteAttuale.nome) return;
     const nomeKey = utenteAttuale.nome.toUpperCase().trim();
     try { localStorage.setItem('avatarColor_' + nomeKey, color); } catch {}
-    // Se non è un predefinito, salvalo tra le scelte rapide custom (max 4)
+    // Se non è un predefinito, salvalo come scelta rapida custom (1 solo)
     if (!_PREDEFINED_AVATAR_COLORS.includes(color.toLowerCase())) {
         const key = 'avatarColorRecenti_' + nomeKey;
-        let recenti = [];
-        try { recenti = JSON.parse(localStorage.getItem(key) || '[]'); } catch {}
-        recenti = [color, ...recenti.filter(c => c !== color)].slice(0, 4);
-        try { localStorage.setItem(key, JSON.stringify(recenti)); } catch {}
+        try { localStorage.setItem(key, JSON.stringify([color])); } catch {}
         _renderCustomSwatches();
     }
     _applyAvatarColorUI(color);

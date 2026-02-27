@@ -468,10 +468,13 @@ body.sidebar-collapsed .main-content {
     display: block !important;
 }
 .avatar-color-swatches {
-    display: flex !important;
-    gap: 7px !important;
-    flex-wrap: wrap !important;
+    display: grid !important;
+    grid-template-columns: repeat(8, 22px) !important;
+    gap: 4px !important;
     align-items: center !important;
+}
+#avatar-custom-swatches {
+    display: contents !important;
 }
 .avatar-color-swatch {
     width: 22px !important;
