@@ -5103,3 +5103,279 @@ button:active {
     cursor: pointer;
     flex-shrink: 0;
 }
+
+/* ================================================================
+   ML - PIPISTRELLO  |  Pianificazione Mensile & Fabbisogno
+   ================================================================ */
+.pip-page {
+    padding: 8px 4px 40px;
+    max-width: 900px;
+    margin: 0 auto;
+    font-family: inherit;
+}
+
+/* --- HEADER --- */
+.pip-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #1a237e;
+    border-radius: 14px;
+    padding: 14px 18px;
+    margin-bottom: 14px;
+    gap: 12px;
+}
+.pip-header-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.pip-header-icon { font-size: 2rem; }
+.pip-header-brand {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: #9fa8da;
+    text-transform: uppercase;
+}
+.pip-header-product {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #ffffff;
+}
+.pip-reset-btn {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #fff;
+    border-radius: 8px;
+    padding: 7px 14px;
+    font-size: 0.82rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.15s;
+    white-space: nowrap;
+}
+.pip-reset-btn:hover { background: rgba(255,255,255,0.22); }
+
+/* --- CARD QTÀ --- */
+.pip-qty-card {
+    background: #fff;
+    border: 2px solid #f9a825;
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+}
+.pip-qty-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: #e65100;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+}
+.pip-qty-inputs {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+    flex-wrap: wrap;
+}
+.pip-qty-item {
+    flex: 1;
+    min-width: 90px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+.pip-qty-item label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #374151;
+    text-align: center;
+    line-height: 1.3;
+}
+.pip-qty-item label small {
+    font-size: 0.7rem;
+    color: #9ca3af;
+    font-weight: 400;
+}
+.pip-qty-input {
+    width: 100%;
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #e65100;
+    background: #fff9c4;
+    border: 2px solid #f9a825;
+    border-radius: 10px;
+    padding: 8px 4px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    box-sizing: border-box;
+    -moz-appearance: textfield;
+}
+.pip-qty-input::-webkit-inner-spin-button,
+.pip-qty-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+.pip-qty-input:focus { border-color: #e65100; box-shadow: 0 0 0 3px rgba(230,81,0,.12); }
+
+.pip-qty-total-box {
+    flex: 0 0 auto;
+    min-width: 80px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #1a237e;
+    border-radius: 10px;
+    padding: 8px 16px;
+    gap: 2px;
+}
+.pip-qty-total-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: #9fa8da;
+    text-transform: uppercase;
+}
+.pip-qty-total-val {
+    font-size: 1.7rem;
+    font-weight: 800;
+    color: #ffffff;
+    line-height: 1;
+}
+
+/* --- TABELLA BOM --- */
+.pip-table-wrap {
+    background: #fff;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    margin-bottom: 12px;
+    overflow-x: auto;
+}
+.pip-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+}
+.pip-table thead tr {
+    background: #3949ab;
+}
+.pip-table thead th {
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 10px 10px;
+    text-align: center;
+    white-space: nowrap;
+}
+.pip-table thead th:nth-child(2) { text-align: left; }
+.pip-table tbody tr { border-bottom: 1px solid #e8eaf6; }
+.pip-table tbody tr:last-child { border-bottom: none; }
+.pip-table tbody tr:nth-child(even) { background: #f8f9ff; }
+.pip-table tbody tr:nth-child(odd)  { background: #ffffff; }
+.pip-row-sez-start td { border-top: 2px solid #9fa8da; }
+
+/* Sezione */
+.pip-sez-cell {
+    background: #5c6bc0 !important;
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-align: center;
+    vertical-align: middle;
+    padding: 8px 10px;
+    white-space: nowrap;
+}
+
+/* Materiale */
+.pip-mat {
+    padding: 8px 10px;
+    text-align: left;
+    font-weight: 500;
+    color: #1e293b;
+    white-space: nowrap;
+}
+
+/* Coefficienti */
+.pip-coeff { text-align: center; padding: 8px 6px; font-size: 0.9rem; }
+.pip-coeff-on  { font-weight: 700; color: #1a237e; }
+.pip-coeff-off { color: #cbd5e1; font-size: 0.85rem; }
+
+/* Fabbisogno */
+.pip-fab      { text-align: center; padding: 8px 10px; font-weight: 700; color: #0d47a1; background: #e3f2fd; white-space: nowrap; }
+.pip-fab-zero { color: #b0bec5 !important; background: #f5f5f5 !important; font-weight: 400 !important; }
+
+/* Caricato input */
+.pip-car-cell { text-align: center; padding: 5px 8px; background: #e8f5e9; }
+.pip-car-input {
+    width: 70px;
+    text-align: center;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #1b5e20;
+    background: transparent;
+    border: 1.5px solid #a5d6a7;
+    border-radius: 7px;
+    padding: 5px 4px;
+    outline: none;
+    -moz-appearance: textfield;
+    transition: border-color 0.15s;
+    box-sizing: border-box;
+}
+.pip-car-input::-webkit-inner-spin-button,
+.pip-car-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+.pip-car-input:focus { border-color: #388e3c; box-shadow: 0 0 0 3px rgba(56,142,60,.12); }
+
+/* Da ordinare */
+.pip-ord-manca {
+    text-align: center; padding: 8px 10px;
+    font-weight: 800; font-size: 0.95rem;
+    background: #ffcdd2; color: #b71c1c;
+}
+.pip-ord-ok {
+    text-align: center; padding: 8px 10px;
+    font-weight: 700; font-size: 0.9rem;
+    background: #c8e6c9; color: #2e7d32;
+}
+.pip-ord-zero {
+    text-align: center; padding: 8px 10px;
+    color: #b0bec5; font-size: 0.85rem;
+    background: #f5f5f5;
+}
+
+/* --- LEGENDA --- */
+.pip-legend {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    font-size: 0.78rem;
+    padding: 0 4px;
+}
+.pip-leg-item { display: flex; align-items: center; gap: 4px; }
+
+/* --- RESPONSIVE MOBILE --- */
+@media (max-width: 600px) {
+    .pip-page { padding: 6px 0 40px; }
+    .pip-header { border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+    .pip-header-product { font-size: 0.88rem; }
+    .pip-qty-card { border-radius: 10px; padding: 12px; }
+    .pip-qty-inputs { gap: 8px; }
+    .pip-qty-input { font-size: 1.3rem; padding: 6px 2px; }
+    .pip-qty-total-box { min-width: 64px; padding: 6px 10px; }
+    .pip-qty-total-val { font-size: 1.4rem; }
+    .pip-table-wrap { border-radius: 10px; }
+    .pip-table { font-size: 0.8rem; }
+    .pip-table thead th { padding: 8px 6px; font-size: 0.65rem; }
+    .pip-mat { font-size: 0.82rem; padding: 8px 6px; }
+    .pip-fab { font-size: 0.82rem; padding: 6px 6px; }
+    .pip-car-input { width: 56px; font-size: 0.88rem; }
+    .pip-sez-cell { font-size: 0.65rem; padding: 6px 5px; }
+    .pip-legend { font-size: 0.72rem; gap: 10px; }
+}
