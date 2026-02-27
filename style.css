@@ -3969,6 +3969,7 @@ button.menu-item-opt {
     /* Sidebar COLLAPSED su desktop */
     .sidebar.collapsed {
         width: 62px !important;
+        overflow: visible !important;
     }
 
     /* Main panel: sotto la top bar */
