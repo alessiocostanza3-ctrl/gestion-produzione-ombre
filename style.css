@@ -244,6 +244,7 @@ button, .menu-item, .btn-sos, .btn-login, .btn-modal-send {
 .sidebar {
     transition: width 0.28s cubic-bezier(0.4,0,0.2,1) !important;
     overflow: visible !important;
+    z-index: 200 !important;
 }
 
 /* --- Sidebar COLLAPSED --- */
@@ -688,9 +689,11 @@ button.menu-item {
     position: fixed;
     top: 0;
     left: 0;
+    z-index: 200;
     background: #242424;
     padding: 20px 15px !important;
     box-sizing: border-box;
+    overflow: visible;
 }
 
 /* FOOTER SIDEBAR — brand block stile Linear/Notion */
