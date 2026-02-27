@@ -564,6 +564,45 @@ function aggiornaProfiloSidebar() {
         if (ddropName) ddropName.innerText = nomeUp;
         if (ddropRole) ddropRole.innerText = (utenteAttuale.ruolo || 'Utente').toUpperCase();
     }
+    _initAvatarColor();
+}
+
+/** Restituisce il colore avatar salvato per un operatore (UPPERCASE). Fallback: grigio */
+function _getOpColor(nome) {
+    try {
+        return localStorage.getItem('avatarColor_' + String(nome || '').toUpperCase().trim()) || '#374151';
+    } catch { return '#374151'; }
+}
+
+/** Applica il colore al pulsante avatar, al ddrop-avatar, all'input colore e agli swatch */
+function _applyAvatarColorUI(color) {
+    const btn  = document.getElementById('user-avatar-btn');
+    const ddp  = document.getElementById('account-ddrop-avatar');
+    const inp  = document.getElementById('avatar-color-input');
+    if (btn) {
+        btn.style.setProperty('background', color, 'important');
+        btn.style.setProperty('box-shadow', `0 2px 8px ${color}66`, 'important');
+    }
+    if (ddp) ddp.style.background = color;
+    if (inp) inp.value = color;
+    // Segna lo swatch attivo
+    document.querySelectorAll('.avatar-color-swatch').forEach(sw => {
+        sw.classList.toggle('active', sw.dataset.color === color);
+    });
+}
+
+/** Imposta e salva il colore avatar per l'utente corrente */
+function _setAvatarColor(color) {
+    if (!utenteAttuale || !utenteAttuale.nome) return;
+    try { localStorage.setItem('avatarColor_' + utenteAttuale.nome.toUpperCase().trim(), color); } catch {}
+    _applyAvatarColorUI(color);
+}
+
+/** Legge il colore salvato e lo applica all'avvio */
+function _initAvatarColor() {
+    if (!utenteAttuale || !utenteAttuale.nome) return;
+    const saved = _getOpColor(utenteAttuale.nome);
+    _applyAvatarColorUI(saved);
 }
 
 function toggleAccountMenu(e) {
@@ -1079,9 +1118,13 @@ function generaCardArticolo(art, nOrd) {
     const configStato = listaStati.find(s => s.nome === statoAttuale) || {colore: "#e2e8f0"};
     const codicePrincipale = art.codice && art.codice !== "false" ? art.codice : "Senza Codice";
 
-    // Gestione visualizzazione operatori (trasforma la stringa J in badge)
+    // Gestione visualizzazione operatori (trasforma la stringa in badge colorati)
     const displayOperatori = (art.assegna && art.assegna !== "" && art.assegna !== "undefined")
-        ? art.assegna.split(',').map(op => `<span class="badge-operatore">${op.trim()}</span>`).join('')
+        ? art.assegna.split(',').map(op => {
+            const nome = op.trim();
+            const col  = _getOpColor(nome);
+            return `<span class="badge-operatore" style="background:${col};border-color:${col}">${nome}</span>`;
+          }).join('')
         : `<span class="operatore-libero">Libero</span>`;
 
     return `

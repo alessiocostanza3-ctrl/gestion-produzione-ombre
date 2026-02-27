@@ -374,6 +374,26 @@
                         <i class="fas fa-user-cog"></i> Impostazioni account
                     </button>
                     <div class="account-dropdown-divider"></div>
+                    <!-- Selezione colore avatar -->
+                    <div class="avatar-color-section">
+                        <span class="avatar-color-label">Colore badge</span>
+                        <div class="avatar-color-swatches" id="avatar-color-swatches">
+                            <button class="avatar-color-swatch" style="background:#8fe45e" data-color="#8fe45e" onclick="_setAvatarColor('#8fe45e')" title="Verde"></button>
+                            <button class="avatar-color-swatch" style="background:#6366f1" data-color="#6366f1" onclick="_setAvatarColor('#6366f1')" title="Indaco"></button>
+                            <button class="avatar-color-swatch" style="background:#f59e0b" data-color="#f59e0b" onclick="_setAvatarColor('#f59e0b')" title="Ambra"></button>
+                            <button class="avatar-color-swatch" style="background:#ec4899" data-color="#ec4899" onclick="_setAvatarColor('#ec4899')" title="Rosa"></button>
+                            <button class="avatar-color-swatch" style="background:#06b6d4" data-color="#06b6d4" onclick="_setAvatarColor('#06b6d4')" title="Ciano"></button>
+                            <button class="avatar-color-swatch" style="background:#f87171" data-color="#f87171" onclick="_setAvatarColor('#f87171')" title="Corallo"></button>
+                            <button class="avatar-color-swatch" style="background:#a78bfa" data-color="#a78bfa" onclick="_setAvatarColor('#a78bfa')" title="Viola"></button>
+                            <button class="avatar-color-swatch" style="background:#34d399" data-color="#34d399" onclick="_setAvatarColor('#34d399')" title="Smeraldo"></button>
+                            <!-- Input colore personalizzato -->
+                            <label class="avatar-color-custom" title="Colore personalizzato">
+                                <span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:#6b7280;pointer-events:none">+</span>
+                                <input type="color" id="avatar-color-input" style="opacity:0;position:absolute;top:0;left:0;width:100%;height:100%;cursor:pointer;border:none" oninput="_setAvatarColor(this.value)">
+                            </label>
+                        </div>
+                    </div>
+                    <div class="account-dropdown-divider"></div>
                     <button class="account-menu-item account-menu-logout" id="btn-logout">
                         <i class="fas fa-sign-out-alt"></i> Esci
                     </button>
