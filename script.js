@@ -1642,18 +1642,44 @@ function _buildOverviewInnerHtml(attivi) {
             const lbl = codice.length > 24 ? codice.substring(0, 24) + '\u2026' : codice;
             const ids = rows.map(r => String(r.id_riga)).join(',');
 
-            // Sub-riga: "61/00 · <em>Cliente</em>" – separati da " / " se più ordini
-            const subParts = rows.map(r => {
-                const ord = String(r.ordine || '').trim();
-                const ordShort = ord.length > 12 ? ord.substring(0, 12) + '\u2026' : ord;
-                const cli = String(r.cliente || '').trim();
-                // Abbreviazione cliente: prime 2 parole, max 14 char
-                const cliWords = cli.split(/\s+/).slice(0, 2).join(' ');
-                const cliShort = cliWords.length > 14 ? cliWords.substring(0, 13) + '\u2026' : cliWords;
-                if (!ordShort && !cliShort) return '';
-                return ordShort + (cliShort ? ' <em>' + cliShort + '</em>' : '');
+            // Sub-riga: raggruppa per cliente → stesso cliente = ordini uniti, cliente scritto una volta
+            // Helper: abbrevia nome (prime 2 parole, max 14 char)
+            function _abbr(s) {
+                const w = (s || '').trim().split(/\s+/).slice(0, 2).join(' ');
+                return w.length > 14 ? w.substring(0, 13) + '\u2026' : w;
+            }
+            // Determina etichetta cliente: se "DA DEFINIRE" (o vuoto) usa riferimento
+            function _cliLabel(r) {
+                const cli = String(r.cliente || '').trim().toUpperCase();
+                if (!cli || cli === 'DA DEFINIRE') {
+                    const rif = String(r.riferimento || '').trim();
+                    return _abbr(rif) || '';
+                }
+                return _abbr(r.cliente);
+            }
+            // Raggruppa le righe per etichetta cliente
+            const cliGroupMap = new Map();
+            const cliGroupOrd = [];
+            rows.forEach(r => {
+                const key = _cliLabel(r);
+                if (cliGroupMap.has(key)) {
+                    cliGroupMap.get(key).push(r);
+                } else {
+                    cliGroupMap.set(key, [r]);
+                    cliGroupOrd.push(key);
+                }
+            });
+            const subParts = cliGroupOrd.map(cliKey => {
+                const grp = cliGroupMap.get(cliKey);
+                // Tutti gli ordini di questo cliente, abbreviati e uniti con " / "
+                const ordsStr = grp.map(r => {
+                    const o = String(r.ordine || '').trim();
+                    return o.length > 12 ? o.substring(0, 12) + '\u2026' : o;
+                }).filter(Boolean).join(' / ');
+                if (!ordsStr && !cliKey) return '';
+                return ordsStr + (cliKey ? ' <em>' + cliKey + '</em>' : '');
             }).filter(Boolean);
-            const subLine = subParts.join(' / ');
+            const subLine = subParts.join(' · ');
 
             // Quantità: "7 pz" se singolo, "7pz+3pz" se multiplo
             const qtyStr = rows.length > 1
