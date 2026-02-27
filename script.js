@@ -575,6 +575,26 @@ function _getOpColor(nome) {
 }
 
 /** Applica il colore al pulsante avatar, al ddrop-avatar, all'input colore e agli swatch */
+const _PREDEFINED_AVATAR_COLORS = ['#8fe45e','#6366f1','#f59e0b','#ec4899','#06b6d4','#f87171','#a78bfa','#34d399'];
+
+function _renderCustomSwatches() {
+    const container = document.getElementById('avatar-custom-swatches');
+    if (!container || !utenteAttuale || !utenteAttuale.nome) return;
+    const key = 'avatarColorRecenti_' + utenteAttuale.nome.toUpperCase().trim();
+    let recenti = [];
+    try { recenti = JSON.parse(localStorage.getItem(key) || '[]'); } catch {}
+    container.innerHTML = '';
+    recenti.forEach(color => {
+        const btn = document.createElement('button');
+        btn.className = 'avatar-color-swatch';
+        btn.style.background = color;
+        btn.dataset.color = color;
+        btn.title = color;
+        btn.onclick = () => _setAvatarColor(color);
+        container.appendChild(btn);
+    });
+}
+
 function _applyAvatarColorUI(color) {
     const btn  = document.getElementById('user-avatar-btn');
     const ddp  = document.getElementById('account-ddrop-avatar');
@@ -594,7 +614,17 @@ function _applyAvatarColorUI(color) {
 /** Imposta e salva il colore avatar per l'utente corrente */
 function _setAvatarColor(color) {
     if (!utenteAttuale || !utenteAttuale.nome) return;
-    try { localStorage.setItem('avatarColor_' + utenteAttuale.nome.toUpperCase().trim(), color); } catch {}
+    const nomeKey = utenteAttuale.nome.toUpperCase().trim();
+    try { localStorage.setItem('avatarColor_' + nomeKey, color); } catch {}
+    // Se non è un predefinito, salvalo tra le scelte rapide custom (max 4)
+    if (!_PREDEFINED_AVATAR_COLORS.includes(color.toLowerCase())) {
+        const key = 'avatarColorRecenti_' + nomeKey;
+        let recenti = [];
+        try { recenti = JSON.parse(localStorage.getItem(key) || '[]'); } catch {}
+        recenti = [color, ...recenti.filter(c => c !== color)].slice(0, 4);
+        try { localStorage.setItem(key, JSON.stringify(recenti)); } catch {}
+        _renderCustomSwatches();
+    }
     _applyAvatarColorUI(color);
 }
 
@@ -602,6 +632,7 @@ function _setAvatarColor(color) {
 function _initAvatarColor() {
     if (!utenteAttuale || !utenteAttuale.nome) return;
     const saved = _getOpColor(utenteAttuale.nome);
+    _renderCustomSwatches();
     _applyAvatarColorUI(saved);
 }
 
@@ -685,7 +716,7 @@ function logout() {
         const coloriAvatar = {};
         for (let i = 0; i < localStorage.length; i++) {
             const k = localStorage.key(i);
-            if (k && k.startsWith('avatarColor_')) coloriAvatar[k] = localStorage.getItem(k);
+            if (k && (k.startsWith('avatarColor_') || k.startsWith('avatarColorRecenti_'))) coloriAvatar[k] = localStorage.getItem(k);
         }
 
         // 1. Pulizia totale della memoria del browser
