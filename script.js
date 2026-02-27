@@ -980,7 +980,8 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
         'STORICO_RICHIESTE': "La mia Casella",
         'ARCHIVIO_ORDINI': "Archivio Ordini",
         'MATERIALE DA ORDINARE': "Gestione Acquisti",
-        'PROGRAMMA PRODUZIONE DEL MESE': "Dashboard Produzione"
+        'PROGRAMMA PRODUZIONE DEL MESE': "Dashboard Produzione",
+        'ML - PIPISTRELLO': "🦇 ML · Pipistrello"
     };
     const titolo = document.getElementById('titolo-pagina');
     if (titolo) titolo.innerText = titoli[nomeFoglio] || nomeFoglio;
@@ -1066,12 +1067,230 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
         case 'MATERIALE DA ORDINARE':
             caricaMateriali(false, requestId, navSignal);
             break;
+        case 'ML - PIPISTRELLO':
+            caricaPaginaPipistrello();
+            break;
         default:
             caricaDati(nomeFoglio, false, requestId, navSignal);
     }
 }
 
+// ─────────────────────────────────────────────────────────────────
+// PAGINA ML - PIPISTRELLO
+// Pianificazione mensile + fabbisogno materiali (100% client-side)
+// ─────────────────────────────────────────────────────────────────
+const _PIP_LS_QTY    = 'mlPipQty';       // { p, m, g }
+const _PIP_LS_CARIC  = 'mlPipCaricato';  // { [idx]: valore }
 
+const _PIP_BOM = [
+  // [sezione, materiale, xPicc, xMedio, xGrande]
+  ['TESTA',   'Testa piccola',     1, 0, 0],
+  ['',        'Testa media',        0, 1, 0],
+  ['',        'Testa grande',       0, 0, 1],
+  ['',        'Catenaria piccola',  1, 0, 0],
+  ['',        'Catenaria media',    0, 1, 0],
+  ['',        'Catenaria grande',   0, 0, 1],
+  ['',        'Tappino nero',       2, 2, 2],
+  ['',        'Wago',               2, 2, 0],
+  ['',        'Viti 2x6',           8, 0, 0],
+  ['',        'Viti 2,5x6',         0, 8, 4],
+  ['CORDONE', 'Case superiore',     1, 1, 1],
+  ['',        'Case inf. 500mA',    1, 0, 0],
+  ['',        'Case inf. 600mA',    0, 1, 0],
+  ['',        'Case inf. 700mA',    0, 0, 1],
+  ['',        'Pulsante',           1, 1, 1],
+  ['',        'Viti nere',          2, 2, 2],
+  ['',        'Plug 1,5m',          1, 0, 0],
+  ['',        'Plug 2m',            0, 1, 1],
+  ['',        'Cavo out 500mA',     1, 0, 0],
+  ['',        'Cavo out 600mA',     0, 1, 0],
+  ['',        'Cavo out 700mA',     0, 0, 1]
+];
+
+function _pipLoadQty()   { try { return JSON.parse(localStorage.getItem(_PIP_LS_QTY))  || {p:0,m:0,g:0}; }    catch { return {p:0,m:0,g:0}; } }
+function _pipLoadCaric() { try { return JSON.parse(localStorage.getItem(_PIP_LS_CARIC))|| {}; }                catch { return {}; } }
+function _pipSaveQty(o)  { try { localStorage.setItem(_PIP_LS_QTY,   JSON.stringify(o)); } catch {} }
+function _pipSaveCaric(o){ try { localStorage.setItem(_PIP_LS_CARIC, JSON.stringify(o)); } catch {} }
+
+function caricaPaginaPipistrello() {
+  const contenitore = document.getElementById('contenitore-dati');
+  const qty   = _pipLoadQty();
+  const caric = _pipLoadCaric();
+
+  const righeHtml = _PIP_BOM.map((row, i) => {
+    const [sez, mat, xP, xM, xG] = row;
+    const fab = qty.p * xP + qty.m * xM + qty.g * xG;
+    const car = Number(caric[i] || 0);
+    const ord = Math.max(0, fab - car);
+    const ordCls = fab === 0 ? 'pip-ord-zero' : (ord > 0 ? 'pip-ord-manca' : 'pip-ord-ok');
+
+    const sezCell = sez
+      ? `<td class="pip-sez-cell" rowspan="${_pipRowspan(i)}">${sez}</td>`
+      : '';
+
+    const coeffCells = [xP, xM, xG].map(v =>
+      v > 0
+        ? `<td class="pip-coeff pip-coeff-on">${v}</td>`
+        : `<td class="pip-coeff pip-coeff-off">—</td>`
+    ).join('');
+
+    return `<tr data-idx="${i}" class="${sez ? 'pip-row-sez-start' : ''}">
+      ${sezCell}
+      <td class="pip-mat">${mat}</td>
+      ${coeffCells}
+      <td class="pip-fab${fab === 0 ? ' pip-fab-zero' : ''}">${fab > 0 ? fab : '—'}</td>
+      <td class="pip-car-cell">
+        <input class="pip-car-input" type="number" min="0" value="${car}"
+               data-idx="${i}" oninput="_pipAggiornaCar(this)" onchange="_pipAggiornaCar(this)">
+      </td>
+      <td class="${ordCls}">${fab === 0 ? '—' : ord}</td>
+    </tr>`;
+  }).join('');
+
+  contenitore.innerHTML = `
+    <div class="pip-page">
+      <!-- TITOLO -->
+      <div class="pip-header">
+        <div class="pip-header-title">
+          <span class="pip-header-icon">🦇</span>
+          <div>
+            <div class="pip-header-brand">MARTINELLI LUCE</div>
+            <div class="pip-header-product">Pipistrello — Pianificazione Mensile</div>
+          </div>
+        </div>
+        <button class="pip-reset-btn" onclick="_pipReset()" title="Reset tutto">
+          <i class="fas fa-rotate-left"></i> Reset
+        </button>
+      </div>
+
+      <!-- CARD QTÀ -->
+      <div class="pip-qty-card">
+        <div class="pip-qty-label">QTÀ DA PRODURRE QUESTO MESE</div>
+        <div class="pip-qty-inputs">
+          <div class="pip-qty-item">
+            <label>🔵 Piccolo<br><small>500mA</small></label>
+            <input class="pip-qty-input" id="pip-qty-p" type="number" min="0" value="${qty.p}"
+                   oninput="_pipAggiornaQty()" onchange="_pipAggiornaQty()">
+          </div>
+          <div class="pip-qty-item">
+            <label>🟣 Medio<br><small>600mA</small></label>
+            <input class="pip-qty-input" id="pip-qty-m" type="number" min="0" value="${qty.m}"
+                   oninput="_pipAggiornaQty()" onchange="_pipAggiornaQty()">
+          </div>
+          <div class="pip-qty-item">
+            <label>🔴 Grande<br><small>700mA</small></label>
+            <input class="pip-qty-input" id="pip-qty-g" type="number" min="0" value="${qty.g}"
+                   oninput="_pipAggiornaQty()" onchange="_pipAggiornaQty()">
+          </div>
+          <div class="pip-qty-total-box">
+            <div class="pip-qty-total-label">TOTALE</div>
+            <div class="pip-qty-total-val" id="pip-tot">${qty.p + qty.m + qty.g}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TABELLA BOM -->
+      <div class="pip-table-wrap">
+        <table class="pip-table">
+          <thead>
+            <tr>
+              <th>SEZIONE</th>
+              <th>MATERIALE</th>
+              <th title="Piccolo 500mA">× P</th>
+              <th title="Medio 600mA">× M</th>
+              <th title="Grande 700mA">× G</th>
+              <th>FABBISOGNO</th>
+              <th>CARICATO</th>
+              <th>DA ORDINARE</th>
+            </tr>
+          </thead>
+          <tbody id="pip-tbody">
+            ${righeHtml}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- LEGENDA -->
+      <div class="pip-legend">
+        <span class="pip-leg-item pip-ord-manca">● materiale mancante</span>
+        <span class="pip-leg-item pip-ord-ok">● disponibile</span>
+        <span class="pip-leg-item" style="color:#9ca3af">— = non necessario per questa variante</span>
+      </div>
+    </div>`;
+
+  applicaFade(contenitore);
+}
+
+/** Calcola il rowspan per la colonna SEZIONE */
+function _pipRowspan(startIdx) {
+  let count = 1;
+  for (let i = startIdx + 1; i < _PIP_BOM.length; i++) {
+    if (_PIP_BOM[i][0] !== '') break;
+    count++;
+  }
+  return count;
+}
+
+/** Aggiorna i totali quando cambiano le quantità */
+function _pipAggiornaQty() {
+  const p = Math.max(0, parseInt(document.getElementById('pip-qty-p')?.value) || 0);
+  const m = Math.max(0, parseInt(document.getElementById('pip-qty-m')?.value) || 0);
+  const g = Math.max(0, parseInt(document.getElementById('pip-qty-g')?.value) || 0);
+  _pipSaveQty({p, m, g});
+
+  const totEl = document.getElementById('pip-tot');
+  if (totEl) totEl.textContent = p + m + g;
+
+  const caric = _pipLoadCaric();
+  document.querySelectorAll('#pip-tbody tr').forEach(tr => {
+    const idx = parseInt(tr.dataset.idx);
+    const row = _PIP_BOM[idx];
+    const fab = p * row[2] + m * row[3] + g * row[4];
+    const car = Number(caric[idx] || 0);
+    const ord = Math.max(0, fab - car);
+
+    const fabTd = tr.querySelector('.pip-fab, .pip-fab-zero');
+    const ordTd = tr.querySelector('[class^="pip-ord"]');
+
+    if (fabTd) {
+      fabTd.textContent = fab > 0 ? fab : '—';
+      fabTd.className = fab === 0 ? 'pip-fab pip-fab-zero' : 'pip-fab';
+    }
+    if (ordTd) {
+      ordTd.textContent = fab === 0 ? '—' : ord;
+      ordTd.className = fab === 0 ? 'pip-ord-zero' : (ord > 0 ? 'pip-ord-manca' : 'pip-ord-ok');
+    }
+  });
+}
+
+/** Aggiorna "DA ORDINARE" quando si modifica il CARICATO */
+function _pipAggiornaCar(input) {
+  const idx  = parseInt(input.dataset.idx);
+  const car  = Math.max(0, parseInt(input.value) || 0);
+  const caric = _pipLoadCaric();
+  caric[idx] = car;
+  _pipSaveCaric(caric);
+
+  const qty = _pipLoadQty();
+  const row = _PIP_BOM[idx];
+  const fab = qty.p * row[2] + qty.m * row[3] + qty.g * row[4];
+  const ord = Math.max(0, fab - car);
+
+  const tr    = input.closest('tr');
+  const ordTd = tr?.querySelector('[class^="pip-ord"]');
+  if (ordTd) {
+    ordTd.textContent = fab === 0 ? '—' : ord;
+    ordTd.className = fab === 0 ? 'pip-ord-zero' : (ord > 0 ? 'pip-ord-manca' : 'pip-ord-ok');
+  }
+}
+
+/** Reset completo della pagina */
+function _pipReset() {
+  if (!confirm('Vuoi azzerare tutte le quantità e i materiali caricati?')) return;
+  _pipSaveQty({p:0, m:0, g:0});
+  _pipSaveCaric({});
+  caricaPaginaPipistrello();
+}
 
 
 
