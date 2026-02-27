@@ -583,7 +583,7 @@ function _applyAvatarColorUI(color) {
         btn.style.setProperty('background', color, 'important');
         btn.style.setProperty('box-shadow', `0 2px 8px ${color}66`, 'important');
     }
-    if (ddp) ddp.style.background = color;
+    if (ddp) ddp.style.setProperty('background', color, 'important');
     if (inp) inp.value = color;
     // Segna lo swatch attivo
     document.querySelectorAll('.avatar-color-swatch').forEach(sw => {
