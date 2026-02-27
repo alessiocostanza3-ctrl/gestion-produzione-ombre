@@ -387,9 +387,9 @@
                             <button class="avatar-color-swatch" style="background:#a78bfa" data-color="#a78bfa" onclick="_setAvatarColor('#a78bfa')" title="Viola"></button>
                             <button class="avatar-color-swatch" style="background:#34d399" data-color="#34d399" onclick="_setAvatarColor('#34d399')" title="Smeraldo"></button>
                             <!-- Input colore personalizzato -->
-                            <label class="avatar-color-custom" title="Colore personalizzato">
+                            <label class="avatar-color-custom" title="Colore personalizzato" onclick="event.stopPropagation()">
                                 <span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:#6b7280;pointer-events:none">+</span>
-                                <input type="color" id="avatar-color-input" style="opacity:0;position:absolute;top:0;left:0;width:100%;height:100%;cursor:pointer;border:none" oninput="_setAvatarColor(this.value)">
+                                <input type="color" id="avatar-color-input" style="opacity:0;position:absolute;top:0;left:0;width:100%;height:100%;cursor:pointer;border:none" oninput="_setAvatarColor(this.value)" onchange="_setAvatarColor(this.value)" onclick="event.stopPropagation()">
                             </label>
                         </div>
                     </div>
