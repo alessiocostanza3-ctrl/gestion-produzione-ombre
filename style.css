@@ -5128,7 +5128,7 @@ button:active {
     gap: 12px;
 }
 .pip-header-title { display: flex; align-items: center; gap: 12px; }
-.pip-header-icon  { font-size: 2rem; }
+.pip-header-icon  { font-size: 2rem; display: flex; align-items: center; }
 .pip-header-brand {
     font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em;
     color: #9ca3af; text-transform: uppercase;
@@ -5224,8 +5224,8 @@ button:active {
 .pip-row-sez-start td { border-top: 2px solid #e2e8f0; }
 
 .pip-sez-cell {
-    background: #2563eb !important;
-    color: #fff; font-weight: 700; font-size: 0.72rem;
+    background: #1e3a8a !important;
+    color: #bfdbfe; font-weight: 700; font-size: 0.72rem;
     letter-spacing: 0.07em; text-transform: uppercase;
     text-align: center; vertical-align: middle;
     padding: 8px 10px; white-space: nowrap;
@@ -5331,13 +5331,13 @@ button:active {
 .pip-mov-btn-carico:hover { background: #1d4ed8; }
 
 .pip-mov-btn-scarico {
-    background: #f8fafc; color: #e53e3e;
-    border: 1.5px solid #e53e3e; border-radius: 8px; padding: 9px 14px;
+    background: #f8fafc; color: #374151;
+    border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 9px 14px;
     font-size: 0.85rem; font-weight: 700; cursor: pointer;
     display: flex; align-items: center; gap: 6px;
-    white-space: nowrap; transition: background 0.15s, color 0.15s;
+    white-space: nowrap; transition: background 0.15s, border-color 0.15s;
 }
-.pip-mov-btn-scarico:hover { background: #fff5f5; }
+.pip-mov-btn-scarico:hover { background: #f1f5f9; border-color: #94a3b8; }
 
 /* Log movimenti */
 .pip-mov-list { display: flex; flex-direction: column; gap: 6px; }
@@ -5350,7 +5350,7 @@ button:active {
     font-size: 0.85rem;
 }
 .pip-mov-item.carico  { border-left: 4px solid #2563eb; }
-.pip-mov-item.scarico { border-left: 4px solid #e53e3e; }
+.pip-mov-item.scarico { border-left: 4px solid #64748b; }
 
 .pip-mov-badge {
     font-size: 0.68rem; font-weight: 800; letter-spacing: 0.05em;
@@ -5358,12 +5358,12 @@ button:active {
     white-space: nowrap; flex-shrink: 0;
 }
 .pip-mov-badge.carico  { background: #dbeafe; color: #1d4ed8; }
-.pip-mov-badge.scarico { background: #fee2e2; color: #b91c1c; }
+.pip-mov-badge.scarico { background: #f1f5f9; color: #374151; }
 
 .pip-mov-mat  { font-weight: 600; color: #1e293b; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pip-mov-qty  { font-weight: 800; color: #1e293b; flex-shrink: 0; }
 .pip-mov-qty.carico  { color: #1d4ed8; }
-.pip-mov-qty.scarico { color: #b91c1c; }
+.pip-mov-qty.scarico { color: #374151; }
 .pip-mov-nota { color: #64748b; font-size: 0.8rem; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pip-mov-ts   { color: #9ca3af; font-size: 0.75rem; flex-shrink: 0; white-space: nowrap; }
 .pip-mov-del  {
