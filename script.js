@@ -5020,8 +5020,10 @@ async function _qrApriFinestroStampa(postazioni) {
     const items = await Promise.all(postazioni.map(async p => {
         let dataUrl = '';
         try {
-            dataUrl = await QRCode.toDataURL(p.codice, { width: 180, margin: 1, color: { dark: '#111827', light: '#ffffff' } });
+            if (typeof QRCode !== 'undefined' && typeof QRCode.toDataURL === 'function')
+                dataUrl = await QRCode.toDataURL(p.codice, { width: 300, margin: 2, color: { dark: '#000000', light: '#ffffff' } });
         } catch {}
+        if (!dataUrl) dataUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(p.codice)}`;
         return { ...p, dataUrl };
     }));
 
@@ -5032,40 +5034,34 @@ async function _qrApriFinestroStampa(postazioni) {
 <title>QR Code Postazioni — PROD</title>
 <style>
 * { box-sizing:border-box; margin:0; padding:0; }
-body { font-family:'Segoe UI',sans-serif; background:#f1f5f9; padding:28px 20px; }
-h1 { font-size:20px; font-weight:800; color:#0f172a; margin-bottom:4px; }
-p.sub { font-size:12px; color:#64748b; margin-bottom:24px; }
-.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:20px; }
-.card { background:#fff; border-radius:16px; padding:20px; text-align:center;
-        box-shadow:0 2px 10px rgba(0,0,0,0.08); page-break-inside:avoid; break-inside:avoid; }
-.card img { display:block; margin:0 auto 12px; width:160px; height:160px; }
-.icona { font-size:26px; margin-bottom:4px; }
-.nome { font-size:14px; font-weight:800; color:#0f172a; margin-bottom:3px; }
-.domanda { font-size:11px; color:#475569; font-style:italic; margin-bottom:8px; }
-.codice { display:inline-block; background:#f1f5f9; color:#334155;
-          font-size:10px; font-weight:700; padding:2px 9px; border-radius:99px; font-family:monospace; }
-button { position:fixed; top:20px; right:20px; background:#111827; color:#fff;
+body { font-family:'Segoe UI',sans-serif; background:#fff; padding:20px; }
+.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:24px; }
+.card { background:#fff; border:2px solid #e2e8f0; border-radius:14px;
+        padding:20px 16px 16px; text-align:center;
+        page-break-inside:avoid; break-inside:avoid; display:flex; flex-direction:column; align-items:center; gap:10px; }
+.card img { display:block; width:200px; height:200px; }
+.nome { font-size:16px; font-weight:800; color:#0f172a; letter-spacing:0.3px; }
+button { position:fixed; top:16px; right:16px; background:#111827; color:#fff;
          border:none; border-radius:10px; padding:9px 18px; font-size:13px;
-         font-weight:700; cursor:pointer; box-shadow:0 3px 10px rgba(0,0,0,0.25); }
-@media print { body { background:white; padding:10px; } button { display:none; }
-  .grid { grid-template-columns:repeat(3,1fr); gap:14px; } }
+         font-weight:700; cursor:pointer; z-index:999; }
+@media print {
+  body { padding:6px; }
+  button { display:none; }
+  .grid { grid-template-columns:repeat(3,1fr); gap:16px; }
+  .card { border:1.5px solid #cbd5e1; }
+}
 </style>
 </head>
 <body>
 <button onclick="window.print()">🖨️ Stampa</button>
-<h1>📦 QR Code Postazioni — PROD</h1>
-<p class="sub">Taglia e affiggi ogni cartellino vicino alla postazione corrispondente.</p>
 <div class="grid">
 ${items.map(p => `
 <div class="card">
-  ${p.dataUrl ? `<img src="${p.dataUrl}" alt="QR ${p.nome}">` : ''}
-  <div class="icona">${p.icona || '📍'}</div>
-  <div class="nome">${p.nome}</div>
-  <div class="domanda">${p.domanda || ''}</div>
-  <div class="codice">${p.codice}</div>
+  <img src="${p.dataUrl}" alt="QR ${p.nome}">
+  <div class="nome">${p.icona || ''} ${p.nome}</div>
 </div>`).join('')}
 </div>
-<script>setTimeout(()=>window.print(),600);<\/script>
+<script>setTimeout(()=>window.print(),800);<\/script>
 </body>
 </html>`;
 
