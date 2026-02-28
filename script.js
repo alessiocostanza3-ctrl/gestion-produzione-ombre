@@ -152,13 +152,14 @@ async function _testPushNotifica() {
         const url = URL_GOOGLE + '?azione=testPush&username=' + encodeURIComponent(utenteAttuale.nome.toUpperCase());
         const res = await fetch(url);
         const json = await res.json().catch(() => ({}));
-        console.log('[Push] testPush:', json);
+        console.log('[Push] testPush:', JSON.stringify(json));
         if (json.sent > 0) {
-            notificaElegante('\uD83D\uDCE4 Test inviato a ' + json.sent + ' dispositivo/i \u2013 attendi la notifica');
+            const codes = (json.log || []).map(r => 'HTTP ' + r.status).join(', ') || '—';
+            notificaElegante('\uD83D\uDCE4 Test inviato (' + json.sent + ' disp.) — codici push: ' + codes);
         } else if (json.status === 'no_devices') {
-            notificaElegante('\u26A0\uFE0F Nessun dispositivo registrato. Clicca prima "Ri-registra subscription".', 'error');
+            notificaElegante('\u26A0\uFE0F Nessun dispositivo registrato. Clicca "Ri-registra subscription".', 'error');
         } else {
-            notificaElegante('\u26A0\uFE0F ' + (json.msg || 'Risposta inattesa dal server'), 'error');
+            notificaElegante('\u26A0\uFE0F Risposta server: ' + JSON.stringify(json), 'error');
         }
     } catch (err) {
         notificaElegante('Errore test push: ' + err.message, 'error');
@@ -3201,10 +3202,10 @@ function caricaInterfacciaImpostazioni() {
                             <i class="fas fa-bell"></i> Attiva notifiche push
                         </button>
                         <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-                            <button id="btn-force-regpush" class="settings-action-btn" style="background:rgba(99,102,241,0.15);font-size:0.82rem;padding:8px 12px" onclick="_forzaRiregistraPush()">
+                            <button id="btn-force-regpush" class="settings-action-btn" style="background:#3730a3;border-color:#4f46e5;color:#fff;font-size:0.82rem;padding:8px 14px" onclick="_forzaRiregistraPush()">
                                 🔄 Ri-registra subscription
                             </button>
-                            <button id="btn-test-push" class="settings-action-btn" style="background:rgba(34,197,94,0.12);font-size:0.82rem;padding:8px 12px" onclick="_testPushNotifica()">
+                            <button id="btn-test-push" class="settings-action-btn" style="background:#15803d;border-color:#16a34a;color:#fff;font-size:0.82rem;padding:8px 14px" onclick="_testPushNotifica()">
                                 📨 Invia notifica di test
                             </button>
                         </div>
