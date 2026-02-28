@@ -154,8 +154,8 @@ async function _testPushNotifica() {
         const json = await res.json().catch(() => ({}));
         console.log('[Push] testPush:', JSON.stringify(json));
         if (json.sent > 0) {
-            const codes = (json.log || []).map(r => 'HTTP ' + r.status).join(', ') || '—';
-            notificaElegante('\uD83D\uDCE4 Test inviato (' + json.sent + ' disp.) — codici push: ' + codes);
+            const logInfo = (json.log || []).map(r => 'HTTP ' + r.status + (r.body ? ' (' + String(r.body).substring(0,80) + ')' : '')).join(' | ');
+            notificaElegante('\uD83D\uDCE4 Test inviato (' + json.sent + ' disp.) — ' + (logInfo || '—'));
         } else if (json.status === 'no_devices') {
             notificaElegante('\u26A0\uFE0F Nessun dispositivo registrato. Clicca "Ri-registra subscription".', 'error');
         } else {
