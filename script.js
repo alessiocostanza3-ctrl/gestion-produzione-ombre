@@ -4855,13 +4855,13 @@ function _qrApriModalEdit(idx) {
         `<option value="${s.nome}" ${s.nome === (p.statoDefault || '') ? 'selected' : ''}>${s.nome}</option>`
     ).join('');
 
-    // Aggiorna preview QR
-    _qrAggiornaPrevQR();
-
     const modal = document.getElementById('modal-qr-edit');
     modal.style.display = 'flex';
     modal.offsetHeight;
     modal.classList.add('active');
+
+    // Aggiorna preview QR dopo che il modal è visibile (canvas deve avere dimensioni > 0)
+    requestAnimationFrame(() => _qrAggiornaPrevQR());
 }
 
 function _qrChiudiModalEdit() {
