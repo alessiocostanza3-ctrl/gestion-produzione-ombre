@@ -4419,6 +4419,9 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // 4️⃣ Cambia pagina (questa farà il fetch corretto)
     cambiaPagina(paginaSalvata, tastoMenu);
+
+    // 5️⃣ Pre-warmup fotocamera in background se permesso già concesso
+    _qrPrewarmCamera();
 });
 document.addEventListener('click', function (e) {
     if (window.innerWidth > 768) return; // Non toccare nulla su Desktop
@@ -4501,6 +4504,36 @@ let _qrStatoScelto       = null;  // stringa stato scelto per lo spostamento
 let _qrOrdineSelezionato = null;  // numero ordine selezionato
 
 /** Apre il modale scanner QR e avvia la fotocamera posteriore. */
+/**
+ * Tenta di acquisire lo stream fotocamera silenziosamente all'avvio.
+ * - Se il browser ha già il permesso (Permissions API: 'granted') → acquisisce subito
+ * - Se il permesso è 'prompt' ma in localStorage c'è il flag 'qrCameraGranted' → tenta ugualmente
+ * In entrambi i casi lo stream resta in _qrStream pronto per il modale, senza mai riaprire il popup.
+ */
+async function _qrPrewarmCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+    try {
+        let shouldTry = false;
+        if (navigator.permissions) {
+            const status = await navigator.permissions.query({ name: 'camera' });
+            if (status.state === 'granted') shouldTry = true;
+            // Ascolta cambi futuri (es. utente revoca permesso)
+            status.onchange = () => {
+                if (status.state !== 'granted') { _qrStream = null; localStorage.removeItem('qrCameraGranted'); }
+            };
+        }
+        // Fallback: flag salvato la prima volta che l'utente ha concesso il permesso
+        if (!shouldTry && localStorage.getItem('qrCameraGranted') === '1') shouldTry = true;
+        if (!shouldTry) return;
+
+        if (_qrStream && _qrStream.active) return; // già pronto
+        _qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
+    } catch (e) {
+        // Permesso negato o non disponibile: ignora silenziosamente
+        localStorage.removeItem('qrCameraGranted');
+    }
+}
+
 async function apriScannerQR() {
     const modal  = document.getElementById('modal-qr-scanner');
     const errDiv = document.getElementById('qr-error-msg');
@@ -4528,6 +4561,8 @@ async function apriScannerQR() {
         // Riusa lo stream esistente se già attivo (evita richiesta permesso ogni volta)
         if (!_qrStream || !_qrStream.active) {
             _qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
+            // Salva flag permanente: la prossima volta pre-warmup silenzioso all'avvio
+            try { localStorage.setItem('qrCameraGranted', '1'); } catch {}
         }
         const video = document.getElementById('qr-video');
         video.srcObject = _qrStream;
