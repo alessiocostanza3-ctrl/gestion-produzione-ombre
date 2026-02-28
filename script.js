@@ -1160,30 +1160,7 @@ function caricaPaginaPipistrello() {
       <!-- TITOLO -->
       <div class="pip-header">
         <div class="pip-header-title">
-          <span class="pip-header-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 64" width="48" height="54" aria-label="Pipistrello lamp">
-              <!-- FILO TOP -->
-              <line x1="28" y1="0" x2="28" y2="6" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round"/>
-              <!-- PARALUME -->
-              <path d="M14 6 Q14 4 28 4 Q42 4 42 6 L36 32 Q34 34 28 34 Q22 34 20 32 Z"
-                    fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.2"/>
-              <!-- Venature paralume -->
-              <line x1="21" y1="6" x2="19.5" y2="32" stroke="#e2e8f0" stroke-width="0.8"/>
-              <line x1="28" y1="4.5" x2="28" y2="34" stroke="#e2e8f0" stroke-width="0.8"/>
-              <line x1="35" y1="6" x2="36.5" y2="32" stroke="#e2e8f0" stroke-width="0.8"/>
-              <!-- LUCE interna -->
-              <ellipse cx="28" cy="32" rx="7" ry="3" fill="#fef9c3" opacity="0.8"/>
-              <!-- BICCHIERE / calotta inferiore -->
-              <path d="M20 32 Q22 36 28 36 Q34 36 36 32" fill="#e2e8f0" stroke="#cbd5e1" stroke-width="1"/>
-              <!-- STELO -->
-              <rect x="26.5" y="36" width="3" height="16" rx="1.5" fill="#94a3b8"/>
-              <!-- BASE -->
-              <ellipse cx="28" cy="54" rx="11" ry="3.5" fill="#64748b"/>
-              <ellipse cx="28" cy="53" rx="9" ry="2.5" fill="#94a3b8"/>
-              <!-- CAVO -->
-              <path d="M28 36 Q31 44 28 52" stroke="#475569" stroke-width="1" fill="none" stroke-dasharray="2,2"/>
-            </svg>
-          </span>
+          <span class="pip-header-icon">🦇</span>
           <div>
             <div class="pip-header-brand">MARTINELLI LUCE</div>
             <div class="pip-header-product">Pipistrello — Pianificazione Mensile</div>
