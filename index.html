@@ -149,7 +149,9 @@
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=20260228b">
+    <link rel="stylesheet" href="style.css?v=20260228c">
+    <!-- jsQR: libreria client-side per decodifica QR via fotocamera -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
     <script>
         // Gate visuale del login: non dipendere dal caricamento di script.js
         // - se NON c'è sessione → mostra overlay (classe needs-login)
@@ -250,7 +252,7 @@
             }
         });
     </script>
-    <script src="script.js?v=20260227g" defer></script>
+    <script src="script.js?v=20260228c" defer></script>
 </head>
 
 <body>
@@ -408,6 +410,9 @@
         <div class="mobile-topbar">
             <div class="top-bar">
                 <h1 id="titolo-pagina">Dashboard Produzione</h1>
+                <button class="btn-qr-scan" id="btn-qr-scan" ontouchend="event.preventDefault(); apriScannerQR()" onclick="apriScannerQR()" title="Scansiona QR postazione" aria-label="Scansiona QR Code">
+                    <i class="fas fa-qrcode"></i>
+                </button>
             </div>
             <div class="search-container">
                 <i class="fas fa-search"></i>
@@ -577,6 +582,82 @@
               </button>
           </div>
       </div>
+  </div>
+
+  <!-- ===== MODAL: SCANNER QR CODE ===== -->
+  <div id="modal-qr-scanner" class="modal-overlay qr-scanner-overlay" style="display:none" onclick="if(event.target===this) _chiudiScannerQR()">
+    <div class="qr-scanner-box">
+      <div class="qr-scanner-header">
+        <span class="qr-scanner-title"><i class="fas fa-qrcode"></i> Scansiona QR Postazione</span>
+        <button class="qr-scanner-close" onclick="_chiudiScannerQR()"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="qr-video-wrap">
+        <video id="qr-video" playsinline autoplay muted></video>
+        <canvas id="qr-canvas" style="display:none"></canvas>
+        <div class="qr-overlay-frame">
+          <div class="qr-corner qr-corner-tl"></div>
+          <div class="qr-corner qr-corner-tr"></div>
+          <div class="qr-corner qr-corner-bl"></div>
+          <div class="qr-corner qr-corner-br"></div>
+          <div class="qr-scan-line"></div>
+        </div>
+      </div>
+      <p class="qr-hint-txt">Inquadra il QR Code affisso alla postazione</p>
+      <div id="qr-error-msg" class="qr-error-msg" style="display:none"></div>
+      <!-- Fallback: inserimento manuale del codice -->
+      <details class="qr-manual-wrap">
+        <summary class="qr-manual-toggle">Inserisci codice manualmente</summary>
+        <div class="qr-manual-body">
+          <input type="text" id="qr-manual-input" class="input-field-modern" placeholder="Es. PROD:IMBALLAGGI" style="width:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter') _processaQR(document.getElementById('qr-manual-input').value.trim())">
+          <button class="btn-modal-send" style="margin-top:10px;width:100%" onclick="_processaQR(document.getElementById('qr-manual-input').value.trim())">
+            <i class="fas fa-check"></i> Usa questo codice
+          </button>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: AZIONE POSTAZIONE (dopo scansione QR) ===== -->
+  <div id="modal-qr-azione" class="modal-overlay" style="display:none" onclick="if(event.target===this) _chiudiModaleQRAzione()">
+    <div class="modal-content qr-azione-content">
+      <!-- Badge postazione -->
+      <div class="qr-postazione-badge" id="qr-postazione-badge">
+        <i class="fas fa-map-marker-alt"></i>
+        <span id="qr-badge-nome">Postazione</span>
+      </div>
+      <h2 id="qr-azione-domanda" style="margin:10px 0 4px;font-size:17px">Cosa stai lavorando?</h2>
+      <p class="modal-label" style="margin-bottom:10px">Cerca per numero ordine o nome cliente:</p>
+
+      <!-- Ricerca ordine -->
+      <div class="ordine-autocomplete-wrapper" style="position:relative">
+        <input type="text" id="qr-search-input" class="input-field-modern" placeholder="Ordine o cliente..." autocomplete="off" oninput="_qrFiltroOrdini(this.value)">
+        <div id="qr-search-dropdown" class="ordine-autocomplete-list" style="display:none"></div>
+      </div>
+
+      <!-- Articoli dell'ordine selezionato -->
+      <div id="qr-articoli-wrap" style="display:none">
+        <div class="qr-ordine-header" id="qr-ordine-header"></div>
+        <p class="modal-label" style="margin-top:14px;margin-bottom:6px">Seleziona articoli da spostare:</p>
+        <div class="qr-articoli-actions">
+          <button class="qr-sel-btn" onclick="_qrSelezionaTutti()"><i class="fas fa-check-double"></i> Tutti</button>
+          <button class="qr-sel-btn" onclick="_qrDeselezionaTutti()"><i class="fas fa-times"></i> Nessuno</button>
+        </div>
+        <div id="qr-articoli-list" class="qr-articoli-list"></div>
+      </div>
+
+      <!-- Stato di destinazione -->
+      <div id="qr-stato-wrap" style="display:none">
+        <p class="modal-label" style="margin-top:16px;margin-bottom:8px">Sposta nello stato:</p>
+        <div id="qr-stato-pills" class="qr-stato-pills"></div>
+      </div>
+
+      <div class="modal-footer" style="margin-top:20px">
+        <button type="button" onclick="_chiudiModaleQRAzione()" class="btn-modal-cancel">Annulla</button>
+        <button type="button" id="btn-qr-conferma" class="btn-modal-send" disabled onclick="_confermaSpostaPostazione()">
+          <i class="fas fa-arrow-right"></i> Sposta Articoli
+        </button>
+      </div>
+    </div>
   </div>
 
 </body>

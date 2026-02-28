@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>QR Code Postazioni — PROD</title>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+        font-family: 'Segoe UI', sans-serif;
+        background: #f1f5f9;
+        padding: 32px 24px;
+    }
+    h1 {
+        font-size: 22px;
+        font-weight: 800;
+        color: #0f172a;
+        margin-bottom: 6px;
+    }
+    p.sub {
+        font-size: 13px;
+        color: #64748b;
+        margin-bottom: 28px;
+    }
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 24px;
+    }
+    .card {
+        background: #fff;
+        border-radius: 18px;
+        padding: 22px;
+        text-align: center;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+    .card canvas, .card img {
+        display: block;
+        margin: 0 auto 14px;
+        width: 160px !important;
+        height: 160px !important;
+    }
+    .card-icona {
+        font-size: 28px;
+        margin-bottom: 4px;
+    }
+    .card-nome {
+        font-size: 15px;
+        font-weight: 800;
+        color: #0f172a;
+        margin-bottom: 4px;
+    }
+    .card-domanda {
+        font-size: 12px;
+        color: #475569;
+        margin-bottom: 8px;
+        font-style: italic;
+    }
+    .card-codice {
+        display: inline-block;
+        background: #f1f5f9;
+        color: #334155;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        padding: 3px 10px;
+        border-radius: 99px;
+        font-family: monospace;
+    }
+    .btn-stampa {
+        position: fixed;
+        top: 24px;
+        right: 24px;
+        background: #111827;
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        padding: 10px 20px;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+    }
+    @media print {
+        body { background: white; padding: 12px; }
+        .btn-stampa { display: none; }
+        .grid { grid-template-columns: repeat(3, 1fr); gap: 16px; }
+        .card { box-shadow: none; border: 1px solid #e2e8f0; }
+    }
+</style>
+</head>
+<body>
+
+<button class="btn-stampa" onclick="window.print()">🖨️ Stampa</button>
+
+<h1>📦 QR Code Postazioni — PROD</h1>
+<p class="sub">Taglia e affiggi ogni cartellino vicino alla postazione corrispondente in produzione.</p>
+
+<div class="grid" id="grid"></div>
+
+<script>
+// ── Stessa mappa del file script.js ──────────────────────────────────────
+const POSTAZIONI = [
+    { codice: 'PROD:IMBALLAGGI',   icona: '📦', nome: 'Tavolo Imballaggi',         domanda: 'Cosa stai imballando?' },
+    { codice: 'PROD:LAVORAZIONE',  icona: '🔧', nome: 'Postazione Lavorazione',    domanda: 'Cosa stai lavorando?' },
+    { codice: 'PROD:ASSEMBLAGGIO', icona: '🛠️', nome: 'Postazione Assemblaggio',   domanda: 'Cosa stai assemblando?' },
+    { codice: 'PROD:CONTROLLO',    icona: '🔍', nome: 'Controllo Qualità',         domanda: 'Cosa stai controllando?' },
+    { codice: 'PROD:MAGAZZINO',    icona: '🏭', nome: 'Magazzino / Preparazione',  domanda: 'Cosa stai preparando?' },
+    { codice: 'PROD:SPEDIZIONI',   icona: '🚚', nome: 'Spedizioni',                domanda: 'Cosa stai spedendo?' },
+];
+
+const grid = document.getElementById('grid');
+
+POSTAZIONI.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'card';
+
+    const canvas = document.createElement('canvas');
+    card.innerHTML = `
+        <div class="card-icona">${p.icona}</div>
+        <div class="card-nome">${p.nome}</div>
+        <div class="card-domanda">${p.domanda}</div>
+    `;
+    card.insertBefore(canvas, card.firstChild);
+
+    const codeDiv = document.createElement('div');
+    codeDiv.className = 'card-codice';
+    codeDiv.textContent = p.codice;
+    card.appendChild(codeDiv);
+
+    grid.appendChild(card);
+
+    QRCode.toCanvas(canvas, p.codice, {
+        width: 160,
+        margin: 1,
+        color: { dark: '#111827', light: '#ffffff' }
+    });
+});
+</script>
+</body>
+</html>

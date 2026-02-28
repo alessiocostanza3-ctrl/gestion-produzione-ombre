@@ -4404,6 +4404,359 @@ function toggleMobileMenu() {
     document.body.classList.toggle('sidebar-is-open');
 }
 
+/*******************************************************************************
+ * SEZIONE QR CODE — SCANSIONE POSTAZIONE
+ * Permette di inquadrare un QR stampato su ogni tavolo/postazione di produzione.
+ * Il QR codifica l'ID della postazione (es. "PROD:IMBALLAGGI").
+ * Dopo la scansione si apre un modale per scegliere l'ordine/gli articoli
+ * e lo stato di destinazione, senza aprire la pagina produzione.
+ *******************************************************************************/
+
+/** Mappa ID-postazione → configurazione (personalizzabile). */
+const QR_POSTAZIONI = {
+    'PROD:IMBALLAGGI':     { nome: 'Tavolo Imballaggi',         icona: '📦', domanda: 'Cosa stai imballando?',        statoDefault: 'IMBALLATO' },
+    'PROD:LAVORAZIONE':    { nome: 'Postazione Lavorazione',    icona: '🔧', domanda: 'Cosa stai lavorando?',         statoDefault: 'IN LAVORAZIONE' },
+    'PROD:ASSEMBLAGGIO':   { nome: 'Postazione Assemblaggio',   icona: '🛠️', domanda: 'Cosa stai assemblando?',       statoDefault: 'IN LAVORAZIONE' },
+    'PROD:CONTROLLO':      { nome: 'Controllo Qualità',         icona: '🔍', domanda: 'Cosa stai controllando?',      statoDefault: 'IN PRODUZIONE' },
+    'PROD:MAGAZZINO':      { nome: 'Magazzino / Preparazione',  icona: '🏭', domanda: 'Cosa stai preparando?',        statoDefault: 'PREPARARE PER LAVORAZIONE' },
+    'PROD:SPEDIZIONI':     { nome: 'Spedizioni',                icona: '🚚', domanda: 'Cosa stai spedendo?',          statoDefault: 'IMBALLATO' },
+};
+
+let _qrStream            = null;  // MediaStream attivo
+let _qrAnimFrame         = null;  // requestAnimationFrame handle
+let _qrPostazioneAttuale = null;  // { codice, nome, icona, domanda, statoDefault }
+let _qrStatoScelto       = null;  // stringa stato scelto per lo spostamento
+let _qrOrdineSelezionato = null;  // numero ordine selezionato
+
+/** Apre il modale scanner QR e avvia la fotocamera posteriore. */
+async function apriScannerQR() {
+    const modal  = document.getElementById('modal-qr-scanner');
+    const errDiv = document.getElementById('qr-error-msg');
+    if (!modal) return;
+
+    if (errDiv) errDiv.style.display = 'none';
+    const mi = document.getElementById('qr-manual-input');
+    if (mi) mi.value = '';
+
+    modal.style.display = 'flex';
+    modal.offsetHeight;
+    modal.classList.add('active');
+
+    // Controllo libreria jsQR
+    if (typeof jsQR === 'undefined') {
+        if (errDiv) { errDiv.textContent = '⚠️ Libreria scanner non caricata. Usa il campo manuale.'; errDiv.style.display = 'block'; }
+        return;
+    }
+    // Controllo supporto fotocamera
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        if (errDiv) { errDiv.textContent = '⚠️ Fotocamera non supportata da questo browser. Usa il campo manuale.'; errDiv.style.display = 'block'; }
+        return;
+    }
+    try {
+        _qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
+        const video = document.getElementById('qr-video');
+        video.srcObject = _qrStream;
+        await video.play();
+        _avviaScansione();
+    } catch (err) {
+        let msg = '⚠️ Impossibile avviare la fotocamera.';
+        if (err.name === 'NotAllowedError')  msg = '⚠️ Permesso fotocamera negato. Abilitalo dalle impostazioni del browser, poi riprova.';
+        if (err.name === 'NotFoundError')    msg = '⚠️ Nessuna fotocamera trovata sul dispositivo.';
+        if (err.name === 'NotReadableError') msg = '⚠️ Fotocamera occupata da un\'altra applicazione.';
+        if (errDiv) { errDiv.textContent = msg; errDiv.style.display = 'block'; }
+    }
+}
+
+/** Loop di scansione: legge ogni frame con jsQR. */
+function _avviaScansione() {
+    const video  = document.getElementById('qr-video');
+    const canvas = document.getElementById('qr-canvas');
+    if (!video || !canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    function scan() {
+        if (!_qrStream) return; // scanner già chiuso
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            canvas.width  = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const img  = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+            if (code && code.data) {
+                try { if (navigator.vibrate) navigator.vibrate(80); } catch {}
+                _chiudiScannerQR();
+                _processaQR(code.data.trim());
+                return;
+            }
+        }
+        _qrAnimFrame = requestAnimationFrame(scan);
+    }
+    _qrAnimFrame = requestAnimationFrame(scan);
+}
+
+/** Ferma la fotocamera e chiude il modale scanner. */
+function _chiudiScannerQR() {
+    if (_qrAnimFrame) { cancelAnimationFrame(_qrAnimFrame); _qrAnimFrame = null; }
+    if (_qrStream)    { _qrStream.getTracks().forEach(t => t.stop()); _qrStream = null; }
+    const video = document.getElementById('qr-video');
+    if (video) video.srcObject = null;
+    const modal = document.getElementById('modal-qr-scanner');
+    if (!modal) return;
+    modal.classList.remove('active');
+    setTimeout(() => { if (!modal.classList.contains('active')) modal.style.display = 'none'; }, 300);
+}
+
+/** Interpreta il codice QR scansionato. */
+function _processaQR(codice) {
+    if (!codice) return;
+    const postazione = QR_POSTAZIONI[codice.toUpperCase()];
+    if (!postazione) {
+        notificaElegante('⚠️ QR non riconosciuto come postazione: ' + codice, 'error');
+        return;
+    }
+    _qrPostazioneAttuale = { codice: codice.toUpperCase(), ...postazione };
+    _apriModalePostazione();
+}
+
+/** Apre il modale di azione postazione (dopo QR riconosciuto). */
+function _apriModalePostazione() {
+    const post = _qrPostazioneAttuale;
+    if (!post) return;
+
+    _qrOrdineSelezionato = null;
+    _qrStatoScelto       = null;
+
+    document.getElementById('qr-badge-nome').textContent = post.icona + '  ' + post.nome;
+    document.getElementById('qr-azione-domanda').textContent = post.domanda;
+
+    const si = document.getElementById('qr-search-input');
+    if (si) { si.value = ''; setTimeout(() => si.focus(), 350); }
+    const dd = document.getElementById('qr-search-dropdown');
+    if (dd) { dd.style.display = 'none'; dd.innerHTML = ''; }
+
+    document.getElementById('qr-articoli-wrap').style.display = 'none';
+    document.getElementById('qr-stato-wrap').style.display    = 'none';
+    document.getElementById('btn-qr-conferma').disabled       = true;
+
+    // Pre-carica cache ordini se vuota
+    if (_ordiniAutocompleteCache.length === 0) {
+        fetchJson('PROGRAMMA PRODUZIONE DEL MESE').then(dati => {
+            const seen = new Set();
+            _ordiniAutocompleteCache = dati
+                .filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE')
+                .map(r => ({ ordine: r.ordine || '', cliente: r.cliente || '' }))
+                .filter(o => { if (!o.ordine || seen.has(o.ordine)) return false; seen.add(o.ordine); return true; });
+        }).catch(() => {});
+    }
+
+    const modal = document.getElementById('modal-qr-azione');
+    modal.style.display = 'flex';
+    modal.offsetHeight;
+    modal.classList.add('active');
+}
+
+/** Chiude il modale azione postazione. */
+function _chiudiModaleQRAzione() {
+    const modal = document.getElementById('modal-qr-azione');
+    if (!modal) return;
+    modal.classList.remove('active');
+    setTimeout(() => { if (!modal.classList.contains('active')) modal.style.display = 'none'; }, 300);
+    _qrPostazioneAttuale = null;
+    _qrOrdineSelezionato = null;
+    _qrStatoScelto       = null;
+}
+
+/** Filtra gli ordini nel dropdown mentre l'utente digita. */
+function _qrFiltroOrdini(q) {
+    const dropdown = document.getElementById('qr-search-dropdown');
+    if (!dropdown) return;
+    const query = (q || '').trim().toLowerCase();
+
+    // Reset selezione
+    document.getElementById('qr-articoli-wrap').style.display = 'none';
+    document.getElementById('qr-stato-wrap').style.display    = 'none';
+    document.getElementById('btn-qr-conferma').disabled       = true;
+    _qrOrdineSelezionato = null;
+    _qrStatoScelto       = null;
+
+    if (!query) { dropdown.style.display = 'none'; dropdown.innerHTML = ''; return; }
+
+    const matches = _ordiniAutocompleteCache.filter(o =>
+        o.ordine.toLowerCase().includes(query) || o.cliente.toLowerCase().includes(query)
+    ).slice(0, 8);
+
+    if (matches.length === 0) { dropdown.style.display = 'none'; dropdown.innerHTML = ''; return; }
+
+    dropdown.innerHTML = matches.map(o => `
+        <div class="autocomplete-item"
+             onmousedown="event.preventDefault(); _qrSelezionaOrdine('${o.ordine.replace(/'/g,"\\'")}','${o.cliente.replace(/'/g,"\\'")}')"
+             ontouchend="event.preventDefault(); _qrSelezionaOrdine('${o.ordine.replace(/'/g,"\\'")}','${o.cliente.replace(/'/g,"\\'")}')">
+            <span class="ac-ordine">ORD. ${o.ordine}</span>
+            <span class="ac-cliente">${o.cliente}</span>
+        </div>`).join('');
+    dropdown.style.display = 'block';
+}
+
+/** Seleziona un ordine dal dropdown e mostra i suoi articoli. */
+async function _qrSelezionaOrdine(nOrd, cliente) {
+    const si = document.getElementById('qr-search-input');
+    if (si) si.value = `ORD. ${nOrd} — ${cliente}`;
+    const dd = document.getElementById('qr-search-dropdown');
+    if (dd) { dd.style.display = 'none'; dd.innerHTML = ''; }
+
+    _qrOrdineSelezionato = nOrd;
+
+    const articoliWrap = document.getElementById('qr-articoli-wrap');
+    const articoliList = document.getElementById('qr-articoli-list');
+    const ordHdr       = document.getElementById('qr-ordine-header');
+    if (ordHdr) ordHdr.innerHTML = `<span class="qr-ord-lbl"><b>ORD. ${nOrd}</b></span><span class="qr-cli-lbl">${cliente}</span>`;
+    if (articoliList) articoliList.innerHTML = '<div class="qr-loading"><i class="fas fa-spinner fa-spin"></i> Caricamento articoli...</div>';
+    articoliWrap.style.display = 'block';
+
+    // Recupera righe: prima dalla cache locale, poi dal server
+    let righe = [];
+    if (_attiviProd && _attiviProd.length > 0) {
+        righe = _attiviProd.filter(r =>
+            String(r.ordine || '').trim() === String(nOrd).trim() &&
+            String(r.archiviato || '').toUpperCase() !== 'TRUE'
+        );
+    }
+    if (righe.length === 0) {
+        try {
+            const tutti = await fetchJson('PROGRAMMA PRODUZIONE DEL MESE');
+            righe = tutti.filter(r =>
+                String(r.ordine || '').trim() === String(nOrd).trim() &&
+                String(r.archiviato || '').toUpperCase() !== 'TRUE'
+            );
+        } catch {
+            if (articoliList) articoliList.innerHTML = '<div class="qr-loading" style="color:#ef4444">Errore caricamento. Riprova.</div>';
+            return;
+        }
+    }
+
+    if (righe.length === 0) {
+        if (articoliList) articoliList.innerHTML = '<div class="qr-loading">Nessun articolo attivo trovato per questo ordine.</div>';
+        return;
+    }
+
+    // Render articoli con checkbox (tutti pre-selezionati)
+    articoliList.innerHTML = righe.map(art => {
+        const codice   = art.codice && art.codice !== 'false' ? art.codice : 'Senza Codice';
+        const statoConf = (listaStati || []).find(s => s.nome.toUpperCase() === (art.stato || '').toUpperCase()) || { colore: '#94a3b8' };
+        return `
+        <label class="qr-articolo-row" for="qr-art-${art.id_riga}">
+            <input type="checkbox" id="qr-art-${art.id_riga}" class="qr-art-chk" data-id-riga="${art.id_riga}" checked>
+            <div class="qr-art-info">
+                <span class="qr-art-codice">${codice}</span>
+                <span class="qr-art-qty">× ${art.qty}</span>
+                <span class="qr-art-stato-badge" style="border-color:${statoConf.colore};color:${statoConf.colore}">${(art.stato || 'IN ATTESA').toUpperCase()}</span>
+            </div>
+        </label>`;
+    }).join('');
+
+    document.querySelectorAll('.qr-art-chk').forEach(c => c.addEventListener('change', _qrAggiornaBtnConferma));
+
+    _qrRenderStatoPills();
+    document.getElementById('qr-stato-wrap').style.display = 'block';
+    _qrAggiornaBtnConferma();
+}
+
+/** Renderizza i pill degli stati disponibili, pre-selezionando quello della postazione. */
+function _qrRenderStatoPills() {
+    const post     = _qrPostazioneAttuale;
+    const pillsDiv = document.getElementById('qr-stato-pills');
+    if (!pillsDiv) return;
+
+    const statoDefault = post ? post.statoDefault.toUpperCase() : '';
+    const stati = (listaStati && listaStati.length > 0) ? listaStati : [
+        { nome: 'IN ATTESA',                    colore: '#94a3b8' },
+        { nome: 'PREPARARE PER LAVORAZIONE',    colore: '#8b5cf6' },
+        { nome: 'IN LAVORAZIONE',               colore: '#f59e0b' },
+        { nome: 'IN PRODUZIONE',                colore: '#3b82f6' },
+        { nome: 'IMBALLATO',                    colore: '#22c55e' }
+    ];
+
+    _qrStatoScelto = null;
+    pillsDiv.innerHTML = stati.map(s => {
+        const isSel = s.nome.toUpperCase() === statoDefault;
+        if (isSel) _qrStatoScelto = s.nome;
+        return `<button type="button"
+                    class="qr-stato-pill${isSel ? ' qr-stato-pill-sel' : ''}"
+                    data-stato="${s.nome}"
+                    style="border-color:${s.colore};${isSel ? 'background:'+s.colore+';color:#fff' : 'color:'+s.colore}"
+                    onclick="_qrScegliStato(this,'${s.nome.replace(/'/g,"\\'")}')">
+                    <span class="qr-pill-dot" style="background:${s.colore}"></span>
+                    ${s.nome}
+                </button>`;
+    }).join('');
+}
+
+/** Seleziona uno stato tra i pill. */
+function _qrScegliStato(btn, stato) {
+    _qrStatoScelto = stato;
+    document.querySelectorAll('.qr-stato-pill').forEach(p => {
+        const conf = (listaStati || []).find(x => x.nome === p.dataset.stato);
+        const col  = conf ? conf.colore : '#94a3b8';
+        p.classList.remove('qr-stato-pill-sel');
+        p.style.background = '';
+        p.style.color      = col;
+        p.style.borderColor= col;
+    });
+    const conf = (listaStati || []).find(x => x.nome === btn.dataset.stato);
+    const col  = conf ? conf.colore : '#94a3b8';
+    btn.classList.add('qr-stato-pill-sel');
+    btn.style.background = col;
+    btn.style.color      = '#fff';
+    btn.style.borderColor= col;
+    _qrAggiornaBtnConferma();
+}
+
+function _qrSelezionaTutti()    { document.querySelectorAll('.qr-art-chk').forEach(c => c.checked = true);  _qrAggiornaBtnConferma(); }
+function _qrDeselezionaTutti()  { document.querySelectorAll('.qr-art-chk').forEach(c => c.checked = false); _qrAggiornaBtnConferma(); }
+
+function _qrAggiornaBtnConferma() {
+    const btn = document.getElementById('btn-qr-conferma');
+    if (!btn) return;
+    const n = document.querySelectorAll('.qr-art-chk:checked').length;
+    btn.disabled = !(n > 0 && _qrStatoScelto);
+}
+
+/** Aggiorna lo stato di tutti gli articoli selezionati e chiude il modale. */
+async function _confermaSpostaPostazione() {
+    if (!_qrStatoScelto || !_qrOrdineSelezionato) return;
+    const checkboxes = Array.from(document.querySelectorAll('.qr-art-chk:checked'));
+    if (checkboxes.length === 0) { notificaElegante('Seleziona almeno un articolo.', 'error'); return; }
+
+    const btn = document.getElementById('btn-qr-conferma');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvataggio...'; }
+
+    const idRighe = checkboxes.map(c => c.dataset.idRiga);
+    let errori = 0;
+
+    for (const idRiga of idRighe) {
+        try {
+            await aggiornaDato(null, idRiga, 'stato', _qrStatoScelto);
+            if (_attiviProd) {
+                const r = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
+                if (r) r.stato = _qrStatoScelto;
+            }
+            _syncKanbanFromStato(idRiga, _qrStatoScelto);
+        } catch { errori++; }
+    }
+
+    if (errori === 0) {
+        notificaElegante(`✅ ${idRighe.length} articolo/i → ${_qrStatoScelto}`);
+        delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
+    } else {
+        notificaElegante(`⚠️ ${errori} errori su ${idRighe.length} articoli`, 'error');
+    }
+    _chiudiModaleQRAzione();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   FINE SEZIONE QR CODE
+═══════════════════════════════════════════════════════════════ */
+
 document.addEventListener('DOMContentLoaded', function () {
     if (_bindingsInitDone) return;
     _bindingsInitDone = true;
