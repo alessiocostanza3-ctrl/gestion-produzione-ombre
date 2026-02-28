@@ -981,7 +981,7 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
         'ARCHIVIO_ORDINI': "Archivio Ordini",
         'MATERIALE DA ORDINARE': "Gestione Acquisti",
         'PROGRAMMA PRODUZIONE DEL MESE': "Dashboard Produzione",
-        'ML - PIPISTRELLO': "🦇 ML · Pipistrello"
+        'PIPISTRELLI': "🦇 Pipistrelli"
     };
     const titolo = document.getElementById('titolo-pagina');
     if (titolo) titolo.innerText = titoli[nomeFoglio] || nomeFoglio;
@@ -1067,7 +1067,7 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
         case 'MATERIALE DA ORDINARE':
             caricaMateriali(false, requestId, navSignal);
             break;
-        case 'ML - PIPISTRELLO':
+        case 'PIPISTRELLI':
             caricaPaginaPipistrello();
             break;
         default:
@@ -1076,7 +1076,7 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// PAGINA ML - PIPISTRELLO
+// PAGINA PIPISTRELLI
 // Pianificazione mensile + fabbisogno materiali (100% client-side)
 // ─────────────────────────────────────────────────────────────────
 const _PIP_LS_QTY    = 'mlPipQty';       // { p, m, g }
