@@ -4308,15 +4308,17 @@ function filtraUniversale() {
             if (input === '') {
                 primary = true;
             } else if (el.classList.contains('ordine-wrapper') || el.classList.contains('chat-card')) {
-                const ordine  = String(el.dataset.ordine  || '');
-                const cliente = String(el.dataset.cliente || '');
-                // testo combinato: cliente + spazio + riferimento ordine (per trovare "DA DEFINIRE (GHP)" cercando "GHP")
-                const combined = (cliente + ' ' + ordine).toLowerCase();
+                const ordine  = String(el.dataset.ordine  || '').toLowerCase();
+                const cliente = String(el.dataset.cliente || '').toLowerCase();
+                // Testo completo: cerca in tutto (nome cliente, riferimento in parentesi, numero ordine)
+                const full = cliente + ' ' + ordine;
                 if (isNumericOnly) {
                     primary = ordine.startsWith(input);
                 } else {
-                    primary = _matchFirstWord(cliente, input) || _matchFirstWord(ordine, input);
-                    if (!primary && secondaryOn) secondary = combined.includes(input);
+                    // primary: match da inizio testo o da inizio di qualsiasi parola/token
+                    primary = full.split(/[\s(),;]+/).some(token => token.startsWith(input));
+                    // secondary (fallback): il testo contiene la stringa ovunque
+                    if (!primary) secondary = full.includes(input);
                 }
             } else {
                 // Acquisti (materiale-card)
