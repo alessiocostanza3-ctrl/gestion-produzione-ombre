@@ -11,16 +11,18 @@
     color: #ffffff;
     font-size: 20px;
     cursor: pointer;
-    position: static;
-    margin-left: 8px;
-    margin-right: 0;
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    margin: 0;
     transition: background 0.18s, color 0.18s, box-shadow 0.18s;
     z-index: 2;
     box-shadow: 0 2px 8px rgba(0,0,0,0.25);
 }
 .notifiche-bell-btn:active, .notifiche-bell-btn:hover {
     background: #1e293b;
-    color: #60a5fa;
+    color: #fff;
 }
 .notifiche-badge {
     position: absolute;
@@ -100,6 +102,12 @@
     align-items: center;
     justify-content: center;
     animation: fadeIn 0.22s;
+}
+#modal-notifiche[style*="display: flex"] {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+}
 }
 
 .notifiche-modal-content {
