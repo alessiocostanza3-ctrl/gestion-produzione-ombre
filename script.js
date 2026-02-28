@@ -3174,10 +3174,8 @@ function caricaInterfacciaImpostazioni() {
                                 </div>`).join('')}
                         </div>
                         <div class="qr-post-footer-btns">
-                            <button class="btn-add-dashed" onclick="_qrApriModalNuova()">+ Aggiungi Postazione</button>
-                            <button class="settings-action-btn" style="gap:6px;padding:10px 16px;font-size:0.82rem" onclick="_qrStampaTutte()">
-                                <i class="fas fa-print"></i> Stampa tutte
-                            </button>
+                            <button class="qr-post-btn-add" onclick="_qrApriModalNuova()"><i class="fas fa-plus"></i> Aggiungi Postazione</button>
+                            <button class="qr-post-btn-print-all" onclick="_qrStampaTutte()"><i class="fas fa-print"></i> Stampa tutte</button>
                         </div>
                     </div>
                 </div>
