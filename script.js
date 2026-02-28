@@ -1,3 +1,40 @@
+// === NOTIFICHE UI ===
+function apriPopupNotifiche() {
+    const modal = document.getElementById('modal-notifiche');
+    if (modal) {
+        modal.style.display = 'flex';
+        renderNotificheList();
+    }
+}
+function chiudiPopupNotifiche() {
+    const modal = document.getElementById('modal-notifiche');
+    if (modal) modal.style.display = 'none';
+}
+function aggiornaBadgeNotifiche(count) {
+    const badgeDesk = document.getElementById('badge-notifiche-desktop');
+    const badgeMob = document.getElementById('badge-notifiche-mobile');
+    if (badgeDesk) {
+        badgeDesk.textContent = count > 0 ? count : '';
+        badgeDesk.style.display = count > 0 ? 'flex' : 'none';
+    }
+    if (badgeMob) {
+        badgeMob.textContent = count > 0 ? count : '';
+        badgeMob.style.display = count > 0 ? 'flex' : 'none';
+    }
+}
+function renderNotificheList() {
+    const list = document.getElementById('notifiche-list');
+    if (!list) return;
+    // Recupera notifiche da localStorage o variabile globale (da implementare fetch vera)
+    const arr = JSON.parse(localStorage.getItem('_notificheArr') || '[]');
+    if (!arr.length) {
+        list.innerHTML = '<div style="color:#64748b;text-align:center;padding:24px 0">Nessuna notifica recente</div>';
+        return;
+    }
+    list.innerHTML = arr.map(n => `<div class="notifica-item"><div class="notifica-titolo">${n.titolo||'Notifica'}</div><div class="notifica-corpo">${n.corpo||''}</div></div>`).join('');
+}
+// Esempio: aggiornaBadgeNotifiche(3); // mostra badge con 3
+// Per test: localStorage.setItem('_notificheArr', JSON.stringify([{titolo:'Test','corpo':'utente x ha cambiato stato'}]))
 /*******************************************************************************
 * 1. CONFIGURAZIONE, VARIABILI GLOBALI E STATO
 *******************************************************************************/
