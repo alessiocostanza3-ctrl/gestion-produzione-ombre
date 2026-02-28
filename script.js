@@ -4278,7 +4278,9 @@ function _escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 // Restituisce true se la stringa inizia con il termine (prima parola)
 function _matchFirstWord(text, term) {
     if (!term) return true;
-    return text.trimStart().startsWith(term);
+    // Matcha dall'inizio del testo O dall'inizio di qualsiasi parola (es. "GHP" in "DA DEFINIRE (GHP)")
+    if (text.trimStart().startsWith(term)) return true;
+    return text.split(/[\s(,;]+/).some(w => w.toLowerCase().startsWith(term));
 }
 
 function filtraUniversale() {
@@ -4308,11 +4310,13 @@ function filtraUniversale() {
             } else if (el.classList.contains('ordine-wrapper') || el.classList.contains('chat-card')) {
                 const ordine  = String(el.dataset.ordine  || '');
                 const cliente = String(el.dataset.cliente || '');
+                // testo combinato: cliente + spazio + riferimento ordine (per trovare "DA DEFINIRE (GHP)" cercando "GHP")
+                const combined = (cliente + ' ' + ordine).toLowerCase();
                 if (isNumericOnly) {
                     primary = ordine.startsWith(input);
                 } else {
-                    primary = _matchFirstWord(cliente, input);
-                    if (!primary && secondaryOn) secondary = cliente.includes(input);
+                    primary = _matchFirstWord(cliente, input) || _matchFirstWord(ordine, input);
+                    if (!primary && secondaryOn) secondary = combined.includes(input);
                 }
             } else {
                 // Acquisti (materiale-card)
