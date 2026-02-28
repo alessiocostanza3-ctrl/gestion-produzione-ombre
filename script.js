@@ -1534,7 +1534,7 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
         requestAnimationFrame(_initKanbanDnd);
 
         // Salva raw data per autocomplete del modal
-        _ordiniAutocompleteCache = datiProd.filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE').map(r => ({ ordine: r.ordine || '', cliente: r.cliente || '' }));
+        _ordiniAutocompleteCache = datiProd.filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE').map(r => ({ ordine: r.ordine || '', cliente: r.cliente || '', riferimento: r.riferimento || '' }));
         // Deduplication by ordine
         const seen = new Set();
         _ordiniAutocompleteCache = _ordiniAutocompleteCache.filter(o => { if (seen.has(o.ordine)) return false; seen.add(o.ordine); return true; });
@@ -1844,7 +1844,7 @@ function apriNuovaRichiesta() {
             const seen = new Set();
             _ordiniAutocompleteCache = dati
                 .filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE')
-                .map(r => ({ ordine: r.ordine || '', cliente: r.cliente || '' }))
+                .map(r => ({ ordine: r.ordine || '', cliente: r.cliente || '', riferimento: r.riferimento || '' }))
                 .filter(o => { if (!o.ordine || seen.has(o.ordine)) return false; seen.add(o.ordine); return true; });
         }).catch(() => {});
     }
@@ -4525,7 +4525,10 @@ async function apriScannerQR() {
         return;
     }
     try {
-        _qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
+        // Riusa lo stream esistente se già attivo (evita richiesta permesso ogni volta)
+        if (!_qrStream || !_qrStream.active) {
+            _qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
+        }
         const video = document.getElementById('qr-video');
         video.srcObject = _qrStream;
         await video.play();
@@ -4569,9 +4572,11 @@ function _avviaScansione() {
 /** Ferma la fotocamera e chiude il modale scanner. */
 function _chiudiScannerQR() {
     if (_qrAnimFrame) { cancelAnimationFrame(_qrAnimFrame); _qrAnimFrame = null; }
-    if (_qrStream)    { _qrStream.getTracks().forEach(t => t.stop()); _qrStream = null; }
+    // NON fermiamo i track: lo stream resta attivo così alla riapertura
+    // non viene richiesto il permesso fotocamera di nuovo.
+    // Lo stream verrà fermato solo allo scaricamento pagina (vedere window.onbeforeunload).
     const video = document.getElementById('qr-video');
-    if (video) video.srcObject = null;
+    if (video) { video.pause(); video.srcObject = null; }
     const modal = document.getElementById('modal-qr-scanner');
     if (!modal) return;
     modal.classList.remove('active');
@@ -4616,7 +4621,7 @@ function _apriModalePostazione() {
             const seen = new Set();
             _ordiniAutocompleteCache = dati
                 .filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE')
-                .map(r => ({ ordine: r.ordine || '', cliente: r.cliente || '' }))
+                .map(r => ({ ordine: r.ordine || '', cliente: r.cliente || '', riferimento: r.riferimento || '' }))
                 .filter(o => { if (!o.ordine || seen.has(o.ordine)) return false; seen.add(o.ordine); return true; });
         }).catch(() => {});
     }
@@ -4654,7 +4659,9 @@ function _qrFiltroOrdini(q) {
     if (!query) { dropdown.style.display = 'none'; dropdown.innerHTML = ''; return; }
 
     const matches = _ordiniAutocompleteCache.filter(o =>
-        o.ordine.toLowerCase().includes(query) || o.cliente.toLowerCase().includes(query)
+        o.ordine.toLowerCase().includes(query) ||
+        o.cliente.toLowerCase().includes(query) ||
+        (o.riferimento || '').toLowerCase().includes(query)
     ).slice(0, 8);
 
     if (matches.length === 0) { dropdown.style.display = 'none'; dropdown.innerHTML = ''; return; }
@@ -4664,7 +4671,7 @@ function _qrFiltroOrdini(q) {
              onmousedown="event.preventDefault(); _qrSelezionaOrdine('${o.ordine.replace(/'/g,"\\'")}','${o.cliente.replace(/'/g,"\\'")}')"
              ontouchend="event.preventDefault(); _qrSelezionaOrdine('${o.ordine.replace(/'/g,"\\'")}','${o.cliente.replace(/'/g,"\\'")}')">
             <span class="ac-ordine">ORD. ${o.ordine}</span>
-            <span class="ac-cliente">${o.cliente}</span>
+            <span class="ac-cliente">${o.cliente}${o.riferimento ? ' <em style="color:#94a3b8;font-size:11px">('+o.riferimento+')</em>' : ''}</span>
         </div>`).join('');
     dropdown.style.display = 'block';
 }
