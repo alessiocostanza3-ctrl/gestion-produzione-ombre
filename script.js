@@ -1596,7 +1596,7 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
                </button>`;
 
         html += `
-        <div class="ordine-wrapper ${classWrapper}" data-ordine="${nOrd}" data-cliente="${(cliente || '').toLowerCase().replace(/"/g, '')}">
+        <div class="ordine-wrapper ${classWrapper}" data-ordine="${nOrd}" data-cliente="${(cliente || '').toLowerCase().replace(/"/g, '')}" data-riferimento="${(riferimento || '').toLowerCase().replace(/"/g, '')}">
             <div class="riga-ordine ${classHeader}" onclick="toggleAccordion(this)">
                 <div class="flex-grow">
                     <span class="order-title" style="--order-color:${colorCliente}" title="${cliente}">${cliente} ${htmlRiferimento}</span>
@@ -2804,7 +2804,7 @@ function generaCardRichiesta(msgs, io, isArchiviata) {
         : `<span class="chat-tipo-dot chat-tipo-assegna" title="Assegnazione"><i class="fas fa-arrow-right"></i></span>`;
 
     return `
-        <div class="chat-card${isArchiviata ? ' archiviata' : ''}${isSollecitata ? ' sollecitata' : ''} ${TW.card}" data-ordine="${String(nOrd || '')}" data-cliente="${(nomeCliente || '').toLowerCase().replace(/"/g, '')}">
+        <div class="chat-card${isArchiviata ? ' archiviata' : ''}${isSollecitata ? ' sollecitata' : ''} ${TW.card}" data-ordine="${String(nOrd || '')}" data-cliente="${(nomeCliente || '').toLowerCase().replace(/"/g, '')}" data-riferimento="${(ultimo.RIFERIMENTO || '').toLowerCase().replace(/"/g, '')}">
 
             <div class="chat-header${isArchiviata ? ' archiviata' : ''}">
                 <div>
@@ -4308,14 +4308,15 @@ function filtraUniversale() {
             if (input === '') {
                 primary = true;
             } else if (el.classList.contains('ordine-wrapper') || el.classList.contains('chat-card')) {
-                const ordine  = String(el.dataset.ordine  || '').toLowerCase();
-                const cliente = String(el.dataset.cliente || '').toLowerCase();
-                // Testo completo: cerca in tutto (nome cliente, riferimento in parentesi, numero ordine)
-                const full = cliente + ' ' + ordine;
+                const ordine     = String(el.dataset.ordine      || '').toLowerCase();
+                const cliente    = String(el.dataset.cliente     || '').toLowerCase();
+                const riferimento = String(el.dataset.riferimento || '').toLowerCase();
+                // Testo completo: cerca in tutto (nome cliente, riferimento GHP, numero ordine)
+                const full = cliente + ' ' + riferimento + ' ' + ordine;
                 if (isNumericOnly) {
                     primary = ordine.startsWith(input);
                 } else {
-                    // primary: match da inizio testo o da inizio di qualsiasi parola/token
+                    // primary: match da inizio di qualsiasi parola/token
                     primary = full.split(/[\s(),;]+/).some(token => token.startsWith(input));
                     // secondary (fallback): il testo contiene la stringa ovunque
                     if (!primary) secondary = full.includes(input);
