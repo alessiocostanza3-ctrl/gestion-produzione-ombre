@@ -149,9 +149,11 @@
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=20260228c">
+    <link rel="stylesheet" href="style.css?v=20260228d">
     <!-- jsQR: libreria client-side per decodifica QR via fotocamera -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <!-- QRCode.js: libreria per GENERARE QR code (usata nelle impostazioni) -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
     <script>
         // Gate visuale del login: non dipendere dal caricamento di script.js
         // - se NON c'è sessione → mostra overlay (classe needs-login)
@@ -252,7 +254,7 @@
             }
         });
     </script>
-    <script src="script.js?v=20260228c" defer></script>
+    <script src="script.js?v=20260228d" defer></script>
 </head>
 
 <body>
@@ -582,6 +584,59 @@
               </button>
           </div>
       </div>
+  </div>
+
+  <!-- ===== MODAL: CREA / MODIFICA POSTAZIONE ===== -->
+  <div id="modal-qr-edit" class="modal-overlay" style="display:none" onclick="if(event.target===this) _qrChiudiModalEdit()">
+    <div class="modal-content qr-edit-content">
+      <h2 id="qr-edit-titolo"><i class="fas fa-map-marker-alt" style="margin-right:8px"></i>Nuova Postazione</h2>
+
+      <div class="qr-edit-grid">
+        <!-- colonna sinistra: form -->
+        <div class="qr-edit-form">
+          <label class="modal-label">Icona (emoji)</label>
+          <input type="text" id="qr-edit-icona" class="input-field-modern qr-edit-emoji-input" placeholder="📦" maxlength="4" oninput="_qrAggiornaPrevQR()">
+
+          <label class="modal-label" style="margin-top:12px">Nome postazione</label>
+          <input type="text" id="qr-edit-nome" class="input-field-modern" placeholder="Es. Tavolo Imballaggi" oninput="_qrAggiornaCodice(); _qrAggiornaPrevQR()">
+
+          <label class="modal-label" style="margin-top:12px">Codice QR (auto)</label>
+          <div class="qr-edit-codice-wrap">
+            <input type="text" id="qr-edit-codice" class="input-field-modern qr-edit-codice" placeholder="PROD:IMBALLAGGI" style="font-family:monospace;font-size:12px" oninput="_qrAggiornaPrevQR()">
+            <button class="qr-edit-reset-code" onclick="_qrRicalcolaCodice()" title="Ricalcola codice dal nome"><i class="fas fa-sync-alt"></i></button>
+          </div>
+
+          <label class="modal-label" style="margin-top:12px">Domanda per l'operatore</label>
+          <input type="text" id="qr-edit-domanda" class="input-field-modern" placeholder="Cosa stai imballando?">
+
+          <label class="modal-label" style="margin-top:12px">Stato di default</label>
+          <select id="qr-edit-stato" class="input-field-modern" style="background:white;color:#1e293b;border:1px solid #e2e8f0;border-radius:10px;padding:11px 14px;font-size:13px;font-weight:600;width:100%;cursor:pointer">
+          </select>
+        </div>
+
+        <!-- colonna destra: preview QR -->
+        <div class="qr-edit-preview">
+          <div class="qr-preview-label">Anteprima QR</div>
+          <div class="qr-preview-card" id="qr-preview-card">
+            <canvas id="qr-preview-canvas" width="160" height="160"></canvas>
+            <div class="qr-preview-nome" id="qr-preview-nome">—</div>
+            <div class="qr-preview-codice" id="qr-preview-codice">—</div>
+          </div>
+          <button class="qr-edit-print-single" onclick="_qrStampaSingola()" title="Stampa questo QR">
+            <i class="fas fa-print"></i> Stampa
+          </button>
+        </div>
+      </div>
+
+      <input type="hidden" id="qr-edit-idx">
+
+      <div class="modal-footer" style="margin-top:20px">
+        <button type="button" onclick="_qrChiudiModalEdit()" class="btn-modal-cancel">Annulla</button>
+        <button type="button" onclick="_qrSalvaPostazione()" class="btn-modal-send">
+          <i class="fas fa-check"></i> Salva Postazione
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- ===== MODAL: SCANNER QR CODE ===== -->

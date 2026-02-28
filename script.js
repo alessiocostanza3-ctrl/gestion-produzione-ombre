@@ -3141,6 +3141,45 @@ function caricaInterfacciaImpostazioni() {
                 </div>
                 ` : ''}
 
+                <!-- ROW: Postazioni QR -->
+                <div class="settings-row" onclick="toggleSettingsSection('section-qr-postazioni', this)">
+                    <div class="settings-row-left">
+                        <div class="settings-row-icon"><i class="fas fa-qrcode"></i></div>
+                        <div>
+                            <div class="settings-row-title">Postazioni QR Code</div>
+                            <div class="settings-row-sub">${_qrPostazioniArr.length} postazioni configurate</div>
+                        </div>
+                    </div>
+                    <i class="fas fa-chevron-down settings-row-arrow"></i>
+                </div>
+                <div id="section-qr-postazioni" class="settings-section-body" style="display:none">
+                    <div class="card-settings">
+                        <div id="qr-postazioni-lista">
+                            ${_qrPostazioniArr.length === 0
+                                ? `<div style="text-align:center;color:#9ca3af;padding:20px;font-size:13px">Nessuna postazione configurata</div>`
+                                : _qrPostazioniArr.map((p, i) => `
+                                <div class="qr-post-row" data-idx="${i}">
+                                    <span class="qr-post-icona">${p.icona || '📍'}</span>
+                                    <div class="qr-post-info">
+                                        <span class="qr-post-nome">${p.nome}</span>
+                                        <span class="qr-post-codice">${p.codice}</span>
+                                    </div>
+                                    <div class="qr-post-actions">
+                                        <button class="qr-post-btn" onclick="_qrApriModalModifica(${i})" title="Modifica"><i class="fas fa-pen"></i></button>
+                                        <button class="qr-post-btn qr-post-btn-print" onclick="_qrStampaSingolaIdx(${i})" title="Stampa QR"><i class="fas fa-print"></i></button>
+                                        <button class="qr-post-btn qr-post-btn-danger" onclick="_qrEliminaPostazione(${i})" title="Elimina"><i class="fas fa-trash"></i></button>
+                                    </div>
+                                </div>`).join('')}
+                        </div>
+                        <div class="qr-post-footer-btns">
+                            <button class="btn-add-dashed" onclick="_qrApriModalNuova()">+ Aggiungi Postazione</button>
+                            <button class="settings-action-btn" style="gap:6px;padding:10px 16px;font-size:0.82rem" onclick="_qrStampaTutte()">
+                                <i class="fas fa-print"></i> Stampa tutte
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- ROW: Notifiche Push -->
                 <div class="settings-row" onclick="toggleSettingsSection('section-notifiche', this); setTimeout(_aggiornaUINotifiche, 200)">
                     <div class="settings-row-left">
@@ -4412,15 +4451,39 @@ function toggleMobileMenu() {
  * e lo stato di destinazione, senza aprire la pagina produzione.
  *******************************************************************************/
 
-/** Mappa ID-postazione → configurazione (personalizzabile). */
-const QR_POSTAZIONI = {
-    'PROD:IMBALLAGGI':     { nome: 'Tavolo Imballaggi',         icona: '📦', domanda: 'Cosa stai imballando?',        statoDefault: 'IMBALLATO' },
-    'PROD:LAVORAZIONE':    { nome: 'Postazione Lavorazione',    icona: '🔧', domanda: 'Cosa stai lavorando?',         statoDefault: 'IN LAVORAZIONE' },
-    'PROD:ASSEMBLAGGIO':   { nome: 'Postazione Assemblaggio',   icona: '🛠️', domanda: 'Cosa stai assemblando?',       statoDefault: 'IN LAVORAZIONE' },
-    'PROD:CONTROLLO':      { nome: 'Controllo Qualità',         icona: '🔍', domanda: 'Cosa stai controllando?',      statoDefault: 'IN PRODUZIONE' },
-    'PROD:MAGAZZINO':      { nome: 'Magazzino / Preparazione',  icona: '🏭', domanda: 'Cosa stai preparando?',        statoDefault: 'PREPARARE PER LAVORAZIONE' },
-    'PROD:SPEDIZIONI':     { nome: 'Spedizioni',                icona: '🚚', domanda: 'Cosa stai spedendo?',          statoDefault: 'IMBALLATO' },
-};
+/** Postazioni default — usate solo al primo avvio se localStorage è vuoto. */
+const _QR_POSTAZIONI_DEFAULT = [
+    { codice: 'PROD:IMBALLAGGI',   icona: '📦', nome: 'Tavolo Imballaggi',         domanda: 'Cosa stai imballando?',       statoDefault: 'IMBALLATO' },
+    { codice: 'PROD:LAVORAZIONE',  icona: '🔧', nome: 'Postazione Lavorazione',    domanda: 'Cosa stai lavorando?',        statoDefault: 'IN LAVORAZIONE' },
+    { codice: 'PROD:ASSEMBLAGGIO', icona: '🛠️', nome: 'Postazione Assemblaggio',   domanda: 'Cosa stai assemblando?',      statoDefault: 'IN LAVORAZIONE' },
+    { codice: 'PROD:CONTROLLO',    icona: '🔍', nome: 'Controllo Qualità',          domanda: 'Cosa stai controllando?',     statoDefault: 'IN PRODUZIONE' },
+    { codice: 'PROD:MAGAZZINO',    icona: '🏭', nome: 'Magazzino / Preparazione',   domanda: 'Cosa stai preparando?',       statoDefault: 'PREPARARE PER LAVORAZIONE' },
+    { codice: 'PROD:SPEDIZIONI',   icona: '🚚', nome: 'Spedizioni',                 domanda: 'Cosa stai spedendo?',         statoDefault: 'IMBALLATO' },
+];
+
+/** Array postazioni (sorgente dati). Salvato in localStorage. */
+let _qrPostazioniArr = [];
+
+/** Dizionario codice→postazione (usato dallo scanner). Ricostruito da _qrPostazioniArr. */
+let QR_POSTAZIONI = {};
+
+function _qrCaricaPostazioni() {
+    try {
+        const saved = localStorage.getItem('qrPostazioni');
+        _qrPostazioniArr = saved ? JSON.parse(saved) : [..._QR_POSTAZIONI_DEFAULT];
+    } catch { _qrPostazioniArr = [..._QR_POSTAZIONI_DEFAULT]; }
+    _qrRicostruisciDict();
+}
+function _qrSalvaPostazioniLS() {
+    try { localStorage.setItem('qrPostazioni', JSON.stringify(_qrPostazioniArr)); } catch {}
+    _qrRicostruisciDict();
+}
+function _qrRicostruisciDict() {
+    QR_POSTAZIONI = {};
+    _qrPostazioniArr.forEach(p => { QR_POSTAZIONI[p.codice.toUpperCase()] = p; });
+}
+// Carica subito alla definizione (lo script è eseguito prima di window.onload)
+_qrCaricaPostazioni();
 
 let _qrStream            = null;  // MediaStream attivo
 let _qrAnimFrame         = null;  // requestAnimationFrame handle
@@ -4751,6 +4814,233 @@ async function _confermaSpostaPostazione() {
         notificaElegante(`⚠️ ${errori} errori su ${idRighe.length} articoli`, 'error');
     }
     _chiudiModaleQRAzione();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   GESTIONE POSTAZIONI — IMPOSTAZIONI
+   CRUD completo: crea / modifica / elimina / stampa
+═══════════════════════════════════════════════════════════════ */
+
+/** Apre il modal in modalità CREAZIONE nuova postazione. */
+function _qrApriModalNuova() {
+    _qrApriModalEdit(null);
+}
+
+/** Apre il modal in modalità MODIFICA per la postazione all'indice idx. */
+function _qrApriModalModifica(idx) {
+    _qrApriModalEdit(idx);
+}
+
+function _qrApriModalEdit(idx) {
+    const isNuova = idx === null || idx === undefined;
+    const p = isNuova ? { icona: '📍', nome: '', codice: '', domanda: '', statoDefault: '' } : _qrPostazioniArr[idx];
+
+    document.getElementById('qr-edit-titolo').innerHTML =
+        `<i class="fas fa-map-marker-alt" style="margin-right:8px"></i>${isNuova ? 'Nuova Postazione' : 'Modifica Postazione'}`;
+    document.getElementById('qr-edit-icona').value   = p.icona    || '';
+    document.getElementById('qr-edit-nome').value    = p.nome     || '';
+    document.getElementById('qr-edit-codice').value  = p.codice   || '';
+    document.getElementById('qr-edit-domanda').value = p.domanda  || '';
+    document.getElementById('qr-edit-idx').value     = isNuova ? '' : idx;
+
+    // Popola select stati
+    const sel = document.getElementById('qr-edit-stato');
+    const stati = (listaStati && listaStati.length > 0) ? listaStati : _QR_POSTAZIONI_DEFAULT.map(d => ({ nome: d.statoDefault, colore: '#94a3b8' }));
+    const unici = [...new Map(stati.map(s => [s.nome, s])).values()];
+    sel.innerHTML = unici.map(s =>
+        `<option value="${s.nome}" ${s.nome === (p.statoDefault || '') ? 'selected' : ''}>${s.nome}</option>`
+    ).join('');
+
+    // Aggiorna preview QR
+    _qrAggiornaPrevQR();
+
+    const modal = document.getElementById('modal-qr-edit');
+    modal.style.display = 'flex';
+    modal.offsetHeight;
+    modal.classList.add('active');
+}
+
+function _qrChiudiModalEdit() {
+    const modal = document.getElementById('modal-qr-edit');
+    if (!modal) return;
+    modal.classList.remove('active');
+    setTimeout(() => { if (!modal.classList.contains('active')) modal.style.display = 'none'; }, 300);
+}
+
+/** Auto-genera il codice QR a partire dal nome. */
+function _qrAggiornaCodice() {
+    const nome   = (document.getElementById('qr-edit-nome')?.value || '').trim();
+    const codice = 'PROD:' + nome.toUpperCase()
+        .replace(/[ÀÁÂÃÄÅ]/g, 'A').replace(/[ÈÉÊË]/g, 'E').replace(/[ÌÍÎÏ]/g, 'I')
+        .replace(/[ÒÓÔÕÖ]/g, 'O').replace(/[ÙÚÛÜ]/g, 'U')
+        .replace(/[^A-Z0-9]/g, '');
+    const el = document.getElementById('qr-edit-codice');
+    if (el) el.value = codice;
+}
+
+/** Richiamato da pulsante "↺" — ricalcola il codice dal nome attuale. */
+function _qrRicalcolaCodice() {
+    _qrAggiornaCodice();
+    _qrAggiornaPrevQR();
+}
+
+/** Ridisegna il canvas di anteprima nel modal. */
+async function _qrAggiornaPrevQR() {
+    const codice = (document.getElementById('qr-edit-codice')?.value || '').trim();
+    const nome   = (document.getElementById('qr-edit-nome')?.value  || '').trim();
+    const canvas = document.getElementById('qr-preview-canvas');
+    const nomeEl = document.getElementById('qr-preview-nome');
+    const codEl  = document.getElementById('qr-preview-codice');
+    if (nomeEl) nomeEl.textContent = nome || '—';
+    if (codEl)  codEl.textContent  = codice || '—';
+    if (!canvas || !codice) return;
+    try {
+        await QRCode.toCanvas(canvas, codice, { width: 160, margin: 1, color: { dark: '#111827', light: '#ffffff' } });
+    } catch {}
+}
+
+/** Salva la postazione dal modal (crea o aggiorna). */
+function _qrSalvaPostazione() {
+    const icona    = (document.getElementById('qr-edit-icona')?.value  || '').trim() || '📍';
+    const nome     = (document.getElementById('qr-edit-nome')?.value   || '').trim();
+    const codice   = (document.getElementById('qr-edit-codice')?.value || '').trim().toUpperCase();
+    const domanda  = (document.getElementById('qr-edit-domanda')?.value|| '').trim();
+    const stato    = document.getElementById('qr-edit-stato')?.value   || '';
+    const idxStr   = document.getElementById('qr-edit-idx')?.value;
+
+    if (!nome)   { notificaElegante('Inserisci un nome per la postazione.', 'error'); return; }
+    if (!codice) { notificaElegante('Il codice QR non può essere vuoto.', 'error'); return; }
+
+    const obj = { icona, nome, codice, domanda, statoDefault: stato };
+    const idx = idxStr !== '' && idxStr !== null && idxStr !== undefined ? parseInt(idxStr) : null;
+
+    if (idx !== null && !isNaN(idx)) {
+        _qrPostazioniArr[idx] = obj;
+    } else {
+        _qrPostazioniArr.push(obj);
+    }
+    _qrSalvaPostazioniLS();
+    _qrChiudiModalEdit();
+    notificaElegante('✅ Postazione salvata.');
+    // Aggiorna la sezione impostazioni se è aperta
+    caricaInterfacciaImpostazioni();
+    setTimeout(() => _qrRiapriSezioneImpostazioni(), 120);
+}
+
+/** Elimina la postazione all'indice idx con conferma. */
+function _qrEliminaPostazione(idx) {
+    const p = _qrPostazioniArr[idx];
+    if (!p) return;
+    mostraConferma(
+        'Elimina Postazione',
+        `Vuoi eliminare la postazione "${p.nome}"? Il QR code stampato associato non funzionerà più.`,
+        () => {
+            _qrPostazioniArr.splice(idx, 1);
+            _qrSalvaPostazioniLS();
+            notificaElegante('Postazione eliminata.');
+            caricaInterfacciaImpostazioni();
+            setTimeout(() => _qrRiapriSezioneImpostazioni(), 120);
+        },
+        'Elimina'
+    );
+}
+
+/** Riapre la sezione postazioni dopo un re-render delle impostazioni. */
+function _qrRiapriSezioneImpostazioni() {
+    const sec = document.getElementById('section-qr-postazioni');
+    if (!sec) return;
+    sec.style.display = 'block';
+    const row = sec.previousElementSibling;
+    if (row) {
+        row.classList.add('settings-row-active');
+        const arrow = row.querySelector('.settings-row-arrow');
+        if (arrow) arrow.style.transform = 'rotate(180deg)';
+    }
+}
+
+/** Stampa il QR della singola postazione aperta nel modal. */
+function _qrStampaSingola() {
+    const codice  = (document.getElementById('qr-edit-codice')?.value || '').trim();
+    const nome    = (document.getElementById('qr-edit-nome')?.value   || '').trim();
+    const icona   = (document.getElementById('qr-edit-icona')?.value  || '').trim() || '📍';
+    const domanda = (document.getElementById('qr-edit-domanda')?.value|| '').trim();
+    if (!codice) { notificaElegante('Inserisci nome e codice prima di stampare.', 'error'); return; }
+    _qrApriFinestroStampa([{ codice, nome, icona, domanda }]);
+}
+
+/** Stampa il QR della postazione all'indice idx (da lista impostazioni). */
+function _qrStampaSingolaIdx(idx) {
+    const p = _qrPostazioniArr[idx];
+    if (p) _qrApriFinestroStampa([p]);
+}
+
+/** Stampa tutti i QR code. */
+function _qrStampaTutte() {
+    if (_qrPostazioniArr.length === 0) { notificaElegante('Nessuna postazione da stampare.', 'error'); return; }
+    _qrApriFinestroStampa(_qrPostazioniArr);
+}
+
+/**
+ * Apre una finestra di stampa con i QR code delle postazioni passate.
+ * @param {Array} postazioni
+ */
+async function _qrApriFinestroStampa(postazioni) {
+    // Genera i QR come data URL per ogni postazione
+    const items = await Promise.all(postazioni.map(async p => {
+        let dataUrl = '';
+        try {
+            dataUrl = await QRCode.toDataURL(p.codice, { width: 180, margin: 1, color: { dark: '#111827', light: '#ffffff' } });
+        } catch {}
+        return { ...p, dataUrl };
+    }));
+
+    const html = `<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>QR Code Postazioni — PROD</title>
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:'Segoe UI',sans-serif; background:#f1f5f9; padding:28px 20px; }
+h1 { font-size:20px; font-weight:800; color:#0f172a; margin-bottom:4px; }
+p.sub { font-size:12px; color:#64748b; margin-bottom:24px; }
+.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:20px; }
+.card { background:#fff; border-radius:16px; padding:20px; text-align:center;
+        box-shadow:0 2px 10px rgba(0,0,0,0.08); page-break-inside:avoid; break-inside:avoid; }
+.card img { display:block; margin:0 auto 12px; width:160px; height:160px; }
+.icona { font-size:26px; margin-bottom:4px; }
+.nome { font-size:14px; font-weight:800; color:#0f172a; margin-bottom:3px; }
+.domanda { font-size:11px; color:#475569; font-style:italic; margin-bottom:8px; }
+.codice { display:inline-block; background:#f1f5f9; color:#334155;
+          font-size:10px; font-weight:700; padding:2px 9px; border-radius:99px; font-family:monospace; }
+button { position:fixed; top:20px; right:20px; background:#111827; color:#fff;
+         border:none; border-radius:10px; padding:9px 18px; font-size:13px;
+         font-weight:700; cursor:pointer; box-shadow:0 3px 10px rgba(0,0,0,0.25); }
+@media print { body { background:white; padding:10px; } button { display:none; }
+  .grid { grid-template-columns:repeat(3,1fr); gap:14px; } }
+</style>
+</head>
+<body>
+<button onclick="window.print()">🖨️ Stampa</button>
+<h1>📦 QR Code Postazioni — PROD</h1>
+<p class="sub">Taglia e affiggi ogni cartellino vicino alla postazione corrispondente.</p>
+<div class="grid">
+${items.map(p => `
+<div class="card">
+  ${p.dataUrl ? `<img src="${p.dataUrl}" alt="QR ${p.nome}">` : ''}
+  <div class="icona">${p.icona || '📍'}</div>
+  <div class="nome">${p.nome}</div>
+  <div class="domanda">${p.domanda || ''}</div>
+  <div class="codice">${p.codice}</div>
+</div>`).join('')}
+</div>
+<script>setTimeout(()=>window.print(),600);<\/script>
+</body>
+</html>`;
+
+    const win = window.open('', '_blank', 'width=900,height=700');
+    if (win) { win.document.write(html); win.document.close(); }
+    else { notificaElegante('⚠️ Abilita i popup per la stampa.', 'error'); }
 }
 
 /* ═══════════════════════════════════════════════════════════════
