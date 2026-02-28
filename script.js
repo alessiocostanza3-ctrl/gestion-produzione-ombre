@@ -1081,6 +1081,7 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
 // ─────────────────────────────────────────────────────────────────
 const _PIP_LS_QTY    = 'mlPipQty';       // { p, m, g }
 const _PIP_LS_CARIC  = 'mlPipCaricato';  // { [idx]: valore }
+const _PIP_LS_MOV    = 'mlPipMovimenti'; // array di movimenti
 
 const _PIP_BOM = [
   // [sezione, materiale, xPicc, xMedio, xGrande]
@@ -1107,10 +1108,12 @@ const _PIP_BOM = [
   ['',        'Cavo out 700mA',     0, 0, 1]
 ];
 
-function _pipLoadQty()   { try { return JSON.parse(localStorage.getItem(_PIP_LS_QTY))  || {p:0,m:0,g:0}; }    catch { return {p:0,m:0,g:0}; } }
+function _pipLoadQty()   { try { return JSON.parse(localStorage.getItem(_PIP_LS_QTY))  || {p:0,m:0,g:0}; } catch { return {p:0,m:0,g:0}; } }
 function _pipLoadCaric() { try { return JSON.parse(localStorage.getItem(_PIP_LS_CARIC))|| {}; }                catch { return {}; } }
 function _pipSaveQty(o)  { try { localStorage.setItem(_PIP_LS_QTY,   JSON.stringify(o)); } catch {} }
 function _pipSaveCaric(o){ try { localStorage.setItem(_PIP_LS_CARIC, JSON.stringify(o)); } catch {} }
+function _pipLoadMov()   { try { return JSON.parse(localStorage.getItem(_PIP_LS_MOV))  || []; } catch { return []; } }
+function _pipSaveMov(a)  { try { localStorage.setItem(_PIP_LS_MOV,   JSON.stringify(a)); } catch {} }
 
 function caricaPaginaPipistrello() {
   const contenitore = document.getElementById('contenitore-dati');
@@ -1146,6 +1149,11 @@ function caricaPaginaPipistrello() {
       <td class="${ordCls}">${fab === 0 ? '—' : ord}</td>
     </tr>`;
   }).join('');
+
+  // Opzioni materiale per il form movimenti
+  const matOptions = _PIP_BOM.map((row, i) =>
+    `<option value="${i}">[${row[0] || _PIP_BOM.slice(0, i).reverse().find(r => r[0])?.[ 0] || '?'}] ${row[1]}</option>`
+  ).join('');
 
   contenitore.innerHTML = `
     <div class="pip-page">
@@ -1212,12 +1220,50 @@ function caricaPaginaPipistrello() {
 
       <!-- LEGENDA -->
       <div class="pip-legend">
-        <span class="pip-leg-item pip-ord-manca">● materiale mancante</span>
-        <span class="pip-leg-item pip-ord-ok">● disponibile</span>
-        <span class="pip-leg-item" style="color:#9ca3af">— = non necessario per questa variante</span>
+        <span class="pip-leg-item pip-ord-manca" style="padding:2px 7px;border-radius:5px;">● mancante</span>
+        <span class="pip-leg-item pip-ord-ok" style="padding:2px 7px;border-radius:5px;">● disponibile</span>
+        <span class="pip-leg-item" style="color:#9ca3af">— = non necessario</span>
+      </div>
+
+      <!-- MOVIMENTI MAGAZZINO -->
+      <div class="pip-mov-section">
+        <div class="pip-mov-header">
+          <div class="pip-mov-header-title">
+            <i class="fas fa-boxes-stacked"></i> MOVIMENTI MAGAZZINO
+          </div>
+          <button class="pip-mov-toggle-btn" onclick="_pipToggleMov(this)">
+            <i class="fas fa-chevron-down"></i>
+          </button>
+        </div>
+        <div class="pip-mov-body" id="pip-mov-body">
+          <!-- FORM -->
+          <div class="pip-mov-form">
+            <div class="pip-mov-form-field" style="grid-column:1/3">
+              <label class="pip-mov-form-label">Materiale</label>
+              <select id="pip-mov-mat">${matOptions}</select>
+            </div>
+            <div class="pip-mov-form-field">
+              <label class="pip-mov-form-label">Quantità</label>
+              <input type="number" id="pip-mov-qty" min="1" value="1" placeholder="0">
+            </div>
+            <div class="pip-mov-form-field">
+              <label class="pip-mov-form-label">Note (opz.)</label>
+              <input type="text" id="pip-mov-nota" placeholder="es. DDT 123…" maxlength="60">
+            </div>
+            <button class="pip-mov-btn-carico" onclick="_pipSalvaMovimento('carico')">
+              <i class="fas fa-arrow-down"></i> Carico
+            </button>
+            <button class="pip-mov-btn-scarico" onclick="_pipSalvaMovimento('scarico')">
+              <i class="fas fa-arrow-up"></i> Scarico
+            </button>
+          </div>
+          <!-- LISTA -->
+          <div id="pip-mov-list"></div>
+        </div>
       </div>
     </div>`;
 
+  _pipRenderMovimenti();
   applicaFade(contenitore);
 }
 
@@ -1265,10 +1311,10 @@ function _pipAggiornaQty() {
 
 /** Aggiorna "DA ORDINARE" quando si modifica il CARICATO */
 function _pipAggiornaCar(input) {
-  const idx  = parseInt(input.dataset.idx);
-  const car  = Math.max(0, parseInt(input.value) || 0);
+  const idx   = parseInt(input.dataset.idx);
+  const car   = Math.max(0, parseInt(input.value) || 0);
   const caric = _pipLoadCaric();
-  caric[idx] = car;
+  caric[idx]  = car;
   _pipSaveCaric(caric);
 
   const qty = _pipLoadQty();
@@ -1284,11 +1330,114 @@ function _pipAggiornaCar(input) {
   }
 }
 
+/** Salva un movimento di carico o scarico */
+function _pipSalvaMovimento(tipo) {
+  const idxEl  = document.getElementById('pip-mov-mat');
+  const qtyEl  = document.getElementById('pip-mov-qty');
+  const notaEl = document.getElementById('pip-mov-nota');
+  if (!idxEl || !qtyEl) return;
+
+  const idx = parseInt(idxEl.value);
+  const qty = Math.max(1, parseInt(qtyEl.value) || 1);
+  const nota = (notaEl?.value || '').trim();
+  const mat = _PIP_BOM[idx]?.[1] || '?';
+
+  // Aggiorna caricato
+  const caric = _pipLoadCaric();
+  if (tipo === 'carico') {
+    caric[idx] = (Number(caric[idx] || 0)) + qty;
+  } else {
+    caric[idx] = Math.max(0, (Number(caric[idx] || 0)) - qty);
+  }
+  _pipSaveCaric(caric);
+
+  // Aggiorna cella CARICATO e DA ORDINARE nella riga BOM
+  const carInput = document.querySelector(`#pip-tbody input[data-idx="${idx}"]`);
+  if (carInput) {
+    carInput.value = caric[idx];
+    _pipAggiornaCar(carInput);
+  }
+
+  // Aggiungi al log
+  const movimenti = _pipLoadMov();
+  movimenti.unshift({
+    id: Date.now(),
+    idx, tipo, qty, nota, mat,
+    ts: new Date().toLocaleString('it-IT', {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'})
+  });
+  _pipSaveMov(movimenti);
+
+  // Resetta form
+  qtyEl.value  = 1;
+  if (notaEl) notaEl.value = '';
+
+  _pipRenderMovimenti();
+}
+
+/** Elimina un movimento per id, ripristinando il caricato */
+function _pipEliminaMovimento(id) {
+  const movimenti = _pipLoadMov();
+  const mov = movimenti.find(m => m.id === id);
+  if (!mov) return;
+
+  // Annulla l'effetto sul caricato
+  const caric = _pipLoadCaric();
+  if (mov.tipo === 'carico') {
+    caric[mov.idx] = Math.max(0, (Number(caric[mov.idx] || 0)) - mov.qty);
+  } else {
+    caric[mov.idx] = (Number(caric[mov.idx] || 0)) + mov.qty;
+  }
+  _pipSaveCaric(caric);
+
+  // Aggiorna cella
+  const carInput = document.querySelector(`#pip-tbody input[data-idx="${mov.idx}"]`);
+  if (carInput) {
+    carInput.value = caric[mov.idx];
+    _pipAggiornaCar(carInput);
+  }
+
+  _pipSaveMov(movimenti.filter(m => m.id !== id));
+  _pipRenderMovimenti();
+}
+
+/** Renderizza la lista movimenti nel DOM */
+function _pipRenderMovimenti() {
+  const list = document.getElementById('pip-mov-list');
+  if (!list) return;
+  const movimenti = _pipLoadMov();
+
+  if (movimenti.length === 0) {
+    list.innerHTML = '<div class="pip-mov-empty">Nessun movimento registrato</div>';
+    return;
+  }
+
+  list.innerHTML = movimenti.map(m => `
+    <div class="pip-mov-item ${m.tipo}">
+      <span class="pip-mov-badge ${m.tipo}">${m.tipo === 'carico' ? 'CARICO' : 'SCARICO'}</span>
+      <span class="pip-mov-mat">${m.mat}</span>
+      <span class="pip-mov-qty ${m.tipo}">${m.tipo === 'carico' ? '+' : '−'}${m.qty}</span>
+      ${m.nota ? `<span class="pip-mov-nota">${m.nota}</span>` : '<span class="pip-mov-nota"></span>'}
+      <span class="pip-mov-ts">${m.ts}</span>
+      <button class="pip-mov-del" onclick="_pipEliminaMovimento(${m.id})" title="Elimina">✕</button>
+    </div>`).join('');
+}
+
+/** Toggle visibilità corpo sezione movimenti */
+function _pipToggleMov(btn) {
+  const body = document.getElementById('pip-mov-body');
+  if (!body) return;
+  const hidden = body.style.display === 'none';
+  body.style.display = hidden ? '' : 'none';
+  const icon = btn.querySelector('i');
+  if (icon) icon.className = hidden ? 'fas fa-chevron-down' : 'fas fa-chevron-up';
+}
+
 /** Reset completo della pagina */
 function _pipReset() {
-  if (!confirm('Vuoi azzerare tutte le quantità e i materiali caricati?')) return;
+  if (!confirm('Vuoi azzerare tutto (quantità, magazzino e movimenti)?')) return;
   _pipSaveQty({p:0, m:0, g:0});
   _pipSaveCaric({});
+  _pipSaveMov([]);
   caricaPaginaPipistrello();
 }
 
