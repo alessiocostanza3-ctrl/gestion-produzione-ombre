@@ -2894,6 +2894,8 @@ function toggleSettingsSection(sectionId, rowEl) {
     rowEl.classList.toggle('settings-row-active', !isOpen);
     // Carica lista utenti quando aperta
     if (!isOpen && (sectionId === 'section-utenti' || sectionId === 'section-team-utenti')) caricaListaUtenti();
+    // Renderizza QR canvas quando si apre la sezione postazioni
+    if (!isOpen && sectionId === 'section-qr-postazioni') requestAnimationFrame(() => _qrRenderListaCanvas());
 }
 
 /* ─── GESTIONE UTENTI ────────────────────────────────────── */
@@ -3159,9 +3161,9 @@ function caricaInterfacciaImpostazioni() {
                                 ? `<div style="text-align:center;color:#9ca3af;padding:20px;font-size:13px">Nessuna postazione configurata</div>`
                                 : _qrPostazioniArr.map((p, i) => `
                                 <div class="qr-post-row" data-idx="${i}">
-                                    <span class="qr-post-icona">${p.icona || '📍'}</span>
+                                    <canvas class="qr-post-canvas" id="qr-list-canvas-${i}" width="56" height="56"></canvas>
                                     <div class="qr-post-info">
-                                        <span class="qr-post-nome">${p.nome}</span>
+                                        <span class="qr-post-nome">${p.icona || '📍'} ${p.nome}</span>
                                         <span class="qr-post-codice">${p.codice}</span>
                                     </div>
                                     <div class="qr-post-actions">
@@ -3238,6 +3240,8 @@ function caricaInterfacciaImpostazioni() {
             </div>
         `;
         applicaFade(contenitore);
+        // Disegna i QR nelle righe della lista non appena il DOM è pronto
+        requestAnimationFrame(() => _qrRenderListaCanvas());
         // Chiama initSortable subito (gli elementi esistono nel DOM anche se hidden)
         initSortable('lista-stati-config', (container) => {
             const rows = [...container.querySelectorAll('[data-idx]')];
@@ -4886,6 +4890,7 @@ function _qrRicalcolaCodice() {
 
 /** Ridisegna il canvas di anteprima nel modal. */
 async function _qrAggiornaPrevQR() {
+    if (typeof QRCode === 'undefined') return;
     const codice = (document.getElementById('qr-edit-codice')?.value || '').trim();
     const nome   = (document.getElementById('qr-edit-nome')?.value  || '').trim();
     const canvas = document.getElementById('qr-preview-canvas');
@@ -4955,6 +4960,22 @@ function _qrRiapriSezioneImpostazioni() {
         row.classList.add('settings-row-active');
         const arrow = row.querySelector('.settings-row-arrow');
         if (arrow) arrow.style.transform = 'rotate(180deg)';
+    }
+}
+
+/** Disegna il QR code su ogni canvas nella lista delle postazioni. */
+async function _qrRenderListaCanvas() {
+    if (typeof QRCode === 'undefined') return;
+    for (let i = 0; i < _qrPostazioniArr.length; i++) {
+        const canvas = document.getElementById(`qr-list-canvas-${i}`);
+        if (!canvas) continue;
+        try {
+            await QRCode.toCanvas(canvas, _qrPostazioniArr[i].codice || ' ', {
+                width: 56,
+                margin: 1,
+                color: { dark: '#0f172a', light: '#f8fafc' }
+            });
+        } catch (e) { /* ignora errori canvas singolo */ }
     }
 }
 
