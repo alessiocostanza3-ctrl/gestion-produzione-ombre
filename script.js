@@ -1,16 +1,31 @@
 // === NOTIFICHE UI ===
-function apriPopupNotifiche() {
+function apriPopupNotifiche(e) {
+    if (e) { e.stopPropagation(); e.preventDefault(); }
     const modal = document.getElementById('modal-notifiche');
     if (!modal) return;
-    modal.classList.add('open');
     modal.style.display = 'flex';
     renderNotificheList();
+    // attiva il listener per chiuderlo cliccando fuori (una sola volta)
+    setTimeout(() => {
+        document.addEventListener('click', _chiudiNotificheOutside, { once: true, capture: true });
+    }, 10);
 }
 function chiudiPopupNotifiche() {
     const modal = document.getElementById('modal-notifiche');
     if (!modal) return;
-    modal.classList.remove('open');
     modal.style.display = 'none';
+    document.removeEventListener('click', _chiudiNotificheOutside, { capture: true });
+}
+function _chiudiNotificheOutside(e) {
+    const modal = document.getElementById('modal-notifiche');
+    if (!modal) return;
+    const content = modal.querySelector('.notifiche-modal-content');
+    if (content && content.contains(e.target)) {
+        // click dentro il modal: ri-aggancia il listener
+        document.addEventListener('click', _chiudiNotificheOutside, { once: true, capture: true });
+        return;
+    }
+    chiudiPopupNotifiche();
 }
 function aggiornaBadgeNotifiche(count) {
     const badgeDesk = document.getElementById('badge-notifiche-desktop');

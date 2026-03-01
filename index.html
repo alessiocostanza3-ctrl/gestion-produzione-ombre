@@ -328,8 +328,8 @@
                 </div>
             </button>
             <!-- Campanellina notifiche desktop -->
-            <button id="btn-notifiche-desktop" class="notifiche-bell-btn" onclick="apriPopupNotifiche()" title="Notifiche">
-                <i class="fas fa-bell"></i>
+            <button id="btn-notifiche-desktop" class="notifiche-bell-btn" onclick="apriPopupNotifiche(event)" title="Notifiche">
+                <i class="far fa-bell"></i>
                 <span id="badge-notifiche-desktop" class="notifiche-badge" style="display:none">0</span>
             </button>
         </div>
@@ -421,8 +421,8 @@
                     <i class="fas fa-qrcode"></i>
                 </button>
                 <!-- Campanellina notifiche mobile -->
-                <button id="btn-notifiche-mobile" class="notifiche-bell-btn" onclick="apriPopupNotifiche()" title="Notifiche">
-                    <i class="fas fa-bell"></i>
+                <button id="btn-notifiche-mobile" class="notifiche-bell-btn" ontouchend="event.preventDefault(); apriPopupNotifiche(event)" onclick="apriPopupNotifiche(event)" title="Notifiche">
+                    <i class="far fa-bell"></i>
                     <span id="badge-notifiche-mobile" class="notifiche-badge" style="display:none">0</span>
                 </button>
             </div>
@@ -726,15 +726,15 @@
   </div>
 
   <!-- ===== MODAL: NOTIFICHE PUSH ===== -->
-  <div id="modal-notifiche" onclick="if(event.target===this)chiudiPopupNotifiche()" style="display:none">
-    <div class="modal-content notifiche-modal-content">
+  <div id="modal-notifiche" style="display:none">
+    <div class="modal-content notifiche-modal-content" onclick="event.stopPropagation()">
       <div class="notifiche-modal-header">
-        <span class="notifiche-modal-title"><i class="fas fa-bell"></i> Notifiche</span>
+        <span class="notifiche-modal-title"><i class="far fa-bell"></i> Notifiche</span>
         <button class="notifiche-modal-close" onclick="chiudiPopupNotifiche()"><i class="fas fa-times"></i></button>
       </div>
       <div id="notifiche-list" class="notifiche-list"></div>
       <div class="notifiche-modal-footer">
-        <button class="btn-modal-cancel" onclick="chiudiPopupNotifiche()">Chiudi</button>
+        <button class="notifiche-btn-chiudi" onclick="chiudiPopupNotifiche()">Chiudi</button>
       </div>
     </div>
   </div>
