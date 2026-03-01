@@ -725,6 +725,30 @@
     </div>
   </div>
 
+  <!-- ===== MODAL: CONFERMA SPEDIZIONE PIPISTRELLO ===== -->
+  <div id="modal-pip-spedizione" class="modal-overlay" style="display:none" onclick="if(event.target===this) _pipChiudiModalSped()">
+    <div class="modal-content pip-sped-modal-box">
+      <h2 class="pip-sped-modal-title"><i class="fas fa-truck"></i> Conferma Spedizione</h2>
+
+      <!-- Warning squilibrio -->
+      <div id="pip-sped-warning" class="pip-sped-warning" style="display:none">
+        <i class="fas fa-triangle-exclamation"></i>
+        <span id="pip-sped-warning-msg"></span>
+      </div>
+
+      <p class="pip-sped-modal-sub">Seleziona gli articoli che stai spedendo in questa tornata:</p>
+
+      <div id="pip-sped-items" class="pip-sped-items-list"></div>
+
+      <div class="modal-footer" style="margin-top:20px">
+        <button type="button" onclick="_pipChiudiModalSped()" class="btn-modal-cancel">Annulla</button>
+        <button type="button" id="btn-pip-sped-ok" class="btn-modal-send pip-sped-ok-btn" onclick="_pipConfermaSpedizione()">
+          <i class="fas fa-truck"></i> Spedisci
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== MODAL: NOTIFICHE PUSH ===== -->
   <div id="modal-notifiche">
     <div class="notifiche-modal-content" onclick="event.stopPropagation()">

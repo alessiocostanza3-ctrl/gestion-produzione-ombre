@@ -5640,6 +5640,74 @@ button:active {
 }
 .pip-spedisci-btn:hover { background: #166534 !important; }
 
+/* ── Modal conferma spedizione ── */
+.pip-sped-modal-box {
+    max-width: 440px;
+    width: 95%;
+    padding: 0 0 0;
+}
+.pip-sped-modal-title {
+    font-size: 1rem; font-weight: 800;
+    color: #1e293b;
+    display: flex; align-items: center; gap: 8px;
+    padding: 20px 20px 4px;
+    margin: 0;
+}
+.pip-sped-modal-sub {
+    font-size: 0.82rem; color: #64748b;
+    padding: 0 20px 10px;
+    margin: 0;
+}
+.pip-sped-warning {
+    margin: 0 16px 10px;
+    background: #fffbeb; border: 1.5px solid #fde68a;
+    border-radius: 9px; padding: 10px 14px;
+    display: flex; align-items: flex-start; gap: 8px;
+    font-size: 0.82rem; color: #92400e; font-weight: 600;
+}
+.pip-sped-warning i { color: #f59e0b; flex-shrink: 0; margin-top: 2px; }
+.pip-sped-items-list {
+    display: flex; flex-direction: column;
+    padding: 0 12px;
+    gap: 4px;
+    max-height: 280px; overflow-y: auto;
+}
+.pip-sped-item-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 10px;
+    border-radius: 9px;
+    cursor: pointer;
+    transition: background 0.12s;
+    border: 1.5px solid transparent;
+}
+.pip-sped-item-row:hover { background: #f1f5f9; }
+.pip-sped-item-row input[type="checkbox"] {
+    width: 18px; height: 18px; accent-color: #15803d;
+    cursor: pointer; flex-shrink: 0;
+}
+.pip-sped-item-row:has(input:checked) {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+}
+.pip-sped-item-info {
+    display: flex; align-items: center; gap: 6px; flex: 1;
+}
+.pip-sped-item-emoji { font-size: 1.1rem; }
+.pip-sped-item-label { font-size: 0.9rem; font-weight: 600; color: #1e293b; flex: 1; }
+.pip-sped-item-qty {
+    font-size: 1rem; font-weight: 800; color: #15803d;
+    background: #dcfce7; border-radius: 6px;
+    padding: 2px 9px;
+}
+.pip-sped-ok-btn {
+    background: #15803d !important;
+}
+.pip-sped-ok-btn:disabled {
+    background: #9ca3af !important;
+    cursor: not-allowed !important;
+    pointer-events: none;
+}
+
 /* ── Badge spedizione nel log ── */
 .pip-mov-badge.spedizione {
     background: #dcfce7; color: #15803d;

@@ -1439,25 +1439,91 @@ const _PIP_ASSEMB = {
 
 /** Registra scarico di N assemblati salvando UN SOLO record 'assemb' con tutti i componenti */
 /** Scarica tutti i pronti da spedire: scala la BOM per ogni voce > 0 e registra un unico movimento */
+const _PIP_KEY_MAP = [
+  {key:'t_p', tipo:'TESTA',   fmt:'p', tipoLabel:'Testa',   fmtLabel:'Piccolo', emoji:'🔩', mA:'500mA'},
+  {key:'t_m', tipo:'TESTA',   fmt:'m', tipoLabel:'Testa',   fmtLabel:'Medio',   emoji:'🔩', mA:'600mA'},
+  {key:'t_g', tipo:'TESTA',   fmt:'g', tipoLabel:'Testa',   fmtLabel:'Grande',  emoji:'🔩', mA:'700mA'},
+  {key:'c_p', tipo:'CORDONE', fmt:'p', tipoLabel:'Cordone', fmtLabel:'Piccolo', emoji:'🔌', mA:'500mA'},
+  {key:'c_m', tipo:'CORDONE', fmt:'m', tipoLabel:'Cordone', fmtLabel:'Medio',   emoji:'🔌', mA:'600mA'},
+  {key:'c_g', tipo:'CORDONE', fmt:'g', tipoLabel:'Cordone', fmtLabel:'Grande',  emoji:'🔌', mA:'700mA'},
+];
+
+/** Apre il modal di selezione/conferma spedizione */
 function _pipScaricoTuttiPronti() {
   const pronti = _pipLoadPronti();
-  const keyMap = [
-    {key:'t_p', tipo:'TESTA',   fmt:'p', tipoLabel:'Testa',   fmtLabel:'Piccolo', emoji:'🔩', mA:'500mA'},
-    {key:'t_m', tipo:'TESTA',   fmt:'m', tipoLabel:'Testa',   fmtLabel:'Medio',   emoji:'🔩', mA:'600mA'},
-    {key:'t_g', tipo:'TESTA',   fmt:'g', tipoLabel:'Testa',   fmtLabel:'Grande',  emoji:'🔩', mA:'700mA'},
-    {key:'c_p', tipo:'CORDONE', fmt:'p', tipoLabel:'Cordone', fmtLabel:'Piccolo', emoji:'🔌', mA:'500mA'},
-    {key:'c_m', tipo:'CORDONE', fmt:'m', tipoLabel:'Cordone', fmtLabel:'Medio',   emoji:'🔌', mA:'600mA'},
-    {key:'c_g', tipo:'CORDONE', fmt:'g', tipoLabel:'Cordone', fmtLabel:'Grande',  emoji:'🔌', mA:'700mA'},
-  ];
-
-  const items = keyMap
-    .filter(k => (pronti[k.key] || 0) > 0)
-    .map(k => ({ ...k, qty: pronti[k.key] }));
+  const items  = _PIP_KEY_MAP.filter(k => (pronti[k.key] || 0) > 0).map(k => ({ ...k, qty: pronti[k.key] }));
 
   if (!items.length) {
     notificaElegante('Nessun articolo da spedire — imposta le quantità prima ⚠️');
     return;
   }
+
+  // Popola lista items con checkbox (tutti pre-selezionati)
+  const listEl = document.getElementById('pip-sped-items');
+  if (listEl) {
+    listEl.innerHTML = items.map(it => `
+      <label class="pip-sped-item-row">
+        <input type="checkbox" class="pip-sped-chk" data-key="${it.key}" checked>
+        <span class="pip-sped-item-info">
+          <span class="pip-sped-item-emoji">${it.emoji}</span>
+          <span class="pip-sped-item-label">${it.tipoLabel} <span class="pip-pronti-ma">${it.mA}</span></span>
+          <span class="pip-sped-item-qty">×${it.qty}</span>
+        </span>
+      </label>`).join('');
+
+    // Aggiorna warning ogni volta che una checkbox cambia
+    listEl.querySelectorAll('.pip-sped-chk').forEach(chk =>
+      chk.addEventListener('change', _pipAggiornaSpeWarning)
+    );
+  }
+
+  _pipAggiornaSpeWarning();
+
+  const modal = document.getElementById('modal-pip-spedizione');
+  if (modal) modal.style.display = 'flex';
+}
+
+/** Ricalcola il warning di squilibrio in base alle checkbox selezionate */
+function _pipAggiornaSpeWarning() {
+  const checked = [...document.querySelectorAll('.pip-sped-chk:checked')].map(c => c.dataset.key);
+  const hasTesta   = checked.some(k => k.startsWith('t_'));
+  const hasCordone = checked.some(k => k.startsWith('c_'));
+
+  const warn    = document.getElementById('pip-sped-warning');
+  const warnMsg = document.getElementById('pip-sped-warning-msg');
+  const okBtn   = document.getElementById('btn-pip-sped-ok');
+
+  if (!checked.length) {
+    if (warn) warn.style.display = 'flex';
+    if (warnMsg) warnMsg.textContent = 'Nessun articolo selezionato.';
+    if (okBtn) okBtn.disabled = true;
+    return;
+  }
+
+  if (okBtn) okBtn.disabled = false;
+
+  if (hasTesta && !hasCordone) {
+    if (warn) warn.style.display = 'flex';
+    if (warnMsg) warnMsg.textContent = 'Stai spedendo solo Teste senza Cordoni — di solito vengono spediti in coppia. Confermi comunque?';
+  } else if (hasCordone && !hasTesta) {
+    if (warn) warn.style.display = 'flex';
+    if (warnMsg) warnMsg.textContent = 'Stai spedendo solo Cordoni senza Teste — di solito vengono spediti in coppia. Confermi comunque?';
+  } else {
+    if (warn) warn.style.display = 'none';
+  }
+}
+
+/** Esegue lo scarico degli item selezionati nel modal */
+function _pipConfermaSpedizione() {
+  const checked = [...document.querySelectorAll('.pip-sped-chk:checked')].map(c => c.dataset.key);
+  if (!checked.length) return;
+
+  const pronti = _pipLoadPronti();
+  const items  = _PIP_KEY_MAP
+    .filter(k => checked.includes(k.key) && (pronti[k.key] || 0) > 0)
+    .map(k => ({ ...k, qty: pronti[k.key] }));
+
+  if (!items.length) return;
 
   const nota  = (document.getElementById('pip-spedizione-nota')?.value || '').trim();
   const caric = _pipLoadCaric();
@@ -1482,23 +1548,36 @@ function _pipScaricoTuttiPronti() {
   movimenti.unshift({ id: Date.now(), tipo: 'spedizione', items, righe, nota, ts });
   _pipSaveMov(movimenti);
 
-  // Reset pronti + nota
-  _pipSavePronti({});
-  const notaEl = document.getElementById('pip-spedizione-nota');
-  if (notaEl) notaEl.value = '';
+  // Azzera solo le voci spedite, mantieni le altre
+  const nuoviPronti = { ..._pipLoadPronti() };
+  checked.forEach(k => { delete nuoviPronti[k]; });
+  _pipSavePronti(nuoviPronti);
 
-  // Aggiorna celle tabella BOM
+  // Nota: si svuota solo se sono stati spediti tutti
+  const rimanenti = _PIP_KEY_MAP.filter(k => (nuoviPronti[k.key] || 0) > 0);
+  if (!rimanenti.length) {
+    const notaEl = document.getElementById('pip-spedizione-nota');
+    if (notaEl) notaEl.value = '';
+  }
+
+  // Aggiorna celle BOM
   righe.forEach(r => {
     const inp = document.querySelector(`#pip-tbody input[data-idx="${r.idx}"]`);
     if (inp) { inp.value = caric[r.idx]; _pipAggiornaCar(inp); }
   });
 
+  _pipChiudiModalSped();
   _pipRenderPronti();
   _pipAggiornaLiberi();
   _pipRenderMovimenti();
 
   const totPz = items.reduce((s, i) => s + i.qty, 0);
   notificaElegante(`Spedizione registrata: ${totPz} pz scaricati ✓`);
+}
+
+function _pipChiudiModalSped() {
+  const modal = document.getElementById('modal-pip-spedizione');
+  if (modal) modal.style.display = 'none';
 }
 
 function _pipRowspan(startIdx) {
