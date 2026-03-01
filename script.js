@@ -1,14 +1,16 @@
 // === NOTIFICHE UI ===
 function apriPopupNotifiche() {
     const modal = document.getElementById('modal-notifiche');
-    if (modal) {
-        modal.style.display = 'flex';
-        renderNotificheList();
-    }
+    if (!modal) return;
+    modal.classList.add('open');
+    modal.style.display = 'flex';
+    renderNotificheList();
 }
 function chiudiPopupNotifiche() {
     const modal = document.getElementById('modal-notifiche');
-    if (modal) modal.style.display = 'none';
+    if (!modal) return;
+    modal.classList.remove('open');
+    modal.style.display = 'none';
 }
 function aggiornaBadgeNotifiche(count) {
     const badgeDesk = document.getElementById('badge-notifiche-desktop');
