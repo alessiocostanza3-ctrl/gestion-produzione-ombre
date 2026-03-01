@@ -1364,39 +1364,45 @@ const _PIP_ASSEMB = {
   }
 };
 
-/** Registra scarico di N assemblati (testa o cordone) scalando tutti i componenti */
+/** Registra scarico di N assemblati salvando UN SOLO record 'assemb' con tutti i componenti */
 function _pipScaricoAssemblato() {
   const tipo    = document.getElementById('pip-asm-tipo')?.value;
   const formato = document.getElementById('pip-asm-fmt')?.value;
   const qty     = Math.max(1, parseInt(document.getElementById('pip-asm-qty')?.value) || 1);
   const nota    = (document.getElementById('pip-asm-nota')?.value || '').trim();
 
-  const componenti = _PIP_ASSEMB[tipo]?.[formato];
-  if (!componenti) return;
+  const bom = _PIP_ASSEMB[tipo]?.[formato];
+  if (!bom) return;
 
-  const caric     = _pipLoadCaric();
-  const movimenti = _pipLoadMov();
-  const ts = new Date().toLocaleString('it-IT', {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
   const tipoLabel = tipo === 'TESTA' ? 'Testa' : 'Cordone';
   const fmtLabel  = formato === 'p' ? 'Piccolo' : formato === 'm' ? 'Medio' : 'Grande';
+  const ts = new Date().toLocaleString('it-IT', {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
 
-  componenti.forEach(([idx, coeff], j) => {
+  const caric = _pipLoadCaric();
+  const righe = bom.map(([idx, coeff]) => {
     const qtyTot = qty * coeff;
     caric[idx] = Math.max(0, (Number(caric[idx] || 0)) - qtyTot);
-    movimenti.unshift({
-      id:   Date.now() + j,
-      idx, tipo: 'scarico', qty: qtyTot,
-      nota: `[${tipoLabel} ${fmtLabel} ×${qty}]${nota ? ' ' + nota : ''}`,
-      mat:  _PIP_BOM[idx]?.[1] || '?',
-      ts
-    });
+    return { idx, mat: _PIP_BOM[idx]?.[1] || '?', qty: qtyTot };
   });
 
   _pipSaveCaric(caric);
+
+  // Un solo record nel log, con array 'righe' dentro
+  const movimenti = _pipLoadMov();
+  movimenti.unshift({
+    id:         Date.now(),
+    tipo:       'assemb',
+    assembTipo: tipoLabel,
+    assembFmt:  fmtLabel,
+    assembQty:  qty,
+    nota,
+    righe,
+    ts
+  });
   _pipSaveMov(movimenti);
 
   // Aggiorna celle nella tabella BOM
-  componenti.forEach(([idx]) => {
+  bom.forEach(([idx]) => {
     const inp = document.querySelector(`#pip-tbody input[data-idx="${idx}"]`);
     if (inp) { inp.value = caric[idx]; _pipAggiornaCar(inp); }
   });
@@ -1538,20 +1544,28 @@ function _pipEliminaMovimento(id) {
   const mov = movimenti.find(m => m.id === id);
   if (!mov) return;
 
-  // Annulla l'effetto sul caricato
   const caric = _pipLoadCaric();
-  if (mov.tipo === 'carico') {
-    caric[mov.idx] = Math.max(0, (Number(caric[mov.idx] || 0)) - mov.qty);
-  } else {
-    caric[mov.idx] = (Number(caric[mov.idx] || 0)) + mov.qty;
-  }
-  _pipSaveCaric(caric);
 
-  // Aggiorna cella
-  const carInput = document.querySelector(`#pip-tbody input[data-idx="${mov.idx}"]`);
-  if (carInput) {
-    carInput.value = caric[mov.idx];
-    _pipAggiornaCar(carInput);
+  if (mov.tipo === 'assemb') {
+    // Annulla tutti i componenti del lotto assemblato
+    (mov.righe || []).forEach(r => {
+      caric[r.idx] = (Number(caric[r.idx] || 0)) + r.qty;
+    });
+    _pipSaveCaric(caric);
+    (mov.righe || []).forEach(r => {
+      const inp = document.querySelector(`#pip-tbody input[data-idx="${r.idx}"]`);
+      if (inp) { inp.value = caric[r.idx]; _pipAggiornaCar(inp); }
+    });
+  } else {
+    // Movimento singolo
+    if (mov.tipo === 'carico') {
+      caric[mov.idx] = Math.max(0, (Number(caric[mov.idx] || 0)) - mov.qty);
+    } else {
+      caric[mov.idx] = (Number(caric[mov.idx] || 0)) + mov.qty;
+    }
+    _pipSaveCaric(caric);
+    const carInput = document.querySelector(`#pip-tbody input[data-idx="${mov.idx}"]`);
+    if (carInput) { carInput.value = caric[mov.idx]; _pipAggiornaCar(carInput); }
   }
 
   _pipSaveMov(movimenti.filter(m => m.id !== id));
@@ -1570,15 +1584,45 @@ function _pipRenderMovimenti() {
     return;
   }
 
-  list.innerHTML = movimenti.map(m => `
-    <div class="pip-mov-item ${m.tipo}">
-      <span class="pip-mov-badge ${m.tipo}">${m.tipo === 'carico' ? 'CARICO' : 'SCARICO'}</span>
-      <span class="pip-mov-mat">${m.mat}</span>
-      <span class="pip-mov-qty ${m.tipo}">${m.tipo === 'carico' ? '+' : '−'}${m.qty}</span>
-      ${m.nota ? `<span class="pip-mov-nota">${m.nota}</span>` : '<span class="pip-mov-nota"></span>'}
-      <span class="pip-mov-ts">${m.ts}</span>
-      ${isMaster ? `<button class="pip-mov-del" onclick="_pipEliminaMovimento(${m.id})" title="Elimina">✕</button>` : '<span style="width:22px;flex-shrink:0"></span>'}
-    </div>`).join('');
+  list.innerHTML = movimenti.map(m => {
+    const delBtn = isMaster
+      ? `<button class="pip-mov-del" onclick="_pipEliminaMovimento(${m.id})" title="Elimina">✕</button>`
+      : '<span style="width:22px;flex-shrink:0"></span>';
+
+    if (m.tipo === 'assemb') {
+      // Riga espandibile per scarico assemblato
+      const emoji = m.assembTipo === 'Testa' ? '🔩' : '🔌';
+      const righeHtml = (m.righe || []).map(r =>
+        `<div class="pip-assemb-sub-row">
+          <span class="pip-assemb-sub-mat">${r.mat}</span>
+          <span class="pip-mov-qty scarico">−${r.qty}</span>
+        </div>`
+      ).join('');
+      return `
+        <details class="pip-mov-assemb-group">
+          <summary class="pip-mov-assemb-summary">
+            <span class="pip-mov-badge assemb">ASSEMB</span>
+            <span class="pip-mov-assemb-label">${emoji} ${m.assembTipo} ${m.assembFmt} ×${m.assembQty}</span>
+            ${m.nota ? `<span class="pip-mov-nota">${m.nota}</span>` : ''}
+            <span class="pip-mov-ts">${m.ts}</span>
+            <i class="fas fa-chevron-down pip-assemb-chev"></i>
+            ${delBtn}
+          </summary>
+          <div class="pip-assemb-sub-list">${righeHtml}</div>
+        </details>`;
+    }
+
+    // Movimento singolo standard
+    return `
+      <div class="pip-mov-item ${m.tipo}">
+        <span class="pip-mov-badge ${m.tipo}">${m.tipo === 'carico' ? 'CARICO' : 'SCARICO'}</span>
+        <span class="pip-mov-mat">${m.mat}</span>
+        <span class="pip-mov-qty ${m.tipo}">${m.tipo === 'carico' ? '+' : '−'}${m.qty}</span>
+        ${m.nota ? `<span class="pip-mov-nota">${m.nota}</span>` : '<span class="pip-mov-nota"></span>'}
+        <span class="pip-mov-ts">${m.ts}</span>
+        ${delBtn}
+      </div>`;
+  }).join('');
 }
 
 /** Toggle visibilità corpo sezione movimenti */

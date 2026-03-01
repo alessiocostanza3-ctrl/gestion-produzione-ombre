@@ -5654,6 +5654,44 @@ button:active {
 }
 .pip-mov-del:hover { color: #ef4444; }
 
+/* ── Riga assemb espandibile ── */
+.pip-mov-assemb-group {
+    border: 1.5px solid #e2e8f0;
+    border-left: 4px solid #f59e0b;
+    border-radius: 9px;
+    background: #fff;
+    overflow: hidden;
+}
+.pip-mov-assemb-summary {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+}
+.pip-mov-assemb-summary::-webkit-details-marker { display: none; }
+.pip-mov-assemb-summary:hover { background: #fefce8; }
+.pip-mov-assemb-label { font-weight: 700; color: #1e293b; flex: 1; }
+.pip-mov-badge.assemb { background: #fef3c7; color: #b45309; }
+.pip-assemb-chev {
+    font-size: 0.68rem; color: #9ca3af; flex-shrink: 0;
+    transition: transform 0.18s;
+}
+.pip-mov-assemb-group[open] .pip-assemb-chev { transform: rotate(180deg); }
+
+.pip-assemb-sub-list {
+    border-top: 1px solid #f1f5f9;
+    padding: 6px 12px 10px 28px;
+    display: flex; flex-direction: column; gap: 4px;
+    background: #fafafa;
+}
+.pip-assemb-sub-row {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 0.8rem; color: #475569;
+}
+.pip-assemb-sub-mat { flex: 1; }
+
 /* --- RESPONSIVE MOBILE --- */
 @media (max-width: 600px) {
     .pip-page { padding: 6px 0 60px; }
