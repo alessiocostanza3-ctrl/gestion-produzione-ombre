@@ -5617,6 +5617,46 @@ button:active {
 .pip-pronti-input:focus { border-color: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,.12); }
 .pip-pronti-val-on { color: #f59e0b !important; border-color: #fde68a !important; background: #fffbeb !important; }
 
+/* ── Footer card Pronti da Spedire ── */
+.pip-pronti-footer {
+    padding: 12px 16px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.pip-pronti-nota-input {
+    width: 100%; box-sizing: border-box;
+    background: #f8fafc; border: 1.5px solid #e2e8f0;
+    border-radius: 9px; padding: 9px 12px;
+    font-size: 0.86rem; color: #1e293b; outline: none;
+    transition: border-color 0.15s;
+}
+.pip-pronti-nota-input:focus { border-color: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,.1); }
+.pip-pronti-nota-input::placeholder { color: #9ca3af; }
+.pip-spedisci-btn {
+    background: #15803d !important;
+    margin: 0 !important;
+    width: 100% !important;
+}
+.pip-spedisci-btn:hover { background: #166534 !important; }
+
+/* ── Badge spedizione nel log ── */
+.pip-mov-badge.spedizione {
+    background: #dcfce7; color: #15803d;
+    border: 1px solid #bbf7d0;
+}
+.pip-sped-items-section {
+    border-bottom: 1px dashed #e2e8f0;
+    padding-bottom: 6px;
+    margin-bottom: 6px;
+}
+.pip-sped-item-row .pip-assemb-sub-mat { font-weight: 700; color: #1e293b; }
+.pip-sped-bom-divider {
+    font-size: 0.68rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: #94a3b8; padding: 2px 0 6px;
+}
+
 @media (max-width: 600px) {
     .pip-assemb-form { grid-template-columns: 1fr 1fr; }
 }

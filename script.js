@@ -1365,44 +1365,16 @@ function caricaPaginaPipistrello() {
         <span class="pip-leg-item" style="color:#9ca3af">— = non necessario</span>
       </div>
 
-      <!-- PRONTI DA SPEDIRE -->
+      <!-- PRONTI DA SPEDIRE + SCARICO -->
       <div class="pip-assemb-card pip-pronti-card-wrap">
-        <div class="pip-assemb-title"><i class="fas fa-box-open"></i> PRONTI DA SPEDIRE <span class="pip-pronti-hint">(impegnano i componenti ma non li scaricano)</span></div>
+        <div class="pip-assemb-title"><i class="fas fa-truck"></i> PRONTI DA SPEDIRE <span class="pip-pronti-hint">— imposta le quantità e premi Registra Spedizione per scaricare i componenti</span></div>
         <div class="pip-pronti-grid" id="pip-pronti-grid"></div>
-      </div>
-
-      <!-- SCARICO ASSEMBLATI -->
-      <div class="pip-assemb-card">
-        <div class="pip-assemb-title"><i class="fas fa-arrow-up-from-bracket"></i> SCARICO ASSEMBLATI</div>
-        <div class="pip-assemb-form">
-          <div class="pip-mov-form-field">
-            <label class="pip-mov-form-label">Tipo</label>
-            <select id="pip-asm-tipo" class="pip-asm-select" onchange="_pipAsmPreview()">
-              <option value="TESTA">🔩 Testa</option>
-              <option value="CORDONE">🔌 Cordone completo</option>
-            </select>
-          </div>
-          <div class="pip-mov-form-field">
-            <label class="pip-mov-form-label">Formato</label>
-            <select id="pip-asm-fmt" class="pip-asm-select" onchange="_pipAsmPreview()">
-              <option value="p">🔵 Piccolo (500mA)</option>
-              <option value="m">🟣 Medio (600mA)</option>
-              <option value="g">🔴 Grande (700mA)</option>
-            </select>
-          </div>
-          <div class="pip-mov-form-field">
-            <label class="pip-mov-form-label">Quantità</label>
-            <input type="number" id="pip-asm-qty" min="1" value="1" class="pip-asm-select" oninput="_pipAsmPreview()">
-          </div>
-          <div class="pip-mov-form-field">
-            <label class="pip-mov-form-label">Note (opz.)</label>
-            <input type="text" id="pip-asm-nota" class="pip-asm-select" placeholder="es. cliente X…" maxlength="60">
-          </div>
+        <div class="pip-pronti-footer">
+          <input type="text" id="pip-spedizione-nota" class="pip-pronti-nota-input" placeholder="Note spedizione (es. Ordine 1234, Cliente Rossi…)" maxlength="80">
+          <button class="pip-assemb-btn pip-spedisci-btn" onclick="_pipScaricoTuttiPronti()">
+            <i class="fas fa-truck"></i> Registra Spedizione
+          </button>
         </div>
-        <div class="pip-assemb-preview" id="pip-asm-preview"></div>
-        <button class="pip-assemb-btn" onclick="_pipScaricoAssemblato()">
-          <i class="fas fa-arrow-up"></i> Registra Scarico Assemblato
-        </button>
       </div>
 
       <!-- MOVIMENTI MAGAZZINO -->
@@ -1466,71 +1438,67 @@ const _PIP_ASSEMB = {
 };
 
 /** Registra scarico di N assemblati salvando UN SOLO record 'assemb' con tutti i componenti */
-function _pipScaricoAssemblato() {
-  const tipo    = document.getElementById('pip-asm-tipo')?.value;
-  const formato = document.getElementById('pip-asm-fmt')?.value;
-  const qty     = Math.max(1, parseInt(document.getElementById('pip-asm-qty')?.value) || 1);
-  const nota    = (document.getElementById('pip-asm-nota')?.value || '').trim();
+/** Scarica tutti i pronti da spedire: scala la BOM per ogni voce > 0 e registra un unico movimento */
+function _pipScaricoTuttiPronti() {
+  const pronti = _pipLoadPronti();
+  const keyMap = [
+    {key:'t_p', tipo:'TESTA',   fmt:'p', tipoLabel:'Testa',   fmtLabel:'Piccolo', emoji:'🔩', mA:'500mA'},
+    {key:'t_m', tipo:'TESTA',   fmt:'m', tipoLabel:'Testa',   fmtLabel:'Medio',   emoji:'🔩', mA:'600mA'},
+    {key:'t_g', tipo:'TESTA',   fmt:'g', tipoLabel:'Testa',   fmtLabel:'Grande',  emoji:'🔩', mA:'700mA'},
+    {key:'c_p', tipo:'CORDONE', fmt:'p', tipoLabel:'Cordone', fmtLabel:'Piccolo', emoji:'🔌', mA:'500mA'},
+    {key:'c_m', tipo:'CORDONE', fmt:'m', tipoLabel:'Cordone', fmtLabel:'Medio',   emoji:'🔌', mA:'600mA'},
+    {key:'c_g', tipo:'CORDONE', fmt:'g', tipoLabel:'Cordone', fmtLabel:'Grande',  emoji:'🔌', mA:'700mA'},
+  ];
 
-  const bom = _PIP_ASSEMB[tipo]?.[formato];
-  if (!bom) return;
+  const items = keyMap
+    .filter(k => (pronti[k.key] || 0) > 0)
+    .map(k => ({ ...k, qty: pronti[k.key] }));
 
-  const tipoLabel = tipo === 'TESTA' ? 'Testa' : 'Cordone';
-  const fmtLabel  = formato === 'p' ? 'Piccolo' : formato === 'm' ? 'Medio' : 'Grande';
-  const ts = new Date().toLocaleString('it-IT', {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+  if (!items.length) {
+    notificaElegante('Nessun articolo da spedire — imposta le quantità prima ⚠️');
+    return;
+  }
 
+  const nota  = (document.getElementById('pip-spedizione-nota')?.value || '').trim();
   const caric = _pipLoadCaric();
-  const righe = bom.map(([idx, coeff]) => {
-    const qtyTot = qty * coeff;
-    caric[idx] = Math.max(0, (Number(caric[idx] || 0)) - qtyTot);
-    return { idx, mat: _PIP_BOM[idx]?.[1] || '?', qty: qtyTot };
+  const righeMap = {};
+
+  items.forEach(item => {
+    const bom = _PIP_ASSEMB[item.tipo]?.[item.fmt];
+    if (!bom) return;
+    bom.forEach(([idx, coeff]) => {
+      const qtyTot = item.qty * coeff;
+      caric[idx] = Math.max(0, (Number(caric[idx] || 0)) - qtyTot);
+      if (righeMap[idx]) righeMap[idx].qty += qtyTot;
+      else righeMap[idx] = { idx, mat: _PIP_BOM[idx]?.[1] || '?', qty: qtyTot };
+    });
   });
 
+  const righe = Object.values(righeMap);
   _pipSaveCaric(caric);
 
-  // Un solo record nel log, con array 'righe' dentro
+  const ts = new Date().toLocaleString('it-IT', {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
   const movimenti = _pipLoadMov();
-  movimenti.unshift({
-    id:         Date.now(),
-    tipo:       'assemb',
-    assembTipo: tipoLabel,
-    assembFmt:  fmtLabel,
-    assembQty:  qty,
-    nota,
-    righe,
-    ts
-  });
+  movimenti.unshift({ id: Date.now(), tipo: 'spedizione', items, righe, nota, ts });
   _pipSaveMov(movimenti);
 
-  // Aggiorna celle nella tabella BOM
-  bom.forEach(([idx]) => {
-    const inp = document.querySelector(`#pip-tbody input[data-idx="${idx}"]`);
-    if (inp) { inp.value = caric[idx]; _pipAggiornaCar(inp); }
-  });
-
-  // Reset form
-  const qtyEl  = document.getElementById('pip-asm-qty');
-  const notaEl = document.getElementById('pip-asm-nota');
-  if (qtyEl)  qtyEl.value  = 1;
+  // Reset pronti + nota
+  _pipSavePronti({});
+  const notaEl = document.getElementById('pip-spedizione-nota');
   if (notaEl) notaEl.value = '';
 
-  _pipRenderMovimenti();
-  notificaElegante(`Scarico ${tipoLabel} ${fmtLabel} ×${qty} registrato ✓`);
-}
+  // Aggiorna celle tabella BOM
+  righe.forEach(r => {
+    const inp = document.querySelector(`#pip-tbody input[data-idx="${r.idx}"]`);
+    if (inp) { inp.value = caric[r.idx]; _pipAggiornaCar(inp); }
+  });
 
-/** Anteprima componenti che verranno scalati */
-function _pipAsmPreview() {
-  const prev = document.getElementById('pip-asm-preview');
-  if (!prev) return;
-  const tipo    = document.getElementById('pip-asm-tipo')?.value;
-  const formato = document.getElementById('pip-asm-fmt')?.value;
-  const qty     = Math.max(1, parseInt(document.getElementById('pip-asm-qty')?.value) || 1);
-  const comp    = _PIP_ASSEMB[tipo]?.[formato];
-  if (!comp) { prev.innerHTML = ''; return; }
-  prev.innerHTML = comp.map(([idx, coeff]) => {
-    const tot = qty * coeff;
-    return `<span class="pip-asm-comp-tag">${_PIP_BOM[idx]?.[1] || '?'} −${tot}</span>`;
-  }).join('');
+  _pipRenderPronti();
+  _pipAggiornaLiberi();
+  _pipRenderMovimenti();
+
+  const totPz = items.reduce((s, i) => s + i.qty, 0);
+  notificaElegante(`Spedizione registrata: ${totPz} pz scaricati ✓`);
 }
 
 function _pipRowspan(startIdx) {
@@ -1655,8 +1623,8 @@ function _pipEliminaMovimento(id) {
 
   const caric = _pipLoadCaric();
 
-  if (mov.tipo === 'assemb') {
-    // Annulla tutti i componenti del lotto assemblato
+  if (mov.tipo === 'assemb' || mov.tipo === 'spedizione') {
+    // Annulla tutti i componenti del lotto/spedizione
     (mov.righe || []).forEach(r => {
       caric[r.idx] = (Number(caric[r.idx] || 0)) + r.qty;
     });
@@ -1698,8 +1666,41 @@ function _pipRenderMovimenti() {
       ? `<button class="pip-mov-del" onclick="_pipEliminaMovimento(${m.id})" title="Elimina">✕</button>`
       : '<span style="width:22px;flex-shrink:0"></span>';
 
+    if (m.tipo === 'spedizione') {
+      // Riga espandibile per spedizione (accorpamento pronti)
+      const totPz = (m.items || []).reduce((s, i) => s + i.qty, 0);
+      const itemsHtml = (m.items || []).map(it =>
+        `<div class="pip-assemb-sub-row pip-sped-item-row">
+          <span class="pip-assemb-sub-mat">${it.emoji} ${it.tipoLabel} ${it.fmtLabel} <span class="pip-pronti-ma">${it.mA}</span></span>
+          <span class="pip-mov-qty scarico">×${it.qty}</span>
+        </div>`
+      ).join('');
+      const bomHtml = (m.righe || []).map(r =>
+        `<div class="pip-assemb-sub-row">
+          <span class="pip-assemb-sub-mat" style="color:#94a3b8">${r.mat}</span>
+          <span class="pip-mov-qty scarico">−${r.qty}</span>
+        </div>`
+      ).join('');
+      return `
+        <details class="pip-mov-assemb-group">
+          <summary class="pip-mov-assemb-summary">
+            <span class="pip-mov-badge spedizione">SPED.</span>
+            <span class="pip-mov-assemb-label">🚚 Spedizione ×${totPz} pz</span>
+            ${m.nota ? `<span class="pip-mov-nota">${m.nota}</span>` : ''}
+            <span class="pip-mov-ts">${m.ts}</span>
+            <i class="fas fa-chevron-down pip-assemb-chev"></i>
+            ${delBtn}
+          </summary>
+          <div class="pip-assemb-sub-list">
+            <div class="pip-sped-items-section">${itemsHtml}</div>
+            <div class="pip-sped-bom-divider">componenti scaricati</div>
+            ${bomHtml}
+          </div>
+        </details>`;
+    }
+
     if (m.tipo === 'assemb') {
-      // Riga espandibile per scarico assemblato
+      // Riga espandibile per scarico assemblato (vecchio formato)
       const emoji  = m.assembTipo === 'Testa' ? '🔩' : '🔌';
       const mALabel = m.assembFmt === 'Piccolo' ? '500mA' : m.assembFmt === 'Medio' ? '600mA' : '700mA';
       const righeHtml = (m.righe || []).map(r =>
