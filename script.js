@@ -301,9 +301,14 @@ async function _aggiornaUINotifiche() {
             else if (ps === 'errore-subscribe')   statoServer = ' ⚠ errore subscribe';
             else if (ps && ps.startsWith('errore:')) statoServer = ' ⚠ ' + ps.replace('errore:', '');
         } catch {}
-        if (btn)   btn.innerHTML = on
-            ? '<i class="fas fa-bell-slash"></i> Disattiva notifiche'
-            : '<i class="fas fa-bell"></i> Attiva notifiche push';
+        if (btn) {
+            btn.innerHTML = on
+                ? '<i class="fas fa-bell-slash"></i> Disattiva notifiche push'
+                : '<i class="fas fa-bell"></i> Attiva notifiche push';
+            btn.style.background    = on ? '#14532d' : '';
+            btn.style.borderColor   = on ? '#16a34a' : '';
+            btn.style.color         = on ? '#86efac' : '';
+        }
         if (dot)   dot.style.background = on ? '#22c55e' : '#6b7280';
         if (label) label.textContent    = on
             ? 'Attive su questo dispositivo' + statoServer
@@ -842,19 +847,20 @@ async function salvaEApriDashboard() {
 }
 function logout() {
     try {
-        // Preserva i colori avatar (sono per-device, non legati alla sessione)
-        const coloriAvatar = {};
+        // Preserva i dati per-device (non legati alla sessione utente)
+        const datiDevice = {};
+        const keysDevice = ['notifPrefs', '_pushStato'];
         for (let i = 0; i < localStorage.length; i++) {
             const k = localStorage.key(i);
-            if (k && (k.startsWith('avatarColor_') || k.startsWith('avatarColorRecenti_') || k.startsWith('avatarColorHidden_'))) coloriAvatar[k] = localStorage.getItem(k);
+            if (k && (k.startsWith('avatarColor_') || k.startsWith('avatarColorRecenti_') || k.startsWith('avatarColorHidden_') || keysDevice.includes(k))) datiDevice[k] = localStorage.getItem(k);
         }
 
         // 1. Pulizia totale della memoria del browser
         localStorage.clear();
         sessionStorage.clear();
 
-        // Ripristina i colori avatar
-        Object.entries(coloriAvatar).forEach(([k, v]) => { try { localStorage.setItem(k, v); } catch {} });
+        // Ripristina i dati per-device
+        Object.entries(datiDevice).forEach(([k, v]) => { try { localStorage.setItem(k, v); } catch {} });
 
         // 2. Reindirizzamento pulito alla pagina iniziale
         // Aggiungiamo un parametro casuale per evitare che il browser usi la cache vecchia
@@ -3237,17 +3243,9 @@ function caricaInterfacciaImpostazioni() {
                             <span id="push-status-dot" style="width:10px;height:10px;border-radius:50%;background:#6b7280;flex-shrink:0"></span>
                             <span id="push-status-text" style="font-size:0.85rem;color:#9ca3af">Controlla stato...</span>
                         </div>
-                        <button id="btn-toggle-push" class="settings-action-btn" onclick="_togglePushPermission()">
+                        <button id="btn-toggle-push" class="settings-action-btn" onclick="_togglePushPermission()" style="width:100%;padding:14px 18px;font-size:0.97rem;font-weight:700;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:10px;transition:all 0.2s">
                             <i class="fas fa-bell"></i> Attiva notifiche push
                         </button>
-                        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-                            <button id="btn-force-regpush" class="settings-action-btn" style="background:#3730a3;border-color:#4f46e5;color:#fff;font-size:0.82rem;padding:8px 14px" onclick="_forzaRiregistraPush()">
-                                🔄 Ri-registra subscription
-                            </button>
-                            <button id="btn-test-push" class="settings-action-btn" style="background:#15803d;border-color:#16a34a;color:#fff;font-size:0.82rem;padding:8px 14px" onclick="_testPushNotifica()">
-                                📨 Invia notifica di test
-                            </button>
-                        </div>
                         <div style="margin-top:20px;border-top:1px solid rgba(255,255,255,0.07);padding-top:16px">
                             <div style="font-size:0.78rem;font-weight:600;color:#9ca3af;letter-spacing:.5px;margin-bottom:12px">TIPOLOGIE DI AVVISI</div>
                             <label class="notif-pref-row">
