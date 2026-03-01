@@ -5461,7 +5461,10 @@ button:active {
 .pip-fab-zero { color: #9ca3af !important; background: #f1f5f9 !important; font-weight: 400 !important; }
 
 /* CARICATO — verde (funzionale: ok) */
-.pip-car-cell { text-align: center; padding: 5px 8px; background: #e8f5e9; }
+.pip-car-cell {
+    text-align: center; padding: 5px 8px; background: #e8f5e9;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
 .pip-car-input {
     width: 70px; text-align: center;
     font-size: 0.95rem; font-weight: 700; color: #1b5e20;
@@ -5472,6 +5475,14 @@ button:active {
 .pip-car-input::-webkit-inner-spin-button,
 .pip-car-input::-webkit-outer-spin-button { -webkit-appearance: none; }
 .pip-car-input:focus { border-color: #388e3c; box-shadow: 0 0 0 3px rgba(56,142,60,.12); }
+/* badge liberi (componenti non impegnati nei pronti) */
+.pip-car-liberi {
+    font-size: 0.65rem; font-weight: 700;
+    color: #92400e; background: #fef3c7;
+    border: 1px solid #fde68a;
+    border-radius: 4px; padding: 1px 5px;
+    white-space: nowrap;
+}
 
 /* DA ORDINARE — rosso/verde (funzionale) */
 .pip-ord-manca { text-align: center; padding: 8px 10px; font-weight: 800; font-size: 0.95rem; background: #ffcdd2; color: #b71c1c; }
@@ -5508,7 +5519,7 @@ button:active {
     padding: 0 0 16px;
 }
 .pip-assemb-title {
-    background: #1e293b;
+    background: #242424;
     padding: 12px 18px;
     font-size: 0.78rem; font-weight: 700;
     letter-spacing: 0.1em; text-transform: uppercase;
@@ -5547,7 +5558,7 @@ button:active {
 }
 .pip-asm-comp-tag.zero { opacity: 0.35; }
 .pip-assemb-btn {
-    background: #1e293b; color: #f8fafc;
+    background: #242424; color: #f8fafc;
     border: none; border-radius: 9px;
     padding: 11px 20px; margin: 10px 16px 0;
     font-size: 0.9rem; font-weight: 700;
@@ -5556,6 +5567,49 @@ button:active {
     transition: background 0.15s;
 }
 .pip-assemb-btn:hover { background: #334155; }
+
+/* ── Card PRONTI DA SPEDIRE ── */
+.pip-pronti-hint {
+    font-size: 0.68rem; color: #9ca3af; font-weight: 400;
+    text-transform: none; letter-spacing: 0;
+}
+.pip-pronti-grid {
+    display: flex; flex-direction: column; gap: 0;
+    padding: 4px 0;
+}
+.pip-pronti-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 16px;
+    border-bottom: 1px solid #f1f5f9;
+}
+.pip-pronti-row:last-child { border-bottom: none; }
+.pip-pronti-lbl {
+    font-size: 0.84rem; font-weight: 600; color: #1e293b;
+    display: flex; align-items: center; gap: 6px;
+}
+.pip-pronti-ma {
+    font-size: 0.72rem; font-weight: 700;
+    background: #e0e7ff; color: #3730a3;
+    border-radius: 4px; padding: 1px 6px;
+    font-family: monospace;
+}
+.pip-pronti-ctrl {
+    display: flex; align-items: center; gap: 10px;
+}
+.pip-pronti-btn {
+    width: 30px; height: 30px; border-radius: 8px;
+    border: 1.5px solid #e2e8f0; background: #f8fafc;
+    font-size: 1.1rem; font-weight: 700; color: #374151;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    line-height: 1; transition: background 0.12s, border-color 0.12s;
+}
+.pip-pronti-btn:hover { background: #e0e7ff; border-color: #a5b4fc; color: #3730a3; }
+.pip-pronti-val {
+    min-width: 28px; text-align: center;
+    font-size: 1.05rem; font-weight: 800; color: #9ca3af;
+}
+.pip-pronti-val-on { color: #f59e0b; }
+
 @media (max-width: 600px) {
     .pip-assemb-form { grid-template-columns: 1fr 1fr; }
 }

@@ -849,7 +849,7 @@ function logout() {
     try {
         // Preserva i dati per-device (non legati alla sessione utente)
         const datiDevice = {};
-        const keysDevice = ['notifPrefs', '_pushStato'];
+        const keysDevice = ['notifPrefs', '_pushStato', 'mlPipQty', 'mlPipCaricato', 'mlPipMovimenti', 'mlPipPronti'];
         for (let i = 0; i < localStorage.length; i++) {
             const k = localStorage.key(i);
             if (k && (k.startsWith('avatarColor_') || k.startsWith('avatarColorRecenti_') || k.startsWith('avatarColorHidden_') || keysDevice.includes(k))) datiDevice[k] = localStorage.getItem(k);
@@ -1128,6 +1128,7 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
 const _PIP_LS_QTY    = 'mlPipQty';       // { p, m, g }
 const _PIP_LS_CARIC  = 'mlPipCaricato';  // { [idx]: valore }
 const _PIP_LS_MOV    = 'mlPipMovimenti'; // array di movimenti
+const _PIP_LS_PRONTI = 'mlPipPronti';    // { t_p, t_m, t_g, c_p, c_m, c_g }
 
 const _PIP_BOM = [
   // [sezione, materiale, xPicc, xMedio, xGrande]
@@ -1154,23 +1155,98 @@ const _PIP_BOM = [
   ['',        'Cavo out 700mA',     0, 0, 1]
 ];
 
-function _pipLoadQty()   { try { return JSON.parse(localStorage.getItem(_PIP_LS_QTY))  || {p:0,m:0,g:0}; } catch { return {p:0,m:0,g:0}; } }
-function _pipLoadCaric() { try { return JSON.parse(localStorage.getItem(_PIP_LS_CARIC))|| {}; }                catch { return {}; } }
-function _pipSaveQty(o)  { try { localStorage.setItem(_PIP_LS_QTY,   JSON.stringify(o)); } catch {} }
-function _pipSaveCaric(o){ try { localStorage.setItem(_PIP_LS_CARIC, JSON.stringify(o)); } catch {} }
-function _pipLoadMov()   { try { return JSON.parse(localStorage.getItem(_PIP_LS_MOV))  || []; } catch { return []; } }
-function _pipSaveMov(a)  { try { localStorage.setItem(_PIP_LS_MOV,   JSON.stringify(a)); } catch {} }
+function _pipLoadQty()    { try { return JSON.parse(localStorage.getItem(_PIP_LS_QTY))    || {p:0,m:0,g:0}; } catch { return {p:0,m:0,g:0}; } }
+function _pipLoadCaric()  { try { return JSON.parse(localStorage.getItem(_PIP_LS_CARIC))  || {}; }             catch { return {}; } }
+function _pipLoadPronti() { try { return JSON.parse(localStorage.getItem(_PIP_LS_PRONTI)) || {}; }             catch { return {}; } }
+function _pipSaveQty(o)   { try { localStorage.setItem(_PIP_LS_QTY,    JSON.stringify(o)); } catch {} }
+function _pipSaveCaric(o) { try { localStorage.setItem(_PIP_LS_CARIC,  JSON.stringify(o)); } catch {} }
+function _pipSavePronti(o){ try { localStorage.setItem(_PIP_LS_PRONTI, JSON.stringify(o)); } catch {} }
+function _pipLoadMov()    { try { return JSON.parse(localStorage.getItem(_PIP_LS_MOV))    || []; }             catch { return []; } }
+function _pipSaveMov(a)   { try { localStorage.setItem(_PIP_LS_MOV,    JSON.stringify(a)); } catch {} }
+
+/** Calcola quanti pz di ogni componente BOM sono "impegnati" nei pronti */
+function _pipCalcImpegnati() {
+  const pronti = _pipLoadPronti();
+  const imp = {};
+  [['TESTA','p','t_p'],['TESTA','m','t_m'],['TESTA','g','t_g'],
+   ['CORDONE','p','c_p'],['CORDONE','m','c_m'],['CORDONE','g','c_g']]
+  .forEach(([tipo, fmt, key]) => {
+    const n = pronti[key] || 0;
+    if (!n) return;
+    (_PIP_ASSEMB[tipo]?.[fmt] || []).forEach(([idx, coeff]) => {
+      imp[idx] = (imp[idx] || 0) + n * coeff;
+    });
+  });
+  return imp;
+}
+
+/** Ricalcola e aggiorna il badge "liberi" in ogni riga della tabella BOM */
+function _pipAggiornaLiberi() {
+  const imp   = _pipCalcImpegnati();
+  const caric = _pipLoadCaric();
+  document.querySelectorAll('#pip-tbody tr').forEach(tr => {
+    const idx  = parseInt(tr.dataset.idx);
+    const car  = Number(caric[idx] || 0);
+    const impI = imp[idx] || 0;
+    const span = tr.querySelector('.pip-car-liberi');
+    if (!span) return;
+    if (impI > 0) {
+      span.textContent = Math.max(0, car - impI) + ' lib.';
+      span.style.display = '';
+    } else {
+      span.style.display = 'none';
+    }
+  });
+}
+
+/** Aggiorna contatore pronti (+1/-1) e ricalcola i liberi */
+function _pipAggiornaPronti(key, delta) {
+  const pronti  = _pipLoadPronti();
+  pronti[key]   = Math.max(0, (pronti[key] || 0) + delta);
+  _pipSavePronti(pronti);
+  _pipAggiornaLiberi();
+  _pipRenderPronti();
+}
+
+/** Ridisegna i contatori nella card PRONTI DA SPEDIRE */
+function _pipRenderPronti() {
+  const pronti = _pipLoadPronti();
+  const cfg = [
+    {key:'t_p', label:'Testa',   mA:'500mA', emoji:'🔩'},
+    {key:'t_m', label:'Testa',   mA:'600mA', emoji:'🔩'},
+    {key:'t_g', label:'Testa',   mA:'700mA', emoji:'🔩'},
+    {key:'c_p', label:'Cordone', mA:'500mA', emoji:'🔌'},
+    {key:'c_m', label:'Cordone', mA:'600mA', emoji:'🔌'},
+    {key:'c_g', label:'Cordone', mA:'700mA', emoji:'🔌'},
+  ];
+  const grid = document.getElementById('pip-pronti-grid');
+  if (!grid) return;
+  grid.innerHTML = cfg.map(c => {
+    const n = pronti[c.key] || 0;
+    return `<div class="pip-pronti-row">
+      <span class="pip-pronti-lbl">${c.emoji} ${c.label} <span class="pip-pronti-ma">${c.mA}</span></span>
+      <div class="pip-pronti-ctrl">
+        <button class="pip-pronti-btn" onclick="_pipAggiornaPronti('${c.key}',-1)">−</button>
+        <span class="pip-pronti-val${n > 0 ? ' pip-pronti-val-on' : ''}">${n}</span>
+        <button class="pip-pronti-btn" onclick="_pipAggiornaPronti('${c.key}',1)">+</button>
+      </div>
+    </div>`;
+  }).join('');
+}
 
 function caricaPaginaPipistrello() {
   const contenitore = document.getElementById('contenitore-dati');
   const qty   = _pipLoadQty();
   const caric = _pipLoadCaric();
+  const imp   = _pipCalcImpegnati();
 
   const righeHtml = _PIP_BOM.map((row, i) => {
     const [sez, mat, xP, xM, xG] = row;
-    const fab = qty.p * xP + qty.m * xM + qty.g * xG;
-    const car = Number(caric[i] || 0);
-    const ord = Math.max(0, fab - car);
+    const fab  = qty.p * xP + qty.m * xM + qty.g * xG;
+    const car  = Number(caric[i] || 0);
+    const impI = imp[i] || 0;
+    const lib  = Math.max(0, car - impI);
+    const ord  = Math.max(0, fab - car);
     const ordCls = fab === 0 ? 'pip-ord-zero' : (ord > 0 ? 'pip-ord-manca' : 'pip-ord-ok');
 
     const sezCell = sez
@@ -1191,6 +1267,7 @@ function caricaPaginaPipistrello() {
       <td class="pip-car-cell">
         <input class="pip-car-input" type="number" min="0" value="${car}"
                data-idx="${i}" oninput="_pipAggiornaCar(this)" onchange="_pipAggiornaCar(this)">
+        <span class="pip-car-liberi"${impI > 0 ? '' : ' style="display:none"'}>${lib} lib.</span>
       </td>
       <td class="${ordCls}">${fab === 0 ? '—' : ord}</td>
     </tr>`;
@@ -1271,6 +1348,12 @@ function caricaPaginaPipistrello() {
         <span class="pip-leg-item" style="color:#9ca3af">— = non necessario</span>
       </div>
 
+      <!-- PRONTI DA SPEDIRE -->
+      <div class="pip-assemb-card pip-pronti-card-wrap">
+        <div class="pip-assemb-title"><i class="fas fa-box-open"></i> PRONTI DA SPEDIRE <span class="pip-pronti-hint">(impegnano i componenti ma non li scaricano)</span></div>
+        <div class="pip-pronti-grid" id="pip-pronti-grid"></div>
+      </div>
+
       <!-- SCARICO ASSEMBLATI -->
       <div class="pip-assemb-card">
         <div class="pip-assemb-title"><i class="fas fa-arrow-up-from-bracket"></i> SCARICO ASSEMBLATI</div>
@@ -1344,6 +1427,7 @@ function caricaPaginaPipistrello() {
     </div>`;
 
   _pipRenderMovimenti();
+  _pipRenderPronti();
   applicaFade(contenitore);
   requestAnimationFrame(_pipAsmPreview);
 }
@@ -1492,6 +1576,14 @@ function _pipAggiornaCar(input) {
     ordTd.textContent = fab === 0 ? '—' : ord;
     ordTd.className = fab === 0 ? 'pip-ord-zero' : (ord > 0 ? 'pip-ord-manca' : 'pip-ord-ok');
   }
+  // Aggiorna badge liberi per questa riga
+  const imp   = _pipCalcImpegnati();
+  const impI  = imp[idx] || 0;
+  const span  = tr?.querySelector('.pip-car-liberi');
+  if (span) {
+    if (impI > 0) { span.textContent = Math.max(0, car - impI) + ' lib.'; span.style.display = ''; }
+    else span.style.display = 'none';
+  }
 }
 
 /** Salva un movimento di carico o scarico */
@@ -1591,7 +1683,8 @@ function _pipRenderMovimenti() {
 
     if (m.tipo === 'assemb') {
       // Riga espandibile per scarico assemblato
-      const emoji = m.assembTipo === 'Testa' ? '🔩' : '🔌';
+      const emoji  = m.assembTipo === 'Testa' ? '🔩' : '🔌';
+      const mALabel = m.assembFmt === 'Piccolo' ? '500mA' : m.assembFmt === 'Medio' ? '600mA' : '700mA';
       const righeHtml = (m.righe || []).map(r =>
         `<div class="pip-assemb-sub-row">
           <span class="pip-assemb-sub-mat">${r.mat}</span>
@@ -1601,7 +1694,7 @@ function _pipRenderMovimenti() {
       return `
         <details class="pip-mov-assemb-group">
           <summary class="pip-mov-assemb-summary">
-            <span class="pip-mov-badge assemb">ASSEMB</span>
+            <span class="pip-mov-badge assemb">${mALabel}</span>
             <span class="pip-mov-assemb-label">${emoji} ${m.assembTipo} ${m.assembFmt} ×${m.assembQty}</span>
             ${m.nota ? `<span class="pip-mov-nota">${m.nota}</span>` : ''}
             <span class="pip-mov-ts">${m.ts}</span>
@@ -1641,6 +1734,7 @@ function _pipReset() {
   _pipSaveQty({p:0, m:0, g:0});
   _pipSaveCaric({});
   _pipSaveMov([]);
+  _pipSavePronti({});
   caricaPaginaPipistrello();
 }
 
