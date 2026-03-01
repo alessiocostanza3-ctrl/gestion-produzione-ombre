@@ -108,8 +108,9 @@
     display: none;
     align-items: center;
     justify-content: center;
-    backdrop-filter: blur(2px);
-    -webkit-backdrop-filter: blur(2px);
+}
+#modal-notifiche.is-open {
+    display: flex !important;
 }
 .notifiche-modal-content {
     background: #161d2b;

@@ -3,30 +3,15 @@ function apriPopupNotifiche(e) {
     if (e) { e.stopPropagation(); e.preventDefault(); }
     const modal = document.getElementById('modal-notifiche');
     if (!modal) return;
-    modal.style.display = 'flex';
+    modal.classList.add('is-open');
     renderNotificheList();
-    // attiva il listener per chiuderlo cliccando fuori (una sola volta)
-    setTimeout(() => {
-        document.addEventListener('click', _chiudiNotificheOutside, { once: true, capture: true });
-    }, 10);
 }
 function chiudiPopupNotifiche() {
     const modal = document.getElementById('modal-notifiche');
     if (!modal) return;
-    modal.style.display = 'none';
-    document.removeEventListener('click', _chiudiNotificheOutside, { capture: true });
+    modal.classList.remove('is-open');
 }
-function _chiudiNotificheOutside(e) {
-    const modal = document.getElementById('modal-notifiche');
-    if (!modal) return;
-    const content = modal.querySelector('.notifiche-modal-content');
-    if (content && content.contains(e.target)) {
-        // click dentro il modal: ri-aggancia il listener
-        document.addEventListener('click', _chiudiNotificheOutside, { once: true, capture: true });
-        return;
-    }
-    chiudiPopupNotifiche();
-}
+function _chiudiNotificheOutside(e) { /* dismesso */ }
 function aggiornaBadgeNotifiche(count) {
     const badgeDesk = document.getElementById('badge-notifiche-desktop');
     const badgeMob = document.getElementById('badge-notifiche-mobile');
