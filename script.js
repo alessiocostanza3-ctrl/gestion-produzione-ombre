@@ -1208,6 +1208,20 @@ function _pipAggiornaPronti(key, delta) {
   _pipRenderPronti();
 }
 
+/** Imposta direttamente il valore (da input manuale) */
+function _pipSetPronti(key, val) {
+  const pronti = _pipLoadPronti();
+  pronti[key]  = Math.max(0, parseInt(val) || 0);
+  _pipSavePronti(pronti);
+  _pipAggiornaLiberi();
+  // Aggiorna colore val senza ridisegnare tutto
+  const inp = document.querySelector(`.pip-pronti-input[data-key="${key}"]`);
+  if (inp) {
+    inp.value = pronti[key];
+    inp.classList.toggle('pip-pronti-val-on', pronti[key] > 0);
+  }
+}
+
 /** Ridisegna i contatori nella card PRONTI DA SPEDIRE */
 function _pipRenderPronti() {
   const pronti = _pipLoadPronti();
@@ -1227,7 +1241,10 @@ function _pipRenderPronti() {
       <span class="pip-pronti-lbl">${c.emoji} ${c.label} <span class="pip-pronti-ma">${c.mA}</span></span>
       <div class="pip-pronti-ctrl">
         <button class="pip-pronti-btn" onclick="_pipAggiornaPronti('${c.key}',-1)">−</button>
-        <span class="pip-pronti-val${n > 0 ? ' pip-pronti-val-on' : ''}">${n}</span>
+        <input class="pip-pronti-input${n > 0 ? ' pip-pronti-val-on' : ''}" type="number" min="0"
+               data-key="${c.key}" value="${n}"
+               oninput="_pipSetPronti('${c.key}', this.value)"
+               onchange="_pipSetPronti('${c.key}', this.value)">
         <button class="pip-pronti-btn" onclick="_pipAggiornaPronti('${c.key}',1)">+</button>
       </div>
     </div>`;

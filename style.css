@@ -5604,11 +5604,18 @@ button:active {
     line-height: 1; transition: background 0.12s, border-color 0.12s;
 }
 .pip-pronti-btn:hover { background: #e0e7ff; border-color: #a5b4fc; color: #3730a3; }
-.pip-pronti-val {
-    min-width: 28px; text-align: center;
-    font-size: 1.05rem; font-weight: 800; color: #9ca3af;
+.pip-pronti-input {
+    width: 52px; text-align: center;
+    font-size: 1.0rem; font-weight: 800; color: #9ca3af;
+    background: #f8fafc; border: 1.5px solid #e2e8f0;
+    border-radius: 7px; padding: 4px 2px; outline: none;
+    -moz-appearance: textfield; transition: border-color 0.15s, color 0.15s;
+    box-sizing: border-box;
 }
-.pip-pronti-val-on { color: #f59e0b; }
+.pip-pronti-input::-webkit-inner-spin-button,
+.pip-pronti-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+.pip-pronti-input:focus { border-color: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,.12); }
+.pip-pronti-val-on { color: #f59e0b !important; border-color: #fde68a !important; background: #fffbeb !important; }
 
 @media (max-width: 600px) {
     .pip-assemb-form { grid-template-columns: 1fr 1fr; }
