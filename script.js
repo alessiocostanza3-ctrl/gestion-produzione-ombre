@@ -2437,6 +2437,13 @@ function _initKanbanDnd() {
     if (!grid || grid._dndInit) return;
     grid._dndInit = true;
 
+    // Su desktop le colonne devono restare sempre aperte:
+    // blocca il toggle nativo di <details> quando si clicca il <summary>
+    grid.addEventListener('click', e => {
+        const summary = e.target.closest('.ov-stato-header');
+        if (summary) e.preventDefault();
+    }, true);
+
     let dragEl     = null;
     let ghost      = null;
     let srcStato   = null;
