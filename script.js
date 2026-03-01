@@ -1480,7 +1480,11 @@ function _pipScaricoTuttiPronti() {
   _pipAggiornaSpeWarning();
 
   const modal = document.getElementById('modal-pip-spedizione');
-  if (modal) modal.style.display = 'flex';
+  if (modal) {
+    modal.style.display = 'flex';
+    modal.offsetHeight; // force reflow
+    modal.classList.add('active');
+  }
 }
 
 /** Ricalcola il warning di squilibrio in base alle checkbox selezionate */
@@ -1577,7 +1581,9 @@ function _pipConfermaSpedizione() {
 
 function _pipChiudiModalSped() {
   const modal = document.getElementById('modal-pip-spedizione');
-  if (modal) modal.style.display = 'none';
+  if (!modal) return;
+  modal.classList.remove('active');
+  setTimeout(() => { if (!modal.classList.contains('active')) modal.style.display = 'none'; }, 300);
 }
 
 function _pipRowspan(startIdx) {
