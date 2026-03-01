@@ -5496,6 +5496,69 @@ button:active {
     box-shadow: 0 1px 8px rgba(0,0,0,0.05);
     margin-bottom: 20px;
 }
+
+/* ── Scarico assemblati ── */
+.pip-assemb-card {
+    background: #fff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 1px 8px rgba(0,0,0,0.05);
+    margin-bottom: 20px;
+    padding: 0 0 16px;
+}
+.pip-assemb-title {
+    background: #1e293b;
+    padding: 12px 18px;
+    font-size: 0.78rem; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: #f9fafb;
+    display: flex; align-items: center; gap: 8px;
+}
+.pip-assemb-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto auto;
+    gap: 8px; align-items: end;
+    background: #f8fafc; border-radius: 10px;
+    padding: 12px; margin: 12px 16px 0;
+    border: 1.5px solid #e2e8f0;
+}
+.pip-asm-select {
+    background: #fff; border: 1.5px solid #e2e8f0;
+    border-radius: 8px; padding: 8px 10px;
+    font-size: 0.88rem; color: #1e293b; outline: none;
+    transition: border-color 0.15s; box-sizing: border-box; width: 100%;
+}
+.pip-asm-select:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+.pip-assemb-preview {
+    margin: 10px 16px 0;
+    font-size: 0.75rem; color: #475569;
+    background: #f1f5f9; border-radius: 8px;
+    padding: 8px 12px;
+    display: flex; flex-wrap: wrap; gap: 6px;
+    min-height: 34px;
+}
+.pip-assemb-preview:empty { display: none; }
+.pip-asm-comp-tag {
+    background: #e2e8f0; color: #334155;
+    border-radius: 5px; padding: 2px 8px;
+    font-size: 0.72rem; font-weight: 600;
+    white-space: nowrap;
+}
+.pip-asm-comp-tag.zero { opacity: 0.35; }
+.pip-assemb-btn {
+    background: #1e293b; color: #f8fafc;
+    border: none; border-radius: 9px;
+    padding: 11px 20px; margin: 10px 16px 0;
+    font-size: 0.9rem; font-weight: 700;
+    cursor: pointer; display: flex; align-items: center; gap: 8px;
+    width: calc(100% - 32px); justify-content: center;
+    transition: background 0.15s;
+}
+.pip-assemb-btn:hover { background: #334155; }
+@media (max-width: 600px) {
+    .pip-assemb-form { grid-template-columns: 1fr 1fr; }
+}
 .pip-mov-header {
     background: #242424;
     padding: 12px 18px;

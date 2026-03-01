@@ -1271,6 +1271,40 @@ function caricaPaginaPipistrello() {
         <span class="pip-leg-item" style="color:#9ca3af">— = non necessario</span>
       </div>
 
+      <!-- SCARICO ASSEMBLATI -->
+      <div class="pip-assemb-card">
+        <div class="pip-assemb-title"><i class="fas fa-arrow-up-from-bracket"></i> SCARICO ASSEMBLATI</div>
+        <div class="pip-assemb-form">
+          <div class="pip-mov-form-field">
+            <label class="pip-mov-form-label">Tipo</label>
+            <select id="pip-asm-tipo" class="pip-asm-select" onchange="_pipAsmPreview()">
+              <option value="TESTA">🔩 Testa</option>
+              <option value="CORDONE">🔌 Cordone completo</option>
+            </select>
+          </div>
+          <div class="pip-mov-form-field">
+            <label class="pip-mov-form-label">Formato</label>
+            <select id="pip-asm-fmt" class="pip-asm-select" onchange="_pipAsmPreview()">
+              <option value="p">🔵 Piccolo (500mA)</option>
+              <option value="m">🟣 Medio (600mA)</option>
+              <option value="g">🔴 Grande (700mA)</option>
+            </select>
+          </div>
+          <div class="pip-mov-form-field">
+            <label class="pip-mov-form-label">Quantità</label>
+            <input type="number" id="pip-asm-qty" min="1" value="1" class="pip-asm-select" oninput="_pipAsmPreview()">
+          </div>
+          <div class="pip-mov-form-field">
+            <label class="pip-mov-form-label">Note (opz.)</label>
+            <input type="text" id="pip-asm-nota" class="pip-asm-select" placeholder="es. cliente X…" maxlength="60">
+          </div>
+        </div>
+        <div class="pip-assemb-preview" id="pip-asm-preview"></div>
+        <button class="pip-assemb-btn" onclick="_pipScaricoAssemblato()">
+          <i class="fas fa-arrow-up"></i> Registra Scarico Assemblato
+        </button>
+      </div>
+
       <!-- MOVIMENTI MAGAZZINO -->
       <div class="pip-mov-section">
         <div class="pip-mov-header">
@@ -1311,9 +1345,87 @@ function caricaPaginaPipistrello() {
 
   _pipRenderMovimenti();
   applicaFade(contenitore);
+  requestAnimationFrame(_pipAsmPreview);
 }
 
 /** Calcola il rowspan per la colonna SEZIONE */
+// Composizione BOM degli assemblati completi
+// chiave: idx _PIP_BOM → qty per singolo assemblato
+const _PIP_ASSEMB = {
+  TESTA: {
+    p: [[0,1],[3,1],[6,2],[7,2],[8,8]],          // piccolo 500mA
+    m: [[1,1],[4,1],[6,2],[7,2],[9,8]],           // medio 600mA
+    g: [[2,1],[5,1],[6,2],[9,4]]                  // grande 700mA
+  },
+  CORDONE: {
+    p: [[10,1],[11,1],[14,1],[15,2],[16,1],[18,1]], // piccolo 500mA
+    m: [[10,1],[12,1],[14,1],[15,2],[17,1],[19,1]], // medio 600mA
+    g: [[10,1],[13,1],[14,1],[15,2],[17,1],[20,1]]  // grande 700mA
+  }
+};
+
+/** Registra scarico di N assemblati (testa o cordone) scalando tutti i componenti */
+function _pipScaricoAssemblato() {
+  const tipo    = document.getElementById('pip-asm-tipo')?.value;
+  const formato = document.getElementById('pip-asm-fmt')?.value;
+  const qty     = Math.max(1, parseInt(document.getElementById('pip-asm-qty')?.value) || 1);
+  const nota    = (document.getElementById('pip-asm-nota')?.value || '').trim();
+
+  const componenti = _PIP_ASSEMB[tipo]?.[formato];
+  if (!componenti) return;
+
+  const caric     = _pipLoadCaric();
+  const movimenti = _pipLoadMov();
+  const ts = new Date().toLocaleString('it-IT', {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+  const tipoLabel = tipo === 'TESTA' ? 'Testa' : 'Cordone';
+  const fmtLabel  = formato === 'p' ? 'Piccolo' : formato === 'm' ? 'Medio' : 'Grande';
+
+  componenti.forEach(([idx, coeff], j) => {
+    const qtyTot = qty * coeff;
+    caric[idx] = Math.max(0, (Number(caric[idx] || 0)) - qtyTot);
+    movimenti.unshift({
+      id:   Date.now() + j,
+      idx, tipo: 'scarico', qty: qtyTot,
+      nota: `[${tipoLabel} ${fmtLabel} ×${qty}]${nota ? ' ' + nota : ''}`,
+      mat:  _PIP_BOM[idx]?.[1] || '?',
+      ts
+    });
+  });
+
+  _pipSaveCaric(caric);
+  _pipSaveMov(movimenti);
+
+  // Aggiorna celle nella tabella BOM
+  componenti.forEach(([idx]) => {
+    const inp = document.querySelector(`#pip-tbody input[data-idx="${idx}"]`);
+    if (inp) { inp.value = caric[idx]; _pipAggiornaCar(inp); }
+  });
+
+  // Reset form
+  const qtyEl  = document.getElementById('pip-asm-qty');
+  const notaEl = document.getElementById('pip-asm-nota');
+  if (qtyEl)  qtyEl.value  = 1;
+  if (notaEl) notaEl.value = '';
+
+  _pipRenderMovimenti();
+  notificaElegante(`Scarico ${tipoLabel} ${fmtLabel} ×${qty} registrato ✓`);
+}
+
+/** Anteprima componenti che verranno scalati */
+function _pipAsmPreview() {
+  const prev = document.getElementById('pip-asm-preview');
+  if (!prev) return;
+  const tipo    = document.getElementById('pip-asm-tipo')?.value;
+  const formato = document.getElementById('pip-asm-fmt')?.value;
+  const qty     = Math.max(1, parseInt(document.getElementById('pip-asm-qty')?.value) || 1);
+  const comp    = _PIP_ASSEMB[tipo]?.[formato];
+  if (!comp) { prev.innerHTML = ''; return; }
+  prev.innerHTML = comp.map(([idx, coeff]) => {
+    const tot = qty * coeff;
+    return `<span class="pip-asm-comp-tag">${_PIP_BOM[idx]?.[1] || '?'} −${tot}</span>`;
+  }).join('');
+}
+
 function _pipRowspan(startIdx) {
   let count = 1;
   for (let i = startIdx + 1; i < _PIP_BOM.length; i++) {
