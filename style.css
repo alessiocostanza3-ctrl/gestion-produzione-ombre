@@ -5708,6 +5708,16 @@ button:active {
     pointer-events: none;
 }
 
+.pip-sped-ma-pill {
+    display: inline-block;
+    background: #e0e7ff; color: #3730a3;
+    border-radius: 4px; padding: 1px 6px;
+    font-size: 0.7rem; font-weight: 700;
+    font-family: monospace;
+    margin-left: 3px;
+    white-space: nowrap;
+}
+
 /* ── Badge spedizione nel log ── */
 .pip-mov-badge.spedizione {
     background: #dcfce7; color: #15803d;

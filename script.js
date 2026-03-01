@@ -1754,6 +1754,10 @@ function _pipRenderMovimenti() {
     if (m.tipo === 'spedizione') {
       // Riga espandibile per spedizione (accorpamento pronti)
       const totPz = (m.items || []).reduce((s, i) => s + i.qty, 0);
+      // Raggruppa per mA e costruisce "500mA ×2 · 600mA ×1"
+      const mAGroup = {};
+      (m.items || []).forEach(it => { mAGroup[it.mA] = (mAGroup[it.mA] || 0) + it.qty; });
+      const mALabel = Object.entries(mAGroup).map(([ma, q]) => `<span class="pip-sped-ma-pill">${ma} ×${q}</span>`).join('');
       const itemsHtml = (m.items || []).map(it =>
         `<div class="pip-assemb-sub-row pip-sped-item-row">
           <span class="pip-assemb-sub-mat">${it.emoji} ${it.tipoLabel} ${it.fmtLabel} <span class="pip-pronti-ma">${it.mA}</span></span>
@@ -1770,7 +1774,7 @@ function _pipRenderMovimenti() {
         <details class="pip-mov-assemb-group">
           <summary class="pip-mov-assemb-summary">
             <span class="pip-mov-badge spedizione">SPED.</span>
-            <span class="pip-mov-assemb-label">🚚 Spedizione ×${totPz} pz</span>
+            <span class="pip-mov-assemb-label">🚚 Spediz. ×${totPz} pz ${mALabel}</span>
             ${m.nota ? `<span class="pip-mov-nota">${m.nota}</span>` : ''}
             <span class="pip-mov-ts">${m.ts}</span>
             <i class="fas fa-chevron-down pip-assemb-chev"></i>
