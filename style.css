@@ -1987,7 +1987,18 @@ h1 {
 .oi-check-btn.checked { border-color: #22c55e; color: #22c55e; background: #dcfce7; }
 .oi-check-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.oi-stato-dot {
+.oi-thumb {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+.ordine-item.is-ordinato .oi-thumb { opacity: 0.45; }
+
+
     width: 10px;
     height: 10px;
     border-radius: 50%;

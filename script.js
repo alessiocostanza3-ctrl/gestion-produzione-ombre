@@ -4108,6 +4108,24 @@ async function caricaOrdiniAcquisti(expectedRequestId = null, signal = null) {
     }
 }
 
+function _resizeFotoBase64(src, maxPx) {
+    if (!src) return Promise.resolve(null);
+    return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => {
+            const scale = Math.min(maxPx / img.width, maxPx / img.height, 1);
+            const w = Math.round(img.width * scale);
+            const h = Math.round(img.height * scale);
+            const canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            resolve(canvas.toDataURL('image/jpeg', 0.72));
+        };
+        img.onerror = () => resolve(null);
+        img.src = src;
+    });
+}
+
 function _fmtDataOrdine(str) {
     try {
         const d = new Date(str);
@@ -4127,6 +4145,7 @@ function _renderOrdineItem(item, isAlessio) {
                </button>`
             : `<span class="oi-stato-dot ${ok ? 'dot-ordinato' : 'dot-attesa'}"></span>`
         }
+        ${item.foto ? `<img src="${item.foto}" class="oi-thumb" alt="" loading="lazy">` : ''}
         <div class="oi-info">
             <span class="oi-nome">${item.articolo}</span>
             <span class="oi-details">Qt. ${item.quantita}${item.fornitore ? ' · ' + item.fornitore : ''}</span>
@@ -4520,11 +4539,15 @@ async function inviaOrdineAcquisti() {
       const idGruppo = String(Date.now()); // identificatore univoco per questo invio
 
       try {
+          const articoliConFoto = await Promise.all(carrelloLocale.map(async art => ({
+              ...art,
+              foto: await _resizeFotoBase64(art.foto, 80)
+          })));
           const payload = {
               azione: 'inviaOrdineAcquisti',
               operatore: utenteAttuale?.nome || 'Utente',
               id_gruppo: idGruppo,
-              articoli: carrelloLocale
+              articoli: articoliConFoto
           };
           const res = await fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify(payload) });
           const result = await res.json();
