@@ -6447,6 +6447,48 @@ button:active {
    QR CODE SCANNER — bottone topbar + modali
    ============================================================ */
 
+/* ── Avatar account nella top-bar mobile ── */
+.mobile-account-wrap {
+    position: relative;
+    flex-shrink: 0;
+}
+
+/* Stessa forma/colore dell'avatar desktop, ma funziona su sfondo chiaro */
+.mobile-avatar-topbar-btn {
+    position: relative !important; /* serve per il badge in posizione assoluta */
+    margin-left: 6px !important;
+}
+
+/* Dropdown mobile: si apre verso IL BASSO (non verso l'alto come desktop) */
+.account-dropdown-mob {
+    bottom: auto !important;
+    top: calc(100% + 8px) !important;
+    left: auto !important;
+    right: 0 !important;
+    transform: translateY(-6px) !important;
+    box-shadow: 0 8px 36px rgba(0,0,0,0.55) !important;
+    z-index: 9999 !important;
+}
+.account-dropdown-mob.open {
+    transform: translateY(0) !important;
+}
+
+/* Badge notifiche dentro la voce "Notifiche" del menu mobile */
+.badge-notif-menu {
+    margin-left: auto;
+    min-width: 18px;
+    height: 18px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 99px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+}
+
 /* ── Pulsante QR nella top-bar mobile ── */
 .top-bar {
     display: flex;

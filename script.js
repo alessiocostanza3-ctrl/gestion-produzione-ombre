@@ -22,6 +22,7 @@ function _chiudiNotificheOutside(e) { /* dismesso */ }
 function aggiornaBadgeNotifiche(count) {
     const badgeDesk = document.getElementById('badge-notifiche-desktop');
     const badgeMob = document.getElementById('badge-notifiche-mobile');
+    const badgeMobMenu = document.getElementById('badge-notifiche-mobile-menu');
     if (badgeDesk) {
         badgeDesk.textContent = count > 0 ? count : '';
         badgeDesk.style.display = count > 0 ? 'flex' : 'none';
@@ -29,6 +30,10 @@ function aggiornaBadgeNotifiche(count) {
     if (badgeMob) {
         badgeMob.textContent = count > 0 ? count : '';
         badgeMob.style.display = count > 0 ? 'flex' : 'none';
+    }
+    if (badgeMobMenu) {
+        badgeMobMenu.textContent = count > 0 ? count : '';
+        badgeMobMenu.style.display = count > 0 ? 'flex' : 'none';
     }
 }
 function _notifIcona_(titolo) {
@@ -793,6 +798,11 @@ function aggiornaProfiloSidebar() {
     const ddropAvatar = document.getElementById('account-ddrop-avatar');
     const ddropName = document.getElementById('account-ddrop-name');
     const ddropRole = document.getElementById('account-ddrop-role');
+    // Mobile avatar
+    const avatarIconMob = document.getElementById('user-avatar-icon-mobile');
+    const ddropAvatarMob = document.getElementById('account-ddrop-avatar-mob');
+    const ddropNameMob = document.getElementById('account-ddrop-name-mob');
+    const ddropRoleMob = document.getElementById('account-ddrop-role-mob');
 
     if (utenteAttuale && utenteAttuale.nome) {
         const iniziale = utenteAttuale.nome.charAt(0).toUpperCase();
@@ -803,6 +813,11 @@ function aggiornaProfiloSidebar() {
         if (ddropAvatar) ddropAvatar.innerText = iniziale;
         if (ddropName) ddropName.innerText = nomeUp;
         if (ddropRole) ddropRole.innerText = (utenteAttuale.ruolo || 'Utente').toUpperCase();
+        // Mobile
+        if (avatarIconMob) avatarIconMob.innerText = iniziale;
+        if (ddropAvatarMob) ddropAvatarMob.innerText = iniziale;
+        if (ddropNameMob) ddropNameMob.innerText = nomeUp;
+        if (ddropRoleMob) ddropRoleMob.innerText = (utenteAttuale.ruolo || 'Utente').toUpperCase();
     }
     _initAvatarColor();
 }
@@ -944,11 +959,18 @@ function _avatarRipristinaPredefiniti(e) {
 function _applyAvatarColorUI(color) {
     const btn = document.getElementById('user-avatar-btn');
     const ddp = document.getElementById('account-ddrop-avatar');
+    const btnMob = document.getElementById('user-avatar-btn-mobile');
+    const ddpMob = document.getElementById('account-ddrop-avatar-mob');
     if (btn) {
         btn.style.setProperty('background', color, 'important');
         btn.style.setProperty('box-shadow', `0 2px 8px ${color}66`, 'important');
     }
+    if (btnMob) {
+        btnMob.style.setProperty('background', color, 'important');
+        btnMob.style.setProperty('box-shadow', `0 2px 8px ${color}66`, 'important');
+    }
     if (ddp) ddp.style.setProperty('background', color, 'important');
+    if (ddpMob) ddpMob.style.setProperty('background', color, 'important');
     document.querySelectorAll('.avatar-color-swatch').forEach(sw => {
         sw.classList.toggle('active', sw.dataset.color === color);
     });
@@ -1018,6 +1040,31 @@ document.addEventListener('click', function(e) {
     const dropdown = document.getElementById('account-dropdown');
     const btn = document.getElementById('user-avatar-btn');
     if (dropdown && dropdown.classList.contains('open')) {
+        if (!dropdown.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+            dropdown.classList.remove('open');
+        }
+    }
+});
+
+/* ── Account menu MOBILE ── */
+function toggleAccountMenuMobile(e) {
+    if (e) e.stopPropagation();
+    const dropdown = document.getElementById('account-dropdown-mobile');
+    if (!dropdown) return;
+    dropdown.classList.toggle('open');
+}
+
+function chiudiAccountMenuMobile() {
+    const dropdown = document.getElementById('account-dropdown-mobile');
+    if (dropdown) dropdown.classList.remove('open');
+}
+
+// Chiude il dropdown mobile cliccando fuori
+document.addEventListener('click', function(e) {
+    const dropdown = document.getElementById('account-dropdown-mobile');
+    const btn = document.getElementById('user-avatar-btn-mobile');
+    if (!dropdown || !btn) return;
+    if (dropdown.classList.contains('open')) {
         if (!dropdown.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
             dropdown.classList.remove('open');
         }
