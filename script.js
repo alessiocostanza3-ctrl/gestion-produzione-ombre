@@ -3293,8 +3293,6 @@ async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
     }, 12000);
 
     try {
-        const [messaggiAttivi, messaggiArchivio] = await Promise.all([
-            // Singola chiamata bundle GAS: storico attivo + archivio in una sola request
         const _rqResp = await fetch(URL_GOOGLE + '?azione=getAllRichieste', signal ? { signal } : {});
         if (!_rqResp.ok) throw new Error(`HTTP ${_rqResp.status}`);
         const _rqBundle = await _rqResp.json();
