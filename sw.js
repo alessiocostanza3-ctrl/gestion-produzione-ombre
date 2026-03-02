@@ -1,7 +1,9 @@
 /* ============================================================
    Service Worker PROD — notifiche push VAPID native
    Nessun servizio di terze parti richiesto.
-   Aggiornato: 2026-02-25
+   Aggiornato: 2026-07-10
+   v2: fix race condition multi-device, topic header per tipo,
+       broadcast all'app, verifica iscrizione server-side.
    ============================================================ */
 'use strict';
 
@@ -19,14 +21,20 @@ self.addEventListener('push', function(event) {
             .then(function(c) { return c.match('username'); })
             .then(function(r)  { return r ? r.text() : Promise.resolve(null); })
             .then(function(username) {
-                if (!username) return _showNotif_('PROD', 'Hai nuove notifiche');
-                return fetch(GAS_URL + '?azione=getNotifiche&username=' + encodeURIComponent(username))
+                if (!username) return _showNotif_('PROD', 'Hai nuove notifiche', null);
+                // markRead=0: il SW legge senza segnare come lette (evita race condition multi-device)
+                return fetch(GAS_URL + '?azione=getNotifiche&username=' + encodeURIComponent(username) + '&markRead=0')
                     .then(function(r) { return r.json(); })
                     .then(function(d) {
-                        if (!d || d.status === 'none') return _showNotif_('PROD', 'Hai nuove notifiche');
-                        return _showNotif_(d.titolo || 'PROD', d.corpo || '');
+                        if (!d || d.status === 'none') return _showNotif_('PROD', 'Hai nuove notifiche', username);
+                        var titolo = d.titolo || 'PROD';
+                        var corpo  = d.corpo  || '';
+                        var all    = d.all    || [{ titolo: titolo, corpo: corpo }];
+                        // Broadcast all'app: aggiorna localStorage e badge
+                        _broadcastNotifiche_(username, all);
+                        return _showNotif_(titolo, corpo, username);
                     })
-                    .catch(function() { return _showNotif_('PROD', 'Hai nuove notifiche'); });
+                    .catch(function() { return _showNotif_('PROD', 'Hai nuove notifiche', username); });
             })
     );
 });
@@ -34,7 +42,12 @@ self.addEventListener('push', function(event) {
 /* ---- click sulla notifica ---- */
 self.addEventListener('notificationclick', function(event) {
     event.notification.close();
-    var url = (event.notification.data && event.notification.data.url) || APP_URL;
+    var url      = (event.notification.data && event.notification.data.url) || APP_URL;
+    var username = event.notification.data && event.notification.data.username;
+    // Segna come lette sul server al click
+    if (username) {
+        fetch(GAS_URL + '?azione=segnaLetteNotifiche&username=' + encodeURIComponent(username)).catch(function(){});
+    }
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(list) {
             for (var i = 0; i < list.length; i++) {
@@ -47,13 +60,22 @@ self.addEventListener('notificationclick', function(event) {
 });
 
 /* ---- helper ---- */
-function _showNotif_(titolo, corpo) {
+function _showNotif_(titolo, corpo, username) {
     return self.registration.showNotification(titolo, {
         body:     corpo,
         icon:     APP_URL + 'logo.png',
         badge:    APP_URL + 'logo.png',
         tag:      'prod-notif',
         renotify: true,
-        data:     { url: APP_URL }
+        data:     { url: APP_URL, username: username || null }
+    });
+}
+
+/** Invia notifiche alle finestre aperte dell'app (aggiorna badge + lista in-app) */
+function _broadcastNotifiche_(username, all) {
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(list) {
+        list.forEach(function(client) {
+            client.postMessage({ type: 'NUOVE_NOTIFICHE', username: username, notifiche: all });
+        });
     });
 }

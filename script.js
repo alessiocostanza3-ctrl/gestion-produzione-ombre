@@ -5,6 +5,13 @@ function apriPopupNotifiche(e) {
     if (!modal) return;
     modal.classList.add('is-open');
     renderNotificheList();
+    // Segna come lette sul server (con piccolo ritardo per non bloccare l'apertura)
+    setTimeout(function() {
+        if (utenteAttuale && utenteAttuale.nome) {
+            fetch(URL_GOOGLE + '?azione=segnaLetteNotifiche&username=' + encodeURIComponent(utenteAttuale.nome.toUpperCase())).catch(function(){});
+            aggiornaBadgeNotifiche(0);
+        }
+    }, 800);
 }
 function chiudiPopupNotifiche() {
     const modal = document.getElementById('modal-notifiche');
@@ -27,16 +34,48 @@ function aggiornaBadgeNotifiche(count) {
 function renderNotificheList() {
     const list = document.getElementById('notifiche-list');
     if (!list) return;
-    // Recupera notifiche da localStorage o variabile globale (da implementare fetch vera)
     const arr = JSON.parse(localStorage.getItem('_notificheArr') || '[]');
     if (!arr.length) {
         list.innerHTML = '<div style="color:#64748b;text-align:center;padding:24px 0">Nessuna notifica recente</div>';
-        return;
+    } else {
+        list.innerHTML = arr.map(n => `<div class="notifica-item"><div class="notifica-titolo">${n.titolo||'Notifica'}</div><div class="notifica-corpo">${n.corpo||''}</div></div>`).join('');
     }
-    list.innerHTML = arr.map(n => `<div class="notifica-item"><div class="notifica-titolo">${n.titolo||'Notifica'}</div><div class="notifica-corpo">${n.corpo||''}</div></div>`).join('');
+    // Aggiorna dalla lista server (senza segnare lette, le segna l'apertura del modal)
+    if (utenteAttuale && utenteAttuale.nome) {
+        fetch(URL_GOOGLE + '?azione=getNotifiche&username=' + encodeURIComponent(utenteAttuale.nome.toUpperCase()) + '&markRead=0')
+            .then(r => r.json())
+            .then(d => {
+                if (d && d.status === 'ok' && d.all && d.all.length) {
+                    _salvaNotificheInLocale_(d.all);
+                    list.innerHTML = d.all.map(n => `<div class="notifica-item"><div class="notifica-titolo">${n.titolo||'Notifica'}</div><div class="notifica-corpo">${n.corpo||''}</div></div>`).join('');
+                }
+            })
+            .catch(() => {});
+    }
 }
-// Esempio: aggiornaBadgeNotifiche(3); // mostra badge con 3
-// Per test: localStorage.setItem('_notificheArr', JSON.stringify([{titolo:'Test','corpo':'utente x ha cambiato stato'}]))
+
+/** Salva nuove notifiche in localStorage (ricevute dal SW postMessage o da fetch) */
+function _salvaNotificheInLocale_(all) {
+    try {
+        const existing = JSON.parse(localStorage.getItem('_notificheArr') || '[]');
+        // Prepend nuove, deduplicando per titolo+corpo, limite 30
+        const map = {};
+        all.forEach(n => { map[n.titolo + '||' + n.corpo] = n; });
+        existing.forEach(n => { const k = n.titolo + '||' + n.corpo; if (!map[k]) map[k] = n; });
+        const merged = Object.values(map).slice(0, 30);
+        localStorage.setItem('_notificheArr', JSON.stringify(merged));
+        aggiornaBadgeNotifiche(all.length);
+    } catch {}
+}
+
+/** Listener per messaggi dal Service Worker (push ricevuta in background) */
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', function(event) {
+        if (event.data && event.data.type === 'NUOVE_NOTIFICHE') {
+            _salvaNotificheInLocale_(event.data.notifiche || []);
+        }
+    });
+}
 /*******************************************************************************
 * 1. CONFIGURAZIONE, VARIABILI GLOBALI E STATO
 *******************************************************************************/
@@ -126,6 +165,9 @@ async function _initPush() {
         console.log('[Push] Subscription saved:', result);
         if (result && (result.status === 'saved' || result.status === 'updated')) {
             try { localStorage.setItem('_pushStato', 'ok'); } catch {}
+        } else if (result && result.status === 'errore-verifica') {
+            try { localStorage.setItem('_pushStato', 'errore-verifica'); } catch {}
+            notificaElegante('⚠️ Subscription creata ma NON confermata sul server. Riprova "Ri-registra subscription".', 'error');
         } else {
             try { localStorage.setItem('_pushStato', 'errore-salvataggio'); } catch {}
         }
@@ -171,6 +213,9 @@ async function _forzaRiregistraPush() {
         if (result && (result.status === 'saved' || result.status === 'updated')) {
             try { localStorage.setItem('_pushStato', 'ok'); } catch {}
             notificaElegante('✅ Subscription registrata con successo!');
+        } else if (result && result.status === 'errore-verifica') {
+            try { localStorage.setItem('_pushStato', 'errore-verifica'); } catch {}
+            notificaElegante('⚠️ Subscription creata ma NON confermata sul server. Riprova più tardi.', 'error');
         } else {
             notificaElegante('⚠️ Subscription creata ma salvataggio GAS incerto: ' + JSON.stringify(result), 'error');
         }
@@ -263,6 +308,9 @@ async function _togglePushPermission() {
             if (saveResult && (saveResult.status === 'saved' || saveResult.status === 'updated')) {
                 try { localStorage.setItem('_pushStato', 'ok'); } catch {}
                 notificaElegante('Notifiche push attivate ✓ (registrate su server)');
+            } else if (saveResult && saveResult.status === 'errore-verifica') {
+                try { localStorage.setItem('_pushStato', 'errore-verifica'); } catch {}
+                notificaElegante('⚠ Push attivate ma NON confermate sul server — usa "Ri-registra subscription"', 'error');
             } else {
                 try { localStorage.setItem('_pushStato', 'errore-salvataggio'); } catch {}
                 notificaElegante('⚠ Push attivate localmente ma salvataggio server incerto', 'error');
@@ -296,7 +344,8 @@ async function _aggiornaUINotifiche() {
         let statoServer = '';
         try {
             const ps = localStorage.getItem('_pushStato');
-            if (ps === 'ok')                   statoServer = ' ✓ registrato sul server';
+            if (ps === 'ok')                      statoServer = ' ✓ registrato sul server';
+            else if (ps === 'errore-verifica')    statoServer = ' ⚠ salvato ma non confermato — ri-registra';
             else if (ps === 'errore-salvataggio') statoServer = ' ⚠ non salvato sul server';
             else if (ps === 'errore-subscribe')   statoServer = ' ⚠ errore subscribe';
             else if (ps && ps.startsWith('errore:')) statoServer = ' ⚠ ' + ps.replace('errore:', '');
@@ -324,7 +373,43 @@ function _vapidB64ToUint8_(b64url) {
     return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
 }
 
-/** POST una subscription VAPID al backend GAS. */
+/** Mostra la diagnostica push (solo MASTER): lista dispositivi registrati per ogni utente */
+async function _mostraDiagnosticaPush() {
+    try {
+        const res  = await fetch(URL_GOOGLE + '?azione=pushInfo');
+        const json = await res.json().catch(() => ({}));
+        const subs = json.subscriptions || [];
+        if (!subs.length) {
+            notificaElegante('Nessun dispositivo registrato in PUSH_SUBSCRIPTIONS', 'error');
+            return;
+        }
+        // Raggruppa per utente
+        const byUser = {};
+        subs.forEach(s => {
+            if (!byUser[s.user]) byUser[s.user] = 0;
+            byUser[s.user]++;
+        });
+        const righe = Object.entries(byUser)
+            .sort((a,b) => a[0].localeCompare(b[0]))
+            .map(([u, n]) => `<tr><td style="padding:6px 10px;font-weight:600">${u}</td><td style="padding:6px 10px;text-align:center">${n} dispositivo${n>1?'i':''}</td></tr>`)
+            .join('');
+        const html = `<div style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center" onclick="this.remove()">
+            <div style="background:#fff;border-radius:16px;padding:24px 28px;max-width:420px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.18)" onclick="event.stopPropagation()">
+                <div style="font-size:1.05rem;font-weight:700;margin-bottom:16px">🔍 Diagnostica Push — Dispositivi registrati (${subs.length})</div>
+                <table style="width:100%;border-collapse:collapse;font-size:0.9rem">
+                    <thead><tr style="background:#f1f5f9"><th style="padding:6px 10px;text-align:left">Utente</th><th style="padding:6px 10px">Dispositivi</th></tr></thead>
+                    <tbody>${righe}</tbody>
+                </table>
+                <p style="font-size:0.77rem;color:#64748b;margin-top:14px">Tocca fuori per chiudere. Se un utente non compare in questa lista, le sue notifiche NON arriveranno.</p>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+    } catch(err) {
+        notificaElegante('Errore diagnostica: ' + err.message, 'error');
+    }
+}
+
+/** POST una subscription VAPID al backend GAS. Ritorna anche la verifica server-side. */
 async function _salvaSubVAPID_(sub) {
     try {
         // IMPORTANTE: nessun Content-Type custom → GAS non gestisce preflight CORS
@@ -340,6 +425,22 @@ async function _salvaSubVAPID_(sub) {
         });
         const json = await res.json().catch(() => ({}));
         console.log('[Push] salvaSottoscrizione:', json);
+        // Verifica server-side: conferma che l'endpoint è davvero nel foglio
+        if (json && (json.status === 'saved' || json.status === 'updated')) {
+            try {
+                const verUrl = URL_GOOGLE + '?azione=verificaIscrizione&username=' + encodeURIComponent(utenteAttuale.nome.toUpperCase()) + '&endpoint=' + encodeURIComponent(sub.endpoint);
+                const verRes = await fetch(verUrl);
+                const verJson = await verRes.json().catch(() => ({}));
+                if (!verJson.found) {
+                    console.warn('[Push] verificaIscrizione: endpoint NON trovato nel foglio dopo il salvataggio!');
+                    json.status = 'errore-verifica';
+                } else {
+                    console.log('[Push] verificaIscrizione: ✓ endpoint confermato nel foglio');
+                }
+            } catch (verErr) {
+                console.warn('[Push] verificaIscrizione error:', verErr);
+            }
+        }
         return json;
     } catch (err) {
         console.warn('[Push] _salvaSubVAPID_ error:', err);
@@ -3616,6 +3717,15 @@ function caricaInterfacciaImpostazioni() {
                         <button id="btn-toggle-push" class="settings-action-btn" onclick="_togglePushPermission()" style="width:100%;padding:14px 18px;font-size:0.97rem;font-weight:700;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:10px;transition:all 0.2s">
                             <i class="fas fa-bell"></i> Attiva notifiche push
                         </button>
+                        <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+                            <button id="btn-force-regpush" onclick="_forzaRiregistraPush()" style="flex:1;min-width:140px;padding:10px 14px;font-size:0.82rem;font-weight:600;border-radius:10px;border:1px solid #e2e8f0;background:#fff;color:#1e293b;cursor:pointer;transition:background 0.15s">
+                                🔄 Ri-registra subscription
+                            </button>
+                            <button id="btn-test-push" onclick="_testPushNotifica()" style="flex:1;min-width:120px;padding:10px 14px;font-size:0.82rem;font-weight:600;border-radius:10px;border:1px solid #e2e8f0;background:#fff;color:#1e293b;cursor:pointer;transition:background 0.15s">
+                                📨 Invia notifica di test
+                            </button>
+                            ${utenteAttuale.ruolo === 'MASTER' ? `<button onclick="_mostraDiagnosticaPush()" style="flex:1;min-width:120px;padding:10px 14px;font-size:0.82rem;font-weight:600;border-radius:10px;border:1px solid #fcd34d;background:#fefce8;color:#92400e;cursor:pointer;transition:background 0.15s">🔍 Diagnostica Push</button>` : ''}
+                        </div>
                         <div style="margin-top:20px;border-top:1px solid rgba(255,255,255,0.07);padding-top:16px">
                             <div style="font-size:0.78rem;font-weight:600;color:#9ca3af;letter-spacing:.5px;margin-bottom:12px">TIPOLOGIE DI AVVISI</div>
                             <label class="notif-pref-row">
