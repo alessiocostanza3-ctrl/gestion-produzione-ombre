@@ -2710,15 +2710,24 @@ function _buildCaricoOperatoriHtml(attivi) {
     // Costruisce mappa operatore → array di righe assegnate (solo ops prod)
     const map = new Map();
     OPS_PROD.forEach(op => map.set(op, []));
+    // Mappa ordine già inserito per operatore: evita che lo stesso n. ordine compaia più volte
+    const seenOrdine = new Map();
+    OPS_PROD.forEach(op => seenOrdine.set(op, new Set()));
+
     attivi.forEach(r => {
         if (!r.assegna || r.assegna === '' || r.assegna === 'undefined') return;
+        const ordineKey = String(r.ordine || r.id_riga || '').trim();
         r.assegna.split(',').forEach(op => {
             const nome = op.trim();
             if (!nome) return;
             // Cerca la corrispondenza nell'elenco fisso
             const found = OPS_PROD.find(o => o.toUpperCase() === nome.toUpperCase());
             if (found) {
-                map.get(found).push(r);
+                // Mostra ogni ordine una sola volta per operatore
+                if (!ordineKey || !seenOrdine.get(found).has(ordineKey)) {
+                    if (ordineKey) seenOrdine.get(found).add(ordineKey);
+                    map.get(found).push(r);
+                }
             }
         });
     });
