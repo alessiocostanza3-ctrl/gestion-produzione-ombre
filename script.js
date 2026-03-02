@@ -562,6 +562,7 @@ window.onload = async function() {
         aggiornaProfiloSidebar();
         _initPush();           // Registra / aggiorna subscription push VAPID
         _initBadgeNotifiche(); // Mostra badge se ci sono notifiche non lette
+        _caricaColoriAvatarDaServer(); // Sincronizza colori avatar dal server
 
         if (overlay) overlay.style.display = 'none';
         console.log("Sessione trovata per:", utenteAttuale.nome);
@@ -757,9 +758,13 @@ function aggiornaProfiloSidebar() {
 }
 
 /** Restituisce il colore avatar salvato per un operatore (UPPERCASE). Fallback: grigio */
+let _avatarColorsCache = {}; // { NOME_UPPERCASE: '#hex' } — popolato da server al boot
+
 function _getOpColor(nome) {
     try {
-        return localStorage.getItem('avatarColor_' + String(nome || '').toUpperCase().trim()) || '#374151';
+        const k = String(nome || '').toUpperCase().trim();
+        if (_avatarColorsCache[k]) return _avatarColorsCache[k];
+        return localStorage.getItem('avatarColor_' + k) || '#374151';
     } catch { return '#374151'; }
 }
 
@@ -903,7 +908,15 @@ function _applyAvatarColorUI(color) {
 function _setAvatarColor(color) {
     if (!utenteAttuale || !utenteAttuale.nome) return;
     const nomeKey = utenteAttuale.nome.toUpperCase().trim();
+    // 1. Salva in localStorage (fallback offline)
     try { localStorage.setItem('avatarColor_' + nomeKey, color); } catch {}
+    // 2. Aggiorna cache in-memory (subito visibile a tutti i badge già renderizzati)
+    _avatarColorsCache[nomeKey] = color;
+    // 3. Persiste sul server (fire-and-forget)
+    if (utenteAttuale.nome && typeof URL_GOOGLE !== 'undefined') {
+        fetch(`${URL_GOOGLE}?azione=setAvatarColor&username=${encodeURIComponent(utenteAttuale.nome)}&color=${encodeURIComponent(color)}`)
+            .catch(() => {});
+    }
     _applyAvatarColorUI(color);
 }
 
@@ -913,6 +926,29 @@ function _initAvatarColor() {
     const saved = _getOpColor(utenteAttuale.nome);
     _renderCustomSwatches();
     _applyAvatarColorUI(saved);
+}
+
+/** Carica tutti i colori avatar dal server, aggiorna cache e localStorage, ri-applica il proprio */
+async function _caricaColoriAvatarDaServer() {
+    try {
+        const res = await fetch(`${URL_GOOGLE}?azione=getAvatarColors`);
+        if (!res.ok) return;
+        const map = await res.json(); // { NOME: '#hex', ... }
+        if (typeof map !== 'object' || Array.isArray(map)) return;
+        Object.entries(map).forEach(([nome, colore]) => {
+            if (!colore) return;
+            const k = nome.toUpperCase().trim();
+            _avatarColorsCache[k] = colore;
+            try { localStorage.setItem('avatarColor_' + k, colore); } catch {}
+        });
+        // Ri-applica il colore dell'utente corrente se presente
+        if (utenteAttuale?.nome) {
+            const mioColore = map[utenteAttuale.nome.toUpperCase().trim()];
+            if (mioColore) _applyAvatarColorUI(mioColore);
+        }
+    } catch (e) {
+        console.warn('_caricaColoriAvatarDaServer:', e);
+    }
 }
 
 function toggleAccountMenu(e) {
@@ -980,6 +1016,7 @@ async function salvaEApriDashboard() {
     if (typeof aggiornaProfiloSidebar === 'function') aggiornaProfiloSidebar();
     _initPush();           // Registra / aggiorna subscription push VAPID
     _initBadgeNotifiche(); // Mostra badge se ci sono notifiche non lette
+    _caricaColoriAvatarDaServer(); // Sincronizza colori avatar dal server (fire-and-forget)
 
     // Naviga alla pagina salvata (stessa logica del DOMContentLoaded normale)
     let paginaSalvata = null;
