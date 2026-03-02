@@ -3553,7 +3553,7 @@ button.menu-item-opt {
         top: 0 !important;
         left: 0 !important;
         right: 0 !important;
-        height: 104px !important;
+        height: 124px !important;
         box-sizing: border-box !important;
         padding: 10px 12px 8px !important;
         background: #f8fafc !important;
@@ -3604,7 +3604,7 @@ button.menu-item-opt {
 
     #contenitore-dati {
         position: absolute !important;
-        top: 104px !important;
+        top: 124px !important;
         left: 0 !important;
         right: 0 !important;
         bottom: 60px !important;
@@ -4293,7 +4293,7 @@ button.menu-item-opt {
 #ptr-indicator {
     display: none;
     position: absolute;
-    top: 108px;
+    top: 128px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 25;
