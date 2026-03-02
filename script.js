@@ -1190,6 +1190,15 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
     localStorage.setItem('ultimaPaginaProduzione', nomeFoglio);
     paginaAttuale = nomeFoglio;
 
+    // Mostra/nasconde la tab bar Acquisti
+    // Se si naviga su Acquisti da sidebar/tab (elementoMenu != null) → reset a catalogo
+    if (nomeFoglio === 'MATERIALE DA ORDINARE' && elementoMenu) _acquistTabAttivo = 'catalogo';
+    const _acqTabBarEl = document.getElementById('acq-tab-bar');
+    if (_acqTabBarEl) {
+        _acqTabBarEl.style.display = nomeFoglio === 'MATERIALE DA ORDINARE' ? 'flex' : 'none';
+        if (nomeFoglio === 'MATERIALE DA ORDINARE') _aggiornaTabAcquisti();
+    }
+
     // 3. UI: Gestione Sidebar (Classe Active) + Tab Bar active
     document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
     document.querySelectorAll('.tab-item').forEach(item => item.classList.remove('active'));
@@ -1207,7 +1216,7 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
         'STORICO_RICHIESTE': "La mia Casella",
         'ARCHIVIO_ORDINI': "Archivio Ordini",
         'MATERIALE DA ORDINARE': "Gestione Acquisti",
-        'ORDINI_ACQUISTI': "Ordini Acquisti",
+
         'PROGRAMMA PRODUZIONE DEL MESE': "Dashboard Produzione",
         'PIPISTRELLI': "🦇 Pipistrelli"
     };
@@ -1261,7 +1270,7 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
         if (badgeBottom) { badgeBottom.style.display = 'none'; badgeBottom.classList.remove('badge-sollecito-attivo'); }
     }
 
-    if (cacheContenuti[nomeFoglio]) {
+    if (cacheContenuti[nomeFoglio] && !(nomeFoglio === 'MATERIALE DA ORDINARE' && _acquistTabAttivo === 'ordini')) {
         contenitore.innerHTML = cacheContenuti[nomeFoglio];
         applicaFade(contenitore);
         aggiornaListaFiltrabili();
@@ -1293,11 +1302,14 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
             caricaArchivio();
             break;
         case 'MATERIALE DA ORDINARE':
-            caricaMateriali(false, requestId, navSignal);
+            _aggiornaTabAcquisti();
+            if (_acquistTabAttivo === 'ordini') caricaOrdiniAcquisti(requestId, navSignal);
+            else caricaMateriali(false, requestId, navSignal);
             break;
         case 'ORDINI_ACQUISTI':
-            caricaOrdiniAcquisti(requestId, navSignal);
-            break;
+            _acquistTabAttivo = 'ordini';
+            cambiaPagina('MATERIALE DA ORDINARE', null);
+            return;
         case 'PIPISTRELLI':
             caricaPaginaPipistrello();
             break;
@@ -4030,6 +4042,19 @@ async function salvaTutteImpostazioni() {
 
 
 
+function _aggiornaTabAcquisti() {
+    const tc = document.getElementById('acq-tab-catalogo');
+    const to = document.getElementById('acq-tab-ordini');
+    if (tc) tc.classList.toggle('active', _acquistTabAttivo === 'catalogo');
+    if (to) to.classList.toggle('active', _acquistTabAttivo === 'ordini');
+}
+function _switchAcquistiTab(tab) {
+    _acquistTabAttivo = tab;
+    _aggiornaTabAcquisti();
+    if (tab === 'ordini') caricaOrdiniAcquisti(null, null);
+    else caricaMateriali(false, null, null);
+}
+
 /* ─────────────────────────────── ORDINI ACQUISTI ─────────────────────────── */
 
 async function caricaOrdiniAcquisti(expectedRequestId = null, signal = null) {
@@ -4070,7 +4095,7 @@ async function caricaOrdiniAcquisti(expectedRequestId = null, signal = null) {
                         ? (pendingCount > 0 ? `${pendingCount} articoli in attesa` : 'Tutto ordinato ✅')
                         : 'Storico ordini inviati'}</p>
                 </div>
-                ${isAlessio ? '' : `<button class="btn-nuovo-fisso ${TW.btnSuccess}" onclick="cambiaPagina('MATERIALE DA ORDINARE', null)">
+                ${isAlessio ? '' : `<button class="btn-nuovo-fisso ${TW.btnSuccess}" onclick="_switchAcquistiTab('catalogo')">
                     <i class="fas fa-cart-plus"></i><span class="btn-label-nuovo"> Nuovo ordine</span>
                 </button>`}
             </div>
@@ -4216,6 +4241,7 @@ async function _toggleOrdinato(idRiga, btn) {
 
   // --- PAGINA ACQUISTI ---
   let carrelloLocale = [];
+  let _acquistTabAttivo = 'catalogo';
   let sezioniMateriali = JSON.parse(localStorage.getItem('sezioniMateriali') || '["Strumenti","Bombolette","Rifiuti"]');
 
   // Carica le sezioni dal backend (sovrascrive il localStorage se il backend le ha)
@@ -4558,7 +4584,8 @@ async function inviaOrdineAcquisti() {
               if (typeof chiudiModalCarrello === 'function') chiudiModalCarrello();
               notificaElegante('✅ Ordine inviato ad Alessio!');
               // Mostra bottoncino per vedere lo storico
-              setTimeout(() => cambiaPagina('ORDINI_ACQUISTI', null), 800);
+              _acquistTabAttivo = 'ordini';
+              setTimeout(() => cambiaPagina('MATERIALE DA ORDINARE', null), 800);
           } else {
               throw new Error(result.message);
           }
