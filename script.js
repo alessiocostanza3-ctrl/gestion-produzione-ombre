@@ -5351,6 +5351,16 @@ let _qrPostazioneAttuale = null;  // { codice, nome, icona, domanda, statoDefaul
 let _qrStatoScelto       = null;  // stringa stato scelto per lo spostamento
 let _qrOrdineSelezionato = null;  // numero ordine selezionato
 
+/** Rilevamento iOS PWA (standalone): getUserMedia usa ReplayKit → registrazione schermo attiva.
+ *  Su iOS usiamo input[type=file capture=environment] + jsQR su immagine statica. */
+function _isIosPwa() {
+    const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const standalone = window.navigator.standalone === true ||
+                       window.matchMedia('(display-mode: standalone)').matches;
+    return ios && standalone;
+}
+
 /** Apre il modale scanner QR e avvia la fotocamera posteriore. */
 async function apriScannerQR() {
     const modal  = document.getElementById('modal-qr-scanner');
@@ -5360,6 +5370,51 @@ async function apriScannerQR() {
     if (errDiv) errDiv.style.display = 'none';
     const mi = document.getElementById('qr-manual-input');
     if (mi) mi.value = '';
+
+    // ── iOS PWA: usa input file per evitare ReplayKit / recording indicator ──
+    if (_isIosPwa()) {
+        const input = document.createElement('input');
+        input.type    = 'file';
+        input.accept  = 'image/*';
+        input.capture = 'environment';
+        input.style.display = 'none';
+        document.body.appendChild(input);
+        input.onchange = () => {
+            const file = input.files && input.files[0];
+            document.body.removeChild(input);
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = ev => {
+                const img = new Image();
+                img.onload = () => {
+                    if (typeof jsQR === 'undefined') {
+                        alert('⚠️ Libreria scanner non caricata. Usa il campo manuale.');
+                        return;
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width; canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    const imageData = ctx.getImageData(0, 0, img.width, img.height);
+                    const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
+                    if (code && code.data) {
+                        try { if (navigator.vibrate) navigator.vibrate(80); } catch {}
+                        _processaQR(code.data.trim());
+                    } else {
+                        modal.style.display = 'flex';
+                        modal.offsetHeight;
+                        modal.classList.add('active');
+                        if (errDiv) { errDiv.textContent = '⚠️ QR non riconosciuto nell\'immagine. Riprova o usa il campo manuale.'; errDiv.style.display = 'block'; }
+                    }
+                };
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        };
+        input.oncancel = () => document.body.removeChild(input);
+        input.click();
+        return;
+    }
 
     modal.style.display = 'flex';
     modal.offsetHeight;
@@ -5379,7 +5434,6 @@ async function apriScannerQR() {
         // Riusa lo stream esistente se già attivo (evita richiesta permesso ogni volta)
         if (!_qrStream || !_qrStream.active) {
             _qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
-            // Salva flag permanente: la prossima volta pre-warmup silenzioso all'avvio
             try { localStorage.setItem('qrCameraGranted', '1'); } catch {}
         }
         const video = document.getElementById('qr-video');
