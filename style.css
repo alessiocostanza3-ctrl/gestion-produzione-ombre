@@ -4664,7 +4664,7 @@ button:active {
 
 /* ── Accordion overview nella pagina produzione ── */
 .ov-accordion {
-    background: #1e293b;
+    background: #242424;
     border-radius: 14px;
     margin-bottom: 16px;
     box-shadow: 0 2px 12px rgba(0,0,0,0.3);
@@ -4845,7 +4845,7 @@ button:active {
 
 /* Sub-card: <details> per ogni stato */
 .ov-stato-card {
-    background: #0f172a;
+    background: #1c1c1c;
     border-radius: 10px;
     display: flex;
     flex-direction: column;
@@ -4860,7 +4860,7 @@ button:active {
     gap: 7px;
     padding: 8px 12px;
     border-left: 3px solid var(--ov-col, #94a3b8);
-    background: #1e293b;
+    background: #2c2c2c;
     flex-shrink: 0;
     /* desktop: non cliccare */
     cursor: default;
