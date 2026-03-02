@@ -536,9 +536,9 @@ function _lsCacheGet(key, ttlMs) {
 }
 function _lsCacheSet(key, data) {
     try {
-        // Evita di salvare stringhe enormi (> 400 KB) per non riempire la quota
+        // Evita di salvare stringhe enormi (> 1.5 MB) per non riempire la quota
         const str = (typeof data === 'string') ? data : JSON.stringify(data);
-        if (str.length > 400000) return;
+        if (str.length > 1500000) return;
         localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data: str }));
     } catch(e) {} // quota exceeded: ignora silenziosamente
 }
@@ -551,6 +551,32 @@ function applicaFade(elem) {
         elem.classList.add('fade-in');
         setTimeout(() => elem.classList.remove('fade-in'), 300);
     }
+}
+
+/**
+ * Avvia in background appena l'app si apre:
+ * 1. riscalda il runtime GAS (elimina il cold start sul primo click)
+ * 2. pre-popola window._prefetchDashBundle / window._prefetchRqBundle
+ * 3. caricaDati e caricaPaginaRichieste li consumano prima di fare qualsiasi fetch
+ */
+function _prefetchBackground() {
+    if (typeof URL_GOOGLE === 'undefined') return;
+    // Piccolo delay (200ms) per non competere col rendering iniziale della shell
+    setTimeout(async function() {
+        try {
+            // Invia entrambe le richieste in parallelo
+            const [dashRes, rqRes] = await Promise.all([
+                fetch(URL_GOOGLE + '?azione=getAllDashboard').catch(() => null),
+                fetch(URL_GOOGLE + '?azione=getAllRichieste').catch(() => null)
+            ]);
+            if (dashRes && dashRes.ok) {
+                window._prefetchDashBundle = await dashRes.json();
+            }
+            if (rqRes && rqRes.ok) {
+                window._prefetchRqBundle = await rqRes.json();
+            }
+        } catch(e) {}
+    }, 200);
 }
 
 
@@ -2105,11 +2131,17 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
     }, 12000);
 
     try {
-        // Singola chiamata bundle GAS: produzione + archivio in una sola request
-        // (cold start pagato una volta sola invece di due volte in parallelo)
-        const _dashResp = await fetch(URL_GOOGLE + '?azione=getAllDashboard', signal ? { signal } : {});
-        if (!_dashResp.ok) throw new Error(`HTTP ${_dashResp.status}`);
-        const _dashBundle = await _dashResp.json();
+        // Usa il bundle pre-fetchato se disponibile (GAS già chiamato in background all'avvio)
+        let _dashBundle = null;
+        if (window._prefetchDashBundle) {
+            _dashBundle = window._prefetchDashBundle;
+            window._prefetchDashBundle = null;
+        } else {
+            // Singola chiamata bundle GAS: produzione + archivio in una sola request
+            const _dashResp = await fetch(URL_GOOGLE + '?azione=getAllDashboard', signal ? { signal } : {});
+            if (!_dashResp.ok) throw new Error(`HTTP ${_dashResp.status}`);
+            _dashBundle = await _dashResp.json();
+        }
         const [datiProd, datiArch] = [_dashBundle.produzione || [], _dashBundle.archivio || []];
         if (retryTimer) clearTimeout(retryTimer);
 
@@ -2166,6 +2198,15 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
         cacheContenuti[nomeFoglio] = contenitore.innerHTML;
         cacheFetchTime[nomeFoglio] = Date.now();
         _lsCacheSet('_html_' + nomeFoglio, contenitore.innerHTML); // cache cross-session
+
+        // Pre-popola la cache ARCHIVIO_ORDINI come side effect (ARCHIVIO è incluso nel bundle)
+        if (!cacheContenuti['ARCHIVIO_ORDINI']) {
+            const _archSideHtml = generaBloccoOrdiniUnificato(datiArch, true) || "<div class='empty-msg'>L'archivio \u00e8 vuoto.</div>";
+            cacheContenuti['ARCHIVIO_ORDINI'] = _archSideHtml;
+            cacheFetchTime['ARCHIVIO_ORDINI'] = Date.now();
+            _lsCacheSet('_html_ARCHIVIO_ORDINI', _archSideHtml);
+        }
+
         applicaFade(contenitore);
         aggiornaListaFiltrabili();
         // Observer: apri archivio quando ci si scorre sopra
@@ -2200,9 +2241,15 @@ async function caricaArchivio() {
     if (!contenitore) return;
     contenitore.innerHTML = "<div class='centered-msg'><i class='fas fa-spinner fa-spin'></i> Caricamento archivio...</div>";
     try {
-        const _aResp = await fetch(URL_GOOGLE + '?azione=getAllDashboard');
-        if (!_aResp.ok) throw new Error(`HTTP ${_aResp.status}`);
-        const _aBundle = await _aResp.json();
+        let _aBundle = null;
+        if (window._prefetchDashBundle) {
+            _aBundle = window._prefetchDashBundle;
+            window._prefetchDashBundle = null;
+        } else {
+            const _aResp = await fetch(URL_GOOGLE + '?azione=getAllDashboard');
+            if (!_aResp.ok) throw new Error(`HTTP ${_aResp.status}`);
+            _aBundle = await _aResp.json();
+        }
         const datiArch = _aBundle.archivio || [];
         const htmlArch = generaBloccoOrdiniUnificato(datiArch, true);
         const _archHtml = htmlArch || "<div class='empty-msg'>L'archivio \u00e8 vuoto.</div>";
@@ -3307,9 +3354,16 @@ async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
     }, 12000);
 
     try {
-        const _rqResp = await fetch(URL_GOOGLE + '?azione=getAllRichieste', signal ? { signal } : {});
-        if (!_rqResp.ok) throw new Error(`HTTP ${_rqResp.status}`);
-        const _rqBundle = await _rqResp.json();
+        // Usa il bundle pre-fetchato se disponibile (GAS già chiamato in background all'avvio)
+        let _rqBundle = null;
+        if (window._prefetchRqBundle) {
+            _rqBundle = window._prefetchRqBundle;
+            window._prefetchRqBundle = null;
+        } else {
+            const _rqResp = await fetch(URL_GOOGLE + '?azione=getAllRichieste', signal ? { signal } : {});
+            if (!_rqResp.ok) throw new Error(`HTTP ${_rqResp.status}`);
+            _rqBundle = await _rqResp.json();
+        }
         const [messaggiAttivi, messaggiArchivio] = [_rqBundle.attive || [], _rqBundle.archivio || []];
         clearTimeout(retryTimer);
 
@@ -5373,6 +5427,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (!hasSession) return;
 
     // 1️⃣ Carica impostazioni: prima controlla localStorage (TTL 5min), poi GAS solo se necessario
+    // 🔥 Avvia subito warm-up GAS in background (parallelo all'init, no await)
+    _prefetchBackground();
     await caricaDatiIniziali();
 
     // 2️⃣ Recupera pagina salvata
