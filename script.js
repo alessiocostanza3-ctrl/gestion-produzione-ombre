@@ -133,7 +133,7 @@ let listaStati = [];
 let tipoTrascinamento = "";
 const cacheContenuti = {};
 const cacheFetchTime = {}; // timestamp dell'ultimo fetch per pagina
-const CACHE_TTL_MS = 120000; // 2 minuti: sotto questa soglia non fare background refresh
+const CACHE_TTL_MS = 300000; // 5 minuti: sotto questa soglia non fare background refresh
 
 // ---- runtime guards (anti doppio init / race rendering) ----
 let _bootCompleted = false;
@@ -556,27 +556,21 @@ function applicaFade(elem) {
 /**
  * Avvia in background appena l'app si apre:
  * 1. riscalda il runtime GAS (elimina il cold start sul primo click)
- * 2. pre-popola window._prefetchDashBundle / window._prefetchRqBundle
- * 3. caricaDati e caricaPaginaRichieste li consumano prima di fare qualsiasi fetch
+ * 2. espone window._prefetchDashPromise / window._prefetchRqPromise
+ * 3. caricaDati e caricaPaginaRichieste le attendono invece di fare una seconda fetch
  */
 function _prefetchBackground() {
     if (typeof URL_GOOGLE === 'undefined') return;
-    // Piccolo delay (200ms) per non competere col rendering iniziale della shell
-    setTimeout(async function() {
-        try {
-            // Invia entrambe le richieste in parallelo
-            const [dashRes, rqRes] = await Promise.all([
-                fetch(URL_GOOGLE + '?azione=getAllDashboard').catch(() => null),
-                fetch(URL_GOOGLE + '?azione=getAllRichieste').catch(() => null)
-            ]);
-            if (dashRes && dashRes.ok) {
-                window._prefetchDashBundle = await dashRes.json();
-            }
-            if (rqRes && rqRes.ok) {
-                window._prefetchRqBundle = await rqRes.json();
-            }
-        } catch(e) {}
-    }, 200);
+    // Avvia subito senza delay per massimizzare il tempo disponibile prima del click
+    window._prefetchDashPromise = fetch(URL_GOOGLE + '?azione=getAllDashboard')
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .catch(function() { return null; });
+    window._prefetchRqPromise   = fetch(URL_GOOGLE + '?azione=getAllRichieste')
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .catch(function() { return null; });
+    // Salva il risultato anche nelle var bundle per accesso rapido successivo
+    window._prefetchDashPromise.then(function(b) { if (b) window._prefetchDashBundle = b; });
+    window._prefetchRqPromise.then(function(b)   { if (b) window._prefetchRqBundle   = b; });
 }
 
 
@@ -1288,11 +1282,19 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
 
     // Ripristino da localStorage se la cache RAM è vuota (garantisce render istantaneo dopo reload)
     if (!cacheContenuti[nomeFoglio]) {
-        const _lsHtml = _lsCacheGet('_html_' + nomeFoglio, 300000); // conserva fino a 5 minuti
+        const _lsKey = '_html_' + nomeFoglio;
+        const _lsHtml = _lsCacheGet(_lsKey, 300000); // conserva fino a 5 minuti
         if (_lsHtml) {
             cacheContenuti[nomeFoglio] = _lsHtml;
-            // Imposta timestamp vecchio così scatterà subito il background refresh
-            cacheFetchTime[nomeFoglio] = Date.now() - CACHE_TTL_MS - 1000;
+            // Usa il timestamp REALE dell'LS cache così il bg refresh scatta
+            // solo se i dati sono davvero scaduti, non ad ogni reload
+            try {
+                const _raw = localStorage.getItem(_lsKey);
+                const _parsed = _raw ? JSON.parse(_raw) : null;
+                cacheFetchTime[nomeFoglio] = (_parsed && _parsed.ts) ? _parsed.ts : (Date.now() - CACHE_TTL_MS - 1000);
+            } catch(e) {
+                cacheFetchTime[nomeFoglio] = Date.now() - CACHE_TTL_MS - 1000;
+            }
         }
     }
 
@@ -2131,17 +2133,23 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
     }, 12000);
 
     try {
-        // Usa il bundle pre-fetchato se disponibile (GAS già chiamato in background all'avvio)
+        // Usa il bundle già fetchato al boot (o attende la Promise in volo)
+        // così GAS viene chiamato UNA SOLA VOLTA invece di due volte in parallelo
         let _dashBundle = null;
         if (window._prefetchDashBundle) {
             _dashBundle = window._prefetchDashBundle;
             window._prefetchDashBundle = null;
+            window._prefetchDashPromise = null;
+        } else if (window._prefetchDashPromise) {
+            _dashBundle = await window._prefetchDashPromise;
+            window._prefetchDashBundle = null;
+            window._prefetchDashPromise = null;
         } else {
-            // Singola chiamata bundle GAS: produzione + archivio in una sola request
             const _dashResp = await fetch(URL_GOOGLE + '?azione=getAllDashboard', signal ? { signal } : {});
             if (!_dashResp.ok) throw new Error(`HTTP ${_dashResp.status}`);
             _dashBundle = await _dashResp.json();
         }
+        if (!_dashBundle) throw new Error('bundle vuoto');
         const [datiProd, datiArch] = [_dashBundle.produzione || [], _dashBundle.archivio || []];
         if (retryTimer) clearTimeout(retryTimer);
 
@@ -2245,11 +2253,17 @@ async function caricaArchivio() {
         if (window._prefetchDashBundle) {
             _aBundle = window._prefetchDashBundle;
             window._prefetchDashBundle = null;
+            window._prefetchDashPromise = null;
+        } else if (window._prefetchDashPromise) {
+            _aBundle = await window._prefetchDashPromise;
+            window._prefetchDashBundle = null;
+            window._prefetchDashPromise = null;
         } else {
             const _aResp = await fetch(URL_GOOGLE + '?azione=getAllDashboard');
             if (!_aResp.ok) throw new Error(`HTTP ${_aResp.status}`);
             _aBundle = await _aResp.json();
         }
+        if (!_aBundle) throw new Error('bundle vuoto');
         const datiArch = _aBundle.archivio || [];
         const htmlArch = generaBloccoOrdiniUnificato(datiArch, true);
         const _archHtml = htmlArch || "<div class='empty-msg'>L'archivio \u00e8 vuoto.</div>";
@@ -3354,16 +3368,21 @@ async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
     }, 12000);
 
     try {
-        // Usa il bundle pre-fetchato se disponibile (GAS già chiamato in background all'avvio)
         let _rqBundle = null;
         if (window._prefetchRqBundle) {
             _rqBundle = window._prefetchRqBundle;
             window._prefetchRqBundle = null;
+            window._prefetchRqPromise = null;
+        } else if (window._prefetchRqPromise) {
+            _rqBundle = await window._prefetchRqPromise;
+            window._prefetchRqBundle = null;
+            window._prefetchRqPromise = null;
         } else {
             const _rqResp = await fetch(URL_GOOGLE + '?azione=getAllRichieste', signal ? { signal } : {});
             if (!_rqResp.ok) throw new Error(`HTTP ${_rqResp.status}`);
             _rqBundle = await _rqResp.json();
         }
+        if (!_rqBundle) throw new Error('bundle vuoto');
         const [messaggiAttivi, messaggiArchivio] = [_rqBundle.attive || [], _rqBundle.archivio || []];
         clearTimeout(retryTimer);
 
