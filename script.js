@@ -3188,14 +3188,17 @@ function _syncStatoItemCard(idRiga, newStato, colore) {
 
 //PAGINA RICHIESTE//
 
+/** Salva lo stato open/closed di un gruppo richieste */
+function _saveReqGroup(id, el) {
+    try { localStorage.setItem('_rg_' + id, el.open ? '1' : '0'); } catch {}
+}
+
 async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
     const contenitore = document.getElementById('contenitore-dati');
     if (!contenitore) return;
 
-    // Messaggio di caricamento con id univoco per il retry-timer
     contenitore.innerHTML = "<div class='centered-msg' id='_ric-loader'>Caricamento messaggi in corso...</div>";
 
-    // Retry button dopo 12s se ancora in caricamento (GAS cold-start / rete lenta)
     const retryTimer = setTimeout(() => {
         const el = document.getElementById('_ric-loader');
         if (el) el.innerHTML = `⚠️ Connessione lenta o server non raggiungibile.<br>
@@ -3213,17 +3216,14 @@ async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
         ]);
         clearTimeout(retryTimer);
 
-        // Guard requestId: se arriva una risposta di una navigazione superata, aggiorna solo i badge
         if (expectedRequestId !== null && expectedRequestId !== _latestNavRequest) {
             aggiornaBadgeSidebar(messaggiAttivi);
             return;
         }
 
-        // Aggiorna badge sidebar (sempre, indipendentemente dalla pagina attuale)
         aggiornaBadgeSidebar(messaggiAttivi);
         aggiornaBadgeNotifiche(messaggiAttivi);
 
-        // Guard pagina: renderizza HTML solo se siamo ancora su STORICO_RICHIESTE
         if (paginaAttuale !== 'STORICO_RICHIESTE') return;
 
         const io = utenteAttuale.nome.toUpperCase().trim();
@@ -3237,23 +3237,33 @@ async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
             return gruppi;
         };
 
-        const gruppiAttivi = raggruppa(messaggiAttivi);
+        const gruppiAttivi   = raggruppa(messaggiAttivi);
         const gruppiArchivio = raggruppa(messaggiArchivio);
 
-        let html = `
-            <div class="scroll-wrapper">
-                <button class="scroll-btn" onclick="_apriArchivio('archivio-req-details')">
-                    <i class="fa-solid fa-box-archive"></i> Archivio
-                </button>
-            </div>
-            <div class="chat-inbox">`;
-
-        // 1. RICHIESTE ATTIVE
-        Object.keys(gruppiAttivi).reverse().forEach(nOrd => {
-            html += generaCardRichiesta(gruppiAttivi[nOrd], io, false);
+        // Separa per tipo (usa il tipo del primo messaggio del thread)
+        const gAssegnazioni = {};
+        const gRichieste    = {};
+        Object.keys(gruppiAttivi).forEach(nOrd => {
+            const msgs = gruppiAttivi[nOrd];
+            const tipoFirst = (msgs[0].TIPO || 'MSG').toUpperCase();
+            if (tipoFirst === 'ASSEGNAZIONE') gAssegnazioni[nOrd] = msgs;
+            else                              gRichieste[nOrd]    = msgs;
         });
 
-        // 2. DIVISORE + ARCHIVIO COLLASSABILE
+        // Stato open/closed persistito
+        const asseOpen = localStorage.getItem('_rg_assegnazioni') !== '0';
+        const richOpen = localStorage.getItem('_rg_richieste') !== '0';
+        const cntA = Object.keys(gAssegnazioni).length;
+        const cntR = Object.keys(gRichieste).length;
+
+        const _renderGroup = (gruppi, io) => {
+            let s = '';
+            Object.keys(gruppi).reverse().forEach(nOrd => {
+                s += generaCardRichiesta(gruppi[nOrd], io, false);
+            });
+            return s || `<div class="empty-msg" style="margin:16px 0 8px">Nessun elemento.</div>`;
+        };
+
         let htmlArchReq = '';
         if (Object.keys(gruppiArchivio).length === 0) {
             htmlArchReq = `<div class="empty-msg" style="margin:20px 0">Nessuna richiesta archiviata.</div>`;
@@ -3262,23 +3272,58 @@ async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
                 htmlArchReq += generaCardRichiesta(gruppiArchivio[nOrd], io, true);
             });
         }
-        html += `
-        </div>
-        <details id="archivio-req-details" class="archivio-details">
-            <summary class="separatore-archivio archivio-summary" style="list-style:none">
-                <span>ARCHIVIO</span>
-                <i class="fas fa-chevron-down archivio-chevron"></i>
-            </summary>
-            <div class="chat-inbox">${htmlArchReq}</div>
-        </details>`;
+
+        let html = `
+            <div class="scroll-wrapper">
+                <button class="scroll-btn" onclick="_apriArchivio('archivio-req-details')">
+                    <i class="fa-solid fa-box-archive"></i> Archivio
+                </button>
+            </div>
+
+            <div class="req-groups">
+
+                <details id="rg-assegnazioni" class="req-group" ${asseOpen ? 'open' : ''}
+                         ontoggle="_saveReqGroup('assegnazioni', this)">
+                    <summary class="req-group-summary">
+                        <span class="rg-left">
+                            <span class="rg-icon rg-icon-assegna"><i class="fas fa-arrow-right"></i></span>
+                            <span class="rg-title">ASSEGNAZIONI</span>
+                            ${cntA > 0 ? `<span class="rg-count">${cntA}</span>` : ''}
+                        </span>
+                        <i class="fas fa-chevron-down rg-chevron"></i>
+                    </summary>
+                    <div class="chat-inbox">${_renderGroup(gAssegnazioni, io)}</div>
+                </details>
+
+                <details id="rg-richieste" class="req-group" ${richOpen ? 'open' : ''}
+                         ontoggle="_saveReqGroup('richieste', this)">
+                    <summary class="req-group-summary">
+                        <span class="rg-left">
+                            <span class="rg-icon rg-icon-domanda"><i class="fas fa-question"></i></span>
+                            <span class="rg-title">RICHIESTE</span>
+                            ${cntR > 0 ? `<span class="rg-count rg-count-dom">${cntR}</span>` : ''}
+                        </span>
+                        <i class="fas fa-chevron-down rg-chevron"></i>
+                    </summary>
+                    <div class="chat-inbox">${_renderGroup(gRichieste, io)}</div>
+                </details>
+
+            </div>
+
+            <details id="archivio-req-details" class="archivio-details">
+                <summary class="separatore-archivio archivio-summary" style="list-style:none">
+                    <span>ARCHIVIO</span>
+                    <i class="fas fa-chevron-down archivio-chevron"></i>
+                </summary>
+                <div class="chat-inbox">${htmlArchReq}</div>
+            </details>`;
 
         contenitore.innerHTML = html;
-        cacheContenuti['STORICO_RICHIESTE'] = html; // salva dopo archivio
+        cacheContenuti['STORICO_RICHIESTE'] = html;
         applicaFade(contenitore);
         aggiornaListaFiltrabili();
         _osservaArchivio('archivio-req-details');
 
-        // Reset barra di ricerca al caricamento
         ['universal-search', 'mobile-search'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.value = "";
@@ -3286,7 +3331,7 @@ async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
 
     } catch (e) {
         clearTimeout(retryTimer);
-        if (e.name === 'AbortError') return; // navigazione annullata
+        if (e.name === 'AbortError') return;
         console.error("Errore caricamento richieste:", e);
         contenitore.innerHTML = "<div class='centered-error-bold'>Errore nel caricamento. <button onclick=\"cambiaPagina('STORICO_RICHIESTE',null)\" style=\"margin-left:8px;padding:4px 12px;background:#242424;color:#fff;border:none;border-radius:6px;cursor:pointer\">Riprova</button></div>";
         applicaFade(contenitore);
