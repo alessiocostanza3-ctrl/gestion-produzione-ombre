@@ -230,14 +230,14 @@
    1. VARIABILI GLOBALI E FONDAMENTA
    ============================================================ */
 :root {
-    --primary: #2563eb;
+    --primary: #242424;
     --sidebar-bg: #242424;
     --sidebar-text: #9ca3af;
     --bg-body: #f8fafc;
     --text-main: #0f172a;
     --text-muted: #64748b;
     --border-color: #e2e8f0;
-    --accent-color: #2563eb;
+    --accent-color: #242424;
 }
 
 body {
@@ -1755,7 +1755,7 @@ h1 {
 }
 
 .border-assegna {
-    border-left: 5px solid #2563eb;
+    border-left: 5px solid #242424;
 }
 
 .border-domanda {
@@ -1901,7 +1901,7 @@ h1 {
 
 .chat-header { background: transparent; padding: 12px 20px; }
 .chat-header.archiviata { background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
-.chat-badge-type { font-size: 10px; font-weight: 800; color: #3b82f6; text-transform: uppercase; background: #eff6ff; padding: 2px 6px; border-radius: 4px; }
+.chat-badge-type { font-size: 10px; font-weight: 800; color: #475569; text-transform: uppercase; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
 /* Dot icona tipo (sostituisce badge testuale) */
 .chat-tipo-dot {
     display: inline-flex;
@@ -1934,8 +1934,8 @@ h1 {
 .box-hidden { display: none; opacity: 0; transform: translateY(-10px); transition: all 0.3s ease; }
 .box-conferma { background: #fff7ed; border-top: 1px solid #ffedd5; text-align: center; }
 .box-risposta {
-    background: #f8faff;
-    border-top: 2px solid #e0eaff;
+    background: #f8fafc;
+    border-top: 2px solid #e2e8f0;
     padding: 16px 20px 18px;
     border-radius: 0 0 16px 16px;
 }
@@ -1962,8 +1962,8 @@ h1 {
     box-sizing: border-box;
 }
 .reply-input:focus {
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+    border-color: #242424;
+    box-shadow: 0 0 0 3px rgba(36,36,36,0.10);
 }
 .reply-footer {
     display: flex;
@@ -2034,8 +2034,8 @@ h1 {
 }
 
 .badge-tipo-chat {
-    background: #eef2ff;
-    color: #4f46e5;
+    background: #f1f5f9;
+    color: #475569;
     padding: 4px 10px;
     border-radius: 6px;
     text-transform: uppercase;
@@ -2199,7 +2199,7 @@ h1 {
 }
 
 .reply-input-wrapper button {
-    background: #3b82f6;
+    background: #242424;
     color: white;
     border: none;
     width: 34px;
@@ -2214,7 +2214,7 @@ h1 {
 
 .reply-input-wrapper button:hover {
     transform: scale(1.05);
-    background: #2563eb;
+    background: #3f3f3f;
 }
 
 .notification-container {
@@ -2274,21 +2274,21 @@ h1 {
 }
 
 @keyframes pulse-new {
-    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
-    70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }
-    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(36, 36, 36, 0.4); }
+    70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(36, 36, 36, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(36, 36, 36, 0); }
 }
 
 .badge-new-anim {
     animation: pulse-new 2s infinite;
-    background: #2563eb !important;
+    background: #242424 !important;
 }
 
 .loader-spinner {
     width: 24px;
     height: 24px;
     border: 3px solid #f3f3f3;
-    border-top: 3px solid #2563eb;
+    border-top: 3px solid #242424;
     border-radius: 50%;
     animation: spin 1s linear infinite;
     display: inline-block;
@@ -2556,7 +2556,7 @@ h1 {
     width: 16px !important;
     height: 16px !important;
     cursor: pointer !important;
-    accent-color: #2563eb !important;
+    accent-color: #242424 !important;
 }
 
 /* === Wobble mode Sposta (iPhone-style) === */
@@ -2570,8 +2570,8 @@ h1 {
     animation: mat-jiggle 0.45s ease-in-out infinite;
     transform-origin: center center;
     cursor: grab !important;
-    box-shadow: 0 6px 20px rgba(37,99,235,0.18) !important;
-    border-color: #bfdbfe !important;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.18) !important;
+    border-color: #cbd5e1 !important;
     user-select: none;
 }
 .mat-wobble:nth-child(even) {
@@ -2583,12 +2583,12 @@ h1 {
 
 /* Bottone Sposta attivo */
 .btn-active-sposta {
-    background: #1d4ed8 !important;
+    background: #242424 !important;
     color: white !important;
-    border-color: #1d4ed8 !important;
+    border-color: #242424 !important;
 }
 .btn-active-sposta:hover {
-    background: #1e40af !important;
+    background: #3f3f3f !important;
 }
 
 /* Drag and Drop */
@@ -2717,7 +2717,7 @@ h1 {
 }
 
 .btn-chiedi-assegna {
-    background: #6366f1;
+    background: #242424;
     color: white;
     border: none;
     padding: 6px 12px !important;
@@ -2736,7 +2736,9 @@ h1 {
 }
 
 .btn-chiedi-assegna:hover {
-    background: #4f46e5;
+    background: #ffffff;
+    color: #242424;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
     transform: translateY(-1px);
 }
 
@@ -3089,7 +3091,7 @@ h1 {
     width: 18px;
     height: 18px;
     cursor: pointer;
-    accent-color: #2563eb;
+    accent-color: #242424;
     flex-shrink: 0;
 }
 
@@ -3937,7 +3939,7 @@ button.menu-item-opt {
         flex-shrink: 0 !important;
         border: 1px solid #e2eaf3 !important;
         border-bottom: 1px solid #e2eaf3 !important;
-        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%) !important;
+        background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%) !important;
         cursor: pointer !important;
         align-self: center !important;
         margin-bottom: 12px !important;
@@ -3966,7 +3968,7 @@ button.menu-item-opt {
     }
     .materiale-codice {
         font-size: 10px !important;
-        color: #2563eb !important;
+        color: #475569 !important;
         font-weight: 700 !important;
         letter-spacing: 0.2px !important;
     }
@@ -4512,9 +4514,9 @@ button:active {
     gap: 6px;
 }
 .login-tab.active {
-    background: #3b82f6;
+    background: #242424;
     color: #fff;
-    box-shadow: 0 4px 10px rgba(59,130,246,0.35);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.25);
 }
 .login-password-row {
     position: relative;
@@ -4692,7 +4694,7 @@ button:active {
 }
 .ov-accordion-summary::-webkit-details-marker { display: none; }
 .ov-accordion-summary:focus { outline: none; }
-.ov-summary-label i { color: #6366f1; margin-right: 4px; }
+.ov-summary-label i { color: #64748b; margin-right: 4px; }
 .ov-summary-meta {
     margin-left: auto;
     font-size: 0.72rem;
@@ -4971,8 +4973,8 @@ button:active {
 .ov-badge-op {
     font-size: 0.63rem;
     font-weight: 600;
-    color: #818cf8;
-    background: #1e1b4b;
+    color: #94a3b8;
+    background: #2c2c2c;
     padding: 1px 6px;
     border-radius: 4px;
     white-space: nowrap;
@@ -5041,7 +5043,7 @@ button:active {
         padding-top: 3px;
         transition: color 0.15s;
     }
-    .ov-kanban-item:hover .ov-drag-handle { color: #818cf8; }
+    .ov-kanban-item:hover .ov-drag-handle { color: #94a3b8; }
     /* Testo principale + riga secondaria */
     .ov-row-main {
         display: flex;
@@ -5065,8 +5067,8 @@ button:active {
     }
     /* Colonna destinazione evidenziata durante il drag-over */
     .ov-stato-body.ov-drop-over {
-        background: rgba(99, 102, 241, 0.07);
-        outline: 2px dashed #6366f1;
+        background: rgba(36, 36, 36, 0.05);
+        outline: 2px dashed #94a3b8;
         outline-offset: -2px;
         border-radius: 0 0 10px 10px;
         transition: background 0.15s;
@@ -5102,7 +5104,7 @@ button:active {
     gap: 8px;
     margin-bottom: 16px;
 }
-.riepilogo-chart-title i { color: #6366f1; }
+.riepilogo-chart-title i { color: #64748b; }
 .riepilogo-totale {
     margin-left: auto;
     font-size: 0.76rem;
@@ -5166,7 +5168,7 @@ button:active {
     gap: 8px;
     margin-bottom: 14px;
 }
-.riepilogo-section-title i { color: #6366f1; }
+.riepilogo-section-title i { color: #64748b; }
 
 /* ── Cards grid ── */
 .riepilogo-cards-grid {
@@ -5196,7 +5198,7 @@ button:active {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #6366f1, #818cf8);
+    background: linear-gradient(135deg, #242424, #475569);
     color: #fff;
     font-weight: 700;
     font-size: 0.90rem;
@@ -5331,7 +5333,7 @@ button:active {
 .notif-pref-row input[type="checkbox"] {
     width: 18px;
     height: 18px;
-    accent-color: #2563eb;
+    accent-color: #242424;
     cursor: pointer;
     flex-shrink: 0;
 }
@@ -5418,8 +5420,8 @@ button:active {
 .pip-qty-input::-webkit-inner-spin-button,
 .pip-qty-input::-webkit-outer-spin-button { -webkit-appearance: none; }
 .pip-qty-input:focus {
-    border-color: #2563eb;
-    box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+    border-color: #242424;
+    box-shadow: 0 0 0 3px rgba(36,36,36,0.10);
 }
 
 .pip-qty-total-box {
@@ -5472,7 +5474,7 @@ button:active {
 .pip-coeff-off { color: #cbd5e1; font-size: 0.85rem; }
 
 /* FABBISOGNO — azzurro (funzionale: ok) */
-.pip-fab      { text-align: center; padding: 8px 10px; font-weight: 700; color: #0d47a1; background: #e3f2fd; white-space: nowrap; }
+.pip-fab      { text-align: center; padding: 8px 10px; font-weight: 700; color: #374151; background: #f1f5f9; white-space: nowrap; }
 .pip-fab-zero { color: #9ca3af !important; background: #f1f5f9 !important; font-weight: 400 !important; }
 
 /* CARICATO — verde (funzionale: ok) */
@@ -5555,7 +5557,7 @@ button:active {
     font-size: 0.88rem; color: #1e293b; outline: none;
     transition: border-color 0.15s; box-sizing: border-box; width: 100%;
 }
-.pip-asm-select:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+.pip-asm-select:focus { border-color: #242424; box-shadow: 0 0 0 3px rgba(36,36,36,0.10); }
 .pip-assemb-preview {
     margin: 10px 16px 0;
     font-size: 0.75rem; color: #475569;
@@ -5604,7 +5606,7 @@ button:active {
 }
 .pip-pronti-ma {
     font-size: 0.72rem; font-weight: 700;
-    background: #e0e7ff; color: #3730a3;
+    background: #e2e8f0; color: #374151;
     border-radius: 4px; padding: 1px 6px;
     font-family: monospace;
 }
@@ -5618,7 +5620,7 @@ button:active {
     cursor: pointer; display: flex; align-items: center; justify-content: center;
     line-height: 1; transition: background 0.12s, border-color 0.12s;
 }
-.pip-pronti-btn:hover { background: #e0e7ff; border-color: #a5b4fc; color: #3730a3; }
+.pip-pronti-btn:hover { background: #e2e8f0; border-color: #94a3b8; color: #0f172a; }
 .pip-pronti-input {
     width: 52px; text-align: center;
     font-size: 1.0rem; font-weight: 800; color: #9ca3af;
@@ -5725,7 +5727,7 @@ button:active {
 
 .pip-sped-ma-pill {
     display: inline-block;
-    background: #e0e7ff; color: #3730a3;
+    background: #e2e8f0; color: #374151;
     border-radius: 4px; padding: 1px 6px;
     font-size: 0.7rem; font-weight: 700;
     font-family: monospace;
@@ -5793,7 +5795,7 @@ button:active {
     transition: border-color 0.15s; box-sizing: border-box; width: 100%;
 }
 .pip-mov-form select:focus,
-.pip-mov-form input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+.pip-mov-form input:focus { border-color: #242424; box-shadow: 0 0 0 3px rgba(36,36,36,0.10); }
 
 .pip-mov-btn-carico {
     background: #242424; color: #f9fafb;
@@ -5823,7 +5825,7 @@ button:active {
     border: 1.5px solid #e2e8f0; background: #fff;
     font-size: 0.85rem;
 }
-.pip-mov-item.carico  { border-left: 4px solid #2563eb; }
+.pip-mov-item.carico  { border-left: 4px solid #242424; }
 .pip-mov-item.scarico { border-left: 4px solid #64748b; }
 
 .pip-mov-badge {
@@ -5831,12 +5833,12 @@ button:active {
     text-transform: uppercase; border-radius: 5px; padding: 2px 7px;
     white-space: nowrap; flex-shrink: 0;
 }
-.pip-mov-badge.carico  { background: #dbeafe; color: #1d4ed8; }
+.pip-mov-badge.carico  { background: #f1f5f9; color: #1e293b; }
 .pip-mov-badge.scarico { background: #f1f5f9; color: #374151; }
 
 .pip-mov-mat  { font-weight: 600; color: #1e293b; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pip-mov-qty  { font-weight: 800; color: #1e293b; flex-shrink: 0; }
-.pip-mov-qty.carico  { color: #1d4ed8; }
+.pip-mov-qty.carico  { color: #1e293b; }
 .pip-mov-qty.scarico { color: #374151; }
 .pip-mov-nota { color: #64748b; font-size: 0.8rem; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pip-mov-ts   { color: #9ca3af; font-size: 0.75rem; flex-shrink: 0; white-space: nowrap; }
@@ -5987,8 +5989,8 @@ button:active {
 }
 .qr-post-btn:hover  { background: #e2e8f0; color: #0f172a; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
 .qr-post-btn:active { transform: scale(0.9); }
-.qr-post-btn-print  { background: #eff6ff; color: #2563eb; border-color: #bfdbfe; }
-.qr-post-btn-print:hover { background: #dbeafe; color: #1d4ed8; }
+.qr-post-btn-print  { background: #f1f5f9; color: #374151; border-color: #e2e8f0; }
+.qr-post-btn-print:hover { background: #e2e8f0; color: #0f172a; }
 .qr-post-btn-danger { background: #fef2f2; color: #ef4444; border-color: #fecaca; }
 .qr-post-btn-danger:hover { background: #fee2e2; color: #dc2626; }
 
@@ -6018,10 +6020,10 @@ button:active {
 .qr-post-btn-add:hover { background: #1e293b; box-shadow: 0 3px 10px rgba(0,0,0,0.18); }
 .qr-post-btn-print-all {
     background: #f8fafc;
-    color: #2563eb;
-    border: 1.5px solid #bfdbfe;
+    color: #374151;
+    border: 1.5px solid #e2e8f0;
 }
-.qr-post-btn-print-all:hover { background: #eff6ff; }
+.qr-post-btn-print-all:hover { background: #e2e8f0; }
 
 /* ── Modal crea/modifica postazione ── */
 .qr-edit-content {
@@ -6116,9 +6118,9 @@ button:active {
     word-break: break-all;
 }
 .qr-edit-print-single {
-    border: 1.5px solid #bfdbfe;
-    background: #eff6ff;
-    color: #2563eb;
+    border: 1.5px solid #e2e8f0;
+    background: #f1f5f9;
+    color: #374151;
     font-size: 12px;
     font-weight: 700;
     padding: 7px 14px;
@@ -6131,7 +6133,7 @@ button:active {
     justify-content: center;
     transition: background 0.15s;
 }
-.qr-edit-print-single:hover { background: #dbeafe; color: #1d4ed8; }
+.qr-edit-print-single:hover { background: #e2e8f0; color: #0f172a; }
 
 
 /* ============================================================
@@ -6382,13 +6384,13 @@ button:active {
     transition: background 0.15s, border-color 0.15s;
 }
 .qr-articolo-row:has(.qr-art-chk:checked) {
-    background: #eff6ff;
-    border-color: #bfdbfe;
+    background: #f1f5f9;
+    border-color: #cbd5e1;
 }
 .qr-articolo-row input[type="checkbox"] {
     width: 17px; height: 17px;
     cursor: pointer;
-    accent-color: #2563eb;
+    accent-color: #242424;
     flex-shrink: 0;
 }
 .qr-art-info {

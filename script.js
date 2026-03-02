@@ -1869,7 +1869,7 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
         const el = document.getElementById('_prod-loader');
         if (el) el.innerHTML = `⚠️ Connessione lenta o server non raggiungibile.<br>
             <button onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', null)"
-                style="margin-top:12px;padding:8px 20px;background:#2563eb;color:#fff;
+                style="margin-top:12px;padding:8px 20px;background:#242424;color:#fff;
                        border:none;border-radius:8px;cursor:pointer;font-size:0.9rem">
                 &#x21bb; Riprova
             </button>`;
@@ -1954,7 +1954,7 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
         console.error("Errore Dashboard:", e);
         contenitore.innerHTML = `<div class='inline-error'>Errore nel caricamento dati.
             <button onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', null)"
-                style="margin-left:8px;padding:4px 12px;background:#2563eb;color:#fff;border:none;border-radius:6px;cursor:pointer">
+                style="margin-left:8px;padding:4px 12px;background:#242424;color:#fff;border:none;border-radius:6px;cursor:pointer">
                 &#x21bb; Riprova</button></div>`;
         applicaFade(contenitore);
     }
@@ -2656,10 +2656,10 @@ function _buildCaricoOperatoriHtml(attivi) {
     }).join('');
 
     const card1 = `<details class="ov-stato-card" open style="grid-column:4;grid-row:1">
-        <summary class="ov-stato-header" style="--ov-col:#6366f1">
-            <span class="ov-stato-dot" style="background:#6366f1"></span>
+        <summary class="ov-stato-header" style="--ov-col:#242424">
+            <span class="ov-stato-dot" style="background:#242424"></span>
             <span class="ov-stato-nome">Operatori</span>
-            <span class="ov-stato-tot" style="background:#6366f133;color:#6366f1">${OPS_PROD.length} op.</span>
+            <span class="ov-stato-tot" style="background:#24242422;color:#475569">${OPS_PROD.length} op.</span>
             <i class="fas fa-chevron-down ov-sub-chevron"></i>
         </summary>
         <div class="ov-stato-body ov-op-card-body">${card1Body}</div>
@@ -2882,7 +2882,7 @@ function _initKanbanDnd() {
             'transform:scale(1.05) rotate(-1.2deg)',
             'transition:transform 0.1s',
             'background:#1e2d3d',
-            'border:1.5px solid #6366f1'
+            'border:1.5px solid #475569'
         ].join(';');
         document.body.appendChild(ghost);
 
@@ -3022,7 +3022,7 @@ async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
         const el = document.getElementById('_ric-loader');
         if (el) el.innerHTML = `⚠️ Connessione lenta o server non raggiungibile.<br>
             <button onclick="cambiaPagina('STORICO_RICHIESTE', null)"
-                style="margin-top:12px;padding:8px 20px;background:#2563eb;color:#fff;
+                style="margin-top:12px;padding:8px 20px;background:#242424;color:#fff;
                        border:none;border-radius:8px;cursor:pointer;font-size:0.9rem">
                 &#x21bb; Riprova
             </button>`;
@@ -3110,7 +3110,7 @@ async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
         clearTimeout(retryTimer);
         if (e.name === 'AbortError') return; // navigazione annullata
         console.error("Errore caricamento richieste:", e);
-        contenitore.innerHTML = "<div class='centered-error-bold'>Errore nel caricamento. <button onclick=\"cambiaPagina('STORICO_RICHIESTE',null)\" style=\"margin-left:8px;padding:4px 12px;background:#2563eb;color:#fff;border:none;border-radius:6px;cursor:pointer\">Riprova</button></div>";
+        contenitore.innerHTML = "<div class='centered-error-bold'>Errore nel caricamento. <button onclick=\"cambiaPagina('STORICO_RICHIESTE',null)\" style=\"margin-left:8px;padding:4px 12px;background:#242424;color:#fff;border:none;border-radius:6px;cursor:pointer\">Riprova</button></div>";
         applicaFade(contenitore);
     }
 }
@@ -3621,7 +3621,7 @@ function caricaInterfacciaImpostazioni() {
                             <label class="notif-pref-row">
                                 <input type="checkbox" id="np-richieste" onchange="_onNotifPrefChange()"
                                     ${_getNotifPrefs().richieste ? 'checked' : ''}>
-                                <span><i class="fas fa-comment-dots" style="color:#60a5fa"></i>&nbsp;Nuove richieste / messaggi</span>
+                                <span><i class="fas fa-comment-dots" style="color:#242424"></i>&nbsp;Nuove richieste / messaggi</span>
                             </label>
                             <label class="notif-pref-row">
                                 <input type="checkbox" id="np-assegnazioni" onchange="_onNotifPrefChange()"
@@ -5159,9 +5159,9 @@ function _qrRenderStatoPills() {
     const statoDefault = post ? post.statoDefault.toUpperCase() : '';
     const stati = (listaStati && listaStati.length > 0) ? listaStati : [
         { nome: 'IN ATTESA',                    colore: '#94a3b8' },
-        { nome: 'PREPARARE PER LAVORAZIONE',    colore: '#8b5cf6' },
+        { nome: 'PREPARARE PER LAVORAZIONE',    colore: '#64748b' },
         { nome: 'IN LAVORAZIONE',               colore: '#f59e0b' },
-        { nome: 'IN PRODUZIONE',                colore: '#3b82f6' },
+        { nome: 'IN PRODUZIONE',                colore: '#242424' },
         { nome: 'IMBALLATO',                    colore: '#22c55e' }
     ];
 
