@@ -1913,6 +1913,100 @@ h1 {
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     border: 1px solid #f1f5f9;
 }
+/* ──────────────── PAGINA ORDINI ACQUISTI ───────────────── */
+.ordini-acq-page { padding-bottom: 40px; }
+.ordini-groups { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+
+.ordine-group {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.ordine-group.all-done { opacity: 0.7; }
+.ordine-group[open] { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+
+.ordine-group-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 13px 16px;
+    cursor: pointer;
+    user-select: none;
+    background: #f8fafc;
+    border-bottom: 1px solid transparent;
+    list-style: none;
+    transition: background 0.15s;
+}
+.ordine-group-summary::-webkit-details-marker { display: none; }
+.ordine-group[open] .ordine-group-summary { background: #f1f5f9; border-bottom-color: #e2e8f0; }
+.ordine-group-summary:hover { background: #eff3f7; }
+
+.og-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.og-operatore { font-size: 13px; font-weight: 800; color: #1e293b; }
+.og-data { font-size: 12px; color: #64748b; }
+.og-progress { font-size: 11px; font-weight: 700; background: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 20px; }
+.og-done-badge { font-size: 11px; font-weight: 700; color: #15803d; background: #dcfce7; padding: 2px 8px; border-radius: 20px; }
+.og-done-badge i { margin-right: 3px; }
+.og-chevron { font-size: 11px; color: #94a3b8; transition: transform 0.25s; }
+.ordine-group[open] .og-chevron { transform: rotate(180deg); }
+
+.ordine-items { display: flex; flex-direction: column; gap: 0; }
+
+.ordine-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background 0.15s;
+}
+.ordine-item:last-child { border-bottom: none; }
+.ordine-item.is-ordinato { background: #f0fdf4; }
+.ordine-item:hover { background: #f8fafc; }
+.ordine-item.is-ordinato:hover { background: #ecfdf5; }
+
+.oi-check-btn {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    border: 2px solid #cbd5e1;
+    background: transparent;
+    color: #94a3b8;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    padding: 0;
+}
+.oi-check-btn:hover { border-color: #22c55e; color: #22c55e; }
+.oi-check-btn.checked { border-color: #22c55e; color: #22c55e; background: #dcfce7; }
+.oi-check-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.oi-stato-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.dot-ordinato { background: #22c55e; }
+.dot-attesa   { background: #94a3b8; }
+
+.oi-info { flex: 1; min-width: 0; }
+.oi-nome { display: block; font-size: 14px; font-weight: 600; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ordine-item.is-ordinato .oi-nome { text-decoration: line-through; color: #64748b; }
+.oi-details { font-size: 12px; color: #94a3b8; }
+
+.oi-stato-badge { flex-shrink: 0; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 20px; letter-spacing: 0.3px; white-space: nowrap; }
+.badge-ordinato-sm { background: #dcfce7; color: #15803d; }
+.badge-attesa-sm   { background: #f1f5f9; color: #64748b; }
+.badge-ordinato-sm i { margin-right: 3px; }
+/* ───────────── fine ordini acquisti ─────────────────── */
+
 /* ─── GRUPPI RICHIESTE ──────────────────────────────── */
 .req-groups {
     display: flex;

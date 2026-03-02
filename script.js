@@ -1207,6 +1207,7 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
         'STORICO_RICHIESTE': "La mia Casella",
         'ARCHIVIO_ORDINI': "Archivio Ordini",
         'MATERIALE DA ORDINARE': "Gestione Acquisti",
+        'ORDINI_ACQUISTI': "Ordini Acquisti",
         'PROGRAMMA PRODUZIONE DEL MESE': "Dashboard Produzione",
         'PIPISTRELLI': "🦇 Pipistrelli"
     };
@@ -1293,6 +1294,9 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
             break;
         case 'MATERIALE DA ORDINARE':
             caricaMateriali(false, requestId, navSignal);
+            break;
+        case 'ORDINI_ACQUISTI':
+            caricaOrdiniAcquisti(requestId, navSignal);
             break;
         case 'PIPISTRELLI':
             caricaPaginaPipistrello();
@@ -4026,6 +4030,162 @@ async function salvaTutteImpostazioni() {
 
 
 
+/* ─────────────────────────────── ORDINI ACQUISTI ─────────────────────────── */
+
+async function caricaOrdiniAcquisti(expectedRequestId = null, signal = null) {
+    const contenitore = document.getElementById('contenitore-dati');
+    if (!contenitore) return;
+    contenitore.innerHTML = "<div class='centered-msg'><i class='fas fa-spinner fa-spin'></i> Caricamento ordini...</div>";
+
+    const isAlessio = utenteAttuale?.nome?.toUpperCase().trim() === 'ALESSIO';
+    const opParam   = isAlessio ? '' : (utenteAttuale?.nome || '');
+
+    try {
+        const res  = await fetch(`${URL_GOOGLE}?azione=getOrdiniAcquisti&operatore=${encodeURIComponent(opParam)}`);
+        if (signal?.aborted || (expectedRequestId !== null && expectedRequestId !== _latestNavRequest)) return;
+        const rows = await res.json();
+
+        if (!Array.isArray(rows) || rows.length === 0) {
+            contenitore.innerHTML = `<div class='empty-msg'>${isAlessio ? 'Nessun ordine ricevuto.' : 'Non hai ancora inviato ordini.'}</div>`;
+            applicaFade(contenitore);
+            return;
+        }
+
+        // Raggruppa per id_gruppo (fallback su data+operatore)
+        const gruppi = {};
+        rows.forEach(r => {
+            const key = r.id_gruppo || (r.data + '_' + r.operatore);
+            if (!gruppi[key]) gruppi[key] = { data: r.data, operatore: r.operatore, items: [] };
+            gruppi[key].items.push(r);
+        });
+
+        const chiavi = Object.keys(gruppi).reverse();
+        const pendingCount = rows.filter(r => r.stato !== 'ORDINATO').length;
+
+        let html = `<div class="ordini-acq-page">
+            <div class="acquisti-header header-flex">
+                <div>
+                    <h3 class="acquisti-title">${isAlessio ? 'Ordini Ricevuti' : 'I Miei Ordini'}</h3>
+                    <p class="acquisti-subtitle">${isAlessio
+                        ? (pendingCount > 0 ? `${pendingCount} articoli in attesa` : 'Tutto ordinato ✅')
+                        : 'Storico ordini inviati'}</p>
+                </div>
+                ${isAlessio ? '' : `<button class="btn-nuovo-fisso ${TW.btnSuccess}" onclick="cambiaPagina('MATERIALE DA ORDINARE', null)">
+                    <i class="fas fa-cart-plus"></i><span class="btn-label-nuovo"> Nuovo ordine</span>
+                </button>`}
+            </div>
+            <div class="ordini-groups">`;
+
+        chiavi.forEach(key => {
+            const g = gruppi[key];
+            const tot = g.items.length;
+            const ord = g.items.filter(i => i.stato === 'ORDINATO').length;
+            const allDone = ord === tot;
+            html += `
+            <details class="ordine-group ${allDone ? 'all-done' : ''}" ${!allDone ? 'open' : ''}>
+                <summary class="ordine-group-summary">
+                    <span class="og-left">
+                        ${isAlessio ? `<span class="og-operatore">${g.operatore}</span>` : ''}
+                        <span class="og-data">${g.data}</span>
+                        <span class="og-progress">${ord}/${tot}</span>
+                        ${allDone ? '<span class="og-done-badge"><i class="fas fa-check-circle"></i> Completato</span>' : ''}
+                    </span>
+                    <i class="fas fa-chevron-down og-chevron"></i>
+                </summary>
+                <div class="ordine-items">
+                    ${g.items.map(item => _renderOrdineItem(item, isAlessio)).join('')}
+                </div>
+            </details>`;
+        });
+
+        html += `</div></div>`;
+        contenitore.innerHTML = html;
+        applicaFade(contenitore);
+        aggiornaListaFiltrabili();
+    } catch(e) {
+        if (e.name === 'AbortError') return;
+        contenitore.innerHTML = "<div class='centered-error-bold'>Errore nel caricamento ordini.</div>";
+    }
+}
+
+function _renderOrdineItem(item, isAlessio) {
+    const ok = item.stato === 'ORDINATO';
+    return `
+    <div class="ordine-item ${ok ? 'is-ordinato' : ''}" id="oi-${item.id_riga}" data-search="${String(item.articolo).toLowerCase()} ${String(item.fornitore).toLowerCase()}">
+        ${isAlessio
+            ? `<button class="oi-check-btn ${ok ? 'checked' : ''}" onclick="_toggleOrdinato(${item.id_riga}, this)" title="${ok ? 'Segna In Attesa' : 'Segna Ordinato'}">
+                <i class="fas ${ok ? 'fa-check-circle' : 'fa-circle'}"></i>
+               </button>`
+            : `<span class="oi-stato-dot ${ok ? 'dot-ordinato' : 'dot-attesa'}"></span>`
+        }
+        <div class="oi-info">
+            <span class="oi-nome">${item.articolo}</span>
+            <span class="oi-details">Qt. ${item.quantita}${item.fornitore ? ' · ' + item.fornitore : ''}</span>
+        </div>
+        <span class="oi-stato-badge ${ok ? 'badge-ordinato-sm' : 'badge-attesa-sm'}">${ok ? '<i class="fas fa-circle-check"></i> ORDINATO' : 'IN ATTESA'}</span>
+    </div>`;
+}
+
+async function _toggleOrdinato(idRiga, btn) {
+    const row = document.getElementById('oi-' + idRiga);
+    if (!row) return;
+    const wasOrdinato = row.classList.contains('is-ordinato');
+    const nuovoStato  = wasOrdinato ? 'IN ATTESA' : 'ORDINATO';
+    btn.disabled = true;
+    try {
+        const r = await fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify({ azione: 'setArticoloOrdinato', id_riga: idRiga, stato: nuovoStato })
+        }).then(x => x.json());
+        if (r.status !== 'ok') throw new Error('err');
+
+        row.classList.toggle('is-ordinato');
+        btn.classList.toggle('checked');
+        const icon = btn.querySelector('i');
+        if (icon) icon.className = 'fas ' + (row.classList.contains('is-ordinato') ? 'fa-check-circle' : 'fa-circle');
+        const badge = row.querySelector('.oi-stato-badge');
+        if (badge) {
+            const ordNow = row.classList.contains('is-ordinato');
+            badge.className = 'oi-stato-badge ' + (ordNow ? 'badge-ordinato-sm' : 'badge-attesa-sm');
+            badge.innerHTML = ordNow ? '<i class="fas fa-circle-check"></i> ORDINATO' : 'IN ATTESA';
+        }
+        const dot = row.querySelector('.oi-stato-dot');
+        if (dot) dot.className = 'oi-stato-dot ' + (row.classList.contains('is-ordinato') ? 'dot-ordinato' : 'dot-attesa');
+
+        // Aggiorna contatore del gruppo
+        const gruppo = row.closest('.ordine-group');
+        if (gruppo) {
+            const allItems = gruppo.querySelectorAll('.ordine-item');
+            const totG = allItems.length;
+            const ordG = gruppo.querySelectorAll('.ordine-item.is-ordinato').length;
+            const prog = gruppo.querySelector('.og-progress');
+            if (prog) prog.textContent = ordG + '/' + totG;
+            if (ordG === totG) {
+                gruppo.classList.add('all-done');
+                const left = gruppo.querySelector('.og-left');
+                if (left && !left.querySelector('.og-done-badge')) {
+                    left.insertAdjacentHTML('beforeend', '<span class="og-done-badge"><i class="fas fa-check-circle"></i> Completato</span>');
+                }
+            } else {
+                gruppo.classList.remove('all-done');
+                const db = gruppo.querySelector('.og-done-badge');
+                if (db) db.remove();
+            }
+        }
+        // Aggiorna subtitle totale
+        const sub = document.querySelector('.acquisti-subtitle');
+        if (sub) {
+            const allPending = document.querySelectorAll('.ordine-item:not(.is-ordinato)').length;
+            sub.textContent = allPending > 0 ? `${allPending} articoli in attesa` : 'Tutto ordinato ✅';
+        }
+    } catch(e) {
+        notificaElegante('Errore aggiornamento', 'error');
+    }
+    btn.disabled = false;
+}
+
+/* ─────────────────────────────── fine ORDINI ACQUISTI ──────────────────── */
+
   // --- PAGINA ACQUISTI ---
   let carrelloLocale = [];
   let sezioniMateriali = JSON.parse(localStorage.getItem('sezioniMateriali') || '["Strumenti","Bombolette","Rifiuti"]');
@@ -4336,7 +4496,7 @@ async function salvaTutteImpostazioni() {
       }
       if (b2) b2.innerText = count;
   }
-  async function inviaOrdineAcquisti() {
+async function inviaOrdineAcquisti() {
       if (carrelloLocale.length === 0) {
           alert("Il carrello è vuoto!");
           return;
@@ -4345,44 +4505,35 @@ async function salvaTutteImpostazioni() {
       const conferma = confirm(`Vuoi inviare la lista di ${carrelloLocale.length} articoli all'ufficio acquisti?`);
       if (!conferma) return;
 
-      // Mostriamo un loader sul bottone di invio se esiste
       const btnInvia = document.getElementById('btn-invia-alessio');
-      const testoOriginale = btnInvia ? btnInvia.innerText : "";
-      if (btnInvia) {
-          btnInvia.disabled = true;
-          btnInvia.innerText = "Invio in corso...";
-      }
+      if (btnInvia) { btnInvia.disabled = true; btnInvia.innerText = 'Invio in corso...'; }
+
+      const idGruppo = String(Date.now()); // identificatore univoco per questo invio
 
       try {
           const payload = {
-              azione: "inviaOrdineAcquisti",
-              operatore: (typeof utenteAttuale !== 'undefined') ? utenteAttuale.nome : "Utente",
+              azione: 'inviaOrdineAcquisti',
+              operatore: utenteAttuale?.nome || 'Utente',
+              id_gruppo: idGruppo,
               articoli: carrelloLocale
           };
-
-          const res = await fetch(URL_GOOGLE, {
-              method: 'POST',
-              body: JSON.stringify(payload)
-          });
-
+          const res = await fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify(payload) });
           const result = await res.json();
 
-          if (result.status === "success") {
-              alert("✅ Ordine inviato con successo ad Alessio!");
+          if (result.status === 'success') {
               carrelloLocale = [];
               aggiornaBadgeCarrello();
-              if (typeof chiudiModalCarrello === "function") chiudiModalCarrello();
-              cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE');
+              if (typeof chiudiModalCarrello === 'function') chiudiModalCarrello();
+              notificaElegante('✅ Ordine inviato ad Alessio!');
+              // Mostra bottoncino per vedere lo storico
+              setTimeout(() => cambiaPagina('ORDINI_ACQUISTI', null), 800);
           } else {
               throw new Error(result.message);
           }
       } catch (e) {
-          alert("❌ Errore nell'invio dell'ordine: " + e.message);
+          notificaElegante('Errore invio ordine: ' + e.message, 'error');
       } finally {
-          if (btnInvia) {
-              btnInvia.disabled = false;
-              btnInvia.innerText = testoOriginale;
-          }
+          if (btnInvia) { btnInvia.disabled = false; btnInvia.innerText = 'Invia ad Alessio'; }
       }
   }
   function scattaFoto(nomeProdotto) {
