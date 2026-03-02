@@ -5075,6 +5075,28 @@ button:active {
     }
 }
 
+/* ── Override leggibilità: solo pannello Stato Avanzamento ── */
+.ov-accordion-summary,
+.ov-summary-label i,
+.ov-summary-meta,
+.ov-summary-chevron,
+.ov-op-nome,
+.ov-op-free-badge,
+.ov-op-item-cod,
+.ov-op-item-qty,
+.ov-stato-nome,
+.ov-sub-chevron,
+.ov-row-label,
+.ov-badge-ord,
+.ov-row-ordini,
+.ov-badge-op,
+.ov-empty-lbl,
+.ov-drag-handle,
+.ov-row-sub,
+.ov-row-sub em {
+    color: #ffffff !important;
+}
+
 /* ============================================================
    PAGINA RIEPILOGO OPERATORI
    ============================================================ */
