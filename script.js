@@ -1246,7 +1246,7 @@ const _PIP_BOM = [
   ['',        'Catenaria media',    0, 1, 0],
   ['',        'Catenaria grande',   0, 0, 1],
   ['',        'Tappino nero',       2, 2, 2],
-  ['',        'Wago',               2, 2, 0],
+  ['',        'Wago',               0, 2, 2],
   ['',        'Viti 2x6',           8, 0, 0],
   ['',        'Viti 2,5x6',         0, 8, 4],
   ['CORDONE', 'Case superiore',     1, 1, 1],
@@ -1259,7 +1259,8 @@ const _PIP_BOM = [
   ['',        'Plug 2m',            0, 1, 1],
   ['',        'Cavo out 500mA',     1, 0, 0],
   ['',        'Cavo out 600mA',     0, 1, 0],
-  ['',        'Cavo out 700mA',     0, 0, 1]
+  ['',        'Cavo out 700mA',     0, 0, 1],
+  ['',        'Alimentatore',       1, 1, 1]   // idx 21 — comune a tutti i tipi
 ];
 
 function _pipLoadQty()    { try { return JSON.parse(localStorage.getItem(_PIP_LS_QTY))    || {p:0,m:0,g:0}; } catch { return {p:0,m:0,g:0}; } }
@@ -1533,14 +1534,14 @@ function caricaPaginaPipistrello() {
 // chiave: idx _PIP_BOM → qty per singolo assemblato
 const _PIP_ASSEMB = {
   TESTA: {
-    p: [[0,1],[3,1],[6,2],[7,2],[8,8]],          // piccolo 500mA
+    p: [[0,1],[3,1],[6,2],[8,8]],               // piccolo 500mA (no Wago)
     m: [[1,1],[4,1],[6,2],[7,2],[9,8]],           // medio 600mA
-    g: [[2,1],[5,1],[6,2],[9,4]]                  // grande 700mA
+    g: [[2,1],[5,1],[6,2],[7,2],[9,4]]            // grande 700mA (Wago 2x)
   },
   CORDONE: {
-    p: [[10,1],[11,1],[14,1],[15,2],[16,1],[18,1]], // piccolo 500mA
-    m: [[10,1],[12,1],[14,1],[15,2],[17,1],[19,1]], // medio 600mA
-    g: [[10,1],[13,1],[14,1],[15,2],[17,1],[20,1]]  // grande 700mA
+    p: [[10,1],[11,1],[14,1],[15,2],[16,1],[18,1],[21,1]], // piccolo 500mA + Alimentatore
+    m: [[10,1],[12,1],[14,1],[15,2],[17,1],[19,1],[21,1]], // medio 600mA + Alimentatore
+    g: [[10,1],[13,1],[14,1],[15,2],[17,1],[20,1],[21,1]]  // grande 700mA + Alimentatore
   }
 };
 
