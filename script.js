@@ -4086,7 +4086,7 @@ async function caricaOrdiniAcquisti(expectedRequestId = null, signal = null) {
                 <summary class="ordine-group-summary">
                     <span class="og-left">
                         ${isAlessio ? `<span class="og-operatore">${g.operatore}</span>` : ''}
-                        <span class="og-data">${g.data}</span>
+                        <span class="og-data">${_fmtDataOrdine(g.data)}</span>
                         <span class="og-progress">${ord}/${tot}</span>
                         ${allDone ? '<span class="og-done-badge"><i class="fas fa-check-circle"></i> Completato</span>' : ''}
                     </span>
@@ -4106,6 +4106,15 @@ async function caricaOrdiniAcquisti(expectedRequestId = null, signal = null) {
         if (e.name === 'AbortError') return;
         contenitore.innerHTML = "<div class='centered-error-bold'>Errore nel caricamento ordini.</div>";
     }
+}
+
+function _fmtDataOrdine(str) {
+    try {
+        const d = new Date(str);
+        if (isNaN(d)) return str;
+        const pad = n => String(n).padStart(2, '0');
+        return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    } catch(e) { return str; }
 }
 
 function _renderOrdineItem(item, isAlessio) {
