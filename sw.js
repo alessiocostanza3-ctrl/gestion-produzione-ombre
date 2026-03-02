@@ -26,15 +26,34 @@ self.addEventListener('push', function(event) {
                 return fetch(GAS_URL + '?azione=getNotifiche&username=' + encodeURIComponent(username) + '&markRead=0')
                     .then(function(r) { return r.json(); })
                     .then(function(d) {
-                        if (!d || d.status === 'none') return _showNotif_('PROD', 'Hai nuove notifiche', username);
+                        if (!d || d.status === 'none') {
+                            return _leggiUltimaNotifCache_().then(function(n) {
+                                return _showNotif_(
+                                    n ? n.titolo : 'PROD',
+                                    n ? n.corpo   : 'Nessuna nuova notifica',
+                                    username
+                                );
+                            });
+                        }
                         var titolo = d.titolo || 'PROD';
                         var corpo  = d.corpo  || '';
                         var all    = d.all    || [{ titolo: titolo, corpo: corpo }];
+                        // Salva in cache come fallback per futuri fetch lenti/offline
+                        _salvaUltimaNotifCache_(titolo, corpo);
                         // Broadcast all'app: aggiorna localStorage e badge
                         _broadcastNotifiche_(username, all);
                         return _showNotif_(titolo, corpo, username);
                     })
-                    .catch(function() { return _showNotif_('PROD', 'Hai nuove notifiche', username); });
+                    .catch(function() {
+                        // Fetch GAS fallito (cold start / offline): usa l'ultima notifica in cache
+                        return _leggiUltimaNotifCache_().then(function(n) {
+                            return _showNotif_(
+                                n ? n.titolo : 'PROD',
+                                n ? n.corpo   : 'Hai nuove notifiche',
+                                username
+                            );
+                        });
+                    });
             })
     );
 });
@@ -78,4 +97,19 @@ function _broadcastNotifiche_(username, all) {
             client.postMessage({ type: 'NUOVE_NOTIFICHE', username: username, notifiche: all });
         });
     });
+}
+
+/** Salva titolo+corpo dell'ultima notifica ricevuta (usata come fallback se il fetch GAS è lento) */
+function _salvaUltimaNotifCache_(titolo, corpo) {
+    caches.open('prod-last-notif').then(function(c) {
+        c.put('last', new Response(JSON.stringify({ titolo: titolo, corpo: corpo })));
+    }).catch(function() {});
+}
+
+/** Legge l'ultima notifica dalla cache. Restituisce null se non presente. */
+function _leggiUltimaNotifCache_() {
+    return caches.open('prod-last-notif')
+        .then(function(c) { return c.match('last'); })
+        .then(function(r) { return r ? r.json() : null; })
+        .catch(function() { return null; });
 }

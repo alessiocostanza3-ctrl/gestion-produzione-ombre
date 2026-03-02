@@ -31,41 +31,77 @@ function aggiornaBadgeNotifiche(count) {
         badgeMob.style.display = count > 0 ? 'flex' : 'none';
     }
 }
+function _notifIcona_(titolo) {
+    if (!titolo) return 'fa-bell';
+    if (/stato/i.test(titolo))     return 'fa-rotate';
+    if (/richiesta|comunic/i.test(titolo)) return 'fa-comment-dots';
+    if (/assegnaz/i.test(titolo))  return 'fa-user-check';
+    return 'fa-bell';
+}
+function _notifHtml_(arr) {
+    if (!arr.length) return '<div class="notif-empty"><i class="far fa-bell-slash"></i><p>Nessuna notifica recente</p></div>';
+    return arr.map(function(n) {
+        const icon = _notifIcona_(n.titolo || '');
+        const ts   = n._ts ? `<span class="notifica-ts">${n._ts}</span>` : '';
+        return `<div class="notifica-item">
+          <div class="notifica-icon-badge"><i class="fas ${icon}"></i></div>
+          <div class="notifica-body">
+            <div class="notifica-titolo">${n.titolo || 'Notifica'}</div>
+            <div class="notifica-corpo">${n.corpo || ''}</div>
+            ${ts}
+          </div>
+        </div>`;
+    }).join('');
+}
 function renderNotificheList() {
     const list = document.getElementById('notifiche-list');
     if (!list) return;
     const arr = JSON.parse(localStorage.getItem('_notificheArr') || '[]');
-    if (!arr.length) {
-        list.innerHTML = '<div style="color:#64748b;text-align:center;padding:24px 0">Nessuna notifica recente</div>';
-    } else {
-        list.innerHTML = arr.map(n => `<div class="notifica-item"><div class="notifica-titolo">${n.titolo||'Notifica'}</div><div class="notifica-corpo">${n.corpo||''}</div></div>`).join('');
-    }
-    // Aggiorna dalla lista server (senza segnare lette, le segna l'apertura del modal)
+    list.innerHTML = _notifHtml_(arr);
+    // Aggiorna dal server senza segnare come lette (lo fa l'utente aprendo il modal)
     if (utenteAttuale && utenteAttuale.nome) {
         fetch(URL_GOOGLE + '?azione=getNotifiche&username=' + encodeURIComponent(utenteAttuale.nome.toUpperCase()) + '&markRead=0')
-            .then(r => r.json())
-            .then(d => {
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
                 if (d && d.status === 'ok' && d.all && d.all.length) {
                     _salvaNotificheInLocale_(d.all);
-                    list.innerHTML = d.all.map(n => `<div class="notifica-item"><div class="notifica-titolo">${n.titolo||'Notifica'}</div><div class="notifica-corpo">${n.corpo||''}</div></div>`).join('');
+                    list.innerHTML = _notifHtml_(JSON.parse(localStorage.getItem('_notificheArr') || '[]'));
                 }
             })
-            .catch(() => {});
+            .catch(function() {});
     }
 }
 
 /** Salva nuove notifiche in localStorage (ricevute dal SW postMessage o da fetch) */
 function _salvaNotificheInLocale_(all) {
     try {
+        const ts = new Date().toLocaleString('it-IT', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
+        const withTs = all.map(function(n) { return Object.assign({}, n, { _ts: n._ts || ts }); });
         const existing = JSON.parse(localStorage.getItem('_notificheArr') || '[]');
-        // Prepend nuove, deduplicando per titolo+corpo, limite 30
         const map = {};
-        all.forEach(n => { map[n.titolo + '||' + n.corpo] = n; });
-        existing.forEach(n => { const k = n.titolo + '||' + n.corpo; if (!map[k]) map[k] = n; });
+        withTs.forEach(function(n) { map[n.titolo + '||' + n.corpo] = n; });
+        existing.forEach(function(n) { const k = n.titolo + '||' + n.corpo; if (!map[k]) map[k] = n; });
         const merged = Object.values(map).slice(0, 30);
         localStorage.setItem('_notificheArr', JSON.stringify(merged));
         aggiornaBadgeNotifiche(all.length);
-    } catch {}
+    } catch(e) {}
+}
+
+/** Inizializza il badge notifiche all'avvio: legge prima da localStorage, poi fetch fresco dal server */
+function _initBadgeNotifiche() {
+    try {
+        const arr = JSON.parse(localStorage.getItem('_notificheArr') || '[]');
+        if (arr.length > 0) aggiornaBadgeNotifiche(arr.length);
+    } catch(e) {}
+    if (!utenteAttuale || !utenteAttuale.nome) return;
+    fetch(URL_GOOGLE + '?azione=getNotifiche&username=' + encodeURIComponent(utenteAttuale.nome.toUpperCase()) + '&markRead=0')
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            if (d && d.status === 'ok' && d.all && d.all.length) {
+                _salvaNotificheInLocale_(d.all);
+            }
+        })
+        .catch(function() {});
 }
 
 /** Listener per messaggi dal Service Worker (push ricevuta in background) */
@@ -524,7 +560,8 @@ window.onload = async function() {
         // AGGIORNAMENTO IMMEDIATO: Prima ancora di scaricare i dati da Sheets
         // Questo sovrascrive "MASTER" o "Caricamento..." all'istante
         aggiornaProfiloSidebar();
-        _initPush();      // Registra / aggiorna subscription push VAPID
+        _initPush();           // Registra / aggiorna subscription push VAPID
+        _initBadgeNotifiche(); // Mostra badge se ci sono notifiche non lette
 
         if (overlay) overlay.style.display = 'none';
         console.log("Sessione trovata per:", utenteAttuale.nome);
@@ -941,7 +978,8 @@ async function salvaEApriDashboard() {
 
     overlay.style.display = 'none';
     if (typeof aggiornaProfiloSidebar === 'function') aggiornaProfiloSidebar();
-    _initPush();      // Registra / aggiorna subscription push VAPID
+    _initPush();           // Registra / aggiorna subscription push VAPID
+    _initBadgeNotifiche(); // Mostra badge se ci sono notifiche non lette
 
     // Naviga alla pagina salvata (stessa logica del DOMContentLoaded normale)
     let paginaSalvata = null;
@@ -979,8 +1017,7 @@ function logout() {
         window.location.reload();
     }
 }
-// Badge unico sidebar: conta richieste non risolte, diventa arancione pulsante se ci sono sollecitati
-function aggiornaBadgeNotifiche() {} // no-op: accorpata in aggiornaBadgeSidebar
+// aggiornaBadgeNotifiche è definita all'inizio del file (riga 22) — NON ridichiarare qui
 
 /* ── Modal di conferma generico ─────────────────────── */
 function mostraConferma(titolo, messaggio, onOk, labelOk) {
