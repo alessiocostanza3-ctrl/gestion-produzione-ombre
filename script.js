@@ -617,7 +617,9 @@ window.onload = async function() {
         aggiornaProfiloSidebar();
         _initPush();           // Registra / aggiorna subscription push VAPID
         _initBadgeNotifiche(); // Mostra badge se ci sono notifiche non lette
-        setTimeout(function() { _caricaColoriAvatarDaServer(); }, 5000); // differito per non competere col cold start
+        // Colori avatar: prima lettura rapida (500ms), poi aggiornamento completo dopo cold-start GAS
+        setTimeout(function() { _caricaColoriAvatarDaServer(); }, 500);
+        setTimeout(function() { _caricaColoriAvatarDaServer(); }, 5000);
 
         if (overlay) overlay.style.display = 'none';
         console.log("Sessione trovata per:", utenteAttuale.nome);
@@ -1102,6 +1104,15 @@ function chiudiAccountMenu() {
     if (dropdown) dropdown.classList.remove('open');
 }
 
+/** Aggiorna la pagina corrente: svuota cache e ricarica i dati dal server */
+function _aggiornaPagina() {
+    if (typeof paginaAttuale !== 'undefined' && paginaAttuale) {
+        delete cacheContenuti[paginaAttuale];
+        if (typeof _lsCacheDel === 'function') _lsCacheDel('_html_' + paginaAttuale);
+        cambiaPagina(paginaAttuale);
+    }
+}
+
 // Chiude il dropdown cliccando fuori
 document.addEventListener('click', function(e) {
     const dropdown = document.getElementById('account-dropdown');
@@ -1179,7 +1190,9 @@ async function salvaEApriDashboard() {
     if (typeof aggiornaProfiloSidebar === 'function') aggiornaProfiloSidebar();
     _initPush();           // Registra / aggiorna subscription push VAPID
     _initBadgeNotifiche(); // Mostra badge se ci sono notifiche non lette
-    setTimeout(function() { _caricaColoriAvatarDaServer(); }, 5000); // differito: non compete col cold start
+    // Colori avatar: prima lettura rapida (500ms), poi aggiornamento completo dopo cold-start GAS
+    setTimeout(function() { _caricaColoriAvatarDaServer(); }, 500);
+    setTimeout(function() { _caricaColoriAvatarDaServer(); }, 5000);
 
     // Naviga alla pagina salvata (stessa logica del DOMContentLoaded normale)
     let paginaSalvata = null;
@@ -6473,77 +6486,8 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // ── PULL TO REFRESH (solo mobile) ────────────────────────────
+    // ── PULL TO REFRESH (disabilitato: usa "Aggiorna" nel menu account) ─────
     (function initPullToRefresh() {
-        const scroller = document.getElementById('contenitore-dati');
-        const indicator = document.getElementById('ptr-indicator');
-        if (!scroller || !indicator) return;
-
-        const THRESHOLD = 70;   // px da trascinare per attivare refresh
-        const MAX_PULL  = 100;  // limite visivo massimo
-        let startY = 0, pulling = false, currentY = 0;
-
-        function _isMobile() { return window.innerWidth <= 768; }
-
-        function _refresh() {
-            indicator.classList.add('ptr-loading');
-            // Svuota cache della pagina attuale e ricarica
-            if (typeof paginaAttuale !== 'undefined' && paginaAttuale) {
-                delete cacheContenuti[paginaAttuale];
-                _lsCacheDel('_html_' + paginaAttuale);
-                cambiaPagina(paginaAttuale);
-            }
-            // Nascondi indicatore dopo breve attesa
-            setTimeout(() => {
-                indicator.classList.remove('ptr-visible', 'ptr-loading');
-                scroller.style.transform = '';
-                const arrow = indicator.querySelector('.ptr-arrow');
-                if (arrow) arrow.classList.remove('rotated');
-            }, 900);
-        }
-
-        scroller.addEventListener('touchstart', function(e) {
-            if (!_isMobile()) return;
-            if (scroller.scrollTop > 0) return;
-            startY = e.touches[0].clientY;
-            pulling = true;
-        }, { passive: true });
-
-        scroller.addEventListener('touchmove', function(e) {
-            if (!pulling || !_isMobile()) return;
-            if (scroller.scrollTop > 2) { pulling = false; return; }
-            const dy = Math.min(e.touches[0].clientY - startY, MAX_PULL);
-            if (dy <= 0) return;
-            currentY = dy;
-            // Mostra indicatore
-            indicator.classList.add('ptr-visible');
-            indicator.classList.remove('ptr-loading');
-            const arrow = indicator.querySelector('.ptr-arrow');
-            const label = indicator.querySelector('.ptr-label');
-            if (dy >= THRESHOLD) {
-                if (arrow) arrow.classList.add('rotated');
-                if (label) label.textContent = 'Rilascia per aggiornare';
-            } else {
-                if (arrow) arrow.classList.remove('rotated');
-                if (label) label.textContent = 'Tira per aggiornare';
-            }
-            // Resistenza elastica: scorri il contenuto leggermente
-            scroller.style.transform = `translateY(${dy * 0.4}px)`;
-        }, { passive: true });
-
-        scroller.addEventListener('touchend', function() {
-            if (!pulling || !_isMobile()) return;
-            pulling = false;
-            scroller.style.transform = '';
-            if (currentY >= THRESHOLD) {
-                _refresh();
-            } else {
-                indicator.classList.remove('ptr-visible');
-                const arrow = indicator.querySelector('.ptr-arrow');
-                if (arrow) arrow.classList.remove('rotated');
-            }
-            currentY = 0;
-        });
+        // Rimosso: il refresh viene gestito dal pulsante "Aggiorna" nel menu account
     })();
-    // ────────────────────────────────────────────────────────────
 });

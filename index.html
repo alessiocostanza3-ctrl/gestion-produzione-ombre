@@ -412,6 +412,10 @@
                         </div>
                     </div>
                     <div class="account-dropdown-divider"></div>
+                    <button class="account-menu-item" onclick="_aggiornaPagina(); chiudiAccountMenu()">
+                        <i class="fas fa-rotate-right"></i> Aggiorna
+                    </button>
+                    <div class="account-dropdown-divider"></div>
                     <button class="account-menu-item account-menu-logout" id="btn-logout">
                         <i class="fas fa-sign-out-alt"></i> Esci
                     </button>
@@ -465,6 +469,10 @@
                                 <button class="avatar-editor-btn avatar-editor-delete" id="avatar-editor-delete-mob" onclick="_avatarDeleteEditMob(event)" title="Elimina">🗑</button>
                             </div>
                         </div>
+                        <div class="account-dropdown-divider"></div>
+                        <button class="account-menu-item" onclick="_aggiornaPagina(); chiudiAccountMenuMobile()">
+                            <i class="fas fa-rotate-right"></i> Aggiorna
+                        </button>
                         <div class="account-dropdown-divider"></div>
                         <button class="account-menu-item account-menu-logout" onclick="document.getElementById('btn-logout') && document.getElementById('btn-logout').click()">
                             <i class="fas fa-sign-out-alt"></i> Esci
