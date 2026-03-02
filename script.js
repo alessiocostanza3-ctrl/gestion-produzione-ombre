@@ -561,6 +561,8 @@ function applicaFade(elem) {
  */
 function _prefetchBackground() {
     if (typeof URL_GOOGLE === 'undefined') return;
+    // Rimuovi eventuale cache LS degli ordini salvata da versioni precedenti (dati real-time: non vanno in LS)
+    _lsCacheDel('_html__acq_ordini');
     // Avvia subito senza delay per massimizzare il tempo disponibile prima del click
     window._prefetchDashPromise = fetch(URL_GOOGLE + '?azione=getAllDashboard')
         .then(function(r) { return r.ok ? r.json() : null; })
@@ -4245,7 +4247,7 @@ function _switchAcquistiTab(tab) {
     if (!contenitore) return;
 
     if (tab === 'ordini') {
-        // Usa cache RAM se presente e fresca (2 min)
+        // Usa cache RAM se presente e fresca (solo nella sessione corrente, no LS)
         const _cached = cacheContenuti['_acq_ordini'];
         const _ts     = cacheFetchTime['_acq_ordini'] || 0;
         if (_cached && (Date.now() - _ts < CACHE_TTL_MS)) {
@@ -4254,16 +4256,7 @@ function _switchAcquistiTab(tab) {
             aggiornaListaFiltrabili();
             return;
         }
-        // Prova LS cache
-        const _lsHtml = _lsCacheGet('_html__acq_ordini', CACHE_TTL_MS);
-        if (_lsHtml) {
-            cacheContenuti['_acq_ordini'] = _lsHtml;
-            cacheFetchTime['_acq_ordini'] = Date.now();
-            contenitore.innerHTML = _lsHtml;
-            applicaFade(contenitore);
-            aggiornaListaFiltrabili();
-            return;
-        }
+        // Nessuna cache LS per gli ordini: dati real-time, altri utenti li modificano
         caricaOrdiniAcquisti(null, null);
     } else {
         // Usa cache RAM se presente e fresca
@@ -4360,7 +4353,7 @@ async function caricaOrdiniAcquisti(expectedRequestId = null, signal = null) {
         html += `</div></div>`;
         cacheContenuti['_acq_ordini'] = html;
         cacheFetchTime['_acq_ordini'] = Date.now();
-        _lsCacheSet('_html__acq_ordini', html);
+        // NO localStorage per gli ordini: dati real-time, ogni dispositivo deve leggere da GAS
         contenitore.innerHTML = html;
         applicaFade(contenitore);
         aggiornaListaFiltrabili();
@@ -4468,12 +4461,11 @@ async function _toggleOrdinato(idRiga, btn) {
             const allPending = document.querySelectorAll('.ordine-item:not(.is-ordinato)').length;
             sub.textContent = allPending > 0 ? `${allPending} articoli in attesa` : 'Tutto ordinato ✅';
         }
-        // Aggiorna la cache con lo stato DOM corrente (così il prossimo switch-tab non ricarica)
+        // Aggiorna la cache RAM con lo stato DOM corrente (solo sessione, no LS)
         const _cont = document.getElementById('contenitore-dati');
         if (_cont) {
             cacheContenuti['_acq_ordini'] = _cont.innerHTML;
             cacheFetchTime['_acq_ordini'] = Date.now();
-            _lsCacheSet('_html__acq_ordini', _cont.innerHTML);
         }
     } catch(e) {
         notificaElegante('Errore aggiornamento', 'error');
