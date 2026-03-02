@@ -1,18 +1,76 @@
 /* ============================================================
    Service Worker PROD — notifiche push VAPID native
    Nessun servizio di terze parti richiesto.
-   Aggiornato: 2026-07-10
-   v2: fix race condition multi-device, topic header per tipo,
-       broadcast all'app, verifica iscrizione server-side.
+   Aggiornato: 2026-03-02
+   v3: aggiunta pre-cache app shell (HTML/CSS/JS) per avvio istantaneo
    ============================================================ */
 'use strict';
 
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbyVMV9MkGiqphN0AKXJdHXF0Arp1vxTYrCYi1SGv_4MKLRJkx--5HoGq7mmQX-p0ZTZ/exec';
 var APP_URL = 'https://alessiocostanza3-ctrl.github.io/gestion-produzione-ombre/';
 
+var SHELL_CACHE = 'prod-shell-v3';
+var SHELL_ASSETS = [
+    APP_URL,
+    APP_URL + 'index.html',
+    APP_URL + 'style.css',
+    APP_URL + 'script.js',
+    APP_URL + 'manifest.json'
+];
+
 /* ---- ciclo di vita ---- */
-self.addEventListener('install',  function(e) { self.skipWaiting(); });
-self.addEventListener('activate', function(e) { e.waitUntil(clients.claim()); });
+self.addEventListener('install', function(e) {
+    self.skipWaiting();
+    // Pre-cacha la shell dell'app in background durante l'install
+    e.waitUntil(
+        caches.open(SHELL_CACHE).then(function(cache) {
+            return cache.addAll(SHELL_ASSETS.map(function(url) {
+                // usa no-cache per scaricare versioni fresche al deploy
+                return new Request(url, { cache: 'no-cache' });
+            })).catch(function(err) {
+                // Se un asset fallisce non bloccare l'install
+                console.warn('[SW] pre-cache parzialmente fallita:', err);
+            });
+        })
+    );
+});
+
+self.addEventListener('activate', function(e) {
+    e.waitUntil(
+        caches.keys().then(function(keys) {
+            return Promise.all(
+                keys.filter(function(k) {
+                    return k.startsWith('prod-shell-') && k !== SHELL_CACHE;
+                }).map(function(k) { return caches.delete(k); })
+            );
+        }).then(function() { return clients.claim(); })
+    );
+});
+
+/* ---- intercetta fetch: cache-first per shell, network per tutto il resto ---- */
+self.addEventListener('fetch', function(e) {
+    var url = e.request.url;
+    // Non intercettare chiamate GAS, push, o cross-origin non-shell
+    if (url.indexOf('script.google.com') !== -1) return;
+    if (e.request.method !== 'GET') return;
+    // Solo gli asset della shell usano cache-first
+    var isShell = SHELL_ASSETS.some(function(a) { return url === a || url.replace(/\?.*$/, '') === a; });
+    if (!isShell) return;
+
+    e.respondWith(
+        caches.open(SHELL_CACHE).then(function(cache) {
+            return cache.match(e.request).then(function(cached) {
+                // Aggiorna in background (stale-while-revalidate)
+                var fetchPromise = fetch(e.request, { cache: 'no-cache' }).then(function(res) {
+                    if (res && res.ok) cache.put(e.request, res.clone());
+                    return res;
+                }).catch(function() {});
+                // Restituisce subito la copia in cache (se esiste), altrimenti la rete
+                return cached || fetchPromise;
+            });
+        })
+    );
+});
 
 /* ---- ricezione push ---- */
 self.addEventListener('push', function(event) {

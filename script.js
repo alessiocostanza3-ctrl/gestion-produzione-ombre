@@ -586,7 +586,7 @@ window.onload = async function() {
         aggiornaProfiloSidebar();
         _initPush();           // Registra / aggiorna subscription push VAPID
         _initBadgeNotifiche(); // Mostra badge se ci sono notifiche non lette
-        _caricaColoriAvatarDaServer(); // Sincronizza colori avatar dal server
+        setTimeout(function() { _caricaColoriAvatarDaServer(); }, 5000); // differito per non competere col cold start
 
         if (overlay) overlay.style.display = 'none';
         console.log("Sessione trovata per:", utenteAttuale.nome);
@@ -1040,7 +1040,7 @@ async function salvaEApriDashboard() {
     if (typeof aggiornaProfiloSidebar === 'function') aggiornaProfiloSidebar();
     _initPush();           // Registra / aggiorna subscription push VAPID
     _initBadgeNotifiche(); // Mostra badge se ci sono notifiche non lette
-    _caricaColoriAvatarDaServer(); // Sincronizza colori avatar dal server (fire-and-forget)
+    setTimeout(function() { _caricaColoriAvatarDaServer(); }, 5000); // differito: non compete col cold start
 
     // Naviga alla pagina salvata (stessa logica del DOMContentLoaded normale)
     let paginaSalvata = null;
@@ -1313,12 +1313,14 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
         requestAnimationFrame(_initKanbanDnd);
         console.log("Rendering da cache:", nomeFoglio);
 
-        // Aggiornamento dati in background solo se la cache è scaduta (> 30s)
+        // Aggiornamento dati in background solo se la cache è scaduta
         const ora = Date.now();
         const ultimoFetch = cacheFetchTime[nomeFoglio] || 0;
         if (ora - ultimoFetch > CACHE_TTL_MS) {
-            if (nomeFoglio === "PROGRAMMA PRODUZIONE DEL MESE") caricaDati(nomeFoglio, true, requestId, navSignal);
-            if (nomeFoglio === "MATERIALE DA ORDINARE") caricaMateriali(true, requestId, navSignal);
+            if (nomeFoglio === 'PROGRAMMA PRODUZIONE DEL MESE') caricaDati(nomeFoglio, true, requestId, navSignal);
+            else if (nomeFoglio === 'MATERIALE DA ORDINARE')    caricaMateriali(true, requestId, navSignal);
+            else if (nomeFoglio === 'STORICO_RICHIESTE')        caricaPaginaRichieste(requestId, navSignal);
+            else if (nomeFoglio === 'ARCHIVIO_ORDINI')          caricaArchivio();
         }
         return;
     }
@@ -2203,7 +2205,11 @@ async function caricaArchivio() {
         const _aBundle = await _aResp.json();
         const datiArch = _aBundle.archivio || [];
         const htmlArch = generaBloccoOrdiniUnificato(datiArch, true);
-        contenitore.innerHTML = htmlArch || "<div class='empty-msg'>L'archivio \u00e8 vuoto.</div>";
+        const _archHtml = htmlArch || "<div class='empty-msg'>L'archivio \u00e8 vuoto.</div>";
+        contenitore.innerHTML = _archHtml;
+        cacheContenuti['ARCHIVIO_ORDINI'] = _archHtml;
+        cacheFetchTime['ARCHIVIO_ORDINI'] = Date.now();
+        _lsCacheSet('_html_ARCHIVIO_ORDINI', _archHtml);
         applicaFade(contenitore);
         aggiornaListaFiltrabili();
     } catch(e) {
@@ -2747,6 +2753,10 @@ async function gestisciArchiviazione(nOrd, tipo) {
                 const risultato = await response.json();
                 if (risultato.status === "success") {
                     notificaElegante('Ordine ' + nOrd + ' archiviato.');
+                    delete cacheContenuti['ARCHIVIO_ORDINI'];
+                    delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
+                    _lsCacheDel('_html_ARCHIVIO_ORDINI');
+                    _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
                     caricaDati(paginaAttuale);
                 } else {
                     notificaElegante('Errore: ' + risultato.message, 'error');
@@ -2769,8 +2779,12 @@ async function gestisciRipristino(id_o_numero, tipo) {
             const response = await fetch(url);
             const risultato = await response.json();
             if (risultato.status === "success") {
-                caricaDati(paginaAttuale);
-            } else {
+                    delete cacheContenuti['ARCHIVIO_ORDINI'];
+                    delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
+                    _lsCacheDel('_html_ARCHIVIO_ORDINI');
+                    _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
+                    caricaDati(paginaAttuale);
+                } else {
                 notificaElegante('Errore: ' + risultato.message, 'error');
             }
         } catch (e) {
@@ -3403,6 +3417,7 @@ async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
 
         contenitore.innerHTML = html;
         cacheContenuti['STORICO_RICHIESTE'] = html;
+        cacheFetchTime['STORICO_RICHIESTE'] = Date.now();
         _lsCacheSet('_html_STORICO_RICHIESTE', html); // cache cross-session
         applicaFade(contenitore);
         aggiornaListaFiltrabili();
@@ -5357,8 +5372,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     try { hasSession = !!(localStorage.getItem('sessioneUtente') || sessionStorage.getItem('sessioneUtente')); } catch (e) {}
     if (!hasSession) return;
 
-    // 1️⃣ Carica prima le impostazioni (operatori + stati)
-    await caricaImpostazioni();
+    // 1️⃣ Carica impostazioni: prima controlla localStorage (TTL 5min), poi GAS solo se necessario
+    await caricaDatiIniziali();
 
     // 2️⃣ Recupera pagina salvata
     let paginaSalvata = localStorage.getItem('ultimaPaginaProduzione');
