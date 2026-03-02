@@ -2173,9 +2173,7 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
             ? `<button class="btn-ripristina ${TW.btnWarning}" onclick="event.stopPropagation(); gestisciRipristino('${nOrd}', 'ORDINE')">
                    <i class="fa-solid fa-rotate-left"></i> <span class="btn-txt">Ripristina</span>
                </button>`
-            : `<button class="btn-chiedi-assegna ${TW.btnPrimary}" onclick="event.stopPropagation(); apriModalAiuto('${righe[0].id_riga}', 'INTERO ORDINE', '${nOrd}')">
-                   <i class="fa-regular fa-envelope"></i> <span class="btn-txt">Chiedi</span>
-               </button>
+            : `<button class="btn-chiedi-assegna ${TW.btnPrimary}" onclick="event.stopPropagation(); apriModalAiuto('${righe[0].id_riga}', 'INTERO ORDINE', '${nOrd}', '${(cliente||'').replace(/'/g,"\\'")}')">\n                   <i class="fa-regular fa-envelope"></i> <span class="btn-txt">Chiedi</span>\n               </button>
                <button class="btn-archivia-prod ${TW.btnSuccess}" onclick="event.stopPropagation(); gestisciArchiviazione('${nOrd}')">
                    <i class="fa-solid fa-box-archive"></i> <span class="btn-txt">Archivia</span>
                </button>`;
@@ -2192,13 +2190,13 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
                 </div>
             </div>
             <div class="dettagli-container${isArchivio ? ' hidden' : ''}">
-                ${righe.map(art => isArchivio ? generaCardArchivio(art, nOrd) : generaCardArticolo(art, nOrd)).join('')}
+                ${righe.map(art => isArchivio ? generaCardArchivio(art, nOrd) : generaCardArticolo(art, nOrd, cliente)).join('')}
             </div>
         </div>`;
     });
     return html;
 }
-function generaCardArticolo(art, nOrd) {
+function generaCardArticolo(art, nOrd, cliente) {
     const statoAttuale = (art.stato || "IN ATTESA").toUpperCase();
     const configStato = listaStati.find(s => s.nome === statoAttuale) || {colore: "#e2e8f0"};
     const codicePrincipale = art.codice && art.codice !== "false" ? art.codice : "Senza Codice";
@@ -2234,10 +2232,7 @@ function generaCardArticolo(art, nOrd) {
             <div class="visualizza-operatori">${displayOperatori}</div>
         </div>
         <div class="order-info-col">
-            <button class="btn-chiedi-assegna ${TW.btnPrimary}" onclick="apriModalAiuto('${art.id_riga}', '${codicePrincipale}', '${nOrd}')">
-                <i class="fa-regular fa-envelope"></i> Chiedi/Assegna
-            </button>
-        </div>
+            <button class="btn-chiedi-assegna ${TW.btnPrimary}" onclick="apriModalAiuto('${art.id_riga}', '${codicePrincipale}', '${nOrd}', '${(cliente||'').replace(/'/g,"\\'")}')">\n                <i class="fa-regular fa-envelope"></i> Chiedi/Assegna\n            </button>\n        </div>
     </div>`;
 }
 /* ---- STATO DROPDOWN CUSTOM ---- */
@@ -2360,7 +2355,7 @@ function _syncKanbanFromStato(idRiga, newStato) {
         setTimeout(() => { item.style.transition = ''; }, 200);
     });
 }
-function apriModalAiuto(idRiga, riferimento, nOrdine) {
+function apriModalAiuto(idRiga, riferimento, nOrdine, cliente) {
     const modal = document.getElementById('modalAiuto');
 
     modal.style.display = 'flex';
@@ -2382,6 +2377,7 @@ function apriModalAiuto(idRiga, riferimento, nOrdine) {
 
     modal.dataset.idRiga = idRiga || "";
     modal.dataset.nOrdine = nOrdine;
+    modal.dataset.cliente = cliente || "";
 
     // Nascondi sempre il campo ordine libero (visibile solo da apriNuovaRichiesta)
     const ordineRow = document.getElementById('modal-ordine-row');
@@ -2469,7 +2465,10 @@ function _selezionaOrdine(ordine, cliente) {
     if (list) { list.style.display = 'none'; list.innerHTML = ''; }
     // Aggiorna il dataset del modal affinché confermaInvioSupporto usi il valore corretto
     const modal = document.getElementById('modalAiuto');
-    if (modal) modal.dataset.nOrdine = ordine;
+    if (modal) {
+        modal.dataset.nOrdine = ordine;
+        modal.dataset.cliente = cliente || '';
+    }
 }
 function setTipoAzione(tipo) {
     const tipoUp = tipo.toUpperCase();
@@ -2524,9 +2523,11 @@ async function confermaInvioSupporto() {
 
     // ── Fire-and-forget: entrambe le chiamate in background ──
     const urlAssegnazione = `${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(listaNomiStr)}&id_riga=${idRiga}&mittente=${encodeURIComponent(utenteAttuale.nome.toUpperCase().trim())}`;
+    const clienteVal = (modalElement.dataset.cliente || '').trim();
     const payload = {
         azione: 'supporto_multiplo',
         n_ordine: nOrd,
+        cliente: clienteVal,
         tipo: tipoAzione,
         messaggio: messaggioVal || (tipoAzione === 'ASSEGNAZIONE' ? 'Nuova assegnazione' : 'Nuova domanda'),
         mittente: utenteAttuale.nome.toUpperCase().trim(),
@@ -2577,7 +2578,7 @@ function toggleBoxArchivia(id) {
         setTimeout(() => { box.style.display = 'none'; }, 300);
     }
 }
-async function inviaRisposta(idRiga, nOrdine, destinatario) {
+async function inviaRisposta(idRiga, nOrdine, destinatario, cliente) {
     const input = document.getElementById('input-risposta-' + idRiga);
     const testo = input.value.trim();
     if (!testo) return;
@@ -2595,6 +2596,7 @@ async function inviaRisposta(idRiga, nOrdine, destinatario) {
     const payload = {
         azione: 'supporto_multiplo',
         n_ordine: nOrdine,
+        cliente: (cliente || '').trim(),
         tipo: 'RISPOSTA',
         messaggio: testo,
         mittente: utenteAttuale.nome.toUpperCase().trim(),
@@ -3383,7 +3385,8 @@ function formattaData(stringaData) {
 function generaCardRichiesta(msgs, io, isArchiviata) {
     const ultimo = msgs[msgs.length - 1];
     const nOrd = ultimo.ORDINE;
-    const nomeCliente = ultimo.CLIENTE || "";
+    // Usa il CLIENTE salvato nel record; se mancante (record vecchi) prova la cache degli ordini di produzione
+    const nomeCliente = ultimo.CLIENTE || ((_ordiniAutocompleteCache || []).find(o => o.ordine === nOrd) || {}).cliente || "";
 
     // Controlla se almeno un messaggio del gruppo è sollecitato
     const isSollecitata = msgs.some(m => String(m.SOLLECITO).toLowerCase() === 'true');
@@ -3435,7 +3438,7 @@ function generaCardRichiesta(msgs, io, isArchiviata) {
                         <textarea id="input-risposta-${ultimo.id_riga}" class="reply-input" placeholder="Scrivi una risposta..."></textarea>
                         <div class="reply-footer">
                             <span class="reply-hint"><i class="fa-regular fa-paper-plane"></i> Risposta a <b>${ultimo.DA === io ? ultimo.A : ultimo.DA}</b></span>
-                            <button onclick="inviaRisposta('${ultimo.id_riga}', '${nOrd}', '${ultimo.DA === io ? ultimo.A : ultimo.DA}')" class="btn-reply-send">
+                            <button onclick="inviaRisposta('${ultimo.id_riga}', '${nOrd}', '${ultimo.DA === io ? ultimo.A : ultimo.DA}', '${nomeCliente.replace(/'/g,"\\'")}')" class="btn-reply-send">
                                 <i class="fa-solid fa-paper-plane"></i> Invia
                             </button>
                         </div>
