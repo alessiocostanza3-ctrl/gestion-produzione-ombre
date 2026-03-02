@@ -400,6 +400,12 @@ let utenteAttuale = {
     vistaSimulata: ""
 };
 
+/**
+ * Restituisce true se l'utente è MASTER.
+ * Se non lo è, mostra una notifica e restituisce false.
+ * Usata come guard per azioni riservate (elimina, sposta righe).
+ */
+
 window.onload = async function() {
     if (_bootCompleted) return;
     _bootCompleted = true;
@@ -3650,7 +3656,7 @@ function caricaInterfacciaImpostazioni() {
             nuovoOrdine.forEach((s, i) => { listaStati.push(s); rows[i].dataset.idx = i; });
             segnaModifica();
         });
-    }
+}
 function azioneEliminaStato(i) {
          if(confirm("Sei sicuro di voler eliminare questo stato?")) {
              listaStati.splice(i, 1);
