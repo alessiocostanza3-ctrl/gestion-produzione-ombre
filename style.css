@@ -5764,6 +5764,21 @@ button:active {
 .pip-table tbody tr:nth-child(odd)  { background: #ffffff; }
 .pip-row-sez-start td { border-top: 2px solid #e2e8f0; }
 
+/* Su mobile (portrait) nascondi le colonne xP / xM / xG — già calcolate nel FABBISOGNO */
+@media (max-width: 768px) {
+    .pip-col-coeff,
+    .pip-coeff { display: none !important; }
+    .pip-table { font-size: 0.82rem; }
+    .pip-mat   { padding: 6px 8px; }
+    .pip-fab, .pip-ord-manca, .pip-ord-ok, .pip-ord-zero { padding: 6px 8px; }
+    .pip-car-input { width: 54px; }
+    .pip-qty-inputs { flex-wrap: wrap; gap: 10px; }
+    .pip-qty-item { min-width: 80px; }
+}
+
+/* Pipistrelli: consenti orientamento landscape (override dell'overlay "ruota") */
+body.page-pip #rotate-overlay { display: none !important; }
+
 .pip-sez-cell {
     background: #242424 !important;
     color: #f9fafb; font-weight: 700; font-size: 0.72rem;
@@ -6468,6 +6483,8 @@ button:active {
     transform: translateY(-6px) !important;
     box-shadow: 0 8px 36px rgba(0,0,0,0.55) !important;
     z-index: 9999 !important;
+    max-height: 80dvh !important;
+    overflow-y: auto !important;
 }
 .account-dropdown-mob.open {
     transform: translateY(0) !important;

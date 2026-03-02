@@ -864,18 +864,24 @@ function _renderPredefinedSwatches() {
 }
 
 function _renderCustomSwatches() {
-    const container = document.getElementById('avatar-custom-swatches');
-    if (!container) return;
+    const ids = ['avatar-custom-swatches', 'avatar-custom-swatches-mob'];
     const recenti = _avatarLoadRecenti();
-    container.innerHTML = '';
-    recenti.forEach((color, idx) => {
-        const btn = document.createElement('button');
-        btn.className = 'avatar-color-swatch avatar-color-custom-swatch';
-        btn.style.background = color;
-        btn.dataset.color = color;
-        btn.title = 'Clicca per modificare o eliminare';
-        btn.onclick = (e) => { e.stopPropagation(); _avatarEditCustom(idx, e); };
-        container.appendChild(btn);
+    ids.forEach(containerId => {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        const isMob = containerId.endsWith('-mob');
+        container.innerHTML = '';
+        recenti.forEach((color, idx) => {
+            const btn = document.createElement('button');
+            btn.className = 'avatar-color-swatch avatar-color-custom-swatch';
+            btn.style.background = color;
+            btn.dataset.color = color;
+            btn.title = 'Clicca per modificare o eliminare';
+            btn.onclick = isMob
+                ? (e) => { e.stopPropagation(); _avatarEditCustomMob(idx, e); }
+                : (e) => { e.stopPropagation(); _avatarEditCustom(idx, e); };
+            container.appendChild(btn);
+        });
     });
 }
 
@@ -954,6 +960,67 @@ function _avatarRipristinaPredefiniti(e) {
     if (e) e.stopPropagation();
     _avatarSaveHidden([]);
     _renderPredefinedSwatches();
+}
+
+/* ── Editor colore avatar MOBILE (usa IDs con suffisso -mob) ── */
+function _avatarShowEditorMob(color, showDelete) {
+    const ed  = document.getElementById('avatar-color-editor-mob');
+    const inp = document.getElementById('avatar-color-edit-input-mob');
+    const del = document.getElementById('avatar-editor-delete-mob');
+    if (!ed || !inp) return;
+    inp.value = color || '#ff0000';
+    if (del) del.style.display = showDelete ? '' : 'none';
+    ed.style.display = 'flex';
+}
+function _avatarHideEditorMob() {
+    const ed = document.getElementById('avatar-color-editor-mob');
+    if (ed) ed.style.display = 'none';
+    _avatarEditTarget = null;
+}
+function _avatarStartAddMob(e) {
+    if (e) e.stopPropagation();
+    _avatarEditTarget = null;
+    _avatarShowEditorMob('#ff0000', false);
+}
+function _avatarEditCustomMob(idx, e) {
+    if (e) e.stopPropagation();
+    const recenti = _avatarLoadRecenti();
+    _avatarEditTarget = { type: 'custom', idx };
+    _avatarShowEditorMob(recenti[idx] || '#ff0000', true);
+}
+function _avatarConfirmEditMob(e) {
+    if (e) e.stopPropagation();
+    const inp = document.getElementById('avatar-color-edit-input-mob');
+    if (!inp) return;
+    const color = inp.value;
+    if (_avatarEditTarget === null) {
+        const recenti = _avatarLoadRecenti();
+        recenti.unshift(color);
+        _avatarSaveRecenti(recenti);
+        _renderCustomSwatches();
+    } else if (_avatarEditTarget.type === 'custom') {
+        const recenti = _avatarLoadRecenti();
+        recenti[_avatarEditTarget.idx] = color;
+        _avatarSaveRecenti(recenti);
+        _renderCustomSwatches();
+    }
+    _avatarHideEditorMob();
+    _setAvatarColor(color);
+}
+function _avatarCancelEditMob(e) {
+    if (e) e.stopPropagation();
+    _avatarHideEditorMob();
+}
+function _avatarDeleteEditMob(e) {
+    if (e) e.stopPropagation();
+    if (!_avatarEditTarget) return;
+    if (_avatarEditTarget.type === 'custom') {
+        const recenti = _avatarLoadRecenti();
+        recenti.splice(_avatarEditTarget.idx, 1);
+        _avatarSaveRecenti(recenti);
+        _renderCustomSwatches();
+    }
+    _avatarHideEditorMob();
 }
 
 function _applyAvatarColorUI(color) {
@@ -1285,6 +1352,8 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
     }
     localStorage.setItem('ultimaPaginaProduzione', nomeFoglio);
     paginaAttuale = nomeFoglio;
+    // Classe sul body per eccezioni CSS by-page (es. landscape su PIPISTRELLI)
+    document.body.classList.toggle('page-pip', nomeFoglio === 'PIPISTRELLI');
 
     // Mostra/nasconde la tab bar Acquisti
     // Se si naviga su Acquisti da sidebar/tab (elementoMenu != null) → reset a catalogo
@@ -1659,9 +1728,9 @@ function caricaPaginaPipistrello() {
             <tr>
               <th>SEZIONE</th>
               <th>MATERIALE</th>
-              <th title="Piccolo 500mA">× P</th>
-              <th title="Medio 600mA">× M</th>
-              <th title="Grande 700mA">× G</th>
+              <th class="pip-col-coeff" title="Piccolo 500mA">× P</th>
+              <th class="pip-col-coeff" title="Medio 600mA">× M</th>
+              <th class="pip-col-coeff" title="Grande 700mA">× G</th>
               <th>FABBISOGNO</th>
               <th>CARICATO</th>
               <th>DA ORDINARE</th>
