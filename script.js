@@ -568,9 +568,13 @@ function _prefetchBackground() {
     window._prefetchRqPromise   = fetch(URL_GOOGLE + '?azione=getAllRichieste')
         .then(function(r) { return r.ok ? r.json() : null; })
         .catch(function() { return null; });
+    window._prefetchMatPromise  = fetch(URL_GOOGLE + '?pagina=MATERIALE+DA+ORDINARE')
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .catch(function() { return null; });
     // Salva il risultato anche nelle var bundle per accesso rapido successivo
     window._prefetchDashPromise.then(function(b) { if (b) window._prefetchDashBundle = b; });
     window._prefetchRqPromise.then(function(b)   { if (b) window._prefetchRqBundle   = b; });
+    window._prefetchMatPromise.then(function(b)  { if (b) window._prefetchMatBundle  = b; });
 }
 
 
@@ -1048,13 +1052,12 @@ async function salvaEApriDashboard() {
     overlay.style.transition = "opacity 0.4s ease";
     overlay.style.opacity = '0';
 
-    // Carica impostazioni (stati, operatori, sezioni, ecc.) IN PARALLELO col fade
-    // così quando la dashboard appare tutti i controlli sono già pronti.
-    // L'errore di rete non blocca l'accesso: l'utente può rientrare normalmente.
-    await Promise.all([
-        caricaImpostazioni().catch(e => console.warn("caricaImpostazioni post-login:", e)),
-        new Promise(r => setTimeout(r, 400))
-    ]);
+    // Avvia prefetch GAS e impostazioni SUBITO (non bloccano la navigazione)
+    _prefetchBackground();
+    caricaDatiIniziali().catch(e => console.warn("caricaDatiIniziali post-login:", e));
+
+    // Aspetta solo il fade visivo (400ms), non la risposta GAS
+    await new Promise(r => setTimeout(r, 400));
 
     overlay.style.display = 'none';
     if (typeof aggiornaProfiloSidebar === 'function') aggiornaProfiloSidebar();
@@ -4433,12 +4436,21 @@ async function _toggleOrdinato(idRiga, btn) {
 
   // Carica le sezioni dal backend (sovrascrive il localStorage se il backend le ha)
   async function _caricaSezioniDaBackend() {
+    // Prima prova LS cache (TTL 10 minuti): evita una fetch GAS extra
+    const _cached = _lsCacheGet('_sezioniMateriali_cache', 600000);
+    if (_cached) {
+      try {
+        const arr = typeof _cached === 'string' ? JSON.parse(_cached) : _cached;
+        if (Array.isArray(arr) && arr.length > 0) { sezioniMateriali = arr; return; }
+      } catch(e) {}
+    }
     try {
       const res = await fetch(URL_GOOGLE + '?pagina=SEZIONI_CONFIG');
       const sezioniRemote = await res.json();
       if (Array.isArray(sezioniRemote) && sezioniRemote.length > 0) {
         sezioniMateriali = sezioniRemote;
         localStorage.setItem('sezioniMateriali', JSON.stringify(sezioniMateriali));
+        _lsCacheSet('_sezioniMateriali_cache', JSON.stringify(sezioniMateriali));
       }
     } catch (e) {
       console.warn('Sezioni: fallback a localStorage', e);
@@ -4446,6 +4458,7 @@ async function _toggleOrdinato(idRiga, btn) {
   }
 
   async function _salvaSezioniSuBackend() {
+    _lsCacheDel('_sezioniMateriali_cache'); // invalida subito la cache locale
     try {
       await fetch(URL_GOOGLE, {
         method: 'POST',
@@ -4477,7 +4490,20 @@ async function _toggleOrdinato(idRiga, btn) {
     }
 
     try {
-        const materiali = await fetchJson("MATERIALE DA ORDINARE", signal);
+        // Usa il bundle pre-fetchato se disponibile (GAS già chiamato in background all'avvio)
+        let materiali = null;
+        if (window._prefetchMatBundle) {
+            materiali = window._prefetchMatBundle;
+            window._prefetchMatBundle = null;
+            window._prefetchMatPromise = null;
+        } else if (window._prefetchMatPromise) {
+            materiali = await window._prefetchMatPromise;
+            window._prefetchMatBundle = null;
+            window._prefetchMatPromise = null;
+        } else {
+            materiali = await fetchJson('MATERIALE DA ORDINARE', signal);
+        }
+        if (!materiali) materiali = [];
 
         // Guard anti-stale
         if (expectedRequestId !== null && expectedRequestId !== _latestNavRequest) return;
@@ -4634,6 +4660,7 @@ async function _toggleOrdinato(idRiga, btn) {
         html += `</div>`;
         cacheContenuti["MATERIALE DA ORDINARE"] = html;
         cacheFetchTime["MATERIALE DA ORDINARE"] = Date.now();
+        _lsCacheSet('_html_MATERIALE DA ORDINARE', html); // cache cross-session
         contenitore.innerHTML = html;
         applicaFade(contenitore);
         aggiornaListaFiltrabili();
@@ -5445,10 +5472,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     try { hasSession = !!(localStorage.getItem('sessioneUtente') || sessionStorage.getItem('sessioneUtente')); } catch (e) {}
     if (!hasSession) return;
 
-    // 1️⃣ Carica impostazioni: prima controlla localStorage (TTL 5min), poi GAS solo se necessario
-    // 🔥 Avvia subito warm-up GAS in background (parallelo all'init, no await)
+    // 🔥 Avvia subito warm-up GAS in background (senza await: non blocca la navigazione)
     _prefetchBackground();
-    await caricaDatiIniziali();
+    // Carica impostazioni in parallelo con la navigazione (non blocca il render iniziale)
+    caricaDatiIniziali().catch(function() {});
 
     // 2️⃣ Recupera pagina salvata
     let paginaSalvata = localStorage.getItem('ultimaPaginaProduzione');
