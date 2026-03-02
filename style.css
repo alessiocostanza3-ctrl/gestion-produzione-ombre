@@ -1467,37 +1467,37 @@ h1 {
 
 /* Step 2: Chiedi/Assegna e Archivia - palette nero/bianco */
 .btn-chiedi-assegna {
-    background: #111827 !important;
+    background: #242424!important;
     color: #ffffff !important;
     border: none !important;
     transition: background 0.2s, color 0.2s !important;
 }
 .btn-chiedi-assegna:hover {
     background: #ffffff !important;
-    color: #111827 !important;
+    color: #242424!important;
     box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important;
 }
 .btn-archivia-prod {
-    background: #111827 !important;
+    background: #242424!important;
     color: #ffffff !important;
     border: none !important;
     transition: background 0.2s, color 0.2s !important;
 }
 .btn-archivia-prod:hover {
     background: #ffffff !important;
-    color: #111827 !important;
+    color: #242424!important;
     box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important;
 }
 /* Tasto Ripristina (archivio ordine) */
 .btn-ripristina {
-    background: #111827 !important;
+    background: #242424!important;
     color: #ffffff !important;
     border: none !important;
     transition: background 0.2s, color 0.2s !important;
 }
 .btn-ripristina:hover {
     background: #ffffff !important;
-    color: #111827 !important;
+    color: #242424!important;
     box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important;
 }
 
@@ -2001,16 +2001,16 @@ h1 {
 .box-message { font-size: 13px; font-weight: 700; color: #9a3412; margin-bottom: 10px; }
 .box-actions { display: flex; gap: 10px; justify-content: center; }
 .button-small { padding: 6px 15px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; }
-.btn-cancel { background: #111827 !important; color: #ffffff !important; border: none !important; transition: background 0.2s, color 0.2s !important; }
-.btn-cancel:hover { background: #ffffff !important; color: #111827 !important; box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important; }
+.btn-cancel { background: #242424!important; color: #ffffff !important; border: none !important; transition: background 0.2s, color 0.2s !important; }
+.btn-cancel:hover { background: #ffffff !important; color: #242424!important; box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important; }
 .btn-archive-action { background: #111827; color: #ffffff; border: none; transition: background 0.2s, color 0.2s; }
 .btn-archive-action:hover { background: #ffffff; color: #111827; box-shadow: 0 2px 10px rgba(0,0,0,0.15); }
-.btn-reply { background: #111827 !important; color: #ffffff !important; border: none !important; transition: background 0.2s, color 0.2s !important; }
-.btn-reply:hover { background: #ffffff !important; color: #111827 !important; box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important; }
-.btn-alert { background: #111827 !important; color: #ffffff !important; border: none !important; transition: background 0.2s, color 0.2s !important; }
-.btn-alert:hover { background: #ffffff !important; color: #111827 !important; box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important; }
-.btn-archive { background: #111827 !important; color: #ffffff !important; border: none !important; transition: background 0.2s, color 0.2s !important; }
-.btn-archive:hover { background: #ffffff !important; color: #111827 !important; box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important; }
+.btn-reply { background: #242424!important; color: #ffffff !important; border: none !important; transition: background 0.2s, color 0.2s !important; }
+.btn-reply:hover { background: #ffffff !important; color: #242424!important; box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important; }
+.btn-alert { background: #242424!important; color: #ffffff !important; border: none !important; transition: background 0.2s, color 0.2s !important; }
+.btn-alert:hover { background: #ffffff !important; color: #242424!important; box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important; }
+.btn-archive { background: #242424!important; color: #ffffff !important; border: none !important; transition: background 0.2s, color 0.2s !important; }
+.btn-archive:hover { background: #ffffff !important; color: #242424!important; box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important; }
 .chat-to { font-size: 10px; color: #94a3b8; margin-left: auto; }
 .chat-archiviata-note { padding: 10px 20px; border-top: 1px solid #f1f5f9; background: #f8fafc; text-align: right; }
 .chat-archiviata-label { font-size: 11px; color: #111827; font-weight: 700; }
@@ -2468,10 +2468,10 @@ h1 {
 .archivio-wrapper { border-color: #cbd5e1; margin-bottom: 15px; }
 .archivio-header { background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
 .order-info-col { text-align: right; display: flex; flex-direction: column; justify-content: center; gap: 5px; }
-.btn-archive-action.primary { background:#111827 !important; color:#ffffff !important; border:none !important; }
-.btn-archive-action.primary:hover { background:#ffffff !important; color:#111827 !important; box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important; }
-.btn-archive-action.warning { background:#111827 !important; color:#ffffff !important; border:none !important; }
-.btn-archive-action.warning:hover { background:#ffffff !important; color:#111827 !important; box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important; }
+.btn-archive-action.primary { background:#242424!important; color:#ffffff !important; border:none !important; }
+.btn-archive-action.primary:hover { background:#ffffff !important; color:#242424!important; box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important; }
+.btn-archive-action.warning { background:#242424!important; color:#ffffff !important; border:none !important; }
+.btn-archive-action.warning:hover { background:#ffffff !important; color:#242424!important; box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important; }
 .color-picker-wrapper { position: relative; width: 16px; height: 16px; }
 .color-overlay { position: absolute; opacity:0; width:100%; height:100%; cursor:pointer; z-index:2; }
 
@@ -3491,13 +3491,13 @@ button.menu-item-opt {
     margin: 4px 0 10px;
 }
 .sezione-empty b { color: #64748b; font-style: normal; }
-/* Pulsanti header acquisti - palette #111827 */
-#btn-mode-select { background: #111827 !important; color: #ffffff !important; border: none !important; transition: background 0.2s, color 0.2s !important; }
-#btn-mode-select:hover { background: #ffffff !important; color: #111827 !important; box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important; }
-#btn-delete-selected { background: #111827 !important; color: #ffffff !important; border: none !important; transition: background 0.2s, color 0.2s !important; }
-#btn-delete-selected:hover { background: #ffffff !important; color: #111827 !important; box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important; }
-.btn-nuovo-fisso { background: #111827 !important; color: #ffffff !important; border: none !important; transition: background 0.2s, color 0.2s !important; }
-.btn-nuovo-fisso:hover { background: #ffffff !important; color: #111827 !important; box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important; }
+/* Pulsanti header acquisti - palette #242424*/
+#btn-mode-select { background: #242424!important; color: #ffffff !important; border: none !important; transition: background 0.2s, color 0.2s !important; }
+#btn-mode-select:hover { background: #ffffff !important; color: #242424!important; box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important; }
+#btn-delete-selected { background: #242424!important; color: #ffffff !important; border: none !important; transition: background 0.2s, color 0.2s !important; }
+#btn-delete-selected:hover { background: #ffffff !important; color: #242424!important; box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important; }
+.btn-nuovo-fisso { background: #242424!important; color: #ffffff !important; border: none !important; transition: background 0.2s, color 0.2s !important; }
+.btn-nuovo-fisso:hover { background: #ffffff !important; color: #242424!important; box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important; }
 
 .btn-sezione-new { color: #ffffff !important; }
 
@@ -3628,7 +3628,7 @@ button.menu-item-opt {
         display: flex !important;
         align-items: center !important;
         justify-content: space-around !important;
-        background: #111827 !important;
+        background: #242424!important;
         border-top: 1px solid rgba(255,255,255,0.08) !important;
         z-index: 30 !important;
     }
@@ -3666,7 +3666,7 @@ button.menu-item-opt {
         height: 54px !important;
         border-radius: 50% !important;
         border: 0 !important;
-        color: #111827 !important;
+        color: #242424!important;
         background: #ffffff !important;
         display: flex !important;
         align-items: center !important;
@@ -5333,7 +5333,7 @@ button:active {
 
 /* ================================================================
    ML - PIPISTRELLO  |  Pianificazione Mensile & Fabbisogno
-   Palette: app standard (#111827 / #2563eb / #f8fafc / #1e293b)
+   Palette: app standard (#242424/ #2563eb / #f8fafc / #1e293b)
    Eccezioni: verde/rosso/azzurro sulle colonne funzionali
    ================================================================ */
 .pip-page {
