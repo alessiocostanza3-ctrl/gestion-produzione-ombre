@@ -2,14 +2,14 @@
    Service Worker PROD — notifiche push VAPID native
    Nessun servizio di terze parti richiesto.
    Aggiornato: 2026-03-02
-   v3: aggiunta pre-cache app shell (HTML/CSS/JS) per avvio istantaneo
+   v4: bump cache per forzare re-download script.js (fix ordini real-time multi-device)
    ============================================================ */
 'use strict';
 
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbyVMV9MkGiqphN0AKXJdHXF0Arp1vxTYrCYi1SGv_4MKLRJkx--5HoGq7mmQX-p0ZTZ/exec';
 var APP_URL = 'https://alessiocostanza3-ctrl.github.io/gestion-produzione-ombre/';
 
-var SHELL_CACHE = 'prod-shell-v3';
+var SHELL_CACHE = 'prod-shell-v4';
 var SHELL_ASSETS = [
     APP_URL,
     APP_URL + 'index.html',
