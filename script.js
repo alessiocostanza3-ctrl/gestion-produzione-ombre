@@ -2480,7 +2480,7 @@ async function confermaInvioSupporto() {
 
     try {
         // --- AZIONE A: Aggiorna i Badge nella Produzione ---
-        const urlAssegnazione = `${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(listaNomiStr)}&id_riga=${idRiga}`;
+        const urlAssegnazione = `${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(listaNomiStr)}&id_riga=${idRiga}&mittente=${encodeURIComponent(utenteAttuale.nome.toUpperCase().trim())}`;
         await fetch(urlAssegnazione);
 
         // --- AZIONE B: Salva nello Storico Messaggi ---
