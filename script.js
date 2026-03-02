@@ -2459,67 +2459,55 @@ async function confermaInvioSupporto() {
     if (!modalElement) return;
 
     const idRiga = modalElement.dataset.idRiga;
-    // Se il campo ordine libero è visibile (nuova richiesta dal "++"), usa quello
-    const ordineRow = document.getElementById('modal-ordine-row');
+    const ordineRow   = document.getElementById('modal-ordine-row');
     const ordineInput = document.getElementById('modal-ordine-input');
     const nOrd = (ordineRow && ordineRow.style.display !== 'none' && ordineInput && ordineInput.value.trim())
         ? ordineInput.value.trim()
         : modalElement.dataset.nOrdine;
     const messaggioVal = document.getElementById('messaggio-aiuto').value;
-    const tipoAzione = modalElement.dataset.tipoAzione;
+    const tipoAzione   = modalElement.dataset.tipoAzione;
 
     const checkboxSelezionate = document.querySelectorAll('input[name="destinatario"]:checked');
-
     if (checkboxSelezionate.length === 0) {
         alert("Per favore, seleziona almeno un operatore.");
         return;
     }
 
-    const listaNomiStr = Array.from(checkboxSelezionate).map(cb => cb.getAttribute('data-nome')).join(', ');
+    const listaNomiStr        = Array.from(checkboxSelezionate).map(cb => cb.getAttribute('data-nome')).join(', ');
     const listaNomiDestinatari = Array.from(checkboxSelezionate).map(cb => cb.getAttribute('data-nome'));
 
-    try {
-        // --- AZIONE A: Aggiorna i Badge nella Produzione ---
-        const urlAssegnazione = `${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(listaNomiStr)}&id_riga=${idRiga}&mittente=${encodeURIComponent(utenteAttuale.nome.toUpperCase().trim())}`;
-        await fetch(urlAssegnazione);
+    // ── Chiudi subito il modal e dai feedback immediato ──
+    document.getElementById('messaggio-aiuto').value = '';
+    chiudiModal();
+    notificaElegante(tipoAzione === 'ASSEGNAZIONE' ? '✅ Assegnazione inviata' : '✅ Richiesta inviata');
 
-        // --- AZIONE B: Salva nello Storico Messaggi ---
-        const payload = {
-            azione: 'supporto_multiplo',
-            n_ordine: nOrd,
-            tipo: tipoAzione,
-            // Testo di default aggiornato
-            messaggio: messaggioVal || (tipoAzione === 'ASSEGNAZIONE' ? "Nuova assegnazione" : "Nuova domanda"),
-            mittente: utenteAttuale.nome.toUpperCase().trim(),
-            destinatari: listaNomiDestinatari
-        };
+    // Invalida cache richieste in anticipo
+    delete cacheContenuti['STORICO_RICHIESTE'];
+    delete cacheFetchTime['STORICO_RICHIESTE'];
 
-        const response = await fetch(URL_GOOGLE, {
-            method: 'POST',
-            body: JSON.stringify(payload)
-        });
+    // ── Fire-and-forget: entrambe le chiamate in background ──
+    const urlAssegnazione = `${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(listaNomiStr)}&id_riga=${idRiga}&mittente=${encodeURIComponent(utenteAttuale.nome.toUpperCase().trim())}`;
+    const payload = {
+        azione: 'supporto_multiplo',
+        n_ordine: nOrd,
+        tipo: tipoAzione,
+        messaggio: messaggioVal || (tipoAzione === 'ASSEGNAZIONE' ? 'Nuova assegnazione' : 'Nuova domanda'),
+        mittente: utenteAttuale.nome.toUpperCase().trim(),
+        destinatari: listaNomiDestinatari
+    };
 
-        if (response.ok) {
-            document.getElementById('messaggio-aiuto').value = "";
-            chiudiModal();
-
-            // Invalida la cache richieste così la prossima apertura recupera dati freschi
-            delete cacheContenuti['STORICO_RICHIESTE'];
-            delete cacheFetchTime['STORICO_RICHIESTE'];
-
-            if (paginaAttuale === 'STORICO_RICHIESTE') {
-                await caricaPaginaRichieste();
-            } else {
-                // Aggiorna il badge in background anche se non siamo sulla pagina richieste
-                fetchJson("STORICO_RICHIESTE").then(msgs => { aggiornaBadgeSidebar(msgs); aggiornaBadgeNotifiche(msgs); }).catch(() => {});
-                await caricaDati(paginaAttuale);
-            }
+    Promise.all([
+        fetch(urlAssegnazione).catch(() => {}),
+        fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify(payload) }).catch(() => {})
+    ]).then(() => {
+        // Aggiorna dati in background dopo che il server ha risposto
+        if (paginaAttuale === 'STORICO_RICHIESTE') {
+            caricaPaginaRichieste().catch(() => {});
+        } else {
+            fetchJson('STORICO_RICHIESTE').then(msgs => { aggiornaBadgeSidebar(msgs); }).catch(() => {});
+            caricaDati(paginaAttuale).catch(() => {});
         }
-
-    } catch (e) {
-        console.error("Errore durante l'operazione:", e);
-        alert("Errore nell'invio delle informazioni.");
-    }
+    });
 }
 function toggleAreaRisposta(id) {
     const box = document.getElementById('box-risposta-' + id);
@@ -2557,24 +2545,27 @@ async function inviaRisposta(idRiga, nOrdine, destinatario) {
     const testo = input.value.trim();
     if (!testo) return;
 
-    try {
-        const payload = {
-            azione: 'supporto_multiplo',
-            n_ordine: nOrdine,
-            tipo: 'RISPOSTA',
-            messaggio: testo,
-            mittente: utenteAttuale.nome.toUpperCase().trim(),
-            destinatari: [destinatario.toUpperCase().trim()]
-        };
+    // ── Reset UI immediato ──
+    input.value = '';
+    toggleAreaRisposta(idRiga); // chiude il box risposta subito
+    notificaElegante('✅ Risposta inviata');
 
-        const response = await fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify(payload) });
-        if (response.ok) {
-            input.value = "";
-            await caricaPaginaRichieste(); // Ricarica la chat aggiornata
-        }
-    } catch (e) {
-        alert("Errore durante l'invio.");
-    }
+    // Invalida cache in anticipo
+    delete cacheContenuti['STORICO_RICHIESTE'];
+    delete cacheFetchTime['STORICO_RICHIESTE'];
+
+    // ── Fire-and-forget ──
+    const payload = {
+        azione: 'supporto_multiplo',
+        n_ordine: nOrdine,
+        tipo: 'RISPOSTA',
+        messaggio: testo,
+        mittente: utenteAttuale.nome.toUpperCase().trim(),
+        destinatari: [destinatario.toUpperCase().trim()]
+    };
+    fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify(payload) })
+        .then(() => { if (paginaAttuale === 'STORICO_RICHIESTE') caricaPaginaRichieste().catch(() => {}); })
+        .catch(() => {});
 }
 
 
