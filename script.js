@@ -133,7 +133,7 @@ let listaStati = [];
 let tipoTrascinamento = "";
 const cacheContenuti = {};
 const cacheFetchTime = {}; // timestamp dell'ultimo fetch per pagina
-const CACHE_TTL_MS = 30000; // 30 secondi: sotto questa soglia non fare background refresh
+const CACHE_TTL_MS = 120000; // 2 minuti: sotto questa soglia non fare background refresh
 
 // ---- runtime guards (anti doppio init / race rendering) ----
 let _bootCompleted = false;
@@ -520,6 +520,30 @@ async function fetchJson(pagina, signal) {
     const res = await fetch(url, signal ? { signal } : {});
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
+}
+
+// === CACHE localStorage PERSISTENTE (sopravvive al reload) ===
+// Chiavi: '_html_<nomeFoglio>' contengono { ts, data: <htmlString> }
+// TTL default 5 minuti. Usata come fallback istantaneo prima del fetch GAS.
+function _lsCacheGet(key, ttlMs) {
+    try {
+        const raw = localStorage.getItem(key);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (Date.now() - parsed.ts < ttlMs) return parsed.data;
+        return null; // scaduta
+    } catch(e) { return null; }
+}
+function _lsCacheSet(key, data) {
+    try {
+        // Evita di salvare stringhe enormi (> 400 KB) per non riempire la quota
+        const str = (typeof data === 'string') ? data : JSON.stringify(data);
+        if (str.length > 400000) return;
+        localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data: str }));
+    } catch(e) {} // quota exceeded: ignora silenziosamente
+}
+function _lsCacheDel(key) {
+    try { localStorage.removeItem(key); } catch(e) {}
 }
 
 function applicaFade(elem) {
@@ -1235,6 +1259,17 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
 
     // 6. Rendering Contenuto (Cache o Server)
     const contenitore = document.getElementById('contenitore-dati');
+
+    // Ripristino da localStorage se la cache RAM è vuota (garantisce render istantaneo dopo reload)
+    if (!cacheContenuti[nomeFoglio]) {
+        const _lsHtml = _lsCacheGet('_html_' + nomeFoglio, 300000); // conserva fino a 5 minuti
+        if (_lsHtml) {
+            cacheContenuti[nomeFoglio] = _lsHtml;
+            // Imposta timestamp vecchio così scatterà subito il background refresh
+            cacheFetchTime[nomeFoglio] = Date.now() - CACHE_TTL_MS - 1000;
+        }
+    }
+
     // Skeleton istantaneo solo se non c'è cache (rimane visibile fino a che il loader scrive)
     if (!cacheContenuti[nomeFoglio]) {
         contenitore.innerHTML = `<div class="nav-skeleton">
@@ -2068,11 +2103,12 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
     }, 12000);
 
     try {
-        // Scarichiamo entrambi i fogli in parallelo
-        const [datiProd, datiArch] = await Promise.all([
-            fetchJson("PROGRAMMA PRODUZIONE DEL MESE", signal),
-            fetchJson("ARCHIVIO_ORDINI", signal)
-        ]);
+        // Singola chiamata bundle GAS: produzione + archivio in una sola request
+        // (cold start pagato una volta sola invece di due volte in parallelo)
+        const _dashResp = await fetch(URL_GOOGLE + '?azione=getAllDashboard', signal ? { signal } : {});
+        if (!_dashResp.ok) throw new Error(`HTTP ${_dashResp.status}`);
+        const _dashBundle = await _dashResp.json();
+        const [datiProd, datiArch] = [_dashBundle.produzione || [], _dashBundle.archivio || []];
         if (retryTimer) clearTimeout(retryTimer);
 
         if (paginaAttuale !== nomeFoglio) return;
@@ -2127,6 +2163,7 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
         `;
         cacheContenuti[nomeFoglio] = contenitore.innerHTML;
         cacheFetchTime[nomeFoglio] = Date.now();
+        _lsCacheSet('_html_' + nomeFoglio, contenitore.innerHTML); // cache cross-session
         applicaFade(contenitore);
         aggiornaListaFiltrabili();
         // Observer: apri archivio quando ci si scorre sopra
@@ -2151,6 +2188,34 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
         applicaFade(contenitore);
     }
 }
+
+/**
+ * Pagina Archivio Ordini — carica solo la sezione archivio usando il bundle dashboard
+ * (i dati sono già in cache GAS, risposta in < 300ms se il runtime è caldo).
+ */
+async function caricaArchivio() {
+    const contenitore = document.getElementById('contenitore-dati');
+    if (!contenitore) return;
+    contenitore.innerHTML = "<div class='centered-msg'><i class='fas fa-spinner fa-spin'></i> Caricamento archivio...</div>";
+    try {
+        const _aResp = await fetch(URL_GOOGLE + '?azione=getAllDashboard');
+        if (!_aResp.ok) throw new Error(`HTTP ${_aResp.status}`);
+        const _aBundle = await _aResp.json();
+        const datiArch = _aBundle.archivio || [];
+        const htmlArch = generaBloccoOrdiniUnificato(datiArch, true);
+        contenitore.innerHTML = htmlArch || "<div class='empty-msg'>L'archivio \u00e8 vuoto.</div>";
+        applicaFade(contenitore);
+        aggiornaListaFiltrabili();
+    } catch(e) {
+        if (e.name === 'AbortError') return;
+        contenitore.innerHTML = `<div class='inline-error'>Errore archivio.
+            <button onclick="cambiaPagina('ARCHIVIO_ORDINI', null)"
+               style="margin-left:8px;padding:4px 12px;background:#242424;color:#fff;border:none;border-radius:6px;cursor:pointer">
+               &#x21bb; Riprova</button></div>`;
+        applicaFade(contenitore);
+    }
+}
+
 function generaBloccoOrdiniUnificato(dati, isArchivio) {
     if (!dati || dati.length === 0) return "";
 
@@ -2536,6 +2601,7 @@ async function confermaInvioSupporto() {
     // Invalida cache richieste in anticipo
     delete cacheContenuti['STORICO_RICHIESTE'];
     delete cacheFetchTime['STORICO_RICHIESTE'];
+    _lsCacheDel('_html_STORICO_RICHIESTE');
 
     // ── Fire-and-forget: entrambe le chiamate in background ──
     const urlAssegnazione = `${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(listaNomiStr)}&id_riga=${idRiga}&mittente=${encodeURIComponent(utenteAttuale.nome.toUpperCase().trim())}`;
@@ -2607,6 +2673,7 @@ async function inviaRisposta(idRiga, nOrdine, destinatario, cliente) {
     // Invalida cache in anticipo
     delete cacheContenuti['STORICO_RICHIESTE'];
     delete cacheFetchTime['STORICO_RICHIESTE'];
+    _lsCacheDel('_html_STORICO_RICHIESTE');
 
     // ── Fire-and-forget ──
     const payload = {
@@ -3227,9 +3294,11 @@ async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
 
     try {
         const [messaggiAttivi, messaggiArchivio] = await Promise.all([
-            fetchJson("STORICO_RICHIESTE", signal),
-            fetchJson("ARCHIVIO_RICHIESTE", signal)
-        ]);
+            // Singola chiamata bundle GAS: storico attivo + archivio in una sola request
+        const _rqResp = await fetch(URL_GOOGLE + '?azione=getAllRichieste', signal ? { signal } : {});
+        if (!_rqResp.ok) throw new Error(`HTTP ${_rqResp.status}`);
+        const _rqBundle = await _rqResp.json();
+        const [messaggiAttivi, messaggiArchivio] = [_rqBundle.attive || [], _rqBundle.archivio || []];
         clearTimeout(retryTimer);
 
         if (expectedRequestId !== null && expectedRequestId !== _latestNavRequest) {
@@ -3336,6 +3405,7 @@ async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
 
         contenitore.innerHTML = html;
         cacheContenuti['STORICO_RICHIESTE'] = html;
+        _lsCacheSet('_html_STORICO_RICHIESTE', html); // cache cross-session
         applicaFade(contenitore);
         aggiornaListaFiltrabili();
         _osservaArchivio('archivio-req-details');
@@ -3380,6 +3450,7 @@ async function aggiornaRichiesta(idRiga, tipoAzione) {
         });
         delete cacheContenuti['STORICO_RICHIESTE'];
         delete cacheFetchTime['STORICO_RICHIESTE'];
+        _lsCacheDel('_html_STORICO_RICHIESTE');
         caricaPaginaRichieste(); // Rinfresca la vista
     } catch (e) { notificaElegante('Errore aggiornamento.', 'error'); }
 }
@@ -3403,6 +3474,7 @@ async function sollecitaRichiesta(idRiga) {
         if (json.status === 'success') {
             delete cacheContenuti['STORICO_RICHIESTE'];
             delete cacheFetchTime['STORICO_RICHIESTE'];
+            _lsCacheDel('_html_STORICO_RICHIESTE');
             notificaElegante('Sollecito inviato!');
             caricaPaginaRichieste();
         }
@@ -3540,6 +3612,35 @@ async function caricaImpostazioni() {
             listaOperatori = settings.operatori || [];
         } catch (e) { console.error("Errore caricamento impostazioni"); }
     }
+
+/**
+ * Carica stati e operatori al boot dell'app.
+ * Prima tenta la cache localStorage (TTL 5 min), poi il server GAS.
+ * È chiamata da window.onload tramite `if (typeof caricaDatiIniziali === "function")`.
+ */
+async function caricaDatiIniziali() {
+    const LS_KEY = '_impostazioni_cache';
+    const TTL_MS = 5 * 60 * 1000; // 5 minuti
+    const cached = _lsCacheGet(LS_KEY, TTL_MS);
+    if (cached) {
+        try {
+            const parsed = (typeof cached === 'string') ? JSON.parse(cached) : cached;
+            listaStati     = parsed.stati     || [];
+            listaOperatori = parsed.operatori || [];
+            return; // servito dalla cache: nessuna chiamata GAS
+        } catch(e) {}
+    }
+    try {
+        const res = await fetch(URL_GOOGLE + '?azione=getImpostazioni');
+        const settings = await res.json();
+        listaStati     = settings.stati     || [];
+        listaOperatori = settings.operatori || [];
+        _lsCacheSet(LS_KEY, JSON.stringify({ stati: listaStati, operatori: listaOperatori }));
+    } catch(e) {
+        console.warn('[Boot] caricaDatiIniziali: impossibile caricare impostazioni:', e);
+    }
+}
+
 function toggleSettingsSection(sectionId, rowEl) {
     const section = document.getElementById(sectionId);
     if (!section) return;
@@ -4900,6 +5001,7 @@ document.addEventListener('click', () => {
       try {
           await fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify({ azione: 'spostaSezione', id_riga: idRiga, sezione }) });
           delete cacheContenuti['MATERIALE DA ORDINARE'];
+          _lsCacheDel('_html_MATERIALE DA ORDINARE');
           caricaMateriali(false);
       } catch (e) { notificaElegante('Errore durante lo spostamento.', 'error'); }
   }
@@ -4930,6 +5032,7 @@ document.addEventListener('click', () => {
       try {
           await fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify({ azione: 'rinominaSezione', vecchioNome, nuovoNome }) });
           delete cacheContenuti['MATERIALE DA ORDINARE'];
+          _lsCacheDel('_html_MATERIALE DA ORDINARE');
           caricaMateriali(false);
           notificaElegante(`Sezione rinominata in "${nuovoNome}"`, 'success');
       } catch (e) { notificaElegante('Errore durante il salvataggio.', 'error'); }
@@ -4958,6 +5061,7 @@ document.addEventListener('click', () => {
       }
       chiudiModalNuovaSezione();
       delete cacheContenuti['MATERIALE DA ORDINARE'];
+      _lsCacheDel('_html_MATERIALE DA ORDINARE');
       caricaMateriali(false);
   }
   // ─────────────────────────────────────────────────────────────
@@ -5733,6 +5837,7 @@ async function _confermaSpostaPostazione() {
     if (errori === 0) {
         notificaElegante(`✅ ${idRighe.length} articolo/i → ${_qrStatoScelto}`);
         delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
+        _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
     } else {
         notificaElegante(`⚠️ ${errori} errori su ${idRighe.length} articoli`, 'error');
     }
@@ -6104,6 +6209,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // Svuota cache della pagina attuale e ricarica
             if (typeof paginaAttuale !== 'undefined' && paginaAttuale) {
                 delete cacheContenuti[paginaAttuale];
+                _lsCacheDel('_html_' + paginaAttuale);
                 cambiaPagina(paginaAttuale);
             }
             // Nascondi indicatore dopo breve attesa
