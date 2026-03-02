@@ -141,7 +141,7 @@
     justify-content: space-between;
     padding: 16px 20px 14px 20px;
     border-bottom: 1px solid rgba(255,255,255,0.07);
-    background: #1e2738;
+    background: #242424;
 }
 .notifiche-modal-title {
     color: #e2e8f0;
@@ -184,7 +184,7 @@
     min-height: 80px;
 }
 .notifica-item {
-    background: #1e2738;
+    background: #242424;
     border: 1px solid rgba(255,255,255,0.06);
     border-radius: 10px;
     padding: 10px 14px;
@@ -3545,15 +3545,16 @@ button.menu-item-opt {
         background: #f8fafc !important;
         overflow: hidden !important;
         box-sizing: border-box !important;
+        display: flex !important;
+        flex-direction: column !important;
     }
 
     .mobile-topbar {
         display: block !important;
-        position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        height: 124px !important;
+        position: relative !important;
+        flex-shrink: 0 !important;
+        width: 100% !important;
+        height: auto !important;
         box-sizing: border-box !important;
         padding: 10px 12px 8px !important;
         background: #f8fafc !important;
@@ -3603,25 +3604,28 @@ button.menu-item-opt {
     }
 
     #contenitore-dati {
-        position: absolute !important;
-        top: 124px !important;
-        left: 0 !important;
-        right: 0 !important;
-        bottom: 60px !important;
+        flex: 1 1 0 !important;
+        position: relative !important;
+        top: auto !important;
+        left: auto !important;
+        right: auto !important;
+        bottom: auto !important;
         margin: 0 !important;
         padding: 4px 12px 12px 12px !important;
         overflow-y: auto !important;
         -webkit-overflow-scrolling: touch !important;
         box-sizing: border-box !important;
         background: #f8fafc !important;
+        min-height: 0 !important;
     }
 
     .mobile-tab-bar {
         display: flex !important;
-        position: absolute !important;
-        left: 0 !important;
-        right: 0 !important;
-        bottom: 0 !important;
+        position: relative !important;
+        flex-shrink: 0 !important;
+        left: auto !important;
+        right: auto !important;
+        bottom: auto !important;
         height: 100px !important;
         padding: 0 8px 4px !important;
         box-sizing: border-box !important;
