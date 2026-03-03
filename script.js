@@ -5760,7 +5760,12 @@ function _isIosPwa() {
 }
 
 /** Apre il modale scanner QR e avvia la fotocamera posteriore. */
+let _apriScannerQRLock = false;
 async function apriScannerQR() {
+    if (_apriScannerQRLock) return;
+    _apriScannerQRLock = true;
+    setTimeout(() => { _apriScannerQRLock = false; }, 800);
+
     const modal  = document.getElementById('modal-qr-scanner');
     const errDiv = document.getElementById('qr-error-msg');
     if (!modal) return;
