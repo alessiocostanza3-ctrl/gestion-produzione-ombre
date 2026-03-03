@@ -428,6 +428,9 @@
         <div class="mobile-topbar">
             <div class="top-bar" style="display:flex;align-items:center;gap:10px;">
                 <h1 id="titolo-pagina" style="flex:1">Dashboard Produzione</h1>
+                <button class="btn-qr-scan" id="btn-qr-scan" ontouchend="event.preventDefault(); apriScannerQR()" onclick="apriScannerQR()" title="Scansiona QR postazione" aria-label="Scansiona QR Code">
+                    <i class="fas fa-qrcode"></i>
+                </button>
                 <!-- Avatar account mobile -->
                 <div class="mobile-account-wrap" id="mobile-account-wrap">
                     <button class="user-avatar-btn mobile-avatar-topbar-btn" id="user-avatar-btn-mobile"

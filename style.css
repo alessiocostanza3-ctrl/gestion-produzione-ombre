@@ -5768,10 +5768,14 @@ button:active {
 @media (max-width: 768px) {
     .pip-col-coeff,
     .pip-coeff { display: none !important; }
-    .pip-table { font-size: 0.82rem; }
-    .pip-mat   { padding: 6px 8px; }
-    .pip-fab, .pip-ord-manca, .pip-ord-ok, .pip-ord-zero { padding: 6px 8px; }
-    .pip-car-input { width: 54px; }
+    .pip-table { font-size: 0.72rem; }
+    .pip-table thead th { padding: 6px 4px; font-size: 0.6rem; }
+    .pip-sez-cell { padding: 5px 4px; font-size: 0.6rem; letter-spacing: 0; }
+    .pip-mat   { padding: 5px 4px; white-space: normal; word-break: break-word; min-width: 80px; max-width: 110px; }
+    .pip-fab, .pip-ord-manca, .pip-ord-ok, .pip-ord-zero { padding: 5px 4px; }
+    .pip-car-cell { padding: 4px 3px; }
+    .pip-car-input { width: 44px; font-size: 0.8rem; padding: 4px 2px; }
+    .pip-car-liberi { font-size: 0.58rem; padding: 1px 3px; }
     .pip-qty-inputs { flex-wrap: wrap; gap: 10px; }
     .pip-qty-item { min-width: 80px; }
 }
