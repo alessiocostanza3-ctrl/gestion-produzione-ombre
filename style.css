@@ -5686,6 +5686,21 @@ button:active {
 }
 .pip-reset-btn:hover { background: rgba(255,255,255,0.16); color: #fff; }
 
+/* --- TASTO SALVA --- */
+.pip-save-btn {
+    background: #2563eb;
+    border: 1px solid #1d4ed8;
+    color: #fff; border-radius: 8px; padding: 7px 16px;
+    font-size: 0.82rem; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+    transition: background 0.15s, opacity 0.15s; white-space: nowrap;
+}
+.pip-save-btn:hover:not(:disabled) { background: #1d4ed8; }
+.pip-save-btn:disabled { opacity: 0.7; cursor: not-allowed; }
+.pip-save-btn.pip-save-loading { background: #64748b; border-color: #475569; }
+.pip-save-btn.pip-save-ok      { background: #16a34a; border-color: #15803d; }
+.pip-save-btn.pip-save-err     { background: #dc2626; border-color: #b91c1c; }
+
 /* --- CARD QTÀ --- */
 .pip-qty-card {
     background: #ffffff;

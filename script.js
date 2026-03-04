@@ -1758,9 +1758,14 @@ function caricaPaginaPipistrello() {
             <div class="pip-header-product">Pipistrello — Pianificazione Mensile</div>
           </div>
         </div>
-        <button class="pip-reset-btn" onclick="_pipReset()" title="Reset tutto">
-          <i class="fas fa-rotate-left"></i> Reset
-        </button>
+        <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
+          <button class="pip-reset-btn" onclick="_pipReset()" title="Reset tutto">
+            <i class="fas fa-rotate-left"></i> Reset
+          </button>
+          <button class="pip-save-btn" id="pip-save-btn" onclick="_pipSalvaManuale()" title="Salva dati sul server">
+            <i class="fas fa-cloud-arrow-up"></i> <span id="pip-save-label">Salva</span>
+          </button>
+        </div>
       </div>
 
       <!-- CARD QTÀ -->
@@ -2106,6 +2111,50 @@ function _pipAggiornaCar(input) {
     if (impI > 0) { span.textContent = Math.max(0, car - impI) + ' lib.'; span.style.display = ''; }
     else span.style.display = 'none';
   }
+}
+
+/** Salva manualmente tutti i dati sul server con feedback visivo */
+function _pipSalvaManuale() {
+  if (typeof URL_GOOGLE === 'undefined') return;
+  const btn   = document.getElementById('pip-save-btn');
+  const label = document.getElementById('pip-save-label');
+  if (!btn || !label) return;
+
+  btn.disabled = true;
+  btn.classList.remove('pip-save-ok', 'pip-save-err');
+  btn.classList.add('pip-save-loading');
+  label.textContent = 'Salvataggio…';
+
+  const payload = {
+    azione:    'setPipData',
+    qty:       _pipLoadQty(),
+    caricato:  _pipLoadCaric(),
+    pronti:    _pipLoadPronti(),
+    movimenti: _pipLoadMov()
+  };
+
+  fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify(payload) })
+    .then(function(r) { return r.json(); })
+    .then(function() {
+      btn.classList.remove('pip-save-loading');
+      btn.classList.add('pip-save-ok');
+      label.textContent = 'Salvato ✓';
+      setTimeout(function() {
+        btn.classList.remove('pip-save-ok');
+        label.textContent = 'Salva';
+        btn.disabled = false;
+      }, 2500);
+    })
+    .catch(function() {
+      btn.classList.remove('pip-save-loading');
+      btn.classList.add('pip-save-err');
+      label.textContent = 'Errore ✗';
+      setTimeout(function() {
+        btn.classList.remove('pip-save-err');
+        label.textContent = 'Salva';
+        btn.disabled = false;
+      }, 3000);
+    });
 }
 
 /** Salva un movimento di carico o scarico */
