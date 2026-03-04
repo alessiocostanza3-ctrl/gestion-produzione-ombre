@@ -1367,6 +1367,8 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
     paginaAttuale = nomeFoglio;
     // Classe sul body per eccezioni CSS by-page (es. landscape su PIPISTRELLI)
     document.body.classList.toggle('page-pip', nomeFoglio === 'PIPISTRELLI');
+    // Reset flag fetch pip quando si lascia la pagina (così al prossimo accesso rilegge dal server)
+    if (nomeFoglio !== 'PIPISTRELLI') caricaPaginaPipistrello._fetched = false;
 
     // Mostra/nasconde la tab bar Acquisti
     // Se si naviga su Acquisti da sidebar/tab (elementoMenu != null) → reset a catalogo
@@ -1693,12 +1695,12 @@ function _pipRenderPronti() {
 }
 
 function caricaPaginaPipistrello() {
-  // Sincronizza dal server in background (solo al primo render, non in richiamo)
-  if (!caricaPaginaPipistrello._syncing) {
-    caricaPaginaPipistrello._syncing = true;
+  // Fetch dal server UNA SOLA VOLTA per apertura pagina.
+  // _fetched rimane true finché non si cambia pagina (reset in cambiaPagina).
+  if (!caricaPaginaPipistrello._fetched) {
+    caricaPaginaPipistrello._fetched = true;
     _pipFetchFromServer(function(hasDati) {
-      caricaPaginaPipistrello._syncing = false;
-      if (hasDati) caricaPaginaPipistrello(); // ri-render con dati aggiornati dal server
+      if (hasDati) caricaPaginaPipistrello(); // _fetched=true → non rifetcha
     });
   }
 
