@@ -1549,7 +1549,10 @@ const _PIP_BOM = [
   ['',        'Cavo out 500mA',     1, 0, 0],
   ['',        'Cavo out 600mA',     0, 1, 0],
   ['',        'Cavo out 700mA',     0, 0, 1],
-  ['',        'Alimentatore',       1, 1, 1]   // idx 21 — comune a tutti i tipi
+  ['',        'Alimentatore',       1, 1, 1],  // idx 21 — comune a tutti i tipi
+  ['',        'Interruttore 500mA', 1, 0, 0],  // idx 22 — nel guscio cordone piccolo
+  ['',        'Interruttore 600mA', 0, 1, 0],  // idx 23 — nel guscio cordone medio
+  ['',        'Interruttore 700mA', 0, 0, 1],  // idx 24 — nel guscio cordone grande
 ];
 
 function _pipLoadQty()    { try { return JSON.parse(localStorage.getItem(_PIP_LS_QTY))    || {p:0,m:0,g:0}; } catch { return {p:0,m:0,g:0}; } }
@@ -1828,9 +1831,9 @@ const _PIP_ASSEMB = {
     g: [[2,1],[5,1],[6,2],[7,2],[9,4]]            // grande 700mA (Wago 2x)
   },
   CORDONE: {
-    p: [[10,1],[11,1],[14,1],[15,2],[16,1],[18,1],[21,1]], // piccolo 500mA + Alimentatore
-    m: [[10,1],[12,1],[14,1],[15,2],[17,1],[19,1],[21,1]], // medio 600mA + Alimentatore
-    g: [[10,1],[13,1],[14,1],[15,2],[17,1],[20,1],[21,1]]  // grande 700mA + Alimentatore
+    p: [[10,1],[11,1],[14,1],[15,2],[16,1],[18,1],[21,1],[22,1]], // piccolo 500mA + Alimentatore + Interrupt.500mA
+    m: [[10,1],[12,1],[14,1],[15,2],[17,1],[19,1],[21,1],[23,1]], // medio 600mA + Alimentatore + Interrupt.600mA
+    g: [[10,1],[13,1],[14,1],[15,2],[17,1],[20,1],[21,1],[24,1]]  // grande 700mA + Alimentatore + Interrupt.700mA
   }
 };
 
