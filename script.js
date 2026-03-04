@@ -1558,11 +1558,52 @@ const _PIP_BOM = [
 function _pipLoadQty()    { try { return JSON.parse(localStorage.getItem(_PIP_LS_QTY))    || {p:0,m:0,g:0}; } catch { return {p:0,m:0,g:0}; } }
 function _pipLoadCaric()  { try { return JSON.parse(localStorage.getItem(_PIP_LS_CARIC))  || {}; }             catch { return {}; } }
 function _pipLoadPronti() { try { return JSON.parse(localStorage.getItem(_PIP_LS_PRONTI)) || {}; }             catch { return {}; } }
-function _pipSaveQty(o)   { try { localStorage.setItem(_PIP_LS_QTY,    JSON.stringify(o)); } catch {} }
-function _pipSaveCaric(o) { try { localStorage.setItem(_PIP_LS_CARIC,  JSON.stringify(o)); } catch {} }
-function _pipSavePronti(o){ try { localStorage.setItem(_PIP_LS_PRONTI, JSON.stringify(o)); } catch {} }
+function _pipSaveQty(o)   { try { localStorage.setItem(_PIP_LS_QTY,    JSON.stringify(o)); } catch {} _pipPushToServer(); }
+function _pipSaveCaric(o) { try { localStorage.setItem(_PIP_LS_CARIC,  JSON.stringify(o)); } catch {} _pipPushToServer(); }
+function _pipSavePronti(o){ try { localStorage.setItem(_PIP_LS_PRONTI, JSON.stringify(o)); } catch {} _pipPushToServer(); }
 function _pipLoadMov()    { try { return JSON.parse(localStorage.getItem(_PIP_LS_MOV))    || []; }             catch { return []; } }
-function _pipSaveMov(a)   { try { localStorage.setItem(_PIP_LS_MOV,    JSON.stringify(a)); } catch {} }
+function _pipSaveMov(a)   { try { localStorage.setItem(_PIP_LS_MOV,    JSON.stringify(a)); } catch {} _pipPushToServer(); }
+
+/* ---- SYNC SERVER ---- */
+let _pipPushTimer = null;
+/** Invia (con debounce 1.5s) tutti i dati pipistrelli al server GAS */
+function _pipPushToServer() {
+  if (typeof URL_GOOGLE === 'undefined') return;
+  clearTimeout(_pipPushTimer);
+  _pipPushTimer = setTimeout(function() {
+    const payload = {
+      azione:    'setPipData',
+      qty:       _pipLoadQty(),
+      caricato:  _pipLoadCaric(),
+      pronti:    _pipLoadPronti(),
+      movimenti: _pipLoadMov()
+    };
+    fetch(URL_GOOGLE, {
+      method: 'POST',
+      body:   JSON.stringify(payload)
+    }).catch(function() {});
+  }, 1500);
+}
+
+/**
+ * Carica i dati pipistrelli dal server e, se trovati, aggiorna localStorage.
+ * Chiama cb() al termine (sia in caso di successo che di errore).
+ */
+function _pipFetchFromServer(cb) {
+  if (typeof URL_GOOGLE === 'undefined') { if (cb) cb(); return; }
+  fetch(URL_GOOGLE + '?azione=getPipData')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.qty)       { try { localStorage.setItem(_PIP_LS_QTY,    JSON.stringify(d.qty));       } catch {} }
+      if (d.caricato)  { try { localStorage.setItem(_PIP_LS_CARIC,  JSON.stringify(d.caricato));  } catch {} }
+      if (d.pronti)    { try { localStorage.setItem(_PIP_LS_PRONTI, JSON.stringify(d.pronti));    } catch {} }
+      if (d.movimenti && Array.isArray(d.movimenti) && d.movimenti.length > 0) {
+        try { localStorage.setItem(_PIP_LS_MOV, JSON.stringify(d.movimenti)); } catch {}
+      }
+      if (cb) cb(true);
+    })
+    .catch(function() { if (cb) cb(false); });
+}
 
 /** Calcola quanti pz di ogni componente BOM sono "impegnati" nei pronti */
 function _pipCalcImpegnati() {
@@ -1652,6 +1693,15 @@ function _pipRenderPronti() {
 }
 
 function caricaPaginaPipistrello() {
+  // Sincronizza dal server in background (solo al primo render, non in richiamo)
+  if (!caricaPaginaPipistrello._syncing) {
+    caricaPaginaPipistrello._syncing = true;
+    _pipFetchFromServer(function(hasDati) {
+      caricaPaginaPipistrello._syncing = false;
+      if (hasDati) caricaPaginaPipistrello(); // ri-render con dati aggiornati dal server
+    });
+  }
+
   const contenitore = document.getElementById('contenitore-dati');
   const qty   = _pipLoadQty();
   const caric = _pipLoadCaric();
