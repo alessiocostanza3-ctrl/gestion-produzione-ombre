@@ -3956,37 +3956,41 @@ function generaCardRichiesta(msgs, io, isArchiviata) {
     // Controlla se almeno un messaggio del gruppo è sollecitato
     const isSollecitata = msgs.some(m => String(m.SOLLECITO).toLowerCase() === 'true');
 
-    // Icona tipo: freccia verde = assegnazione, ? azzurro = domanda
+    // Icona tipo
     const tipoRaw = (ultimo.TIPO || 'MSG').toUpperCase();
     const isDomanda = tipoRaw === 'AIUTO' || tipoRaw === 'DOMANDA';
     const tipoIconaHtml = isDomanda
-        ? `<span class="chat-tipo-dot chat-tipo-domanda" title="Domanda"><i class="fas fa-question"></i></span>`
-        : `<span class="chat-tipo-dot chat-tipo-assegna" title="Assegnazione"><i class="fas fa-arrow-right"></i></span>`;
+        ? `<span class="rc-tipo rc-tipo-domanda" title="Domanda"><i class="fas fa-question"></i></span>`
+        : `<span class="rc-tipo rc-tipo-assegna" title="Assegnazione"><i class="fas fa-arrow-right"></i></span>`;
 
     return `
-        <div class="chat-card${isArchiviata ? ' archiviata' : ''}${isSollecitata ? ' sollecitata' : ''} ${TW.card}" data-ordine="${String(nOrd || '')}" data-cliente="${(nomeCliente || '').toLowerCase().replace(/"/g, '')}" data-riferimento="${(ultimo.RIFERIMENTO || '').toLowerCase().replace(/"/g, '')}">
+        <div class="req-card${isArchiviata ? ' archiviata' : ''}${isSollecitata ? ' sollecitata' : ''}" data-ordine="${String(nOrd || '')}" data-cliente="${(nomeCliente || '').toLowerCase().replace(/"/g, '')}" data-riferimento="${(ultimo.RIFERIMENTO || '').toLowerCase().replace(/"/g, '')}">
 
-            <div class="chat-header${isArchiviata ? ' archiviata' : ''}">
-                <div>
+            <div class="rc-top">
+                <div class="rc-ordine-wrap">
                     ${tipoIconaHtml}
-                    ${isSollecitata ? `<span class="badge-sollecito"><i class="fa-solid fa-bullhorn"></i> SOLLECITATA</span>` : ''}
-                    <span class="chat-order-label">ORD. ${nOrd}</span>${nomeCliente ? `<span class="chat-cliente-label"> • ${nomeCliente}</span>` : ''}
+                    <span class="rc-ordine">ORD. ${nOrd}</span>
                 </div>
-                <span class="chat-date">${formattaData(ultimo["DATA ORA"])}</span>
+                ${isSollecitata ? `<span class="badge-sollecito badge-sollecito-sm"><i class="fa-solid fa-bullhorn"></i></span>` : ''}
+                ${isArchiviata ? `<span class="rc-arch-badge">✓</span>` : ''}
             </div>
 
-            <div class="chat-body">
-                ${msgs.map(m => {
-                    const amIMittente = (String(m.DA).toUpperCase().trim() === io);
-                    const testo = String(m.MESSAGGIO || "").includes("|") ? m.MESSAGGIO.split("|")[1] : m.MESSAGGIO;
-                    return `
-                        <div class="chat-bubble-wrapper ${amIMittente ? 'sent' : 'received'}">
-                            <div class="chat-bubble">
-                                <div class="chat-bubble-name">${m.DA}</div>
-                                <div class="chat-bubble-text">${testo}</div>
-                            </div>
-                        </div>`;
-                }).join('')}
+            <div class="rc-cliente">${nomeCliente || '<span class="rc-no-val">—</span>'}</div>
+
+            <div class="rc-info">
+                <div class="rc-info-row">
+                    <span class="rc-lbl">Da</span>
+                    <span class="rc-val">${ultimo.DA || '—'}</span>
+                </div>
+                <div class="rc-info-row">
+                    <span class="rc-lbl">A</span>
+                    <span class="rc-val rc-val-a">${ultimo.A || '—'}</span>
+                </div>
+            </div>
+
+            <div class="rc-foot">
+                <span class="rc-date">${formattaData(ultimo["DATA ORA"])}</span>
+                <span class="rc-msgcount">${msgs.length} <i class="fa-regular fa-comment"></i></span>
             </div>
 
             ${!isArchiviata ? `
@@ -4010,21 +4014,12 @@ function generaCardRichiesta(msgs, io, isArchiviata) {
                     </div>
                 </div>
 
-                <div class="chat-actions">
-                    <div class="chat-to-info">
-                        <span class="chat-to-dest">A: <b>${ultimo.A}</b></span>
-                    </div>
-                    <div class="chat-action-btns">
-                        <button onclick="toggleAreaRisposta('${ultimo.id_riga}')" class="btn-reply button-small ${TW.btn}" title="Rispondi"><i class="fa-regular fa-comment"></i> <span class="btn-txt">Rispondi</span></button>
-                        <button onclick="_sollecitaConferma('${ultimo.id_riga}')" class="btn-alert button-small ${TW.btnWarning}" title="Sollecita"><i class="fa-solid fa-bullhorn"></i> <span class="btn-txt">Sollecita</span></button>
-                        <button onclick="_archiviaConferma('${ultimo.id_riga}')" class="btn-archive button-small ${TW.btnSuccess}" title="Archivia"><i class="fa-solid fa-box-archive"></i> <span class="btn-txt">Archivia</span></button>
-                    </div>
+                <div class="rc-actions">
+                    <button onclick="toggleAreaRisposta('${ultimo.id_riga}')" class="rc-btn rc-btn-reply" title="Rispondi"><i class="fa-regular fa-comment"></i></button>
+                    <button onclick="_sollecitaConferma('${ultimo.id_riga}')" class="rc-btn rc-btn-sol" title="Sollecita"><i class="fa-solid fa-bullhorn"></i></button>
+                    <button onclick="_archiviaConferma('${ultimo.id_riga}')" class="rc-btn rc-btn-arch" title="Archivia"><i class="fa-solid fa-box-archive"></i></button>
                 </div>
-            ` : `
-                <div class="chat-archiviata-note">
-                    <span class="chat-archiviata-label">✓ ARCHIVIATA</span>
-                </div>
-            `}
+            ` : ''}
         </div>`;
 }
 
