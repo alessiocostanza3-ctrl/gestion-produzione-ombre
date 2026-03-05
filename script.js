@@ -3993,6 +3993,25 @@ function generaCardRichiesta(msgs, io, isArchiviata) {
                 <span class="rc-msgcount">${msgs.length} <i class="fa-regular fa-comment"></i></span>
             </div>
 
+            <button class="rc-expand-btn" onclick="_toggleRcBody('${ultimo.id_riga}', this)" title="Mostra/nascondi messaggi">
+                <i class="fa-solid fa-chevron-down"></i>
+                <span>${msgs.length === 1 ? '1 messaggio' : msgs.length + ' messaggi'}</span>
+            </button>
+
+            <div id="rc-body-${ultimo.id_riga}" class="rc-body">
+                ${msgs.map(m => {
+                    const amIMittente = (String(m.DA).toUpperCase().trim() === io);
+                    const testo = String(m.MESSAGGIO || "").includes("|") ? m.MESSAGGIO.split("|")[1] : m.MESSAGGIO;
+                    return `
+                        <div class="chat-bubble-wrapper ${amIMittente ? 'sent' : 'received'}">
+                            <div class="chat-bubble">
+                                <div class="chat-bubble-name">${m.DA}</div>
+                                <div class="chat-bubble-text">${testo}</div>
+                            </div>
+                        </div>`;
+                }).join('')}
+            </div>
+
             ${!isArchiviata ? `
                 <div id="box-conferma-${ultimo.id_riga}" class="box-conferma box-hidden">
                     <div class="box-message">Archiviare definitivamente questa discussione?</div>
@@ -4023,10 +4042,12 @@ function generaCardRichiesta(msgs, io, isArchiviata) {
         </div>`;
 }
 
-
-
-
-
+function _toggleRcBody(idRiga, btn) {
+    const body = document.getElementById('rc-body-' + idRiga);
+    if (!body) return;
+    const isOpen = body.classList.toggle('open');
+    if (btn) btn.classList.toggle('open', isOpen);
+}
 
 
 //PAGINA IMPOSTAZIONI//

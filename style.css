@@ -2314,6 +2314,44 @@ h1 {
 @media (min-width: 1200px) {
     .req-card { width: calc(25% - 8px); }
 }
+/* Expand button */
+.rc-expand-btn {
+    width: 100%;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 5px 0;
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    transition: background 0.15s, color 0.15s;
+}
+.rc-expand-btn:hover { background: #eff6ff; color: #3b82f6; border-color: #bfdbfe; }
+.rc-expand-btn .fa-chevron-down { transition: transform 0.22s; font-size: 10px; }
+.rc-expand-btn.open { background: #eff6ff; color: #3b82f6; border-color: #bfdbfe; }
+.rc-expand-btn.open .fa-chevron-down { transform: rotate(180deg); }
+
+/* Body messaggi nascosto */
+.rc-body {
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 0 4px;
+    border-top: 1px solid #f1f5f9;
+    margin-top: 2px;
+    animation: rc-body-in 0.18s ease;
+}
+.rc-body.open { display: flex; }
+@keyframes rc-body-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
 /* ─── fine card richieste ───────────────────────────── */
 /* ─── fine gruppi ────────────────────────────────────── */
 
