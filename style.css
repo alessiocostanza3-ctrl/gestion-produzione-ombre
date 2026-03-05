@@ -2250,6 +2250,13 @@ h1 {
     flex-shrink: 0;
     width: 16px;
 }
+.rc-vals-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 4px;
+    min-width: 0;
+    align-items: center;
+}
 .rc-val {
     color: #475569;
     font-weight: 600;

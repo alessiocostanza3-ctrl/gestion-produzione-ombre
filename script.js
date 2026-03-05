@@ -3976,6 +3976,13 @@ function generaCardRichiesta(msgs, io, isArchiviata) {
     // Controlla se almeno un messaggio del gruppo è sollecitato
     const isSollecitata = msgs.some(m => String(m.SOLLECITO).toLowerCase() === 'true');
 
+    // Raccoglie tutti i destinatari unici del thread (per assegnazioni multiple)
+    const mittenteUnico = ultimo.DA || '—';
+    const destinatariUnici = [...new Set(msgs.map(m => m.A).filter(Boolean))];
+    const destinatariHtml = destinatariUnici.length > 1
+        ? destinatariUnici.map(d => `<span class="rc-val rc-val-a">${d}</span>`).join('<span style="color:#cbd5e1;margin:0 1px">,</span> ')
+        : `<span class="rc-val rc-val-a">${destinatariUnici[0] || '—'}</span>`;
+
     // Icona tipo
     const tipoRaw = (ultimo.TIPO || 'MSG').toUpperCase();
     const isDomanda = tipoRaw === 'AIUTO' || tipoRaw === 'DOMANDA';
@@ -4000,11 +4007,11 @@ function generaCardRichiesta(msgs, io, isArchiviata) {
             <div class="rc-info">
                 <div class="rc-info-row">
                     <span class="rc-lbl">Da</span>
-                    <span class="rc-val">${ultimo.DA || '—'}</span>
+                    <span class="rc-val">${mittenteUnico}</span>
                 </div>
                 <div class="rc-info-row">
                     <span class="rc-lbl">A</span>
-                    <span class="rc-val rc-val-a">${ultimo.A || '—'}</span>
+                    <div class="rc-vals-wrap">${destinatariHtml}</div>
                 </div>
             </div>
 
