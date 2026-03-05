@@ -2667,7 +2667,7 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
             ? `<button class="btn-ripristina ${TW.btnWarning}" onclick="event.stopPropagation(); gestisciRipristino('${nOrd}', 'ORDINE')">
                    <i class="fa-solid fa-rotate-left"></i> <span class="btn-txt">Ripristina</span>
                </button>`
-            : `<button class="btn-chiedi-assegna ${TW.btnPrimary}" onclick="event.stopPropagation(); apriModalAiuto('', 'INTERO ORDINE', '${nOrd}', '${(cliente||'').replace(/'/g,"\\'")}')"><i class="fa-regular fa-envelope"></i> <span class="btn-txt">Assegna</span></button>
+            : `<button class="btn-chiedi-assegna ${TW.btnPrimary}" onclick="event.stopPropagation(); apriModalAiuto('${righe[0].id_riga}', 'INTERO ORDINE', '${nOrd}', '${(cliente||'').replace(/'/g,"\\'")}')">\n                   <i class="fa-regular fa-envelope"></i> <span class="btn-txt">Chiedi</span>\n               </button>
                <button class="btn-archivia-prod ${TW.btnSuccess}" onclick="event.stopPropagation(); gestisciArchiviazione('${nOrd}')">
                    <i class="fa-solid fa-box-archive"></i> <span class="btn-txt">Archivia</span>
                </button>`;
@@ -2726,8 +2726,7 @@ function generaCardArticolo(art, nOrd, cliente) {
             <div class="visualizza-operatori">${displayOperatori}</div>
         </div>
         <div class="order-info-col">
-            ${statoAttuale === 'IN PRODUZIONE' ? `<button class="btn-chiedi-assegna ${TW.btnPrimary}" onclick="apriModalAiuto('${art.id_riga}', '${codicePrincipale}', '${nOrd}', '${(cliente||'').replace(/'/g,"\\'")}')"><i class="fa-regular fa-envelope"></i> Chiedi/Assegna</button>` : ''}
-        </div>
+            <button class="btn-chiedi-assegna ${TW.btnPrimary}" onclick="apriModalAiuto('${art.id_riga}', '${codicePrincipale}', '${nOrd}', '${(cliente||'').replace(/'/g,"\\'")}')">\n                <i class="fa-regular fa-envelope"></i> Chiedi/Assegna\n            </button>\n        </div>
     </div>`;
 }
 /* ---- STATO DROPDOWN CUSTOM ---- */
@@ -2852,25 +2851,35 @@ function _syncKanbanFromStato(idRiga, newStato) {
 }
 function apriModalAiuto(idRiga, riferimento, nOrdine, cliente) {
     const modal = document.getElementById('modalAiuto');
+
     modal.style.display = 'flex';
-    modal.offsetHeight;
+    modal.offsetHeight; // Forza il reflow per l'animazione
     modal.classList.add('active');
 
-    const isInterOrdine = (riferimento === 'INTERO ORDINE');
-    document.getElementById('modal-titolo').innerText = isInterOrdine
-        ? `Assegna Ordine ${nOrdine}`
-        : (idRiga ? `Messaggio Art. ${riferimento}` : `Messaggio Ordine ${nOrdine}`);
+    // Titolo più coerente: Messaggio invece di Supporto
+    document.getElementById('modal-titolo').innerText = idRiga ?
+        `Messaggio Art. ${riferimento}` :
+        `Messaggio Ordine ${nOrdine}`;
 
-    modal.dataset.idRiga       = idRiga || '';
-    modal.dataset.nOrdine      = nOrdine;
-    modal.dataset.cliente      = cliente || '';
-    modal.dataset.isInterOrdine = isInterOrdine ? 'true' : 'false';
+    // Generazione lista operatori
+    document.getElementById('wrapper-operatori').innerHTML = listaOperatori.map(op => `
+        <label class="op-label">
+            <input type="checkbox" name="destinatario" value="${op.email}" data-nome="${op.nome}">
+            <span><b>${op.nome}</b> <small class="text-muted">(${op.reparto || 'Team'})</small></span>
+        </label>
+    `).join('');
 
+    modal.dataset.idRiga = idRiga || "";
+    modal.dataset.nOrdine = nOrdine;
+    modal.dataset.cliente = cliente || "";
+
+    // Nascondi sempre il campo ordine libero (visibile solo da apriNuovaRichiesta)
     const ordineRow = document.getElementById('modal-ordine-row');
     if (ordineRow) ordineRow.style.display = 'none';
 
-    document.getElementById('messaggio-aiuto').value = '';
-    setTipoAzione('Assegnazione'); // chiama anche _renderOperatoriModal
+    // Reset del campo testo e partiamo sempre da ASSEGNAZIONE
+    document.getElementById('messaggio-aiuto').value = "";
+    setTipoAzione('Assegnazione');
 }
 
 // Apri modal per creare una nuova richiesta libera (da bottom nav "+")
@@ -2960,35 +2969,6 @@ function setTipoAzione(tipo) {
     document.getElementById('modalAiuto').dataset.tipoAzione = tipoUp;
     document.getElementById('btn-tipo-assegna').classList.toggle('active', tipoUp === 'ASSEGNAZIONE');
     document.getElementById('btn-tipo-domanda').classList.toggle('active', tipoUp === 'DOMANDA');
-    _renderOperatoriModal();
-}
-
-// Renderizza la lista destinatari in base al ruolo e al tipo di azione
-function _renderOperatoriModal() {
-    const modal = document.getElementById('modalAiuto');
-    if (!modal) return;
-    const tipo = (modal.dataset.tipoAzione || 'ASSEGNAZIONE').toUpperCase();
-    const isAlessio = utenteAttuale && utenteAttuale.nome.toUpperCase().trim() === 'ALESSIO';
-    const wrapper = document.getElementById('wrapper-operatori');
-    if (!wrapper) return;
-
-    if (tipo === 'ASSEGNAZIONE' && !isAlessio) {
-        // Non-ALESSIO: può assegnare solo a sé stesso
-        const mioNome = (utenteAttuale && utenteAttuale.nome) || '';
-        wrapper.innerHTML = `
-            <label class="op-label op-label-self">
-                <input type="checkbox" name="destinatario" data-nome="${mioNome}" checked disabled>
-                <span><b>${mioNome}</b> <small class="text-muted">(me stesso)</small></span>
-            </label>`;
-    } else {
-        // ALESSIO o tipo DOMANDA: tutti gli operatori, nessuno pre-selezionato
-        wrapper.innerHTML = listaOperatori.map(op => `
-            <label class="op-label">
-                <input type="checkbox" name="destinatario" value="${op.email}" data-nome="${op.nome}">
-                <span><b>${op.nome}</b> <small class="text-muted">(${op.reparto || 'Team'})</small></span>
-            </label>
-        `).join('');
-    }
 }
 function chiudiModal() {
     const modal = document.getElementById('modalAiuto');
@@ -3038,28 +3018,23 @@ async function confermaInvioSupporto() {
     window._prefetchRqBundle  = null;
     window._prefetchRqPromise = null;
 
-    // ── Fire-and-forget ──
-    const isInterOrdine = modalElement.dataset.isInterOrdine === 'true';
+    // ── Fire-and-forget: entrambe le chiamate in background ──
+    const urlAssegnazione = `${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(listaNomiStr)}&id_riga=${idRiga}&mittente=${encodeURIComponent(utenteAttuale.nome.toUpperCase().trim())}`;
     const clienteVal = (modalElement.dataset.cliente || '').trim();
-    const urlAssegnazione = `${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(listaNomiStr)}&id_riga=${idRiga}&mittente=${encodeURIComponent(utenteAttuale.nome.toUpperCase().trim())}&interOrdine=${isInterOrdine ? '1' : '0'}`;
+    const payload = {
+        azione: 'supporto_multiplo',
+        n_ordine: nOrd,
+        cliente: clienteVal,
+        tipo: tipoAzione,
+        messaggio: messaggioVal || (tipoAzione === 'ASSEGNAZIONE' ? 'Nuova assegnazione' : 'Nuova domanda'),
+        mittente: utenteAttuale.nome.toUpperCase().trim(),
+        destinatari: listaNomiDestinatari
+    };
 
-    // Salva in STORICO_RICHIESTE SOLO se c'è un messaggio esplicito
-    // Le assegnazioni senza messaggio non generano record nel log comunicazioni
-    const calls = [fetch(urlAssegnazione).catch(() => {})];
-    if (messaggioVal.trim()) {
-        const payload = {
-            azione: 'supporto_multiplo',
-            n_ordine: nOrd,
-            cliente: clienteVal,
-            tipo: tipoAzione,
-            messaggio: messaggioVal.trim(),
-            mittente: utenteAttuale.nome.toUpperCase().trim(),
-            destinatari: listaNomiDestinatari
-        };
-        calls.push(fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify(payload) }).catch(() => {}));
-    }
-
-    Promise.all(calls).then(() => {
+    Promise.all([
+        fetch(urlAssegnazione).catch(() => {}),
+        fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify(payload) }).catch(() => {})
+    ]).then(() => {
         // Aggiorna dati in background dopo che il server ha risposto
         if (paginaAttuale === 'STORICO_RICHIESTE') {
             caricaPaginaRichieste().catch(() => {});
