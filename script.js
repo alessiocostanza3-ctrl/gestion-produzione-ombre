@@ -3279,19 +3279,14 @@ function _buildCaricoOperatoriHtml(attivi) {
         });
     }
 
-    attivi.forEach(r => {
+    attiviOp.forEach(r => {
         if (!r.assegna || r.assegna === '' || r.assegna === 'undefined') return;
-        const ordineKey = String(r.ordine || r.id_riga || '').trim();
         r.assegna.split(',').forEach(op => {
             const nome = op.trim();
             if (!nome) return;
             const found = _findOp(nome);
             if (found) {
-                // Mostra ogni ordine una sola volta per operatore
-                if (!ordineKey || !seenOrdine.get(found).has(ordineKey)) {
-                    if (ordineKey) seenOrdine.get(found).add(ordineKey);
-                    map.get(found).push(r);
-                }
+                map.get(found).push(r);
             }
         });
     });
@@ -3777,14 +3772,15 @@ async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
         const gruppiAttivi   = raggruppa(messaggiAttivi);
         const gruppiArchivio = raggruppa(messaggiArchivio);
 
-        // Separa per tipo (usa il tipo del primo messaggio del thread)
+        // Separa per tipo (usa il tipo dell'ULTIMO messaggio del thread)
         const gAssegnazioni = {};
         const gRichieste    = {};
         Object.keys(gruppiAttivi).forEach(nOrd => {
             const msgs = gruppiAttivi[nOrd];
-            const tipoFirst = (msgs[0].TIPO || 'MSG').toUpperCase();
-            if (tipoFirst === 'ASSEGNAZIONE') gAssegnazioni[nOrd] = msgs;
-            else                              gRichieste[nOrd]    = msgs;
+            const ultimo = msgs[msgs.length - 1];
+            const tipoLast = (ultimo.TIPO || 'MSG').toUpperCase();
+            if (tipoLast === 'ASSEGNAZIONE') gAssegnazioni[nOrd] = msgs;
+            else                             gRichieste[nOrd]    = msgs;
         });
 
         // Stato open/closed persistito
