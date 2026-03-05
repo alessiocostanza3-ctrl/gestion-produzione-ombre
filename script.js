@@ -3241,6 +3241,10 @@ function _apriArchivio(id) {
 function _osservaArchivio(id) { /* disabilitato: apri solo col tasto */ }
 
 function _buildCaricoOperatoriHtml(attivi) {
+    // Escludi articoli con stati "completati" – non sono più in carico agli operatori
+    const STATI_ESCLUDI = ['IMBALLATO','SPEDITO','CONSEGNATO'];
+    const attiviOp = attivi.filter(r => !STATI_ESCLUDI.includes((r.stato || '').toUpperCase().trim()));
+
     // Operatori della produzione da mostrare (in ordine fisso)
     const OPS_PROD = ['RICCARDO', 'FABIO T.', 'NICCOLÒ', 'ALESSIO'];
     // Normalizza per confronto case-insensitive
