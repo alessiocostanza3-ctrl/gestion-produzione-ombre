@@ -5,13 +5,12 @@ function apriPopupNotifiche(e) {
     if (!modal) return;
     modal.classList.add('is-open');
     renderNotificheList();
-    // Segna come lette sul server (con piccolo ritardo per non bloccare l'apertura)
-    setTimeout(function() {
-        if (utenteAttuale && utenteAttuale.nome) {
-            fetch(URL_GOOGLE + '?azione=segnaLetteNotifiche&username=' + encodeURIComponent(utenteAttuale.nome.toUpperCase())).catch(function(){});
-            aggiornaBadgeNotifiche(0);
-        }
-    }, 800);
+    // Azzera badge immediatamente e segna lette sul server
+    aggiornaBadgeNotifiche(0);
+    try { localStorage.setItem('_notifBadgeCount', '0'); } catch {}
+    if (utenteAttuale && utenteAttuale.nome) {
+        fetch(URL_GOOGLE + '?azione=segnaLetteNotifiche&username=' + encodeURIComponent(utenteAttuale.nome.toUpperCase())).catch(function(){});
+    }
 }
 function chiudiPopupNotifiche() {
     const modal = document.getElementById('modal-notifiche');
@@ -88,15 +87,21 @@ function _salvaNotificheInLocale_(all) {
         existing.forEach(function(n) { const k = n.titolo + '||' + n.corpo; if (!map[k]) map[k] = n; });
         const merged = Object.values(map).slice(0, 30);
         localStorage.setItem('_notificheArr', JSON.stringify(merged));
-        aggiornaBadgeNotifiche(all.length);
+        // Aggiorna badge count SOLO se ci sono notifiche nuove rispetto all'ultima lettura
+        const prevCount = parseInt(localStorage.getItem('_notifBadgeCount') || '0');
+        if (all.length > prevCount || all.length > 0 && prevCount === 0) {
+            localStorage.setItem('_notifBadgeCount', String(all.length));
+        }
+        aggiornaBadgeNotifiche(parseInt(localStorage.getItem('_notifBadgeCount') || '0'));
     } catch(e) {}
 }
 
 /** Inizializza il badge notifiche all'avvio: legge prima da localStorage, poi fetch fresco dal server */
 function _initBadgeNotifiche() {
+    // Usa _notifBadgeCount (azzerato all'apertura del modal), NON la lunghezza dello storico
     try {
-        const arr = JSON.parse(localStorage.getItem('_notificheArr') || '[]');
-        if (arr.length > 0) aggiornaBadgeNotifiche(arr.length);
+        const count = parseInt(localStorage.getItem('_notifBadgeCount') || '0');
+        if (count > 0) aggiornaBadgeNotifiche(count);
     } catch(e) {}
     if (!utenteAttuale || !utenteAttuale.nome) return;
     fetch(URL_GOOGLE + '?azione=getNotifiche&username=' + encodeURIComponent(utenteAttuale.nome.toUpperCase()) + '&markRead=0')
