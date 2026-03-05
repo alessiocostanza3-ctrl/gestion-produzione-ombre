@@ -1560,11 +1560,11 @@ const _PIP_BOM = [
 function _pipLoadQty()    { try { return JSON.parse(localStorage.getItem(_PIP_LS_QTY))    || {p:0,m:0,g:0}; } catch { return {p:0,m:0,g:0}; } }
 function _pipLoadCaric()  { try { return JSON.parse(localStorage.getItem(_PIP_LS_CARIC))  || {}; }             catch { return {}; } }
 function _pipLoadPronti() { try { return JSON.parse(localStorage.getItem(_PIP_LS_PRONTI)) || {}; }             catch { return {}; } }
-function _pipSaveQty(o)   { try { localStorage.setItem(_PIP_LS_QTY,    JSON.stringify(o)); } catch {} _pipPushToServer(); }
-function _pipSaveCaric(o) { try { localStorage.setItem(_PIP_LS_CARIC,  JSON.stringify(o)); } catch {} _pipPushToServer(); }
-function _pipSavePronti(o){ try { localStorage.setItem(_PIP_LS_PRONTI, JSON.stringify(o)); } catch {} _pipPushToServer(); }
+function _pipSaveQty(o)   { try { localStorage.setItem(_PIP_LS_QTY,    JSON.stringify(o)); localStorage.setItem('pip_local_ts', Date.now()); } catch {} _pipPushToServer(); }
+function _pipSaveCaric(o) { try { localStorage.setItem(_PIP_LS_CARIC,  JSON.stringify(o)); localStorage.setItem('pip_local_ts', Date.now()); } catch {} _pipPushToServer(); }
+function _pipSavePronti(o){ try { localStorage.setItem(_PIP_LS_PRONTI, JSON.stringify(o)); localStorage.setItem('pip_local_ts', Date.now()); } catch {} _pipPushToServer(); }
 function _pipLoadMov()    { try { return JSON.parse(localStorage.getItem(_PIP_LS_MOV))    || []; }             catch { return []; } }
-function _pipSaveMov(a)   { try { localStorage.setItem(_PIP_LS_MOV,    JSON.stringify(a)); } catch {} _pipPushToServer(); }
+function _pipSaveMov(a)   { try { localStorage.setItem(_PIP_LS_MOV,    JSON.stringify(a)); localStorage.setItem('pip_local_ts', Date.now()); } catch {} _pipPushToServer(); }
 
 /* ---- SYNC SERVER ---- */
 let _pipPushTimer = null;
@@ -1589,22 +1589,58 @@ function _pipPushToServer() {
 
 /**
  * Carica i dati pipistrelli dal server e, se trovati, aggiorna localStorage.
- * Chiama cb() al termine (sia in caso di successo che di errore).
+ * Sovrascrive SOLO se il server ha un timestamp più recente di quello locale.
+ * Chiama cb(true) se ha applicato dati dal server, cb(false) altrimenti.
  */
 function _pipFetchFromServer(cb) {
-  if (typeof URL_GOOGLE === 'undefined') { if (cb) cb(); return; }
+  if (typeof URL_GOOGLE === 'undefined') { if (cb) cb(false); return; }
   fetch(URL_GOOGLE + '?azione=getPipData')
     .then(function(r) { return r.json(); })
     .then(function(d) {
-      if (d.qty)       { try { localStorage.setItem(_PIP_LS_QTY,    JSON.stringify(d.qty));       } catch {} }
-      if (d.caricato)  { try { localStorage.setItem(_PIP_LS_CARIC,  JSON.stringify(d.caricato));  } catch {} }
-      if (d.pronti)    { try { localStorage.setItem(_PIP_LS_PRONTI, JSON.stringify(d.pronti));    } catch {} }
-      if (d.movimenti && Array.isArray(d.movimenti) && d.movimenti.length > 0) {
-        try { localStorage.setItem(_PIP_LS_MOV, JSON.stringify(d.movimenti)); } catch {}
+      var serverTs = parseInt(d.ts || 0);
+      var localTs  = parseInt(localStorage.getItem('pip_local_ts') || 0);
+      // Applica solo se il server ha dati più nuovi (salvati esplicitamente da un altro dispositivo)
+      if (serverTs > 0 && serverTs > localTs) {
+        if (d.qty)      { try { localStorage.setItem(_PIP_LS_QTY,    JSON.stringify(d.qty));      } catch {} }
+        if (d.caricato) { try { localStorage.setItem(_PIP_LS_CARIC,  JSON.stringify(d.caricato)); } catch {} }
+        if (d.pronti)   { try { localStorage.setItem(_PIP_LS_PRONTI, JSON.stringify(d.pronti));   } catch {} }
+        if (d.movimenti && Array.isArray(d.movimenti) && d.movimenti.length > 0) {
+          try { localStorage.setItem(_PIP_LS_MOV, JSON.stringify(d.movimenti)); } catch {}
+        }
+        try { localStorage.setItem('pip_local_ts', serverTs); } catch {}
+        if (cb) cb(true);
+      } else {
+        if (cb) cb(false);
       }
-      if (cb) cb(true);
     })
     .catch(function() { if (cb) cb(false); });
+}
+
+/**
+ * Ricostruisce mlPipCaricato dai movimenti di carico/scarico/spedizione.
+ * Usato per recuperare i dati quando il caricato risulta tutto 0
+ * ma i movimenti contengono carichi registrati.
+ */
+function _pipRicostruisciDaMovimenti() {
+  const movimenti = _pipLoadMov();
+  if (!movimenti.length) return null;
+  const caric = {};
+  // Applico in ordine cronologico (il log è in ordine inverso: unshift)
+  [...movimenti].reverse().forEach(m => {
+    if (m.tipo === 'carico') {
+      const i = parseInt(m.idx);
+      if (!isNaN(i)) caric[i] = (Number(caric[i] || 0)) + (m.qty || 0);
+    } else if (m.tipo === 'scarico') {
+      const i = parseInt(m.idx);
+      if (!isNaN(i)) caric[i] = Math.max(0, (Number(caric[i] || 0)) - (m.qty || 0));
+    } else if (m.tipo === 'spedizione' || m.tipo === 'assemb') {
+      (m.righe || []).forEach(r => {
+        const i = parseInt(r.idx);
+        if (!isNaN(i)) caric[i] = Math.max(0, (Number(caric[i] || 0)) - (r.qty || 0));
+      });
+    }
+  });
+  return caric;
 }
 
 /** Calcola quanti pz di ogni componente BOM sono "impegnati" nei pronti */
@@ -1702,6 +1738,18 @@ function caricaPaginaPipistrello() {
     _pipFetchFromServer(function(hasDati) {
       if (hasDati) caricaPaginaPipistrello(); // _fetched=true → non rifetcha
     });
+  }
+
+  // Auto-ricostruzione: se caricato è tutto 0 ma ci sono movimenti → ricostruisco
+  const _caricCheck = _pipLoadCaric();
+  const _movCheck   = _pipLoadMov();
+  const _tuttoZero  = Object.keys(_caricCheck).length === 0 ||
+                      Object.values(_caricCheck).every(v => Number(v) === 0);
+  if (_tuttoZero && _movCheck.some(m => m.tipo === 'carico' || m.tipo === 'scarico')) {
+    const ricostruito = _pipRicostruisciDaMovimenti();
+    if (ricostruito && Object.values(ricostruito).some(v => v > 0)) {
+      try { localStorage.setItem(_PIP_LS_CARIC, JSON.stringify(ricostruito)); } catch {}
+    }
   }
 
   const contenitore = document.getElementById('contenitore-dati');
@@ -2136,6 +2184,9 @@ function _pipSalvaManuale() {
   fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify(payload) })
     .then(function(r) { return r.json(); })
     .then(function() {
+      // Aggiorna timestamp locale: ora i dati del server coincidono con questi
+      var nowTs = Date.now();
+      try { localStorage.setItem('pip_local_ts', nowTs); } catch {}
       btn.classList.remove('pip-save-loading');
       btn.classList.add('pip-save-ok');
       label.textContent = 'Salvato ✓';
