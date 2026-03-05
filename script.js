@@ -617,6 +617,9 @@ window.onload = async function() {
         // Se c'è una sessione, la leggiamo subito
         utenteAttuale = JSON.parse(sessione);
 
+        // Blocco orario: se fuori orario e non esente → logout immediato
+        if (!_checkOrarioAccesso(true)) return;
+
         // AGGIORNAMENTO IMMEDIATO: Prima ancora di scaricare i dati da Sheets
         // Questo sovrascrive "MASTER" o "Caricamento..." all'istante
         aggiornaProfiloSidebar();
@@ -1177,6 +1180,8 @@ function initSidebarState() {
 document.addEventListener('DOMContentLoaded', initSidebarState);
 /* ---- FINE SIDEBAR TOGGLE ---- */ // QUESTA FUNZIONE È QUELLA CHE SCRIVE I DATI NELLA TUA SIDEBAR
 async function salvaEApriDashboard() {
+    // Blocco orario: impedisce l'accesso fuori dalle 08:30-18:30 (tranne esenti)
+    if (!_checkOrarioAccesso(true)) return;
     try { localStorage.setItem('sessioneUtente', JSON.stringify(utenteAttuale)); } catch (e) {}
     try { sessionStorage.setItem('sessioneUtente', JSON.stringify(utenteAttuale)); } catch (e) {}
 
@@ -1236,6 +1241,53 @@ function logout() {
     }
 }
 // aggiornaBadgeNotifiche è definita all'inizio del file (riga 22) — NON ridichiarare qui
+
+/* ── Blocco orario accesso ───────────────────────────────────────────────────
+   L'app è utilizzabile dalle 08:30 alle 18:30.
+   Sono esenti: account ALESSIO e account 0000 (MASTER).
+─────────────────────────────────────────────────────────────────────────── */
+function _isUtenteEsente() {
+    if (!utenteAttuale || !utenteAttuale.nome) return false;
+    const nome = utenteAttuale.nome.toUpperCase();
+    return nome === 'ALESSIO' || nome === '0000' || utenteAttuale.ruolo === 'MASTER';
+}
+function _isOrarioConsentito() {
+    const now  = new Date();
+    const mins = now.getHours() * 60 + now.getMinutes();
+    return mins >= 8 * 60 + 30 && mins < 18 * 60 + 30; // 08:30 – 18:30
+}
+/**
+ * Verifica se l'utente corrente può accedere in base all'orario.
+ * Se non può, esegue il logout con messaggio.
+ * Restituisce true se l'accesso è consentito, false altrimenti.
+ */
+function _checkOrarioAccesso(mostraMessaggio) {
+    if (_isUtenteEsente() || _isOrarioConsentito()) return true;
+    if (mostraMessaggio !== false) {
+        // Mostra un avviso sull'overlay di login prima di fare logout
+        const overlay = document.getElementById('login-overlay');
+        // Imposta messaggio personalizzato nel blocco errore del login
+        const errEl = document.getElementById('login-error') || document.getElementById('login-error-msg');
+        if (errEl) {
+            errEl.textContent = '⏰ App non disponibile fuori dall\'orario lavorativo (08:30 – 18:30).';
+            errEl.style.display = 'block';
+        }
+        // Se già dentro l'app, mostra toast poi logout
+        if (overlay && overlay.style.display === 'none') {
+            notificaElegante('⏰ Sessione terminata: orario fuori servizio (08:30 – 18:30)');
+            setTimeout(function() { logout(); }, 3000);
+        } else {
+            // Se siamo al login, mostra overlay con messaggio
+            if (overlay) { overlay.style.display = 'flex'; overlay.style.opacity = '1'; }
+        }
+    }
+    return false;
+}
+
+// Controllo ogni minuto mentre l'app è aperta
+setInterval(function() {
+    if (utenteAttuale && utenteAttuale.nome) _checkOrarioAccesso(true);
+}, 60 * 1000);
 
 /* ── Modal di conferma generico ─────────────────────── */
 function mostraConferma(titolo, messaggio, onOk, labelOk) {
