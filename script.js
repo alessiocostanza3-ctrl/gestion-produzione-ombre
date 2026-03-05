@@ -843,6 +843,32 @@ function _getOpColor(nome) {
     } catch { return '#374151'; }
 }
 
+/**
+ * Normalizza un nome operatore verso il formato canonico Title Case.
+ * Unifica varianti: FABIO / FABIO T / FABIO T. → Fabio T.
+ *                   NICCOLO / NICCOLO' / NICCOLÒ → Niccolò
+ */
+const _NOME_CANON = {
+    'ALESSIO'  : 'Alessio',
+    'RICCARDO' : 'Riccardo',
+    'FABIO'    : 'Fabio T.',
+    'FABIO T'  : 'Fabio T.',
+    'FABIO T.' : 'Fabio T.',
+    'NICCOLO'  : 'Niccolò',
+    "NICCOLO'" : 'Niccolò',
+    'NICCOLÒ'  : 'Niccolò',
+    'RAYMOND'  : 'Raymond',
+    'SIMONE'   : 'Simone',
+    'GIACOMO'  : 'Giacomo',
+};
+function _normNome(n) {
+    if (!n) return n;
+    const k = String(n).trim().toUpperCase();
+    if (_NOME_CANON[k]) return _NOME_CANON[k];
+    // fallback: Title Case generico
+    return String(n).trim().toLowerCase().replace(/(?:^|\s|\.)\S/g, c => c.toUpperCase());
+}
+
 /** Applica il colore al pulsante avatar, al ddrop-avatar, all'input colore e agli swatch */
 const _PREDEFINED_AVATAR_COLORS = ['#8fe45e','#6366f1','#f59e0b','#ec4899','#06b6d4','#f87171','#a78bfa','#34d399'];
 // _avatarEditTarget: null = nuovo custom | {type:'custom', idx:N} | {type:'predefined', color:'#xxx'}
@@ -2861,11 +2887,11 @@ function apriModalAiuto(idRiga, riferimento, nOrdine, cliente) {
         `Messaggio Art. ${riferimento}` :
         `Messaggio Ordine ${nOrdine}`;
 
-    // Generazione lista operatori
+    // Generazione lista operatori (nomi normalizzati Title Case)
     document.getElementById('wrapper-operatori').innerHTML = listaOperatori.map(op => `
         <label class="op-label">
-            <input type="checkbox" name="destinatario" value="${op.email}" data-nome="${op.nome}">
-            <span><b>${op.nome}</b> <small class="text-muted">(${op.reparto || 'Team'})</small></span>
+            <input type="checkbox" name="destinatario" value="${op.email}" data-nome="${_normNome(op.nome)}">
+            <span><b>${_normNome(op.nome)}</b> <small class="text-muted">(${op.reparto || 'Team'})</small></span>
         </label>
     `).join('');
 
@@ -3244,16 +3270,8 @@ function _buildCaricoOperatoriHtml(attivi) {
     // Solo articoli IN PRODUZIONE: gli altri stati non devono comparire nella card operatori
     const attiviOp = attivi.filter(r => (r.stato || '').toUpperCase().trim() === 'IN PRODUZIONE');
 
-    // Operatori della produzione da mostrare (in ordine fisso)
-    const OPS_PROD = ['RICCARDO', 'FABIO T.', 'NICCOLÒ', 'ALESSIO'];
-    // Normalizza per confronto case-insensitive
-    function _matchOp(nome) {
-        const n = nome.trim().toUpperCase().replace("'", '\u2019').replace('\u00e0','\u00c0');
-        return OPS_PROD.some(op => op.toUpperCase() === n || op.toUpperCase().replace("'", '\u2019') === n
-            || op.toUpperCase().replace('\u00c0','A\'') === n
-            || nome.trim().toUpperCase() === op.toUpperCase()
-            || nome.trim().toUpperCase() === op.toUpperCase().replace('\u00d2','O\''));
-    }
+    // Operatori della produzione da mostrare (in ordine fisso) — Title Case canonical
+    const OPS_PROD = ['Riccardo', 'Fabio T.', 'Niccolò', 'Alessio'];
 
     // Costruisce mappa operatore → array di righe assegnate (solo ops prod)
     const map = new Map();
@@ -3262,20 +3280,10 @@ function _buildCaricoOperatoriHtml(attivi) {
     const seenOrdine = new Map();
     OPS_PROD.forEach(op => seenOrdine.set(op, new Set()));
 
-    // Cerca la corrispondenza con OPS_PROD in modo flessibile:
-    // supporta nomi abbreviati (es. "FABIO" → "FABIO T.") e caratteri accentati
+    // Cerca la corrispondenza tramite _normNome (gestisce FABIO→Fabio T., NICCOLÒ→Niccolò, ecc.)
     function _findOp(nome) {
-        const nUp = nome.trim().toUpperCase();
-        return OPS_PROD.find(o => {
-            const oUp = o.toUpperCase();
-            if (oUp === nUp) return true;                          // exact
-            if (oUp.split(/\s+/)[0] === nUp) return true;         // "FABIO T." → first word = "FABIO"
-            if (nUp.split(/\s+/)[0] === oUp) return true;         // "RICCARDO M." → first word = "RICCARDO"
-            // normalizzazione apostrofi / accenti
-            const oNorm = oUp.replace(/[\u2018\u2019'`]/g, "'").replace(/\u00c0/g,'A\'').replace(/\u00d2/g,"O\'");
-            const nNorm = nUp.replace(/[\u2018\u2019'`]/g, "'").replace(/\u00e0/g,"A\'").replace(/\u00f2/g,"O\'");
-            return oNorm === nNorm;
-        });
+        const nNorm = _normNome(nome);
+        return OPS_PROD.find(o => o === nNorm || o.toUpperCase() === String(nome).trim().toUpperCase());
     }
 
     attiviOp.forEach(r => {
@@ -3977,8 +3985,8 @@ function generaCardRichiesta(msgs, io, isArchiviata) {
     const isSollecitata = msgs.some(m => String(m.SOLLECITO).toLowerCase() === 'true');
 
     // Raccoglie tutti i destinatari unici del thread (per assegnazioni multiple)
-    const mittenteUnico = ultimo.DA || '—';
-    const destinatariUnici = [...new Set(msgs.map(m => m.A).filter(Boolean))];
+    const mittenteUnico = _normNome(ultimo.DA) || '—';
+    const destinatariUnici = [...new Set(msgs.map(m => _normNome(m.A)).filter(Boolean))];
     const destinatariHtml = destinatariUnici.length > 1
         ? destinatariUnici.map(d => `<span class="rc-val rc-val-a">${d}</span>`).join('<span style="color:#cbd5e1;margin:0 1px">,</span> ')
         : `<span class="rc-val rc-val-a">${destinatariUnici[0] || '—'}</span>`;
@@ -4032,7 +4040,7 @@ function generaCardRichiesta(msgs, io, isArchiviata) {
                     return `
                         <div class="chat-bubble-wrapper ${amIMittente ? 'sent' : 'received'}">
                             <div class="chat-bubble">
-                                <div class="chat-bubble-name">${m.DA}</div>
+                                <div class="chat-bubble-name">${_normNome(m.DA)}</div>
                                 <div class="chat-bubble-text">${testo}</div>
                             </div>
                         </div>`;
