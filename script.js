@@ -3241,9 +3241,8 @@ function _apriArchivio(id) {
 function _osservaArchivio(id) { /* disabilitato: apri solo col tasto */ }
 
 function _buildCaricoOperatoriHtml(attivi) {
-    // Escludi articoli con stati "completati" – non sono più in carico agli operatori
-    const STATI_ESCLUDI = ['IMBALLATO','SPEDITO','CONSEGNATO'];
-    const attiviOp = attivi.filter(r => !STATI_ESCLUDI.includes((r.stato || '').toUpperCase().trim()));
+    // Solo articoli IN PRODUZIONE: gli altri stati non devono comparire nella card operatori
+    const attiviOp = attivi.filter(r => (r.stato || '').toUpperCase().trim() === 'IN PRODUZIONE');
 
     // Operatori della produzione da mostrare (in ordine fisso)
     const OPS_PROD = ['RICCARDO', 'FABIO T.', 'NICCOLÒ', 'ALESSIO'];
@@ -3281,11 +3280,15 @@ function _buildCaricoOperatoriHtml(attivi) {
 
     attiviOp.forEach(r => {
         if (!r.assegna || r.assegna === '' || r.assegna === 'undefined') return;
+        const ordineKey = String(r.ordine || '').trim();
+        if (!ordineKey) return;
         r.assegna.split(',').forEach(op => {
             const nome = op.trim();
             if (!nome) return;
             const found = _findOp(nome);
-            if (found) {
+            // Un solo entry per ordine per operatore
+            if (found && !seenOrdine.get(found).has(ordineKey)) {
+                seenOrdine.get(found).add(ordineKey);
                 map.get(found).push(r);
             }
         });

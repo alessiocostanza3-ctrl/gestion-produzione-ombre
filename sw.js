@@ -2,19 +2,19 @@
    Service Worker PROD — notifiche push VAPID native
    Nessun servizio di terze parti richiesto.
    Aggiornato: 2026-03-02
-   v8: bump cache v90 - fix card operatori (filter+loop) + richieste grouping
+   v9: bump cache v91 - fix card operatori solo IN PRODUZIONE + dedup ordine
    ============================================================ */
 'use strict';
 
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbyVMV9MkGiqphN0AKXJdHXF0Arp1vxTYrCYi1SGv_4MKLRJkx--5HoGq7mmQX-p0ZTZ/exec';
 var APP_URL = 'https://alessiocostanza3-ctrl.github.io/gestion-produzione-ombre/';
 
-var SHELL_CACHE = 'prod-shell-v8';
+var SHELL_CACHE = 'prod-shell-v9';
 var SHELL_ASSETS = [
     APP_URL,
     APP_URL + 'index.html',
-    APP_URL + 'style.css?v=20260305c',
-    APP_URL + 'script.js?v=20260305c',
+    APP_URL + 'style.css?v=20260305d',
+    APP_URL + 'script.js?v=20260305d',
     APP_URL + 'manifest.json'
 ];
 
