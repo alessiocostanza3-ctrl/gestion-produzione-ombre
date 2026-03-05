@@ -3011,10 +3011,12 @@ async function confermaInvioSupporto() {
     chiudiModal();
     notificaElegante(tipoAzione === 'ASSEGNAZIONE' ? '✅ Assegnazione inviata' : '✅ Richiesta inviata');
 
-    // Invalida cache richieste in anticipo
+    // Invalida cache richieste in anticipo (client-side + prefetch bundle)
     delete cacheContenuti['STORICO_RICHIESTE'];
     delete cacheFetchTime['STORICO_RICHIESTE'];
     _lsCacheDel('_html_STORICO_RICHIESTE');
+    window._prefetchRqBundle  = null;
+    window._prefetchRqPromise = null;
 
     // ── Fire-and-forget: entrambe le chiamate in background ──
     const urlAssegnazione = `${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(listaNomiStr)}&id_riga=${idRiga}&mittente=${encodeURIComponent(utenteAttuale.nome.toUpperCase().trim())}`;
@@ -3257,14 +3259,29 @@ function _buildCaricoOperatoriHtml(attivi) {
     const seenOrdine = new Map();
     OPS_PROD.forEach(op => seenOrdine.set(op, new Set()));
 
+    // Cerca la corrispondenza con OPS_PROD in modo flessibile:
+    // supporta nomi abbreviati (es. "FABIO" → "FABIO T.") e caratteri accentati
+    function _findOp(nome) {
+        const nUp = nome.trim().toUpperCase();
+        return OPS_PROD.find(o => {
+            const oUp = o.toUpperCase();
+            if (oUp === nUp) return true;                          // exact
+            if (oUp.split(/\s+/)[0] === nUp) return true;         // "FABIO T." → first word = "FABIO"
+            if (nUp.split(/\s+/)[0] === oUp) return true;         // "RICCARDO M." → first word = "RICCARDO"
+            // normalizzazione apostrofi / accenti
+            const oNorm = oUp.replace(/[\u2018\u2019'`]/g, "'").replace(/\u00c0/g,'A\'').replace(/\u00d2/g,"O\'");
+            const nNorm = nUp.replace(/[\u2018\u2019'`]/g, "'").replace(/\u00e0/g,"A\'").replace(/\u00f2/g,"O\'");
+            return oNorm === nNorm;
+        });
+    }
+
     attivi.forEach(r => {
         if (!r.assegna || r.assegna === '' || r.assegna === 'undefined') return;
         const ordineKey = String(r.ordine || r.id_riga || '').trim();
         r.assegna.split(',').forEach(op => {
             const nome = op.trim();
             if (!nome) return;
-            // Cerca la corrispondenza nell'elenco fisso
-            const found = OPS_PROD.find(o => o.toUpperCase() === nome.toUpperCase());
+            const found = _findOp(nome);
             if (found) {
                 // Mostra ogni ordine una sola volta per operatore
                 if (!ordineKey || !seenOrdine.get(found).has(ordineKey)) {
