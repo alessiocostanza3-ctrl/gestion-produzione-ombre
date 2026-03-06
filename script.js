@@ -3075,7 +3075,14 @@ function toggleAreaRisposta(id) {
     if (box.style.display === 'none' || box.style.display === '') {
         box.style.display = 'block';
         setTimeout(() => { box.style.opacity = '1'; box.style.transform = 'translateY(0)'; }, 10);
-        document.getElementById('input-risposta-' + id).focus();
+        const input = document.getElementById('input-risposta-' + id);
+        if (input) {
+            input.focus();
+            // Scroll al box dopo che la tastiera iOS si è aperta (~400ms)
+            setTimeout(() => {
+                box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 400);
+        }
     } else {
         box.style.opacity = '0';
         box.style.transform = 'translateY(-10px)';
@@ -3916,6 +3923,21 @@ function _sollecitaConferma(idRiga) {
 function _archiviaConferma(idRiga) {
     mostraConferma('Archivia Richiesta', 'Archiviare definitivamente questa discussione?', () => aggiornaRichiesta(idRiga, 'risolto'), 'Archivia');
 }
+
+// ── Chiudi box risposta/conferma toccando fuori dalla card (mobile) ──
+document.addEventListener('click', function(e) {
+    // Se il click è dentro una req-card, non chiudere nulla
+    if (e.target.closest('.req-card')) return;
+    // Chiudi tutti i box-risposta e box-conferma aperti
+    document.querySelectorAll('.box-risposta, .box-conferma').forEach(function(box) {
+        if (box.style.display !== 'none' && box.style.display !== '') {
+            box.style.opacity = '0';
+            box.style.transform = 'translateY(-10px)';
+            setTimeout(function() { box.style.display = 'none'; }, 300);
+        }
+    });
+});
+
 async function sollecitaRichiesta(idRiga) {
     try {
         const res = await fetch(URL_GOOGLE, {
