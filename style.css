@@ -2321,6 +2321,44 @@ h1 {
 @media (min-width: 1200px) {
     .req-card { width: calc(25% - 8px); }
 }
+
+/* ─── Reply / conferma DENTRO req-card (layout compatto) ──── */
+/* Il box risposta non ha padding desktop pesante dentro la card stretta */
+.req-card .box-risposta {
+    padding: 10px 8px 12px;
+    border-radius: 12px;
+    border-top: 1.5px solid #e2e8f0;
+    background: #f8fafc;
+}
+/* Footer risposta: stack verticale così hint e pulsante non traboccano */
+.req-card .reply-footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+}
+.req-card .btn-reply-send {
+    justify-content: center;
+    width: 100%;
+}
+/* Textarea più compatta */
+.req-card .reply-input {
+    min-height: 64px;
+    font-size: 13px;
+    padding: 8px 10px;
+}
+/* Bubble dentro card: evita overflow laterale */
+.req-card .chat-bubble {
+    max-width: 100%;
+    word-break: break-word;
+}
+.req-card .chat-bubble-text {
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+/* Su telefoni molto stretti: singola colonna */
+@media (max-width: 400px) {
+    .req-card { width: 100%; }
+}
 /* Expand button */
 .rc-expand-btn {
     width: 100%;

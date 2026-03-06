@@ -4060,7 +4060,7 @@ function generaCardRichiesta(msgs, io, isArchiviata) {
                     <div class="reply-wrapper">
                         <textarea id="input-risposta-${ultimo.id_riga}" class="reply-input" placeholder="Scrivi una risposta..."></textarea>
                         <div class="reply-footer">
-                            <span class="reply-hint"><i class="fa-regular fa-paper-plane"></i> Risposta a <b>${ultimo.DA === io ? ultimo.A : ultimo.DA}</b></span>
+                            <span class="reply-hint"><i class="fa-regular fa-paper-plane"></i> Risposta a <b>${_normNome(ultimo.DA === io ? ultimo.A : ultimo.DA)}</b></span>
                             <button onclick="inviaRisposta('${ultimo.id_riga}', '${nOrd}', '${ultimo.DA === io ? ultimo.A : ultimo.DA}', '${nomeCliente.replace(/'/g,"\\'")}')" class="btn-reply-send">
                                 <i class="fa-solid fa-paper-plane"></i> Invia
                             </button>
