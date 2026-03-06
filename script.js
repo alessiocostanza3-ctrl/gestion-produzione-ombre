@@ -2878,6 +2878,7 @@ function _syncKanbanFromStato(idRiga, newStato) {
 function apriModalAiuto(idRiga, riferimento, nOrdine, cliente) {
     const modal = document.getElementById('modalAiuto');
 
+    modal._openedAt = Date.now();   // grace-period backdrop
     modal.style.display = 'flex';
     modal.offsetHeight; // Forza il reflow per l'animazione
     modal.classList.add('active');
@@ -2916,6 +2917,7 @@ function apriNuovaRichiesta(e) {
     _apriNuovaRichiestaLock = true;
     // Il lock viene rilasciato solo in chiudiModal(), non con timeout
     const modal = document.getElementById('modalAiuto');
+    modal._openedAt = Date.now();   // timestamp per grace-period backdrop
     modal.style.display = 'flex';
     modal.offsetHeight;
     modal.classList.add('active');
@@ -6749,10 +6751,22 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Chiudi modal cliccando sul backdrop (area scura esterna al box)
+    // Ignora click entro 350ms dall'apertura: previene click-through da tap mobile
     const modalAiuto = document.getElementById('modalAiuto');
     if (modalAiuto) {
         modalAiuto.addEventListener('click', function(e) {
-            if (e.target === this) chiudiModal();
+            if (e.target !== this) return;
+            if (Date.now() - (this._openedAt || 0) < 350) return;  // grace period
+            chiudiModal();
+        });
+    }
+
+    // FAB "+" — touchend con preventDefault blocca il ghost-click sintetico di iOS/Android
+    const fabBtn = document.getElementById('btn-nuova-richiesta');
+    if (fabBtn) {
+        fabBtn.addEventListener('touchend', function(e) {
+            e.preventDefault();          // impedisce il click sintetico post-touch
+            apriNuovaRichiesta(e);
         });
     }
 
