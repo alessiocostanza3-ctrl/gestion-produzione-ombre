@@ -2911,11 +2911,10 @@ function apriModalAiuto(idRiga, riferimento, nOrdine, cliente) {
 
 // Apri modal per creare una nuova richiesta libera (da bottom nav "+")
 let _apriNuovaRichiestaLock = false;
-function apriNuovaRichiesta(e) {
-    if (e) { e.stopPropagation(); e.preventDefault(); }
+function apriNuovaRichiesta() {
     if (_apriNuovaRichiestaLock) return;
     _apriNuovaRichiestaLock = true;
-    // Il lock viene rilasciato solo in chiudiModal(), non con timeout
+    // Il lock viene rilasciato solo in chiudiModal()
     const modal = document.getElementById('modalAiuto');
     modal._openedAt = Date.now();   // timestamp per grace-period backdrop
     modal.style.display = 'flex';
@@ -6761,12 +6760,20 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // FAB "+" — touchend con preventDefault blocca il ghost-click sintetico di iOS/Android
+    // FAB "+" — gestione unificata touchend+click per evitare il doppio fire su mobile.
+    // touchend: gestisce il tap reale e blocca il click sintetico successivo.
+    // click:    gestisce desktop (nessun touchend), ma ignora se preceduto da touchend < 500ms.
     const fabBtn = document.getElementById('btn-nuova-richiesta');
     if (fabBtn) {
+        let _fabLastTouch = 0;
         fabBtn.addEventListener('touchend', function(e) {
-            e.preventDefault();          // impedisce il click sintetico post-touch
-            apriNuovaRichiesta(e);
+            e.preventDefault();          // cancella il click sintetico iOS/Android
+            _fabLastTouch = Date.now();
+            apriNuovaRichiesta();
+        });
+        fabBtn.addEventListener('click', function() {
+            if (Date.now() - _fabLastTouch < 500) return; // già gestito da touchend
+            apriNuovaRichiesta();
         });
     }
 
