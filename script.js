@@ -2877,6 +2877,7 @@ function _syncKanbanFromStato(idRiga, newStato) {
 }
 function apriModalAiuto(idRiga, riferimento, nOrdine, cliente) {
     const modal = document.getElementById('modalAiuto');
+    if (modal.style.display === 'flex') return;  // guard: già aperto
 
     modal._openedAt = Date.now();   // grace-period backdrop
     modal.style.display = 'flex';
@@ -2910,12 +2911,10 @@ function apriModalAiuto(idRiga, riferimento, nOrdine, cliente) {
 }
 
 // Apri modal per creare una nuova richiesta libera (da bottom nav "+")
-let _apriNuovaRichiestaLock = false;
 function apriNuovaRichiesta() {
-    if (_apriNuovaRichiestaLock) return;
-    _apriNuovaRichiestaLock = true;
-    // Il lock viene rilasciato solo in chiudiModal()
     const modal = document.getElementById('modalAiuto');
+    // Guard DOM-based: se il modal è già visibile (aperto o in fase di chiusura), non fare nulla
+    if (modal.style.display === 'flex') return;
     modal._openedAt = Date.now();   // timestamp per grace-period backdrop
     modal.style.display = 'flex';
     modal.offsetHeight;
@@ -2999,19 +2998,13 @@ function setTipoAzione(tipo) {
     document.getElementById('btn-tipo-domanda').classList.toggle('active', tipoUp === 'DOMANDA');
 }
 function chiudiModal() {
-    _apriNuovaRichiestaLock = false;   // rilascia lock apriNuovaRichiesta
     const modal = document.getElementById('modalAiuto');
 
-    // 1. Togli la classe active per avviare il fade-out
-    modal.classList.remove('active');
+    // 1. Porta subito display a '' così il guard DOM blocca riaperture durante il fade-out
+    modal.style.display = '';
 
-    // 2. Aspetta la fine dell'animazione (300ms) prima di mettere display: none
-    setTimeout(() => {
-        // Controlliamo che nel frattempo l'utente non l'abbia riaperto
-        if (!modal.classList.contains('active')) {
-            modal.style.display = 'none';
-        }
-    }, 300);
+    // 2. Togli la classe active per avviare il fade-out
+    modal.classList.remove('active');
 }
 async function confermaInvioSupporto() {
     const modalElement = document.getElementById('modalAiuto');
@@ -6750,34 +6743,23 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Chiudi modal cliccando sul backdrop (area scura esterna al box)
-    // Ignora click entro 350ms dall'apertura: previene click-through da tap mobile
+    // Ignora click entro 800ms dall'apertura: previene click-through da tap mobile
     const modalAiuto = document.getElementById('modalAiuto');
     if (modalAiuto) {
         modalAiuto.addEventListener('click', function(e) {
             if (e.target !== this) return;
-            if (Date.now() - (this._openedAt || 0) < 350) return;  // grace period
+            if (Date.now() - (this._openedAt || 0) < 800) return;  // grace period
             chiudiModal();
         });
     }
 
-    // FAB "+" — fix cross-browser ghost-click:
-    // Android Chrome: preventDefault va messo su touchstart (non touchend) per bloccare il click sintetico.
-    // iOS Safari:     preventDefault su touchend è sufficiente.
-    // Desktop:        solo il listener "click" si attiva (nessun touch).
+    // FAB "+" — un solo listener 'click'.
+    // Il 300ms delay è eliminato dal CSS (touch-action: manipulation).
+    // Il guard in apriNuovaRichiesta() controlla il DOM (display === 'flex').
     const fabBtn = document.getElementById('btn-nuova-richiesta');
     if (fabBtn) {
-        let _fabLastTouch = 0;
-        fabBtn.addEventListener('touchstart', function(e) {
-            e.preventDefault(); // Android Chrome: blocca la generazione del click sintetico
-        }, { passive: false });
-        fabBtn.addEventListener('touchend', function(e) {
-            e.preventDefault(); // iOS Safari: idem
-            _fabLastTouch = Date.now();
-            apriNuovaRichiesta();
-        }, { passive: false });
-        // Fallback solo desktop (con mouse non ci sono touchstart né touchend)
-        fabBtn.addEventListener('click', function() {
-            if (Date.now() - _fabLastTouch < 600) return;
+        fabBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
             apriNuovaRichiesta();
         });
     }

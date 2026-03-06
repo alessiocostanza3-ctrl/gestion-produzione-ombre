@@ -4215,6 +4215,10 @@ button.menu-item-opt {
         box-shadow: 0 4px 14px rgba(0,0,0,0.5) !important;
         font-size: 20px !important;
         margin: 0 8px !important;
+        touch-action: manipulation !important;  /* elimina 300ms tap delay iOS/Android */
+        -webkit-tap-highlight-color: transparent !important;
+        user-select: none !important;
+        -webkit-user-select: none !important;
     }
     .tab-fab:active {
         transform: scale(0.95) !important;
