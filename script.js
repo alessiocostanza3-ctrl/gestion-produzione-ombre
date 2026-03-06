@@ -2912,6 +2912,11 @@ function apriModalAiuto(idRiga, riferimento, nOrdine, cliente) {
 // Apri modal per creare una nuova richiesta libera (da bottom nav "+")
 let _apriNuovaRichiestaLock = false;
 function apriNuovaRichiesta() {
+    // Guard primario: se il modal è già aperto o in apertura, non fare nulla.
+    // Questo è a prova di ghost-click su qualsiasi browser/device.
+    const modal = document.getElementById('modalAiuto');
+    if (!modal) return;
+    if (modal.classList.contains('active') || modal.style.display === 'flex') return;
     if (_apriNuovaRichiestaLock) return;
     _apriNuovaRichiestaLock = true;
     // Il lock viene rilasciato solo in chiudiModal()
@@ -6760,25 +6765,20 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // FAB "+" — fix cross-browser ghost-click:
-    // Android Chrome: preventDefault va messo su touchstart (non touchend) per bloccare il click sintetico.
-    // iOS Safari:     preventDefault su touchend è sufficiente.
-    // Desktop:        solo il listener "click" si attiva (nessun touch).
+    // FAB "+" — tutti i listener chiamano la stessa funzione.
+    // Il guard dentro apriNuovaRichiesta() (modal già active) evita qualunque
+    // doppio open indipendentemente da quanti eventi vengano generati.
     const fabBtn = document.getElementById('btn-nuova-richiesta');
     if (fabBtn) {
-        let _fabLastTouch = 0;
         fabBtn.addEventListener('touchstart', function(e) {
-            e.preventDefault(); // Android Chrome: blocca la generazione del click sintetico
+            e.preventDefault(); // blocca ghost-click su Android Chrome
         }, { passive: false });
         fabBtn.addEventListener('touchend', function(e) {
-            e.preventDefault(); // iOS Safari: idem
-            _fabLastTouch = Date.now();
+            e.preventDefault(); // blocca ghost-click su iOS Safari
             apriNuovaRichiesta();
         }, { passive: false });
-        // Fallback solo desktop (con mouse non ci sono touchstart né touchend)
         fabBtn.addEventListener('click', function() {
-            if (Date.now() - _fabLastTouch < 600) return;
-            apriNuovaRichiesta();
+            apriNuovaRichiesta(); // desktop/mouse; su mobile è no-op grazie al guard DOM
         });
     }
 
