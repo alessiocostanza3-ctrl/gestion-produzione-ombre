@@ -2910,10 +2910,11 @@ function apriModalAiuto(idRiga, riferimento, nOrdine, cliente) {
 
 // Apri modal per creare una nuova richiesta libera (da bottom nav "+")
 let _apriNuovaRichiestaLock = false;
-function apriNuovaRichiesta() {
+function apriNuovaRichiesta(e) {
+    if (e) { e.stopPropagation(); e.preventDefault(); }
     if (_apriNuovaRichiestaLock) return;
     _apriNuovaRichiestaLock = true;
-    setTimeout(() => { _apriNuovaRichiestaLock = false; }, 600);
+    // Il lock viene rilasciato solo in chiudiModal(), non con timeout
     const modal = document.getElementById('modalAiuto');
     modal.style.display = 'flex';
     modal.offsetHeight;
@@ -2997,6 +2998,7 @@ function setTipoAzione(tipo) {
     document.getElementById('btn-tipo-domanda').classList.toggle('active', tipoUp === 'DOMANDA');
 }
 function chiudiModal() {
+    _apriNuovaRichiestaLock = false;   // rilascia lock apriNuovaRichiesta
     const modal = document.getElementById('modalAiuto');
 
     // 1. Togli la classe active per avviare il fade-out
