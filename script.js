@@ -6760,19 +6760,24 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // FAB "+" — gestione unificata touchend+click per evitare il doppio fire su mobile.
-    // touchend: gestisce il tap reale e blocca il click sintetico successivo.
-    // click:    gestisce desktop (nessun touchend), ma ignora se preceduto da touchend < 500ms.
+    // FAB "+" — fix cross-browser ghost-click:
+    // Android Chrome: preventDefault va messo su touchstart (non touchend) per bloccare il click sintetico.
+    // iOS Safari:     preventDefault su touchend è sufficiente.
+    // Desktop:        solo il listener "click" si attiva (nessun touch).
     const fabBtn = document.getElementById('btn-nuova-richiesta');
     if (fabBtn) {
         let _fabLastTouch = 0;
+        fabBtn.addEventListener('touchstart', function(e) {
+            e.preventDefault(); // Android Chrome: blocca la generazione del click sintetico
+        }, { passive: false });
         fabBtn.addEventListener('touchend', function(e) {
-            e.preventDefault();          // cancella il click sintetico iOS/Android
+            e.preventDefault(); // iOS Safari: idem
             _fabLastTouch = Date.now();
             apriNuovaRichiesta();
-        });
+        }, { passive: false });
+        // Fallback solo desktop (con mouse non ci sono touchstart né touchend)
         fabBtn.addEventListener('click', function() {
-            if (Date.now() - _fabLastTouch < 500) return; // già gestito da touchend
+            if (Date.now() - _fabLastTouch < 600) return;
             apriNuovaRichiesta();
         });
     }
