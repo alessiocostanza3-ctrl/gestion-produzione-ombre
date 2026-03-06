@@ -1715,7 +1715,6 @@ h1 {
     box-shadow: 0 28px 56px -8px rgba(0,0,0,0.2), 0 0 0 1px rgba(0,0,0,0.04);
     opacity: 0;
     transform: scale(0.84) translateY(22px);
-    transition: transform 0.12s ease, opacity 0.12s ease;
 }
 
 .modal-overlay.active .modal-content {
@@ -4365,6 +4364,7 @@ button.menu-item-opt {
     }
     .modal-overlay.active .modal-content {
         transform: translateY(0) !important;
+        animation: none !important;  /* disabilita modalSpring su mobile: conflitta con la transition slide-up */
     }
     .modal-content::before {
         content: '';
