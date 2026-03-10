@@ -644,11 +644,10 @@ window.onload = async function() {
         // Se c'è una sessione, la leggiamo subito
         utenteAttuale = JSON.parse(sessione);
 
-        // Blocco orario: se fuori orario e non esente → logout immediato
-        if (!_checkOrarioAccesso(true)) return;
+        // Blocco orario: se fuori orario e non esente → blocca schermo (senza return, carica l'app sotto)
+        const _fuoriOrario = !_isUtenteEsente() && !_isOrarioConsentito();
 
         // AGGIORNAMENTO IMMEDIATO: Prima ancora di scaricare i dati da Sheets
-        // Questo sovrascrive "MASTER" o "Caricamento..." all'istante
         aggiornaProfiloSidebar();
         _initPush();           // Registra / aggiorna subscription push VAPID
         _initBadgeNotifiche(); // Mostra badge se ci sono notifiche non lette
@@ -657,6 +656,10 @@ window.onload = async function() {
         setTimeout(function() { _caricaColoriAvatarDaServer(); }, 5000);
 
         if (overlay) overlay.style.display = 'none';
+
+        // Mostra blocco schermo sopra l'app se fuori orario (non fa logout, sessione preservata)
+        if (_fuoriOrario) _bloccaSchermo_();
+
         console.log("Sessione trovata per:", utenteAttuale.nome);
     } else {
         // Se non c'è sessione, forziamo il login
@@ -1315,26 +1318,58 @@ function _isOrarioConsentito() {
  * Restituisce true se l'accesso è consentito, false altrimenti.
  */
 function _checkOrarioAccesso(mostraMessaggio) {
-    if (_isUtenteEsente() || _isOrarioConsentito()) return true;
+    if (_isUtenteEsente() || _isOrarioConsentito()) {
+        // Se siamo rientrati in orario e c'era il blocco schermo, rimuovilo
+        _sbloccaSchermo_();
+        return true;
+    }
     if (mostraMessaggio !== false) {
-        // Mostra un avviso sull'overlay di login prima di fare logout
         const overlay = document.getElementById('login-overlay');
-        // Imposta messaggio personalizzato nel blocco errore del login
-        const errEl = document.getElementById('login-error') || document.getElementById('login-error-msg');
-        if (errEl) {
-            errEl.textContent = '⏰ App non disponibile fuori dall\'orario lavorativo (08:30 – 18:30).';
-            errEl.style.display = 'block';
-        }
-        // Se già dentro l'app, mostra toast poi logout
         if (overlay && overlay.style.display === 'none') {
-            notificaElegante('⏰ Sessione terminata: orario fuori servizio (08:30 – 18:30)');
-            setTimeout(function() { logout(); }, 3000);
+            // Siamo dentro l'app → blocca schermo senza distruggere la sessione
+            _bloccaSchermo_();
         } else {
-            // Se siamo al login, mostra overlay con messaggio
+            // Siamo al login → mostra messaggio nel form
+            const errEl = document.getElementById('login-error') || document.getElementById('login-error-msg');
+            if (errEl) {
+                errEl.textContent = '⏰ App non disponibile fuori dall\'orario lavorativo (08:30 – 18:30).';
+                errEl.style.display = 'block';
+            }
             if (overlay) { overlay.style.display = 'flex'; overlay.style.opacity = '1'; }
         }
     }
     return false;
+}
+
+function _bloccaSchermo_() {
+    if (document.getElementById('_lock-screen_')) return; // già attivo
+    const nome = utenteAttuale && utenteAttuale.nome ? utenteAttuale.nome : '';
+    const div = document.createElement('div');
+    div.id = '_lock-screen_';
+    div.style.cssText = [
+        'position:fixed','top:0','left:0','width:100%','height:100%',
+        'background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%)',
+        'z-index:99999','display:flex','flex-direction:column',
+        'align-items:center','justify-content:center','gap:16px',
+        'color:#e2e8f0','font-family:inherit'
+    ].join(';');
+    div.innerHTML = `
+        <div style="font-size:3rem">🔒</div>
+        <div style="font-size:1.3rem;font-weight:700;letter-spacing:0.02em">App bloccata</div>
+        <div style="font-size:0.95rem;color:#94a3b8;text-align:center;max-width:280px;line-height:1.5">
+            L'app è disponibile dalle <strong style="color:#e2e8f0">08:30</strong> alle
+            <strong style="color:#e2e8f0">18:30</strong>.<br>
+            Si sbloccherà automaticamente.
+        </div>
+        <div style="margin-top:8px;font-size:0.82rem;color:#64748b">
+            Accesso come: <strong style="color:#94a3b8">${_normNome ? _normNome(nome) : nome}</strong>
+        </div>`;
+    document.body.appendChild(div);
+}
+
+function _sbloccaSchermo_() {
+    const el = document.getElementById('_lock-screen_');
+    if (el) el.remove();
 }
 
 // Controllo ogni minuto mentre l'app è aperta
