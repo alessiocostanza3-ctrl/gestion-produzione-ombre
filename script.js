@@ -3783,8 +3783,24 @@ async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
             return gruppi;
         };
 
-        const gruppiAttivi   = raggruppa(messaggiAttivi);
-        const gruppiArchivio = raggruppa(messaggiArchivio);
+        const _gruppiAttiviAll   = raggruppa(messaggiAttivi);
+        const _gruppiArchivioAll = raggruppa(messaggiArchivio);
+
+        /* ── Filtro: ogni operatore vede solo thread in cui è coinvolto ── */
+        const _coinvolto = (() => {
+            if (_isUtenteEsente()) return () => true;          // MASTER / ALESSIO vedono tutto
+            const ioN = _normNome(utenteAttuale.nome).toUpperCase();
+            return (msgs) => msgs.some(m =>
+                _normNome(m.DA || '').toUpperCase() === ioN ||
+                _normNome(m.A  || '').toUpperCase() === ioN);
+        })();
+        const _filtraGruppi = (g) => {
+            const out = {};
+            Object.keys(g).forEach(k => { if (_coinvolto(g[k])) out[k] = g[k]; });
+            return out;
+        };
+        const gruppiAttivi   = _filtraGruppi(_gruppiAttiviAll);
+        const gruppiArchivio = _filtraGruppi(_gruppiArchivioAll);
 
         // Separa per tipo (usa il tipo dell'ULTIMO messaggio del thread)
         const gAssegnazioni = {};
