@@ -2107,9 +2107,14 @@ function caricaPaginaPipistrello() {
           <div class="pip-mov-header-title">
             <i class="fas fa-boxes-stacked"></i> MOVIMENTI MAGAZZINO
           </div>
-          <button class="pip-mov-toggle-btn" onclick="_pipToggleMov(this)">
-            <i class="fas fa-chevron-down"></i>
-          </button>
+          <div class="pip-mov-header-actions">
+            <button class="pip-reso-open-btn" onclick="_pipApriModalReso()">
+              <i class="fas fa-rotate-left"></i> Reso
+            </button>
+            <button class="pip-mov-toggle-btn" onclick="_pipToggleMov(this)">
+              <i class="fas fa-chevron-down"></i>
+            </button>
+          </div>
         </div>
         <div class="pip-mov-body" id="pip-mov-body">
           <!-- FORM -->
@@ -2494,11 +2499,22 @@ function _pipApriModalDel(id, mov) {
   const modal = document.getElementById('modal-pip-del-mov');
   if (!modal) return;
   const descEl = document.getElementById('pip-del-mov-desc');
-  const tipo = mov.tipo === 'carico' ? 'CARICO' : 'SCARICO';
-  if (descEl) descEl.innerHTML =
-    `<span class="pip-mov-badge ${mov.tipo}" style="font-size:0.75rem">${tipo}</span>
+  let descHtml;
+  if (mov.tipo === 'reso') {
+    const totPz  = mov.totPz || 0;
+    const nRecup = (mov.righe    || []).length;
+    const nScart = (mov.scartate || []).length;
+    descHtml = `<span class="pip-mov-badge reso" style="font-size:0.75rem">RESO</span>
+     <strong>Rientro ×${totPz} pz</strong>
+     <br><span style="color:#64748b;font-size:0.82rem">${nRecup} comp. recuperati · ${nScart} comp. scartati</span>
+     ${mov.nota ? `<br><span style="color:#64748b;font-size:0.82rem">${mov.nota}</span>` : ''}`;
+  } else {
+    const tipo = mov.tipo === 'carico' ? 'CARICO' : 'SCARICO';
+    descHtml = `<span class="pip-mov-badge ${mov.tipo}" style="font-size:0.75rem">${tipo}</span>
      <strong>${mov.mat}</strong> &nbsp;${mov.tipo === 'carico' ? '+' : '−'}${mov.qty} pz
      ${mov.nota ? `<br><span style="color:#64748b;font-size:0.82rem">${mov.nota}</span>` : ''}`;
+  }
+  if (descEl) descEl.innerHTML = descHtml;
   const btn = document.getElementById('btn-pip-del-ok');
   if (btn) btn.onclick = () => _pipConfermaEliminaMov(id);
   modal.style.display = 'flex';
@@ -2522,6 +2538,16 @@ function _pipConfermaEliminaMov(id) {
   if (mov.tipo === 'assemb' || mov.tipo === 'spedizione') {
     (mov.righe || []).forEach(r => {
       caric[r.idx] = (Number(caric[r.idx] || 0)) + r.qty;
+    });
+    _pipSaveCaric(caric);
+    (mov.righe || []).forEach(r => {
+      const inp = document.querySelector(`#pip-tbody input[data-idx="${r.idx}"]`);
+      if (inp) { inp.value = caric[r.idx]; _pipAggiornaCar(inp); }
+    });
+  } else if (mov.tipo === 'reso') {
+    // Il reso aveva AGGIUNTO i componenti recuperati → eliminar il reso li SOTTRAE
+    (mov.righe || []).forEach(r => {
+      caric[r.idx] = Math.max(0, (Number(caric[r.idx] || 0)) - r.qty);
     });
     _pipSaveCaric(caric);
     (mov.righe || []).forEach(r => {
@@ -2624,6 +2650,44 @@ function _pipRenderMovimenti() {
         </details>`;
     }
 
+    if (m.tipo === 'reso') {
+      const totPz = m.totPz || 0;
+      const itemsHtml = (m.items || []).map(it =>
+        `<div class="pip-assemb-sub-row pip-sped-item-row">
+          <span class="pip-assemb-sub-mat">${it.emoji} ${it.label}${it.mA ? ` <span class="pip-pronti-ma">${it.mA}</span>` : ''}</span>
+          <span class="pip-mov-qty carico">×${it.qty}</span>
+        </div>`
+      ).join('');
+      const recuperatiHtml = (m.righe || []).map(r =>
+        `<div class="pip-assemb-sub-row">
+          <span class="pip-assemb-sub-mat" style="color:#15803d">✓ ${r.mat}</span>
+          <span class="pip-mov-qty carico">+${r.qty}</span>
+        </div>`
+      ).join('');
+      const scartatiHtml = (m.scartate || []).map(r =>
+        `<div class="pip-assemb-sub-row">
+          <span class="pip-assemb-sub-mat" style="color:#94a3b8;text-decoration:line-through">${r.mat}</span>
+          <span class="pip-mov-qty" style="color:#94a3b8">✕ ${r.qty}</span>
+        </div>`
+      ).join('');
+      return `
+        <details class="pip-mov-assemb-group pip-mov-reso-group">
+          <summary class="pip-mov-assemb-summary">
+            <span class="pip-mov-badge reso">RESO</span>
+            <span class="pip-mov-assemb-label">📦 Rientro ×${totPz} pz</span>
+            ${m.nota ? `<span class="pip-mov-nota">${m.nota}</span>` : ''}
+            <span class="pip-mov-ts">${m.ts}</span>
+            <i class="fas fa-chevron-down pip-assemb-chev"></i>
+            ${delBtn}
+          </summary>
+          <div class="pip-assemb-sub-list">
+            <div class="pip-sped-items-section">${itemsHtml}</div>
+            ${recuperatiHtml ? `<div class="pip-sped-bom-divider" style="color:#15803d">componenti recuperati</div>${recuperatiHtml}` : ''}
+            ${scartatiHtml ? `<div class="pip-sped-bom-divider" style="color:#ef4444">componenti scartati</div>${scartatiHtml}` : ''}
+          </div>
+        </details>`;
+    }
+
     // Movimento singolo standard
     return `
       <div class="pip-mov-item ${m.tipo}">
@@ -2714,6 +2778,132 @@ function _pipConfermaModificaMov() {
 }
 
 /** Toggle visibilità corpo sezione movimenti */
+// ─── GESTIONE RESI ────────────────────────────────────────────────────────────
+
+const _PIP_RESO_ITEMS = [
+  {key:'t_p', tipo:'TESTA',        fmt:'p', label:'Testa Piccola',   emoji:'🔩', mA:'500mA'},
+  {key:'t_m', tipo:'TESTA',        fmt:'m', label:'Testa Media',     emoji:'🔩', mA:'600mA'},
+  {key:'t_g', tipo:'TESTA',        fmt:'g', label:'Testa Grande',    emoji:'🔩', mA:'700mA'},
+  {key:'c_p', tipo:'CORDONE',      fmt:'p', label:'Cordone Piccolo', emoji:'🔌', mA:'500mA'},
+  {key:'c_m', tipo:'CORDONE',      fmt:'m', label:'Cordone Medio',   emoji:'🔌', mA:'600mA'},
+  {key:'c_g', tipo:'CORDONE',      fmt:'g', label:'Cordone Grande',  emoji:'🔌', mA:'700mA'},
+  {key:'a',   tipo:'ALIMENTATORE', fmt:'_', label:'Alimentatore',    emoji:'🔋', mA:''},
+];
+
+function _pipApriModalReso() {
+  const modal = document.getElementById('modal-pip-reso');
+  if (!modal) return;
+  // Reset tutte le qty a 0
+  _PIP_RESO_ITEMS.forEach(it => {
+    const inp = document.getElementById('pip-reso-qty-' + it.key);
+    if (inp) inp.value = 0;
+  });
+  const notaEl = document.getElementById('pip-reso-nota');
+  if (notaEl) notaEl.value = '';
+  _pipResoAggiornaBOM();
+  modal.style.display = 'flex';
+  modal.offsetHeight;
+  modal.classList.add('active');
+}
+
+function _pipChiudiModalReso() {
+  const modal = document.getElementById('modal-pip-reso');
+  if (!modal) return;
+  modal.classList.remove('active');
+  setTimeout(() => { if (!modal.classList.contains('active')) modal.style.display = 'none'; }, 300);
+}
+
+function _pipResoQtyChange(key, delta) {
+  const inp = document.getElementById('pip-reso-qty-' + key);
+  if (!inp) return;
+  inp.value = Math.max(0, (parseInt(inp.value) || 0) + delta);
+  _pipResoAggiornaBOM();
+}
+
+/** Ricalcola la griglia componenti da recuperare in base alle qty inserite */
+function _pipResoAggiornaBOM() {
+  // Somma componenti per tutti gli item selezionati
+  const totComp = {}; // { idx: qty }
+  _PIP_RESO_ITEMS.forEach(it => {
+    const n = parseInt(document.getElementById('pip-reso-qty-' + it.key)?.value) || 0;
+    if (!n) return;
+    const bom = _PIP_ASSEMB[it.tipo]?.[it.fmt] || [];
+    bom.forEach(([idx, coeff]) => {
+      totComp[idx] = (totComp[idx] || 0) + n * coeff;
+    });
+    // Alimentatore separato (tracked via key 'a')
+    if (it.key === 'a') {
+      totComp[21] = (totComp[21] || 0) + n;
+    }
+  });
+
+  const listEl = document.getElementById('pip-reso-bom-list');
+  if (!listEl) return;
+  const entries = Object.entries(totComp).filter(([, q]) => q > 0);
+  if (!entries.length) {
+    listEl.innerHTML = '<div class="pip-reso-bom-empty">Inserisci le quantità sopra per vedere i componenti da recuperare.</div>';
+    return;
+  }
+  listEl.innerHTML = entries.map(([idx, qty]) => {
+    const mat = _PIP_BOM[parseInt(idx)]?.[1] || '?';
+    return `<label class="pip-reso-bom-row">
+      <input type="checkbox" class="pip-reso-bom-chk" data-idx="${idx}" data-qty="${qty}" checked>
+      <span class="pip-reso-bom-mat">${mat}</span>
+      <span class="pip-reso-bom-qty">+${qty}</span>
+    </label>`;
+  }).join('');
+}
+
+function _pipConfermaReso() {
+  // Raccoglie item rientrati
+  const items = [];
+  _PIP_RESO_ITEMS.forEach(it => {
+    const n = parseInt(document.getElementById('pip-reso-qty-' + it.key)?.value) || 0;
+    if (n > 0) items.push({ ...it, qty: n });
+  });
+  if (!items.length) { notificaElegante('Inserisci almeno un articolo rientrato ⚠️'); return; }
+
+  // Raccoglie componenti da recuperare (checked) e da scartare (unchecked)
+  const righe    = []; // recuperati → tornano in magazzino
+  const scartate = []; // scartati  → non tornano
+  document.querySelectorAll('.pip-reso-bom-chk').forEach(chk => {
+    const idx = parseInt(chk.dataset.idx);
+    const qty = parseInt(chk.dataset.qty);
+    const mat = _PIP_BOM[idx]?.[1] || '?';
+    if (chk.checked) righe.push({ idx, mat, qty });
+    else             scartate.push({ idx, mat, qty });
+  });
+
+  const nota = (document.getElementById('pip-reso-nota')?.value || '').trim();
+
+  // Aggiungi al caricato solo i componenti recuperati
+  const caric = _pipLoadCaric();
+  righe.forEach(r => {
+    caric[r.idx] = (Number(caric[r.idx] || 0)) + r.qty;
+  });
+  _pipSaveCaric(caric);
+
+  // Aggiorna DOM
+  righe.forEach(r => {
+    const inp = document.querySelector(`#pip-tbody input[data-idx="${r.idx}"]`);
+    if (inp) { inp.value = caric[r.idx]; _pipAggiornaCar(inp); }
+  });
+
+  // Registra movimento
+  const ts = new Date().toLocaleString('it-IT', {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+  const movimenti = _pipLoadMov();
+  const totPz = items.reduce((s, i) => s + i.qty, 0);
+  movimenti.unshift({ id: Date.now(), tipo: 'reso', items, righe, scartate, nota, ts, totPz });
+  _pipSaveMov(movimenti);
+
+  _pipChiudiModalReso();
+  _pipRenderMovimenti();
+  _pipAggiornaLiberi();
+  notificaElegante(`Reso registrato: ${totPz} pz — ${righe.length} componenti recuperati ✓`);
+}
+
+// ─── FINE GESTIONE RESI ───────────────────────────────────────────────────────
+
 function _pipToggleMov(btn) {
   const body = document.getElementById('pip-mov-body');
   if (!body) return;
