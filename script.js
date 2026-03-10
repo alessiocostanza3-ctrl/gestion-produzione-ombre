@@ -2486,11 +2486,40 @@ function _pipEliminaMovimento(id) {
   const movimenti = _pipLoadMov();
   const mov = movimenti.find(m => m.id === id);
   if (!mov) return;
+  // Mostra modal conferma invece di window.confirm
+  _pipApriModalDel(id, mov);
+}
 
+function _pipApriModalDel(id, mov) {
+  const modal = document.getElementById('modal-pip-del-mov');
+  if (!modal) return;
+  const descEl = document.getElementById('pip-del-mov-desc');
+  const tipo = mov.tipo === 'carico' ? 'CARICO' : 'SCARICO';
+  if (descEl) descEl.innerHTML =
+    `<span class="pip-mov-badge ${mov.tipo}" style="font-size:0.75rem">${tipo}</span>
+     <strong>${mov.mat}</strong> &nbsp;${mov.tipo === 'carico' ? '+' : '−'}${mov.qty} pz
+     ${mov.nota ? `<br><span style="color:#64748b;font-size:0.82rem">${mov.nota}</span>` : ''}`;
+  const btn = document.getElementById('btn-pip-del-ok');
+  if (btn) btn.onclick = () => _pipConfermaEliminaMov(id);
+  modal.style.display = 'flex';
+  modal.offsetHeight;
+  modal.classList.add('active');
+}
+
+function _pipChiudiModalDel() {
+  const modal = document.getElementById('modal-pip-del-mov');
+  if (!modal) return;
+  modal.classList.remove('active');
+  setTimeout(() => { if (!modal.classList.contains('active')) modal.style.display = 'none'; }, 300);
+}
+
+function _pipConfermaEliminaMov(id) {
+  _pipChiudiModalDel();
+  const movimenti = _pipLoadMov();
+  const mov = movimenti.find(m => m.id === id);
+  if (!mov) return;
   const caric = _pipLoadCaric();
-
   if (mov.tipo === 'assemb' || mov.tipo === 'spedizione') {
-    // Annulla tutti i componenti del lotto/spedizione
     (mov.righe || []).forEach(r => {
       caric[r.idx] = (Number(caric[r.idx] || 0)) + r.qty;
     });
@@ -2500,7 +2529,6 @@ function _pipEliminaMovimento(id) {
       if (inp) { inp.value = caric[r.idx]; _pipAggiornaCar(inp); }
     });
   } else {
-    // Movimento singolo
     if (mov.tipo === 'carico') {
       caric[mov.idx] = Math.max(0, (Number(caric[mov.idx] || 0)) - mov.qty);
     } else {
@@ -2510,9 +2538,9 @@ function _pipEliminaMovimento(id) {
     const carInput = document.querySelector(`#pip-tbody input[data-idx="${mov.idx}"]`);
     if (carInput) { carInput.value = caric[mov.idx]; _pipAggiornaCar(carInput); }
   }
-
   _pipSaveMov(movimenti.filter(m => m.id !== id));
   _pipRenderMovimenti();
+  notificaElegante('Movimento eliminato ✓');
 }
 
 /** Renderizza la lista movimenti nel DOM */
@@ -2616,24 +2644,54 @@ function _pipCanEditMov() {
   return nome === 'ALESSIO' || nome === '0000' || utenteAttuale.ruolo === 'MASTER';
 }
 
-/** Modifica la quantità di un movimento singolo (carico/scarico) */
+/** Modifica la quantità e/o la nota di un movimento singolo (carico/scarico) */
 function _pipModificaMovimento(id) {
   if (!_pipCanEditMov()) return;
+  const movimenti = _pipLoadMov();
+  const mov = movimenti.find(m => m.id === id);
+  if (!mov) return;
+  // Apri modal con campi pre-compilati
+  const modal = document.getElementById('modal-pip-edit-mov');
+  if (!modal) return;
+  const matEl  = document.getElementById('pip-edit-mov-mat');
+  const qtyEl  = document.getElementById('pip-edit-mov-qty');
+  const notaEl = document.getElementById('pip-edit-mov-nota');
+  if (matEl)  matEl.innerHTML  = `<span class="pip-mov-badge ${mov.tipo}" style="font-size:0.75rem">${mov.tipo === 'carico' ? 'CARICO' : 'SCARICO'}</span> <strong>${mov.mat}</strong>`;
+  if (qtyEl)  { qtyEl.value  = mov.qty; }
+  if (notaEl) { notaEl.value = mov.nota || ''; }
+  // Salva l'id per usarlo alla conferma
+  modal.dataset.movId = id;
+  modal.style.display = 'flex';
+  modal.offsetHeight;
+  modal.classList.add('active');
+  // Focus sul campo nota
+  setTimeout(() => notaEl && notaEl.focus(), 80);
+}
+
+function _pipChiudiModalEdit() {
+  const modal = document.getElementById('modal-pip-edit-mov');
+  if (!modal) return;
+  modal.classList.remove('active');
+  setTimeout(() => { if (!modal.classList.contains('active')) modal.style.display = 'none'; }, 300);
+}
+
+function _pipConfermaModificaMov() {
+  const modal = document.getElementById('modal-pip-edit-mov');
+  if (!modal) return;
+  const id = Number(modal.dataset.movId);
+  _pipChiudiModalEdit();
+
   const movimenti = _pipLoadMov();
   const idx = movimenti.findIndex(m => m.id === id);
   if (idx === -1) return;
   const mov = movimenti[idx];
 
-  const newQtyStr = prompt(`Modifica quantità — ${mov.mat}\nValore attuale: ${mov.qty}`, mov.qty);
-  if (newQtyStr === null) return;
-  const newQty = parseInt(newQtyStr);
+  const newQty  = parseInt(document.getElementById('pip-edit-mov-qty')?.value);
+  const newNota = (document.getElementById('pip-edit-mov-nota')?.value || '').trim();
   if (isNaN(newQty) || newQty <= 0) { notificaElegante('Quantità non valida ⚠️'); return; }
 
-  const newNota = prompt(`Modifica descrizione — ${mov.mat}\nDescrizione attuale: ${mov.nota || '(vuota)'}`, mov.nota || '');
-  if (newNota === null) return; // annullato
-
-  const qtyChanged = newQty !== mov.qty;
-  const notaChanged = (newNota.trim() !== (mov.nota || '').trim());
+  const qtyChanged  = newQty  !== mov.qty;
+  const notaChanged = newNota !== (mov.nota || '').trim();
   if (!qtyChanged && !notaChanged) return;
 
   if (qtyChanged) {
@@ -2649,10 +2707,10 @@ function _pipModificaMovimento(id) {
     if (inp) { inp.value = caric[mov.idx]; _pipAggiornaCar(inp); }
   }
 
-  movimenti[idx] = { ...mov, qty: newQty, nota: newNota.trim() };
+  movimenti[idx] = { ...mov, qty: newQty, nota: newNota };
   _pipSaveMov(movimenti);
   _pipRenderMovimenti();
-  notificaElegante(`Movimento aggiornato ✓`);
+  notificaElegante('Movimento aggiornato ✓');
 }
 
 /** Toggle visibilità corpo sezione movimenti */

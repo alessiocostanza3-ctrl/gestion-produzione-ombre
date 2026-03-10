@@ -6267,6 +6267,45 @@ body.page-pip #rotate-overlay { display: none !important; }
     width: 95%;
     padding: 0 0 0;
 }
+/* ── Modal modifica movimento ── */
+.pip-edit-mov-box, .pip-del-mov-box {
+    max-width: 400px;
+    width: 95%;
+    padding: 0;
+}
+.pip-edit-mov-mat {
+    padding: 0 20px 12px;
+    font-size: 0.9rem; color: #1e293b;
+    display: flex; align-items: center; gap: 8px;
+}
+.pip-edit-mov-fields {
+    display: flex; flex-direction: column; gap: 10px;
+    padding: 0 20px 4px;
+}
+.pip-edit-mov-label {
+    font-size: 0.75rem; font-weight: 700; color: #64748b;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    margin-bottom: -4px;
+}
+.pip-edit-mov-input {
+    width: 100%; box-sizing: border-box;
+    background: #f8fafc; border: 1.5px solid #e2e8f0;
+    border-radius: 9px; padding: 10px 12px;
+    font-size: 0.95rem; color: #1e293b; outline: none;
+    transition: border-color 0.15s;
+}
+.pip-edit-mov-input:focus { border-color: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,.1); }
+.pip-del-mov-desc {
+    padding: 4px 20px 10px;
+    font-size: 0.9rem; color: #1e293b;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.pip-del-mov-warn {
+    margin: 0 20px 8px;
+    font-size: 0.82rem; color: #92400e;
+    background: #fffbeb; border-radius: 8px;
+    padding: 8px 12px; border: 1.5px solid #fde68a;
+}
 .pip-sped-modal-title {
     font-size: 1rem; font-weight: 800;
     color: #1e293b;
