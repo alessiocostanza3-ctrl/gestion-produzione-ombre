@@ -1845,8 +1845,7 @@ function _pipCalcImpegnati() {
   const pronti = _pipLoadPronti();
   const imp = {};
   [['TESTA','p','t_p'],['TESTA','m','t_m'],['TESTA','g','t_g'],
-   ['CORDONE','p','c_p'],['CORDONE','m','c_m'],['CORDONE','g','c_g'],
-   ['ALIMENTATORE','p','a_p'],['ALIMENTATORE','m','a_m'],['ALIMENTATORE','g','a_g']]
+   ['CORDONE','p','c_p'],['CORDONE','m','c_m'],['CORDONE','g','c_g']]
   .forEach(([tipo, fmt, key]) => {
     const n = pronti[key] || 0;
     if (!n) return;
@@ -1854,6 +1853,9 @@ function _pipCalcImpegnati() {
       imp[idx] = (imp[idx] || 0) + n * coeff;
     });
   });
+  // Alimentatore unico
+  const nAlim = pronti['a'] || 0;
+  if (nAlim) imp[21] = (imp[21] || 0) + nAlim;
   return imp;
 }
 
@@ -1922,9 +1924,7 @@ function _pipRenderPronti() {
     {
       titolo: '🔋 Alimentatori',
       items: [
-        {key:'a_p', label:'Alimentatore', mA:'500mA', emoji:'🔋'},
-        {key:'a_m', label:'Alimentatore', mA:'600mA', emoji:'🔋'},
-        {key:'a_g', label:'Alimentatore', mA:'700mA', emoji:'🔋'},
+        {key:'a', label:'Alimentatore', mA:'', emoji:'🔋'},
       ]
     },
   ];
@@ -1934,7 +1934,7 @@ function _pipRenderPronti() {
     const righe = sez.items.map(c => {
       const n = pronti[c.key] || 0;
       return `<div class="pip-pronti-row">
-        <span class="pip-pronti-lbl">${c.emoji} ${c.label} <span class="pip-pronti-ma">${c.mA}</span></span>
+        <span class="pip-pronti-lbl">${c.emoji} ${c.label}${c.mA ? ` <span class="pip-pronti-ma">${c.mA}</span>` : ''}</span>
         <div class="pip-pronti-ctrl">
           <button class="pip-pronti-btn" onclick="_pipAggiornaPronti('${c.key}',-1)">−</button>
           <input class="pip-pronti-input${n > 0 ? ' pip-pronti-val-on' : ''}" type="number" min="0"
@@ -2160,9 +2160,7 @@ const _PIP_ASSEMB = {
     g: [[10,1],[13,1],[14,1],[15,2],[17,1],[20,1],[24,1]]  // grande 700mA + Interrupt.700mA
   },
   ALIMENTATORE: {
-    p: [[21,1]], // alimentatore (uguale per tutti i formati, deducto da caricato[21])
-    m: [[21,1]],
-    g: [[21,1]]
+    _: [[21,1]] // alimentatore unico (non differenziato per formato)
   }
 };
 
@@ -2175,9 +2173,7 @@ const _PIP_KEY_MAP = [
   {key:'c_p', tipo:'CORDONE',      fmt:'p', tipoLabel:'Cordone',      fmtLabel:'Piccolo', emoji:'🔌', mA:'500mA'},
   {key:'c_m', tipo:'CORDONE',      fmt:'m', tipoLabel:'Cordone',      fmtLabel:'Medio',   emoji:'🔌', mA:'600mA'},
   {key:'c_g', tipo:'CORDONE',      fmt:'g', tipoLabel:'Cordone',      fmtLabel:'Grande',  emoji:'🔌', mA:'700mA'},
-  {key:'a_p', tipo:'ALIMENTATORE', fmt:'p', tipoLabel:'Alimentatore', fmtLabel:'Piccolo', emoji:'🔋', mA:'500mA'},
-  {key:'a_m', tipo:'ALIMENTATORE', fmt:'m', tipoLabel:'Alimentatore', fmtLabel:'Medio',   emoji:'🔋', mA:'600mA'},
-  {key:'a_g', tipo:'ALIMENTATORE', fmt:'g', tipoLabel:'Alimentatore', fmtLabel:'Grande',  emoji:'🔋', mA:'700mA'},
+  {key:'a', tipo:'ALIMENTATORE', fmt:'_', tipoLabel:'Alimentatore', fmtLabel:'', emoji:'🔋', mA:''},
 ];
 
 /** Apre il modal di selezione/conferma spedizione */
@@ -2198,7 +2194,7 @@ function _pipScaricoTuttiPronti() {
         <input type="checkbox" class="pip-sped-chk" data-key="${it.key}" checked>
         <span class="pip-sped-item-info">
           <span class="pip-sped-item-emoji">${it.emoji}</span>
-          <span class="pip-sped-item-label">${it.tipoLabel} <span class="pip-pronti-ma">${it.mA}</span></span>
+          <span class="pip-sped-item-label">${it.tipoLabel}${it.mA ? ` <span class="pip-pronti-ma">${it.mA}</span>` : ''}</span>
           <span class="pip-sped-item-qty">×${it.qty}</span>
         </span>
       </label>`).join('');
@@ -2224,7 +2220,7 @@ function _pipAggiornaSpeWarning() {
   const checked = [...document.querySelectorAll('.pip-sped-chk:checked')].map(c => c.dataset.key);
   const hasTesta        = checked.some(k => k.startsWith('t_'));
   const hasCordone      = checked.some(k => k.startsWith('c_'));
-  const hasAlimentatore = checked.some(k => k.startsWith('a_'));
+  const hasAlimentatore = checked.includes('a');
 
   const warn    = document.getElementById('pip-sped-warning');
   const warnMsg = document.getElementById('pip-sped-warning-msg');
