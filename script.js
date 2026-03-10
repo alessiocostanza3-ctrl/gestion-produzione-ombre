@@ -2482,6 +2482,7 @@ function _pipSalvaMovimento(tipo) {
 
 /** Elimina un movimento per id, ripristinando il caricato */
 function _pipEliminaMovimento(id) {
+  if (!_pipCanEditMov()) return;
   const movimenti = _pipLoadMov();
   const mov = movimenti.find(m => m.id === id);
   if (!mov) return;
@@ -2519,7 +2520,7 @@ function _pipRenderMovimenti() {
   const list = document.getElementById('pip-mov-list');
   if (!list) return;
   const movimenti = _pipLoadMov();
-  const isMaster = utenteAttuale.ruolo === 'MASTER';
+  const canEdit = _pipCanEditMov();
 
   if (movimenti.length === 0) {
     list.innerHTML = '<div class="pip-mov-empty">Nessun movimento registrato</div>';
@@ -2527,8 +2528,11 @@ function _pipRenderMovimenti() {
   }
 
   list.innerHTML = movimenti.map(m => {
-    const delBtn = isMaster
+    const delBtn = canEdit
       ? `<button class="pip-mov-del" onclick="_pipEliminaMovimento(${m.id})" title="Elimina">✕</button>`
+      : '<span style="width:22px;flex-shrink:0"></span>';
+    const editBtn = (canEdit && (m.tipo === 'carico' || m.tipo === 'scarico'))
+      ? `<button class="pip-mov-edit" onclick="_pipModificaMovimento(${m.id})" title="Modifica quantità">✎</button>`
       : '<span style="width:22px;flex-shrink:0"></span>';
 
     if (m.tipo === 'spedizione') {
@@ -2600,9 +2604,46 @@ function _pipRenderMovimenti() {
         <span class="pip-mov-qty ${m.tipo}">${m.tipo === 'carico' ? '+' : '−'}${m.qty}</span>
         ${m.nota ? `<span class="pip-mov-nota">${m.nota}</span>` : '<span class="pip-mov-nota"></span>'}
         <span class="pip-mov-ts">${m.ts}</span>
-        ${delBtn}
+        ${editBtn}${delBtn}
       </div>`;
   }).join('');
+}
+
+/** Permesso modifica/cancellazione movimenti: MASTER o ALESSIO */
+function _pipCanEditMov() {
+  const nome = String(utenteAttuale?.nome || '').toUpperCase().trim();
+  return utenteAttuale?.ruolo === 'MASTER' || nome === 'ALESSIO';
+}
+
+/** Modifica la quantità di un movimento singolo (carico/scarico) */
+function _pipModificaMovimento(id) {
+  if (!_pipCanEditMov()) return;
+  const movimenti = _pipLoadMov();
+  const idx = movimenti.findIndex(m => m.id === id);
+  if (idx === -1) return;
+  const mov = movimenti[idx];
+
+  const newQtyStr = prompt(`Modifica quantità \u2014 ${mov.mat}\nValore attuale: ${mov.qty}`, mov.qty);
+  if (newQtyStr === null) return;
+  const newQty = parseInt(newQtyStr);
+  if (isNaN(newQty) || newQty <= 0) { notificaElegante('Quantità non valida ⚠️'); return; }
+  if (newQty === mov.qty) return;
+
+  const diff = newQty - mov.qty;
+  const caric = _pipLoadCaric();
+  if (mov.tipo === 'carico') {
+    caric[mov.idx] = Math.max(0, (Number(caric[mov.idx] || 0)) + diff);
+  } else {
+    caric[mov.idx] = Math.max(0, (Number(caric[mov.idx] || 0)) - diff);
+  }
+  _pipSaveCaric(caric);
+  const inp = document.querySelector(`#pip-tbody input[data-idx="${mov.idx}"]`);
+  if (inp) { inp.value = caric[mov.idx]; _pipAggiornaCar(inp); }
+
+  movimenti[idx] = { ...mov, qty: newQty };
+  _pipSaveMov(movimenti);
+  _pipRenderMovimenti();
+  notificaElegante(`Movimento aggiornato: ${mov.mat} → ${newQty} pz ✓`);
 }
 
 /** Toggle visibilità corpo sezione movimenti */

@@ -6453,6 +6453,13 @@ body.page-pip #rotate-overlay { display: none !important; }
     transition: color 0.15s;
 }
 .pip-mov-del:hover { color: #ef4444; }
+.pip-mov-edit {
+    background: none; border: none; color: #cbd5e1;
+    cursor: pointer; padding: 2px 4px; font-size: 0.85rem;
+    border-radius: 4px; flex-shrink: 0; line-height: 1;
+    transition: color 0.15s;
+}
+.pip-mov-edit:hover { color: #3b82f6; }
 
 /* ── Riga assemb espandibile ── */
 .pip-mov-assemb-group {
