@@ -96,6 +96,32 @@ function _salvaNotificheInLocale_(all) {
     } catch(e) {}
 }
 
+function _isPushVisibleUtenteEsente_() {
+    if (!utenteAttuale || !utenteAttuale.nome) return false;
+    const nome = String(utenteAttuale.nome).toUpperCase().trim();
+    return nome === 'ALESSIO' || nome === '0000' || utenteAttuale.ruolo === 'MASTER';
+}
+
+function _isOrarioRiepilogoNotifiche_() {
+    const now  = new Date();
+    const mins = now.getHours() * 60 + now.getMinutes();
+    return mins >= 9 * 60 && mins < 18 * 60 + 30; // 09:00 – 18:30
+}
+
+function _mostraToastRiepilogoNotifiche_(count) {
+    if (!count || count <= 0) return;
+    if (!utenteAttuale || !utenteAttuale.nome) return;
+    if (_isPushVisibleUtenteEsente_()) return;
+    if (!_isOrarioRiepilogoNotifiche_()) return;
+    try {
+        const giorno = new Date().toLocaleDateString('it-IT');
+        const key = '_notifMorningToast_' + String(utenteAttuale.nome).toUpperCase().trim() + '_' + giorno;
+        if (localStorage.getItem(key) === '1') return;
+        localStorage.setItem(key, '1');
+    } catch(e) {}
+    notificaElegante('🔔 Hai ' + count + ' notific' + (count === 1 ? 'a' : 'he') + ' da leggere');
+}
+
 /** Inizializza il badge notifiche all'avvio: legge prima da localStorage, poi fetch fresco dal server */
 function _initBadgeNotifiche() {
     // Usa _notifBadgeCount (azzerato all'apertura del modal), NON la lunghezza dello storico
@@ -109,6 +135,7 @@ function _initBadgeNotifiche() {
         .then(function(d) {
             if (d && d.status === 'ok' && d.all && d.all.length) {
                 _salvaNotificheInLocale_(d.all);
+                _mostraToastRiepilogoNotifiche_(d.all.length);
             }
         })
         .catch(function() {});

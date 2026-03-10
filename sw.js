@@ -9,12 +9,12 @@
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbyVMV9MkGiqphN0AKXJdHXF0Arp1vxTYrCYi1SGv_4MKLRJkx--5HoGq7mmQX-p0ZTZ/exec';
 var APP_URL = 'https://alessiocostanza3-ctrl.github.io/gestion-produzione-ombre/';
 
-var SHELL_CACHE = 'prod-shell-v21';
+var SHELL_CACHE = 'prod-shell-v22';
 var SHELL_ASSETS = [
     APP_URL,
     APP_URL + 'index.html',
-    APP_URL + 'style.css?v=20260310a',
-    APP_URL + 'script.js?v=20260310a',
+    APP_URL + 'style.css?v=20260310b',
+    APP_URL + 'script.js?v=20260310b',
     APP_URL + 'manifest.json'
 ];
 
@@ -86,11 +86,10 @@ self.addEventListener('push', function(event) {
                     .then(function(d) {
                         if (!d || d.status === 'none') {
                             return _leggiUltimaNotifCache_().then(function(n) {
-                                return _showNotif_(
-                                    n ? n.titolo : 'PROD',
-                                    n ? n.corpo   : 'Nessuna nuova notifica',
-                                    username
-                                );
+                                var titolo = n ? n.titolo : 'PROD';
+                                var corpo  = n ? n.corpo   : 'Nessuna nuova notifica';
+                                if (!_deveMostrareNotificaVisibile_(username, titolo)) return;
+                                return _showNotif_(titolo, corpo, username);
                             });
                         }
                         var titolo = d.titolo || 'PROD';
@@ -100,16 +99,16 @@ self.addEventListener('push', function(event) {
                         _salvaUltimaNotifCache_(titolo, corpo);
                         // Broadcast all'app: aggiorna localStorage e badge
                         _broadcastNotifiche_(username, all);
+                        if (!_deveMostrareNotificaVisibile_(username, titolo)) return;
                         return _showNotif_(titolo, corpo, username);
                     })
                     .catch(function() {
                         // Fetch GAS fallito (cold start / offline): usa l'ultima notifica in cache
                         return _leggiUltimaNotifCache_().then(function(n) {
-                            return _showNotif_(
-                                n ? n.titolo : 'PROD',
-                                n ? n.corpo   : 'Hai nuove notifiche',
-                                username
-                            );
+                            var titolo = n ? n.titolo : 'PROD';
+                            var corpo  = n ? n.corpo   : 'Hai nuove notifiche';
+                            if (!_deveMostrareNotificaVisibile_(username, titolo)) return;
+                            return _showNotif_(titolo, corpo, username);
                         });
                     });
             })
@@ -146,6 +145,24 @@ function _showNotif_(titolo, corpo, username) {
         renotify: true,
         data:     { url: APP_URL, username: username || null }
     });
+}
+
+function _deveMostrareNotificaVisibile_(username, titolo) {
+    var uname = String(username || '').toUpperCase().trim();
+    if (!uname) return true;
+    if (uname === 'ALESSIO' || uname === '0000' || uname === 'MASTER') return true;
+    if (_isRiepilogoNotifiche_(titolo) && _isOrarioRiepilogoNotifiche_()) return true;
+    return false;
+}
+
+function _isRiepilogoNotifiche_(titolo) {
+    return /riepilogo notifiche|notifiche da leggere/i.test(String(titolo || ''));
+}
+
+function _isOrarioRiepilogoNotifiche_() {
+    var now  = new Date();
+    var mins = now.getHours() * 60 + now.getMinutes();
+    return mins >= 9 * 60 && mins < 18 * 60 + 30; // 09:00 – 18:30
 }
 
 /** Invia notifiche alle finestre aperte dell'app (aggiorna badge + lista in-app) */
