@@ -1845,7 +1845,8 @@ function _pipCalcImpegnati() {
   const pronti = _pipLoadPronti();
   const imp = {};
   [['TESTA','p','t_p'],['TESTA','m','t_m'],['TESTA','g','t_g'],
-   ['CORDONE','p','c_p'],['CORDONE','m','c_m'],['CORDONE','g','c_g']]
+   ['CORDONE','p','c_p'],['CORDONE','m','c_m'],['CORDONE','g','c_g'],
+   ['ALIMENTATORE','p','a_p'],['ALIMENTATORE','m','a_m'],['ALIMENTATORE','g','a_g']]
   .forEach(([tipo, fmt, key]) => {
     const n = pronti[key] || 0;
     if (!n) return;
@@ -1901,29 +1902,50 @@ function _pipSetPronti(key, val) {
 /** Ridisegna i contatori nella card PRONTI DA SPEDIRE */
 function _pipRenderPronti() {
   const pronti = _pipLoadPronti();
-  const cfg = [
-    {key:'t_p', label:'Testa',   mA:'500mA', emoji:'🔩'},
-    {key:'t_m', label:'Testa',   mA:'600mA', emoji:'🔩'},
-    {key:'t_g', label:'Testa',   mA:'700mA', emoji:'🔩'},
-    {key:'c_p', label:'Cordone', mA:'500mA', emoji:'🔌'},
-    {key:'c_m', label:'Cordone', mA:'600mA', emoji:'🔌'},
-    {key:'c_g', label:'Cordone', mA:'700mA', emoji:'🔌'},
+  const sezioni = [
+    {
+      titolo: '🔩 Teste',
+      items: [
+        {key:'t_p', label:'Testa',   mA:'500mA', emoji:'🔩'},
+        {key:'t_m', label:'Testa',   mA:'600mA', emoji:'🔩'},
+        {key:'t_g', label:'Testa',   mA:'700mA', emoji:'🔩'},
+      ]
+    },
+    {
+      titolo: '🔌 Cordoni',
+      items: [
+        {key:'c_p', label:'Cordone', mA:'500mA', emoji:'🔌'},
+        {key:'c_m', label:'Cordone', mA:'600mA', emoji:'🔌'},
+        {key:'c_g', label:'Cordone', mA:'700mA', emoji:'🔌'},
+      ]
+    },
+    {
+      titolo: '🔋 Alimentatori',
+      items: [
+        {key:'a_p', label:'Alimentatore', mA:'500mA', emoji:'🔋'},
+        {key:'a_m', label:'Alimentatore', mA:'600mA', emoji:'🔋'},
+        {key:'a_g', label:'Alimentatore', mA:'700mA', emoji:'🔋'},
+      ]
+    },
   ];
   const grid = document.getElementById('pip-pronti-grid');
   if (!grid) return;
-  grid.innerHTML = cfg.map(c => {
-    const n = pronti[c.key] || 0;
-    return `<div class="pip-pronti-row">
-      <span class="pip-pronti-lbl">${c.emoji} ${c.label} <span class="pip-pronti-ma">${c.mA}</span></span>
-      <div class="pip-pronti-ctrl">
-        <button class="pip-pronti-btn" onclick="_pipAggiornaPronti('${c.key}',-1)">−</button>
-        <input class="pip-pronti-input${n > 0 ? ' pip-pronti-val-on' : ''}" type="number" min="0"
-               data-key="${c.key}" value="${n}"
-               oninput="_pipSetPronti('${c.key}', this.value)"
-               onchange="_pipSetPronti('${c.key}', this.value)">
-        <button class="pip-pronti-btn" onclick="_pipAggiornaPronti('${c.key}',1)">+</button>
-      </div>
-    </div>`;
+  grid.innerHTML = sezioni.map(sez => {
+    const righe = sez.items.map(c => {
+      const n = pronti[c.key] || 0;
+      return `<div class="pip-pronti-row">
+        <span class="pip-pronti-lbl">${c.emoji} ${c.label} <span class="pip-pronti-ma">${c.mA}</span></span>
+        <div class="pip-pronti-ctrl">
+          <button class="pip-pronti-btn" onclick="_pipAggiornaPronti('${c.key}',-1)">−</button>
+          <input class="pip-pronti-input${n > 0 ? ' pip-pronti-val-on' : ''}" type="number" min="0"
+                 data-key="${c.key}" value="${n}"
+                 oninput="_pipSetPronti('${c.key}', this.value)"
+                 onchange="_pipSetPronti('${c.key}', this.value)">
+          <button class="pip-pronti-btn" onclick="_pipAggiornaPronti('${c.key}',1)">+</button>
+        </div>
+      </div>`;
+    }).join('');
+    return `<div class="pip-pronti-sezione"><div class="pip-pronti-sezione-titolo">${sez.titolo}</div>${righe}</div>`;
   }).join('');
 }
 
@@ -2133,21 +2155,29 @@ const _PIP_ASSEMB = {
     g: [[2,1],[5,1],[6,2],[7,2],[9,4]]            // grande 700mA (Wago 2x)
   },
   CORDONE: {
-    p: [[10,1],[11,1],[14,1],[15,2],[16,1],[18,1],[21,1],[22,1]], // piccolo 500mA + Alimentatore + Interrupt.500mA
-    m: [[10,1],[12,1],[14,1],[15,2],[17,1],[19,1],[21,1],[23,1]], // medio 600mA + Alimentatore + Interrupt.600mA
-    g: [[10,1],[13,1],[14,1],[15,2],[17,1],[20,1],[21,1],[24,1]]  // grande 700mA + Alimentatore + Interrupt.700mA
+    p: [[10,1],[11,1],[14,1],[15,2],[16,1],[18,1],[22,1]], // piccolo 500mA + Interrupt.500mA (alimentatore separato)
+    m: [[10,1],[12,1],[14,1],[15,2],[17,1],[19,1],[23,1]], // medio 600mA + Interrupt.600mA
+    g: [[10,1],[13,1],[14,1],[15,2],[17,1],[20,1],[24,1]]  // grande 700mA + Interrupt.700mA
+  },
+  ALIMENTATORE: {
+    p: [[21,1]], // alimentatore (uguale per tutti i formati, deducto da caricato[21])
+    m: [[21,1]],
+    g: [[21,1]]
   }
 };
 
 /** Registra scarico di N assemblati salvando UN SOLO record 'assemb' con tutti i componenti */
 /** Scarica tutti i pronti da spedire: scala la BOM per ogni voce > 0 e registra un unico movimento */
 const _PIP_KEY_MAP = [
-  {key:'t_p', tipo:'TESTA',   fmt:'p', tipoLabel:'Testa',   fmtLabel:'Piccolo', emoji:'🔩', mA:'500mA'},
-  {key:'t_m', tipo:'TESTA',   fmt:'m', tipoLabel:'Testa',   fmtLabel:'Medio',   emoji:'🔩', mA:'600mA'},
-  {key:'t_g', tipo:'TESTA',   fmt:'g', tipoLabel:'Testa',   fmtLabel:'Grande',  emoji:'🔩', mA:'700mA'},
-  {key:'c_p', tipo:'CORDONE', fmt:'p', tipoLabel:'Cordone', fmtLabel:'Piccolo', emoji:'🔌', mA:'500mA'},
-  {key:'c_m', tipo:'CORDONE', fmt:'m', tipoLabel:'Cordone', fmtLabel:'Medio',   emoji:'🔌', mA:'600mA'},
-  {key:'c_g', tipo:'CORDONE', fmt:'g', tipoLabel:'Cordone', fmtLabel:'Grande',  emoji:'🔌', mA:'700mA'},
+  {key:'t_p', tipo:'TESTA',        fmt:'p', tipoLabel:'Testa',        fmtLabel:'Piccolo', emoji:'🔩', mA:'500mA'},
+  {key:'t_m', tipo:'TESTA',        fmt:'m', tipoLabel:'Testa',        fmtLabel:'Medio',   emoji:'🔩', mA:'600mA'},
+  {key:'t_g', tipo:'TESTA',        fmt:'g', tipoLabel:'Testa',        fmtLabel:'Grande',  emoji:'🔩', mA:'700mA'},
+  {key:'c_p', tipo:'CORDONE',      fmt:'p', tipoLabel:'Cordone',      fmtLabel:'Piccolo', emoji:'🔌', mA:'500mA'},
+  {key:'c_m', tipo:'CORDONE',      fmt:'m', tipoLabel:'Cordone',      fmtLabel:'Medio',   emoji:'🔌', mA:'600mA'},
+  {key:'c_g', tipo:'CORDONE',      fmt:'g', tipoLabel:'Cordone',      fmtLabel:'Grande',  emoji:'🔌', mA:'700mA'},
+  {key:'a_p', tipo:'ALIMENTATORE', fmt:'p', tipoLabel:'Alimentatore', fmtLabel:'Piccolo', emoji:'🔋', mA:'500mA'},
+  {key:'a_m', tipo:'ALIMENTATORE', fmt:'m', tipoLabel:'Alimentatore', fmtLabel:'Medio',   emoji:'🔋', mA:'600mA'},
+  {key:'a_g', tipo:'ALIMENTATORE', fmt:'g', tipoLabel:'Alimentatore', fmtLabel:'Grande',  emoji:'🔋', mA:'700mA'},
 ];
 
 /** Apre il modal di selezione/conferma spedizione */
@@ -2192,8 +2222,9 @@ function _pipScaricoTuttiPronti() {
 /** Ricalcola il warning di squilibrio in base alle checkbox selezionate */
 function _pipAggiornaSpeWarning() {
   const checked = [...document.querySelectorAll('.pip-sped-chk:checked')].map(c => c.dataset.key);
-  const hasTesta   = checked.some(k => k.startsWith('t_'));
-  const hasCordone = checked.some(k => k.startsWith('c_'));
+  const hasTesta        = checked.some(k => k.startsWith('t_'));
+  const hasCordone      = checked.some(k => k.startsWith('c_'));
+  const hasAlimentatore = checked.some(k => k.startsWith('a_'));
 
   const warn    = document.getElementById('pip-sped-warning');
   const warnMsg = document.getElementById('pip-sped-warning-msg');
@@ -2208,12 +2239,16 @@ function _pipAggiornaSpeWarning() {
 
   if (okBtn) okBtn.disabled = false;
 
-  if (hasTesta && !hasCordone) {
+  const mancanti = [];
+  if (!hasTesta)        mancanti.push('Teste');
+  if (!hasCordone)      mancanti.push('Cordoni');
+  if (!hasAlimentatore) mancanti.push('Alimentatori');
+
+  if (mancanti.length > 0 && mancanti.length < 3) {
+    // Almeno una categoria c'è ma non tutte e tre → avviso
     if (warn) warn.style.display = 'flex';
-    if (warnMsg) warnMsg.textContent = 'Stai spedendo solo Teste senza Cordoni — di solito vengono spediti in coppia. Confermi comunque?';
-  } else if (hasCordone && !hasTesta) {
-    if (warn) warn.style.display = 'flex';
-    if (warnMsg) warnMsg.textContent = 'Stai spedendo solo Cordoni senza Teste — di solito vengono spediti in coppia. Confermi comunque?';
+    if (warnMsg) warnMsg.textContent =
+      `Attenzione: stai spedendo senza ${mancanti.join(' e ')} — normalmente Testa, Cordone e Alimentatore vanno spediti insieme. Confermi comunque?`;
   } else {
     if (warn) warn.style.display = 'none';
   }
