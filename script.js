@@ -1762,6 +1762,58 @@ function _pipFetchFromServer(cb) {
 }
 
 /**
+ * Utilità di recovery per la console del browser.
+ * Uso:
+ *   pipRecovery.stato()          → mostra pronti/caricato attuali in localStorage
+ *   pipRecovery.forzaRipristino() → scrive subito localStorage → server (bypass debounce)
+ *   pipRecovery.reimpostaPronti({t_p:2, t_m:1, t_g:0, c_p:3, c_m:2, c_g:1})
+ *              → imposta manualmente i pronti e li spinge al server
+ */
+window.pipRecovery = {
+  stato: function() {
+    const pr = _pipLoadPronti();
+    const ca = _pipLoadCaric();
+    const ts = localStorage.getItem('pip_local_ts');
+    console.group('%c[pipRecovery] Stato localStorage pipistrelli', 'color:#1a237e;font-weight:bold');
+    console.log('📅 pip_local_ts:', ts, ts ? '(' + new Date(parseInt(ts)).toLocaleString('it-IT') + ')' : '(mai salvato)');
+    console.log('🔄 PRONTI:', JSON.stringify(pr));
+    console.log('   — TESTA  P/M/G:', pr.t_p||0, pr.t_m||0, pr.t_g||0);
+    console.log('   — CORDONE P/M/G:', pr.c_p||0, pr.c_m||0, pr.c_g||0);
+    const hasPronti = Object.values(pr).some(v => v > 0);
+    console.log(hasPronti ? '✅ Pronti presenti → puoi usare pipRecovery.forzaRipristino()' : '⚠️ Pronti tutti 0 → usa pipRecovery.reimpostaPronti({t_p:X,t_m:X,...})');
+    console.log('📦 CARICATO keys:', Object.keys(ca).length, '— valori:', JSON.stringify(ca));
+    console.groupEnd();
+    return { pronti: pr, caricato: ca };
+  },
+  forzaRipristino: function() {
+    if (typeof URL_GOOGLE === 'undefined') { console.error('[pipRecovery] URL_GOOGLE non definita - sei sulla pagina giusta?'); return; }
+    const payload = {
+      azione:    'setPipData',
+      qty:       _pipLoadQty(),
+      caricato:  _pipLoadCaric(),
+      pronti:    _pipLoadPronti(),
+      movimenti: _pipLoadMov()
+    };
+    localStorage.setItem('pip_local_ts', Date.now());
+    fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify(payload) })
+      .then(r => r.json())
+      .then(d => console.log('%c[pipRecovery] ✅ Ripristino inviato al server:', 'color:green', d))
+      .catch(e => console.error('[pipRecovery] ❌ Errore:', e));
+    console.log('[pipRecovery] Invio in corso...');
+  },
+  reimpostaPronti: function(obj) {
+    // obj = { t_p, t_m, t_g, c_p, c_m, c_g }
+    const campiValidi = ['t_p','t_m','t_g','c_p','c_m','c_g'];
+    const nuovi = {};
+    campiValidi.forEach(k => { nuovi[k] = parseInt(obj[k]) || 0; });
+    console.log('[pipRecovery] Imposto pronti:', JSON.stringify(nuovi));
+    _pipSavePronti(nuovi);
+    _pipAggiornaUI_Pip && _pipAggiornaUI_Pip();
+    console.log('%c[pipRecovery] ✅ Pronti impostati e push al server avviato', 'color:green');
+  }
+};
+
+/**
  * Ricostruisce mlPipCaricato dai movimenti di carico/scarico/spedizione.
  * Usato per recuperare i dati quando il caricato risulta tutto 0
  * ma i movimenti contengono carichi registrati.
