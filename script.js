@@ -2532,7 +2532,7 @@ function _pipRenderMovimenti() {
       ? `<button class="pip-mov-del" onclick="_pipEliminaMovimento(${m.id})" title="Elimina">✕</button>`
       : '<span style="width:22px;flex-shrink:0"></span>';
     const editBtn = (canEdit && (m.tipo === 'carico' || m.tipo === 'scarico'))
-      ? `<button class="pip-mov-edit" onclick="_pipModificaMovimento(${m.id})" title="Modifica quantità">✎</button>`
+      ? `<button class="pip-mov-edit" onclick="_pipModificaMovimento(${m.id})" title="Modifica">✎</button>`
       : '<span style="width:22px;flex-shrink:0"></span>';
 
     if (m.tipo === 'spedizione') {
@@ -2623,27 +2623,35 @@ function _pipModificaMovimento(id) {
   if (idx === -1) return;
   const mov = movimenti[idx];
 
-  const newQtyStr = prompt(`Modifica quantità \u2014 ${mov.mat}\nValore attuale: ${mov.qty}`, mov.qty);
+  const newQtyStr = prompt(`Modifica quantità — ${mov.mat}\nValore attuale: ${mov.qty}`, mov.qty);
   if (newQtyStr === null) return;
   const newQty = parseInt(newQtyStr);
   if (isNaN(newQty) || newQty <= 0) { notificaElegante('Quantità non valida ⚠️'); return; }
-  if (newQty === mov.qty) return;
 
-  const diff = newQty - mov.qty;
-  const caric = _pipLoadCaric();
-  if (mov.tipo === 'carico') {
-    caric[mov.idx] = Math.max(0, (Number(caric[mov.idx] || 0)) + diff);
-  } else {
-    caric[mov.idx] = Math.max(0, (Number(caric[mov.idx] || 0)) - diff);
+  const newNota = prompt(`Modifica descrizione — ${mov.mat}\nDescrizione attuale: ${mov.nota || '(vuota)'}`, mov.nota || '');
+  if (newNota === null) return; // annullato
+
+  const qtyChanged = newQty !== mov.qty;
+  const notaChanged = (newNota.trim() !== (mov.nota || '').trim());
+  if (!qtyChanged && !notaChanged) return;
+
+  if (qtyChanged) {
+    const diff = newQty - mov.qty;
+    const caric = _pipLoadCaric();
+    if (mov.tipo === 'carico') {
+      caric[mov.idx] = Math.max(0, (Number(caric[mov.idx] || 0)) + diff);
+    } else {
+      caric[mov.idx] = Math.max(0, (Number(caric[mov.idx] || 0)) - diff);
+    }
+    _pipSaveCaric(caric);
+    const inp = document.querySelector(`#pip-tbody input[data-idx="${mov.idx}"]`);
+    if (inp) { inp.value = caric[mov.idx]; _pipAggiornaCar(inp); }
   }
-  _pipSaveCaric(caric);
-  const inp = document.querySelector(`#pip-tbody input[data-idx="${mov.idx}"]`);
-  if (inp) { inp.value = caric[mov.idx]; _pipAggiornaCar(inp); }
 
-  movimenti[idx] = { ...mov, qty: newQty };
+  movimenti[idx] = { ...mov, qty: newQty, nota: newNota.trim() };
   _pipSaveMov(movimenti);
   _pipRenderMovimenti();
-  notificaElegante(`Movimento aggiornato: ${mov.mat} → ${newQty} pz ✓`);
+  notificaElegante(`Movimento aggiornato ✓`);
 }
 
 /** Toggle visibilità corpo sezione movimenti */
