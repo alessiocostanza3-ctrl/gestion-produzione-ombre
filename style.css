@@ -1246,8 +1246,13 @@ h1 {
 }
 
 /* Quando un dropdown è aperto, porta la card in primo piano sopra le sorelle */
-.item-card.stato-aperto {
+.item-card.stato-aperto, .item-card.op-aperto {
     z-index: 50 !important;
+}
+
+/* Stesso per il dropdown nelle righe header ordine */
+.riga-ordine.op-aperto-ord {
+    z-index: 50;
 }
 
 .item-card:hover {
