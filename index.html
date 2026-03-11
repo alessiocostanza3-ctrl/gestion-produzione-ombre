@@ -153,7 +153,7 @@
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=20260311e">
+    <link rel="stylesheet" href="style.css?v=20260311f">
     <!-- jsQR: libreria client-side per decodifica QR via fotocamera -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
     <!-- QRCode.js: libreria per GENERARE QR code (usata nelle impostazioni) -->
@@ -260,7 +260,7 @@
             }
         });
     </script>
-    <script src="script.js?v=20260311k" defer></script>
+    <script src="script.js?v=20260311l" defer></script>
 </head>
 
 <body>
@@ -607,6 +607,31 @@
           <div class="modal-footer">
               <button type="button" onclick="_chiudiConferma()" class="btn-modal-cancel">Annulla</button>
               <button type="button" id="modal-conferma-ok" class="btn-modal-send">Conferma</button>
+          </div>
+      </div>
+  </div>
+
+  <!-- Modal: Sollecita (solo commerciali) -->
+  <div id="modalSollecito" class="modal-overlay" onclick="if(event.target===this) chiudiModalSollecito()">
+      <div class="modal-content">
+          <h2 id="sollecito-titolo">Sollecita</h2>
+          <input type="hidden" id="sollecito-id-riga">
+          <input type="hidden" id="sollecito-nord">
+          <input type="hidden" id="sollecito-cliente">
+          <input type="hidden" id="sollecito-rif">
+          <div style="margin-top:18px">
+              <p class="modal-label">Data scadenza <span style="color:#e11d48">*</span></p>
+              <input type="date" id="sollecito-data" class="input-field-modern" style="width:100%;box-sizing:border-box;margin-top:8px">
+          </div>
+          <div style="margin-top:16px">
+              <p class="modal-label">Note (opzionale)</p>
+              <textarea id="sollecito-note" class="input-field-modern" placeholder="Specifiche o dettagli su questo ordine/articolo..." style="width:100%;box-sizing:border-box;margin-top:8px;min-height:90px;resize:vertical;font-family:inherit"></textarea>
+          </div>
+          <div class="modal-footer" style="margin-top:24px">
+              <button type="button" onclick="chiudiModalSollecito()" class="btn-modal-cancel">Annulla</button>
+              <button type="button" onclick="confermaInvioSollecito()" class="btn-modal-send">
+                  <i class="fa-solid fa-clock"></i> Invia Sollecito
+              </button>
           </div>
       </div>
   </div>

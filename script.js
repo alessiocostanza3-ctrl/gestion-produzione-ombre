@@ -1307,6 +1307,10 @@ function _isUtenteEsente() {
     const nome = utenteAttuale.nome.toUpperCase();
     return nome === 'ALESSIO' || nome === '0000' || utenteAttuale.ruolo === 'MASTER';
 }
+function _isCommerciale() {
+    if (!utenteAttuale) return false;
+    return String(utenteAttuale.ruolo || '').toUpperCase() === 'COMMERCIALE';
+}
 function _isOrarioConsentito() {
     const now  = new Date();
     const mins = now.getHours() * 60 + now.getMinutes();
@@ -3163,9 +3167,12 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
                    <i class="fa-solid fa-rotate-left"></i> <span class="btn-txt">Ripristina</span>
                </button>`
             : `${_opZoneOrd}<button class="btn-chiedi-assegna ${TW.btnPrimary}" onclick="event.stopPropagation(); apriModalAiuto('${righe[0].id_riga}', 'INTERO ORDINE', '${nOrd}', '${(cliente||'').replace(/'/g,"\\'")}')">\n                   <i class="fa-regular fa-envelope"></i> <span class="btn-txt">Chiedi</span>\n               </button>
-               <button class="btn-archivia-prod ${TW.btnSuccess}" onclick="event.stopPropagation(); gestisciArchiviazione('${nOrd}')">
+               ${_isCommerciale()
+                   ? `<button class="btn-sollecita" onclick="event.stopPropagation(); apriModalSollecito('','${nOrd.replace(/'/g,"\\'")  }','${(cliente||'').replace(/'/g,"\\'")  }','Intero Ordine')"><i class="fa-solid fa-clock"></i> <span class="btn-txt">Sollecita</span></button>`
+                   : `<button class="btn-archivia-prod ${TW.btnSuccess}" onclick="event.stopPropagation(); gestisciArchiviazione('${nOrd}')">
                    <i class="fa-solid fa-box-archive"></i> <span class="btn-txt">Archivia</span>
-               </button>`;
+               </button>`
+               }`;
 
         html += `
         <div class="ordine-wrapper ${classWrapper}" data-ordine="${nOrd}" data-cliente="${(cliente || '').toLowerCase().replace(/"/g, '')}" data-riferimento="${(riferimento || '').toLowerCase().replace(/"/g, '')}">
@@ -3237,9 +3244,56 @@ function generaCardArticolo(art, nOrd, cliente) {
             ${opZoneCard}
         </div>
         <div class="order-info-col">
-            <button class="btn-chiedi-assegna ${TW.btnPrimary}" onclick="apriModalAiuto('${art.id_riga}', '${codicePrincipale}', '${nOrd}', '${(cliente||'').replace(/'/g,"\\'")}')">\n                <i class="fa-regular fa-envelope"></i> Chiedi\n            </button>\n        </div>
+            <button class="btn-chiedi-assegna ${TW.btnPrimary}" onclick="apriModalAiuto('${art.id_riga}', '${codicePrincipale}', '${nOrd}', '${(cliente||'').replace(/'/g,"\\'")}')">\n                <i class="fa-regular fa-envelope"></i> Chiedi\n            </button>\n            ${_isCommerciale() ? `<button class="btn-sollecita" onclick="apriModalSollecito('${art.id_riga}','${nOrd}','${(cliente||'').replace(/'/g,"\\'")  }','${codicePrincipale.replace(/'/g,"\\'")  }')"><i class="fa-solid fa-clock"></i> Sollecita</button>` : ''}\n        </div>
     </div>`;
 }
+/* ---- MODAL SOLLECITO (COMMERCIALE) ---- */
+function apriModalSollecito(idRiga, nOrd, cliente, rifArt) {
+    const modal = document.getElementById('modalSollecito');
+    modal.style.display = 'flex';
+    modal.offsetHeight;
+    modal.classList.add('active');
+    document.getElementById('sollecito-titolo').textContent =
+        (rifArt && rifArt !== 'Intero Ordine') ? `Sollecita – ${rifArt}` : `Sollecita – Ord. ${nOrd}`;
+    document.getElementById('sollecito-id-riga').value = idRiga || '';
+    document.getElementById('sollecito-nord').value    = nOrd;
+    document.getElementById('sollecito-cliente').value = cliente || '';
+    document.getElementById('sollecito-rif').value     = rifArt  || '';
+    document.getElementById('sollecito-data').value    = '';
+    document.getElementById('sollecito-note').value    = '';
+}
+function chiudiModalSollecito() {
+    const modal = document.getElementById('modalSollecito');
+    modal.style.display = '';
+    modal.classList.remove('active');
+}
+async function confermaInvioSollecito() {
+    const nOrd    = document.getElementById('sollecito-nord').value;
+    const idRiga  = document.getElementById('sollecito-id-riga').value;
+    const cliente = document.getElementById('sollecito-cliente').value;
+    const rifArt  = document.getElementById('sollecito-rif').value;
+    const data    = document.getElementById('sollecito-data').value;
+    const note    = document.getElementById('sollecito-note').value.trim();
+    if (!data) { notificaElegante('Seleziona una data di scadenza.', 'error'); return; }
+    chiudiModalSollecito();
+    notificaElegante('✅ Sollecito inviato ad Alessio');
+    delete cacheContenuti['STORICO_RICHIESTE']; delete cacheFetchTime['STORICO_RICHIESTE'];
+    _lsCacheDel('_html_STORICO_RICHIESTE');
+    window._prefetchRqBundle = null; window._prefetchRqPromise = null;
+    const payload = {
+        azione: 'supporto_multiplo',
+        n_ordine: nOrd,
+        cliente:  cliente,
+        prodotto: rifArt && rifArt !== 'Intero Ordine' ? rifArt : '',
+        tipo:     'SCADENZA',
+        messaggio: `SCAD:${data}|${note || '—'}`,
+        mittente:  utenteAttuale.nome.toUpperCase().trim(),
+        destinatari: ['ALESSIO']
+    };
+    fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify(payload) }).catch(() => {});
+}
+/* ---- FINE MODAL SOLLECITO ---- */
+
 /* ---- RIMOZIONE OPERATORE DALLA CARD ---- */
 async function rimuoviOperatore(idRiga, nOrd, nomeOperatore) {
     const container = document.querySelector(`.visualizza-operatori[data-id-riga="${idRiga}"]`);
@@ -4479,19 +4533,23 @@ async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
         // Separa per tipo (usa il tipo dell'ULTIMO messaggio del thread)
         const gAssegnazioni = {};
         const gRichieste    = {};
+        const gScadenze     = {};
         Object.keys(gruppiAttivi).forEach(nOrd => {
             const msgs = gruppiAttivi[nOrd];
             const ultimo = msgs[msgs.length - 1];
             const tipoLast = (ultimo.TIPO || 'MSG').toUpperCase();
-            if (tipoLast === 'ASSEGNAZIONE') gAssegnazioni[nOrd] = msgs;
-            else                             gRichieste[nOrd]    = msgs;
+            if      (tipoLast === 'ASSEGNAZIONE') gAssegnazioni[nOrd] = msgs;
+            else if (tipoLast === 'SCADENZA')      gScadenze[nOrd]     = msgs;
+            else                                   gRichieste[nOrd]    = msgs;
         });
 
         // Stato open/closed persistito
         const asseOpen = localStorage.getItem('_rg_assegnazioni') !== '0';
         const richOpen = localStorage.getItem('_rg_richieste') !== '0';
+        const scadOpen = localStorage.getItem('_rg_scadenze')    !== '0';
         const cntA = Object.keys(gAssegnazioni).length;
         const cntR = Object.keys(gRichieste).length;
+        const cntS = Object.values(gScadenze).reduce((n, ms) => n + ms.length, 0);
 
         const _renderGroup = (gruppi, io) => {
             let s = '';
@@ -4499,6 +4557,16 @@ async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
                 s += generaCardRichiesta(gruppi[nOrd], io, false);
             });
             return s || `<div class="empty-msg" style="margin:16px 0 8px">Nessun elemento.</div>`;
+        };
+        const _renderScadenze = () => {
+            const allMsgs = Object.values(gScadenze).flat();
+            allMsgs.sort((a, b) => {
+                const da = _getScadDate(a), db = _getScadDate(b);
+                if (!da && !db) return 0; if (!da) return 1; if (!db) return -1;
+                return da - db;
+            });
+            return allMsgs.map(m => generaCardScadenza(m, io)).join('')
+                || `<div class="empty-msg" style="margin:16px 0 8px">Nessuna scadenza.</div>`;
         };
 
         let htmlArchReq = '';
@@ -4544,6 +4612,20 @@ async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
                     </summary>
                     <div class="chat-inbox">${_renderGroup(gRichieste, io)}</div>
                 </details>
+
+                ${_isUtenteEsente() ? `
+                <details id="rg-scadenze" class="req-group" ${scadOpen ? 'open' : ''}
+                         ontoggle="_saveReqGroup('scadenze', this)">
+                    <summary class="req-group-summary">
+                        <span class="rg-left">
+                            <span class="rg-icon rg-icon-scadenza"><i class="fa-solid fa-clock"></i></span>
+                            <span class="rg-title">SCADENZE</span>
+                            ${cntS > 0 ? `<span class="rg-count rg-count-scad">${cntS}</span>` : ''}
+                        </span>
+                        <i class="fas fa-chevron-down rg-chevron"></i>
+                    </summary>
+                    <div class="chat-inbox">${_renderScadenze()}</div>
+                </details>` : ''}
 
             </div>
 
@@ -4792,6 +4874,62 @@ function _toggleRcBody(idRiga, btn) {
     if (btn) btn.classList.toggle('open', isOpen);
 }
 
+/* ---- SCADENZE (inviate dai commerciali) ---- */
+function _getScadDate(msg) {
+    const parts = String(msg.MESSAGGIO || '').split('|');
+    if (parts.length >= 2) {
+        const s = parts[1] || '';
+        if (s.startsWith('SCAD:')) { const d = new Date(s.slice(5)); if (!isNaN(d)) return d; }
+    }
+    return null;
+}
+function generaCardScadenza(msg, io) {
+    const parts   = String(msg.MESSAGGIO || '').split('|');
+    let scadDate = null, nota = '—';
+    if (parts.length >= 2) {
+        const sp = parts[1] || '';
+        if (sp.startsWith('SCAD:')) { scadDate = new Date(sp.slice(5)); if (isNaN(scadDate)) scadDate = null; }
+        nota = parts.slice(2).join('|').trim() || '—';
+    }
+    const nOrd    = msg.ORDINE   || '—';
+    const cliente = msg.CLIENTE  || '';
+    const prodotto= (msg.PRODOTTO && msg.PRODOTTO !== '') ? msg.PRODOTTO : '';
+    const mitt    = _normNome(msg.DA || '');
+    const dataOra = msg['DATA ORA'] || '';
+
+    let urgClass = 'scad-ok', scadLabel = '—';
+    if (scadDate) {
+        const diff = Math.ceil((scadDate - new Date()) / 86400000);
+        scadLabel = scadDate.toLocaleDateString('it-IT', { day:'2-digit', month:'short', year:'numeric' });
+        if      (diff <  0) urgClass = 'scad-scaduta';
+        else if (diff <= 3) urgClass = 'scad-urgente';
+        else if (diff <= 7) urgClass = 'scad-vicina';
+        else                urgClass = 'scad-ok';
+    }
+    return `
+    <div class="scad-card ${urgClass}" data-ordine="${nOrd}" data-cliente="${(cliente).toLowerCase().replace(/"/g,'')}">
+        <div class="scad-top">
+            <div class="scad-ordine-wrap">
+                <span class="rc-tipo rc-tipo-scadenza" title="Scadenza"><i class="fa-solid fa-clock"></i></span>
+                <span class="rc-ordine">ORD.&nbsp;${nOrd}</span>
+                ${prodotto ? `<span class="scad-art">&bull; <b>${prodotto}</b></span>` : '<span class="scad-art scad-int-ord">intero ordine</span>'}
+            </div>
+            <span class="scad-date-badge ${urgClass}">${scadLabel}</span>
+        </div>
+        ${cliente ? `<div class="rc-cliente">${cliente}</div>` : ''}
+        <div class="scad-nota">${nota !== '—' ? nota : '<span class="scad-no-nota">Nessuna nota</span>'}</div>
+        <div class="rc-foot">
+            <span class="rc-lbl">Da</span>
+            <span class="rc-val">${mitt}</span>
+            <span class="rc-date" style="margin-left:auto">${formattaData(dataOra)}</span>
+        </div>
+        <div class="rc-actions">
+            <button onclick="aggiornaRichiesta('${msg.id_riga}', 'risolto')" class="rc-btn rc-btn-arch" title="Archivia scadenza"><i class="fa-solid fa-check"></i></button>
+        </div>
+    </div>`;
+}
+/* ---- FINE SCADENZE ---- */
+
 
 //PAGINA IMPOSTAZIONI//
 
@@ -4885,6 +5023,7 @@ async function caricaListaUtenti() {
                     <input type="email" class="input-field-modern" id="ut-email-${id}" placeholder="Email" value="${email.replace(/"/g, '&quot;')}">
                     <select class="input-field-modern" id="ut-ruolo-${id}">
                         <option value="OPERATORE" ${ruolo === 'OPERATORE' ? 'selected' : ''}>Operatore</option>
+                        <option value="COMMERCIALE" ${ruolo === 'COMMERCIALE' ? 'selected' : ''}>Commerciale</option>
                         <option value="MASTER" ${ruolo === 'MASTER' ? 'selected' : ''}>Admin</option>
                     </select>
                 </div>
@@ -5076,6 +5215,7 @@ function caricaInterfacciaImpostazioni() {
                                 <input type="password" id="nu-password" placeholder="Password" class="input-field-modern">
                                 <select id="nu-ruolo" class="input-field-modern">
                                     <option value="OPERATORE">Operatore</option>
+                                    <option value="COMMERCIALE">Commerciale</option>
                                     <option value="MASTER">Admin</option>
                                 </select>
                                 <input type="number" id="nu-max" placeholder="Max utenti/email (es. 3)" class="input-field-modern" value="1" min="1" max="10">

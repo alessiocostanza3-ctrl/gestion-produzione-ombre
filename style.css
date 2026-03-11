@@ -1540,6 +1540,23 @@ h1 {
     color: #242424!important;
     box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important;
 }
+/* Tasto Sollecita (commerciali) */
+.btn-sollecita {
+    background: #d97706 !important;
+    color: #ffffff !important;
+    border: none !important;
+    transition: background 0.2s, color 0.2s !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px !important;
+    border-radius: 6px;
+    font-size: 11px !important;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.btn-sollecita:hover { background: #b45309 !important; }
 /* Tasto Ripristina (archivio ordine) */
 .btn-ripristina {
     background: #242424!important;
@@ -2111,7 +2128,8 @@ h1 {
     flex-shrink: 0;
 }
 .rg-icon-assegna { background: #dcfce7; color: #16a34a; }
-.rg-icon-domanda { background: #fee2e2; color: #dc2626; }
+.rg-icon-domanda  { background: #fee2e2; color: #dc2626; }
+.rg-icon-scadenza { background: #fef3c7; color: #d97706; }
 .rg-title {
     font-size: 12px;
     font-weight: 800;
@@ -2127,7 +2145,8 @@ h1 {
     background: #dcfce7;
     color: #15803d;
 }
-.rg-count-dom { background: #fee2e2; color: #b91c1c; }
+.rg-count-dom   { background: #fee2e2; color: #b91c1c; }
+.rg-count-scad  { background: #fef3c7; color: #b45309; }
 .rg-chevron {
     font-size: 11px;
     color: #94a3b8;
@@ -2197,7 +2216,68 @@ h1 {
     font-weight: 900;
     flex-shrink: 0;
 }
-.rc-tipo-assegna { background: #dcfce7; color: #16a34a; }
+.rc-tipo-assegna  { background: #dcfce7; color: #16a34a; }
+.rc-tipo-scadenza { background: #fef3c7; color: #d97706; }
+
+/* ---- SCADENZE CARD ---- */
+.scad-card {
+    background: #ffffff;
+    border: 1.5px solid #fde68a;
+    border-radius: 16px;
+    padding: 13px 14px 11px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    width: calc(50% - 5px);
+    min-width: 150px;
+    box-sizing: border-box;
+    transition: box-shadow 0.18s, border-color 0.18s;
+}
+.scad-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.09); }
+.scad-card.scad-urgente { border-color: #fca5a5; background: #fff5f5; }
+.scad-card.scad-scaduta { border-color: #ef4444; background: #fff1f2; opacity: 0.85; }
+.scad-card.scad-vicina  { border-color: #fdba74; background: #fffbeb; }
+.scad-card.scad-ok      { border-color: #fde68a; }
+
+.scad-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+.scad-ordine-wrap {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+.scad-art {
+    font-size: 11px;
+    color: #64748b;
+    font-weight: 600;
+}
+.scad-int-ord { opacity: 0.5; font-style: italic; }
+.scad-date-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 20px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.scad-date-badge.scad-ok       { background: #fef9c3; color: #92400e; }
+.scad-date-badge.scad-vicina   { background: #fed7aa; color: #9a3412; }
+.scad-date-badge.scad-urgente  { background: #fecaca; color: #991b1b; }
+.scad-date-badge.scad-scaduta  { background: #fca5a5; color: #7f1d1d; }
+.scad-nota {
+    font-size: 12px;
+    color: #475569;
+    line-height: 1.45;
+    word-break: break-word;
+}
+.scad-no-nota { opacity: 0.4; font-style: italic; }
+/* ---- FINE SCADENZE CARD ---- */
 .rc-tipo-domanda  { background: #dbeafe; color: #1d4ed8; }
 .rc-arch-badge {
     font-size: 10px;
