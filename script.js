@@ -3223,15 +3223,10 @@ async function rimuoviOperatore(idRiga, nOrd, nomeOperatore) {
         }).join('');
     }
 
-    // Chiama il backend
+    // Chiama il backend in background (il DOM è già aggiornato)
     const mittente = (utenteAttuale && utenteAttuale.nome) ? utenteAttuale.nome.toUpperCase().trim() : '';
     const url = `${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(restanti)}&id_riga=${idRiga}&mittente=${encodeURIComponent(mittente)}`;
-    try {
-        await fetch(url);
-        caricaDati(paginaAttuale).catch(() => {});
-    } catch(e) {
-        console.error('Errore rimozione operatore', e);
-    }
+    fetch(url).catch(e => console.error('Errore rimozione operatore', e));
 }
 
 /* ---- STATO DROPDOWN CUSTOM ---- */
