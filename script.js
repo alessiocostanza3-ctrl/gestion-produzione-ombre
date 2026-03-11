@@ -3165,12 +3165,13 @@ function generaCardArticolo(art, nOrd, cliente) {
     const codicePrincipale = art.codice && art.codice !== "false" ? art.codice : "Senza Codice";
 
     // Gestione visualizzazione operatori (trasforma la stringa in badge colorati)
+    const _buildBadgeOp = (nome, idRiga, nOrd) => {
+        const col = _getOpColor(nome);
+        const nomeSafe = nome.replace(/'/g, "\\'");
+        return `<span class="badge-operatore" style="background:${col};border-color:${col}">${nome}<button class="btn-rimuovi-op" onclick="rimuoviOperatore('${idRiga}','${nOrd}','${nomeSafe}')" title="Rimuovi operatore">&times;</button></span>`;
+    };
     const displayOperatori = (art.assegna && art.assegna !== "" && art.assegna !== "undefined")
-        ? art.assegna.split(',').map(op => {
-            const nome = op.trim();
-            const col  = _getOpColor(nome);
-            return `<span class="badge-operatore" style="background:${col};border-color:${col}">${nome}</span>`;
-          }).join('')
+        ? art.assegna.split(',').map(op => _buildBadgeOp(op.trim(), art.id_riga, nOrd)).join('')
         : `<span class="operatore-libero">Libero</span>`;
 
     return `
@@ -3192,12 +3193,47 @@ function generaCardArticolo(art, nOrd, cliente) {
         </div>
         <div>
             <span class="label-sm ${TW.label}">Operatore/i Assegnati</span>
-            <div class="visualizza-operatori">${displayOperatori}</div>
+            <div class="visualizza-operatori" data-id-riga="${art.id_riga}" data-assegna="${(art.assegna||'').replace(/"/g,'&quot;')}" data-nord="${nOrd}">${displayOperatori}</div>
         </div>
         <div class="order-info-col">
             <button class="btn-chiedi-assegna ${TW.btnPrimary}" onclick="apriModalAiuto('${art.id_riga}', '${codicePrincipale}', '${nOrd}', '${(cliente||'').replace(/'/g,"\\'")}')">\n                <i class="fa-regular fa-envelope"></i> Chiedi/Assegna\n            </button>\n        </div>
     </div>`;
 }
+/* ---- RIMOZIONE OPERATORE DALLA CARD ---- */
+async function rimuoviOperatore(idRiga, nOrd, nomeOperatore) {
+    const container = document.querySelector(`.visualizza-operatori[data-id-riga="${idRiga}"]`);
+    if (!container) return;
+
+    const assegnaCorrente = container.dataset.assegna || '';
+    const restanti = assegnaCorrente.split(',')
+        .map(o => o.trim())
+        .filter(o => o && o.toUpperCase() !== nomeOperatore.toUpperCase())
+        .join(',');
+
+    // Aggiorna subito il DOM (ottimistico)
+    container.dataset.assegna = restanti;
+    if (!restanti) {
+        container.innerHTML = `<span class="operatore-libero">Libero</span>`;
+    } else {
+        container.innerHTML = restanti.split(',').map(op => {
+            const nome = op.trim();
+            const col  = _getOpColor(nome);
+            const nomeSafe = nome.replace(/'/g, "\\'");
+            return `<span class="badge-operatore" style="background:${col};border-color:${col}">${nome}<button class="btn-rimuovi-op" onclick="rimuoviOperatore('${idRiga}','${nOrd}','${nomeSafe}')" title="Rimuovi operatore">&times;</button></span>`;
+        }).join('');
+    }
+
+    // Chiama il backend
+    const mittente = (utenteAttuale && utenteAttuale.nome) ? utenteAttuale.nome.toUpperCase().trim() : '';
+    const url = `${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(restanti)}&id_riga=${idRiga}&mittente=${encodeURIComponent(mittente)}`;
+    try {
+        await fetch(url);
+        caricaDati(paginaAttuale).catch(() => {});
+    } catch(e) {
+        console.error('Errore rimozione operatore', e);
+    }
+}
+
 /* ---- STATO DROPDOWN CUSTOM ---- */
 function toggleStatoDropdown(btn) {
     const dropdown = btn.closest('.stato-dropdown');
