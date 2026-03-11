@@ -3237,6 +3237,145 @@ h1 {
     align-items: center;
 }
 
+/* ---- OPERATORE DROPDOWN (stessa struttura del stato-dropdown) ---- */
+.op-dropdown {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+}
+.op-dropdown.op-dropdown-ord {
+    width: auto;
+    min-width: 130px;
+    max-width: 200px;
+}
+.op-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 7px 12px 7px 10px;
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 20px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #334155;
+    white-space: nowrap;
+    box-sizing: border-box;
+}
+.op-trigger:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+.op-trigger-ord {
+    padding: 6px 10px;
+    border-radius: 16px;
+    font-size: 10px;
+    background: rgba(255,255,255,0.12);
+    border-color: rgba(255,255,255,0.25);
+    color: #e2e8f0;
+}
+.op-trigger-ord:hover {
+    background: rgba(255,255,255,0.2);
+    border-color: rgba(255,255,255,0.4);
+    color: #fff;
+}
+.op-dropdown.open .op-trigger    { background: #f1f5f9; border-color: #94a3b8; }
+.op-dropdown.open .op-trigger-ord { background: rgba(255,255,255,0.22); border-color: rgba(255,255,255,0.5); color: #fff; }
+.op-icon { font-size: 11px; flex-shrink: 0; color: #64748b; }
+.op-trigger-ord .op-icon { color: #94a3b8; }
+.op-trigger-label { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; }
+.op-chevron { font-size: 9px; flex-shrink: 0; color: #94a3b8; transition: transform 0.2s ease; }
+.op-dropdown.open .op-chevron { transform: rotate(180deg); }
+.op-popup {
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 0;
+    min-width: 180px;
+    width: max-content;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
+    z-index: 9999;
+    padding: 5px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-4px);
+    transition: opacity 0.15s ease, transform 0.15s ease, visibility 0s linear 0.15s;
+    pointer-events: none;
+}
+.op-dropdown.open .op-popup {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    transition: opacity 0.15s ease, transform 0.15s ease, visibility 0s linear 0s;
+    pointer-events: auto;
+}
+.op-option {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 11px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #334155;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+}
+.op-option:hover    { background: #f1f5f9; }
+.op-option.is-selected { background: #f0fdf4; color: #166534; font-weight: 700; }
+.op-opt-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #94a3b8; flex-shrink: 0;
+    border: 2px solid rgba(255,255,255,0.85); box-sizing: content-box;
+}
+.op-check-icon { margin-left: auto; font-size: 10px; color: #166534; }
+
+/* Pulsante Assegnami per operatori */
+.btn-assegnami {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #1e40af;
+    color: #fff;
+    border: none;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 4px;
+    transition: background 0.2s;
+    white-space: nowrap;
+}
+.btn-assegnami:hover { background: #1d4ed8; }
+.btn-assegnami-ord {
+    padding: 5px 10px;
+    border-radius: 14px;
+    font-size: 11px;
+    gap: 4px;
+    background: rgba(30,64,175,0.85);
+    border: 1.5px solid rgba(255,255,255,0.25);
+    margin-top: 0;
+}
+.btn-assegnami-ord:hover { background: #1d4ed8; }
+/* ---- FINE OPERATORE DROPDOWN ---- */
+
 .badge-operatore {
     background: #242424;
     color: #ffffff;

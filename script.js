@@ -3132,11 +3132,37 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
             nOrdBadge = nOrd.length > 14 ? nOrd.substring(0, 14) + '…' : nOrd;
         }
 
+        // Zona operatori nell'header (solo ordini attivi)
+        let _opZoneOrd = '';
+        if (!isArchivio) {
+            if (_isUtenteEsente()) {
+                const _allAss = [...new Set(
+                    righe.flatMap(r => (r.assegna && r.assegna !== '' && r.assegna !== 'undefined')
+                        ? r.assegna.split(',').map(n => n.trim()).filter(Boolean) : [])
+                )];
+                const _lblOrd = _allAss.length ? _allAss.map(_normNome).join(', ') : 'Libero';
+                const _opOptsOrd = listaOperatori.map(op => {
+                    const _sel = _allAss.some(a => a.toUpperCase() === op.nome.trim().toUpperCase());
+                    const _col = _getOpColor(op.nome.trim());
+                    const _ns  = op.nome.trim().replace(/'/g, "\\'");
+                    const _nOrdS = nOrd.replace(/'/g, "\\'");
+                    return `<button type="button" class="op-option${_sel ? ' is-selected' : ''}" onclick="selezionaOpAssegnaOrdine(this,'${_nOrdS}','${_ns}')"><span class="op-opt-dot" style="background:${_col}"></span><span>${_normNome(op.nome)}</span>${_sel ? '<i class="fas fa-check op-check-icon"></i>' : ''}</button>`;
+                }).join('');
+                _opZoneOrd = `<div class="op-dropdown op-dropdown-ord" data-nord="${nOrd}" data-assegna-ord="${_allAss.join(',').replace(/"/g,'&quot;')}"><button type="button" class="op-trigger op-trigger-ord" onclick="event.stopPropagation(); toggleOpDropdown(this)"><i class="fas fa-user-tag op-icon"></i><span class="op-trigger-label">${_lblOrd}</span><i class="fas fa-chevron-down op-chevron"></i></button><div class="op-popup">${_opOptsOrd}</div></div>`;
+            } else {
+                const _mioN = (utenteAttuale?.nome || '').toUpperCase().trim();
+                const _giaSonoOrd = righe.some(r => r.assegna && r.assegna.split(',').some(n => n.trim().toUpperCase() === _mioN));
+                if (!_giaSonoOrd) {
+                    const _nOrdS = nOrd.replace(/'/g, "\\'");
+                    _opZoneOrd = `<button class="btn-assegnami btn-assegnami-ord" onclick="event.stopPropagation(); autoAssegnamiOrdine('${_nOrdS}')" title="Assegnami a tutto l'ordine"><i class="fas fa-user-plus"></i></button>`;
+                }
+            }
+        }
         const bottoniHeader = isArchivio
             ? `<button class="btn-ripristina ${TW.btnWarning}" onclick="event.stopPropagation(); gestisciRipristino('${nOrd}', 'ORDINE')">
                    <i class="fa-solid fa-rotate-left"></i> <span class="btn-txt">Ripristina</span>
                </button>`
-            : `<button class="btn-chiedi-assegna ${TW.btnPrimary}" onclick="event.stopPropagation(); apriModalAiuto('${righe[0].id_riga}', 'INTERO ORDINE', '${nOrd}', '${(cliente||'').replace(/'/g,"\\'")}')">\n                   <i class="fa-regular fa-envelope"></i> <span class="btn-txt">Chiedi</span>\n               </button>
+            : `${_opZoneOrd}<button class="btn-chiedi-assegna ${TW.btnPrimary}" onclick="event.stopPropagation(); apriModalAiuto('${righe[0].id_riga}', 'INTERO ORDINE', '${nOrd}', '${(cliente||'').replace(/'/g,"\\'")}')">\n                   <i class="fa-regular fa-envelope"></i> <span class="btn-txt">Chiedi</span>\n               </button>
                <button class="btn-archivia-prod ${TW.btnSuccess}" onclick="event.stopPropagation(); gestisciArchiviazione('${nOrd}')">
                    <i class="fa-solid fa-box-archive"></i> <span class="btn-txt">Archivia</span>
                </button>`;
@@ -3164,15 +3190,30 @@ function generaCardArticolo(art, nOrd, cliente) {
     const configStato = listaStati.find(s => s.nome === statoAttuale) || {colore: "#e2e8f0"};
     const codicePrincipale = art.codice && art.codice !== "false" ? art.codice : "Senza Codice";
 
-    // Gestione visualizzazione operatori (trasforma la stringa in badge colorati)
-    const _buildBadgeOp = (nome, idRiga, nOrd) => {
-        const col = _getOpColor(nome);
-        const nomeSafe = nome.replace(/'/g, "\\'");
-        return `<span class="badge-operatore" style="background:${col};border-color:${col}">${nome}<button class="btn-rimuovi-op" onclick="rimuoviOperatore('${idRiga}','${nOrd}','${nomeSafe}')" title="Rimuovi operatore">&times;</button></span>`;
-    };
-    const displayOperatori = (art.assegna && art.assegna !== "" && art.assegna !== "undefined")
-        ? art.assegna.split(',').map(op => _buildBadgeOp(op.trim(), art.id_riga, nOrd)).join('')
-        : `<span class="operatore-libero">Libero</span>`;
+    // Zona operatori: dropdown completo per MASTER, badge+Assegnami per operatori
+    const _assegnatiCard = (art.assegna && art.assegna !== '' && art.assegna !== 'undefined')
+        ? art.assegna.split(',').map(n => n.trim()).filter(Boolean) : [];
+    let opZoneCard;
+    if (_isUtenteEsente()) {
+        const _lbl = _assegnatiCard.length ? _assegnatiCard.map(_normNome).join(', ') : 'Libero';
+        const _opts = listaOperatori.map(op => {
+            const _sel = _assegnatiCard.some(a => a.toUpperCase() === op.nome.trim().toUpperCase());
+            const _col = _getOpColor(op.nome.trim());
+            const _ns  = op.nome.trim().replace(/'/g, "\\'");
+            return `<button type="button" class="op-option${_sel ? ' is-selected' : ''}" onclick="selezionaOpAssegna(this,'${art.id_riga}','${nOrd}','${_ns}')"><span class="op-opt-dot" style="background:${_col}"></span><span>${_normNome(op.nome)}</span>${_sel ? '<i class="fas fa-check op-check-icon"></i>' : ''}</button>`;
+        }).join('');
+        opZoneCard = `<div class="op-dropdown" data-id-riga="${art.id_riga}" data-assegna="${(art.assegna||'').replace(/"/g,'&quot;')}" data-nord="${nOrd}"><button type="button" class="op-trigger" onclick="toggleOpDropdown(this)"><i class="fas fa-user-tag op-icon"></i><span class="op-trigger-label">${_lbl}</span><i class="fas fa-chevron-down op-chevron"></i></button><div class="op-popup">${_opts}</div></div>`;
+    } else {
+        const _mio = (utenteAttuale?.nome || '').toUpperCase().trim();
+        const _bdg = _assegnatiCard.map(n => {
+            const _col = _getOpColor(n); const _ns = n.replace(/'/g, "\\'");
+            const _xBtn = n.toUpperCase() === _mio ? `<button class="btn-rimuovi-op" onclick="rimuoviOperatore('${art.id_riga}','${nOrd}','${_ns}')" title="Rimuovi assegnazione">&times;</button>` : '';
+            return `<span class="badge-operatore" style="background:${_col};border-color:${_col}">${n}${_xBtn}</span>`;
+        }).join('');
+        const _giaIo = _assegnatiCard.some(n => n.toUpperCase() === _mio);
+        const _btnIo = !_giaIo ? `<button class="btn-assegnami" onclick="autoAssegnami('${art.id_riga}','${nOrd}',this)"><i class="fas fa-user-plus"></i> Assegnami</button>` : '';
+        opZoneCard = `<div class="visualizza-operatori" data-id-riga="${art.id_riga}" data-assegna="${(art.assegna||'').replace(/"/g,'&quot;')}" data-nord="${nOrd}">${_bdg || '<span class="operatore-libero">Libero</span>'}${_btnIo}</div>`;
+    }
 
     return `
     <div class="item-card ${TW.card}">
@@ -3193,10 +3234,10 @@ function generaCardArticolo(art, nOrd, cliente) {
         </div>
         <div>
             <span class="label-sm ${TW.label}">Operatore/i Assegnati</span>
-            <div class="visualizza-operatori" data-id-riga="${art.id_riga}" data-assegna="${(art.assegna||'').replace(/"/g,'&quot;')}" data-nord="${nOrd}">${displayOperatori}</div>
+            ${opZoneCard}
         </div>
         <div class="order-info-col">
-            <button class="btn-chiedi-assegna ${TW.btnPrimary}" onclick="apriModalAiuto('${art.id_riga}', '${codicePrincipale}', '${nOrd}', '${(cliente||'').replace(/'/g,"\\'")}')">\n                <i class="fa-regular fa-envelope"></i> Chiedi/Assegna\n            </button>\n        </div>
+            <button class="btn-chiedi-assegna ${TW.btnPrimary}" onclick="apriModalAiuto('${art.id_riga}', '${codicePrincipale}', '${nOrd}', '${(cliente||'').replace(/'/g,"\\'")}')">\n                <i class="fa-regular fa-envelope"></i> Chiedi\n            </button>\n        </div>
     </div>`;
 }
 /* ---- RIMOZIONE OPERATORE DALLA CARD ---- */
@@ -3215,11 +3256,13 @@ async function rimuoviOperatore(idRiga, nOrd, nomeOperatore) {
     if (!restanti) {
         container.innerHTML = `<span class="operatore-libero">Libero</span>`;
     } else {
+        const _mioR = (utenteAttuale?.nome || '').toUpperCase().trim();
         container.innerHTML = restanti.split(',').map(op => {
             const nome = op.trim();
             const col  = _getOpColor(nome);
             const nomeSafe = nome.replace(/'/g, "\\'");
-            return `<span class="badge-operatore" style="background:${col};border-color:${col}">${nome}<button class="btn-rimuovi-op" onclick="rimuoviOperatore('${idRiga}','${nOrd}','${nomeSafe}')" title="Rimuovi operatore">&times;</button></span>`;
+            const xBtn = nome.toUpperCase() === _mioR ? `<button class="btn-rimuovi-op" onclick="rimuoviOperatore('${idRiga}','${nOrd}','${nomeSafe}')" title="Rimuovi assegnazione">&times;</button>` : '';
+            return `<span class="badge-operatore" style="background:${col};border-color:${col}">${nome}${xBtn}</span>`;
         }).join('');
     }
 
@@ -3228,6 +3271,149 @@ async function rimuoviOperatore(idRiga, nOrd, nomeOperatore) {
     const url = `${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(restanti)}&id_riga=${idRiga}&mittente=${encodeURIComponent(mittente)}`;
     fetch(url).catch(e => console.error('Errore rimozione operatore', e));
 }
+
+/* ---- OPERATORE DROPDOWN ---- */
+function toggleOpDropdown(btn) {
+    const dropdown = btn.closest('.op-dropdown');
+    const isOpen = dropdown.classList.contains('open');
+    // chiudi tutti gli altri
+    document.querySelectorAll('.op-dropdown.open').forEach(d => d.classList.remove('open'));
+    if (!isOpen) dropdown.classList.add('open');
+}
+
+// MASTER: toggle un operatore su una singola riga articolo
+function selezionaOpAssegna(optBtn, idRiga, nOrd, nomeOp) {
+    const dropdown = optBtn.closest('.op-dropdown');
+    const assegnaCorrente = dropdown.dataset.assegna || '';
+    const correnti = assegnaCorrente.split(',').map(n => n.trim()).filter(Boolean);
+    const idx = correnti.findIndex(n => n.toUpperCase() === nomeOp.toUpperCase());
+    if (idx >= 0) correnti.splice(idx, 1); else correnti.push(nomeOp);
+    const nuovaAssegna = correnti.join(',');
+
+    // aggiorna DOM del dropdown
+    dropdown.dataset.assegna = nuovaAssegna;
+    const lbl = correnti.length ? correnti.map(_normNome).join(', ') : 'Libero';
+    dropdown.querySelector('.op-trigger-label').textContent = lbl;
+    optBtn.classList.toggle('is-selected', idx < 0);
+    let check = optBtn.querySelector('.op-check-icon');
+    if (idx < 0) {
+        if (!check) { check = document.createElement('i'); check.className = 'fas fa-check op-check-icon'; optBtn.appendChild(check); }
+    } else {
+        if (check) check.remove();
+    }
+
+    // backend
+    const mitt = (utenteAttuale?.nome || '').toUpperCase().trim();
+    fetch(`${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(nuovaAssegna)}&id_riga=${idRiga}&mittente=${encodeURIComponent(mitt)}`).catch(() => {});
+}
+
+// MASTER: toggle un operatore su TUTTE le righe di un ordine
+function selezionaOpAssegnaOrdine(optBtn, nOrd, nomeOp) {
+    const dropdown = optBtn.closest('.op-dropdown');
+    const assegnaCorrente = dropdown.dataset.assegnaOrd || '';
+    const correnti = assegnaCorrente.split(',').map(n => n.trim()).filter(Boolean);
+    const idx = correnti.findIndex(n => n.toUpperCase() === nomeOp.toUpperCase());
+    if (idx >= 0) correnti.splice(idx, 1); else correnti.push(nomeOp);
+    const nuovaAssegna = correnti.join(',');
+
+    // aggiorna DOM header
+    dropdown.dataset.assegnaOrd = nuovaAssegna;
+    const lbl = correnti.length ? correnti.map(_normNome).join(', ') : 'Libero';
+    dropdown.querySelector('.op-trigger-label').textContent = lbl;
+    optBtn.classList.toggle('is-selected', idx < 0);
+    let check = optBtn.querySelector('.op-check-icon');
+    if (idx < 0) {
+        if (!check) { check = document.createElement('i'); check.className = 'fas fa-check op-check-icon'; optBtn.appendChild(check); }
+    } else {
+        if (check) check.remove();
+    }
+
+    // aggiorna anche i dropdown delle singole card dentro questo ordine
+    const wrapper = dropdown.closest('.ordine-wrapper');
+    if (wrapper) {
+        wrapper.querySelectorAll('.op-dropdown[data-id-riga]').forEach(d => {
+            const curr = (d.dataset.assegna || '').split(',').map(n => n.trim()).filter(Boolean);
+            const i2 = curr.findIndex(n => n.toUpperCase() === nomeOp.toUpperCase());
+            if (idx >= 0 && i2 >= 0) curr.splice(i2, 1);
+            else if (idx < 0 && i2 < 0)  curr.push(nomeOp);
+            d.dataset.assegna = curr.join(',');
+            const l2 = curr.length ? curr.map(_normNome).join(', ') : 'Libero';
+            const lbl2 = d.querySelector('.op-trigger-label'); if (lbl2) lbl2.textContent = l2;
+            // aggiorna is-selected nelle opzioni
+            d.querySelectorAll('.op-option').forEach(o => {
+                const nn = o.querySelector('span:not(.op-opt-dot)')?.textContent.trim() || '';
+                const isNow = curr.some(c => _normNome(c) === nn);
+                o.classList.toggle('is-selected', isNow);
+                let ck = o.querySelector('.op-check-icon');
+                if (isNow && !ck) { ck = document.createElement('i'); ck.className='fas fa-check op-check-icon'; o.appendChild(ck); }
+                else if (!isNow && ck) ck.remove();
+            });
+        });
+    }
+
+    // backend — senza id_riga → aggiorna tutte le righe dell'ordine
+    const mitt = (utenteAttuale?.nome || '').toUpperCase().trim();
+    fetch(`${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(nuovaAssegna)}&mittente=${encodeURIComponent(mitt)}`).catch(() => {});
+}
+
+// OPERATORE: si autoassegna a una singola riga
+function autoAssegnami(idRiga, nOrd, btnEl) {
+    const mio = (utenteAttuale?.nome || '').trim();
+    if (!mio) return;
+    const container = document.querySelector(`.visualizza-operatori[data-id-riga="${idRiga}"]`);
+    if (!container) return;
+    const correnti = (container.dataset.assegna || '').split(',').map(n => n.trim()).filter(Boolean);
+    if (correnti.some(n => n.toUpperCase() === mio.toUpperCase())) return;
+    correnti.push(mio);
+    const nuova = correnti.join(',');
+    container.dataset.assegna = nuova;
+    // ridisegna badge (× solo per sé)
+    const _mioUp = mio.toUpperCase();
+    container.innerHTML = correnti.map(n => {
+        const col = _getOpColor(n); const ns = n.replace(/'/g, "\\'");
+        const xBtn = n.toUpperCase() === _mioUp ? `<button class="btn-rimuovi-op" onclick="rimuoviOperatore('${idRiga}','${nOrd}','${ns}')" title="Rimuovi assegnazione">&times;</button>` : '';
+        return `<span class="badge-operatore" style="background:${col};border-color:${col}">${n}${xBtn}</span>`;
+    }).join('');
+    // rimuovi pulsante Assegnami
+    if (btnEl && btnEl.parentNode) btnEl.remove();
+    // backend
+    const mitt = mio.toUpperCase().trim();
+    fetch(`${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(nuova)}&id_riga=${idRiga}&mittente=${encodeURIComponent(mitt)}`).catch(() => {});
+}
+
+// OPERATORE: si autoassegna a TUTTE le righe di un ordine
+function autoAssegnamiOrdine(nOrd) {
+    const mio = (utenteAttuale?.nome || '').trim();
+    if (!mio) return;
+    const mitt = mio.toUpperCase().trim();
+    const wrapper = document.querySelector(`.ordine-wrapper[data-ordine="${nOrd}"]`);
+    if (wrapper) {
+        wrapper.querySelectorAll('.visualizza-operatori[data-id-riga]').forEach(cont => {
+            const curr = (cont.dataset.assegna || '').split(',').map(n => n.trim()).filter(Boolean);
+            if (curr.some(n => n.toUpperCase() === mitt)) return;
+            curr.push(mio);
+            cont.dataset.assegna = curr.join(',');
+            const _mioUp = mio.toUpperCase();
+            cont.innerHTML = curr.map(n => {
+                const col = _getOpColor(n); const idR = cont.dataset.idRiga; const ns = n.replace(/'/g,"\\'");
+                const xBtn = n.toUpperCase() === _mioUp ? `<button class="btn-rimuovi-op" onclick="rimuoviOperatore('${idR}','${nOrd}','${ns}')" title="Rimuovi assegnazione">&times;</button>` : '';
+                return `<span class="badge-operatore" style="background:${col};border-color:${col}">${n}${xBtn}</span>`;
+            }).join('');
+        });
+        // rimuovi pulsante Assegnami header
+        const btnOrd = wrapper.querySelector('.btn-assegnami-ord');
+        if (btnOrd) btnOrd.remove();
+    }
+    fetch(`${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(mio)}&mittente=${encodeURIComponent(mitt)}`).catch(() => {});
+}
+
+// chiudi op-dropdown cliccando fuori
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.op-dropdown')) {
+        document.querySelectorAll('.op-dropdown.open').forEach(d => d.classList.remove('open'));
+    }
+}, true);
+/* ---- FINE OPERATORE DROPDOWN ---- */
 
 /* ---- STATO DROPDOWN CUSTOM ---- */
 function toggleStatoDropdown(btn) {
@@ -3379,9 +3565,9 @@ function apriModalAiuto(idRiga, riferimento, nOrdine, cliente) {
     const ordineRow = document.getElementById('modal-ordine-row');
     if (ordineRow) ordineRow.style.display = 'none';
 
-    // Reset del campo testo e partiamo sempre da ASSEGNAZIONE
+    // Reset del campo testo — modal sempre in modalità DOMANDA
     document.getElementById('messaggio-aiuto').value = "";
-    setTipoAzione('Assegnazione');
+    setTipoAzione('DOMANDA');
 }
 
 // Apri modal per creare una nuova richiesta libera (da bottom nav "+")
@@ -3403,7 +3589,7 @@ function apriNuovaRichiesta() {
     modal.dataset.idRiga = '';
     modal.dataset.nOrdine = '';
     document.getElementById('messaggio-aiuto').value = '';
-    setTipoAzione('Assegnazione');
+    setTipoAzione('DOMANDA');
     // Mostra il campo numero ordine con autocomplete
     const ordineRow = document.getElementById('modal-ordine-row');
     if (ordineRow) {

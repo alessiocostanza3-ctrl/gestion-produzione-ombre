@@ -2,19 +2,19 @@
    Service Worker PROD — notifiche push VAPID native
    Nessun servizio di terze parti richiesto.
    Aggiornato: 2026-03-02
-   v12: bump cache v93 - rimozione operatore senza reload pagina
+   v13: bump cache v94 - dropdown assegnazione per MASTER, Assegnami per operatori
    ============================================================ */
 'use strict';
 
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbyVMV9MkGiqphN0AKXJdHXF0Arp1vxTYrCYi1SGv_4MKLRJkx--5HoGq7mmQX-p0ZTZ/exec';
 var APP_URL = 'https://alessiocostanza3-ctrl.github.io/gestion-produzione-ombre/';
 
-var SHELL_CACHE = 'prod-shell-v32';
+var SHELL_CACHE = 'prod-shell-v33';
 var SHELL_ASSETS = [
     APP_URL,
     APP_URL + 'index.html',
-    APP_URL + 'style.css?v=20260311c',
-    APP_URL + 'script.js?v=20260311i',
+    APP_URL + 'style.css?v=20260311d',
+    APP_URL + 'script.js?v=20260311j',
     APP_URL + 'manifest.json'
 ];
 
