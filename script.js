@@ -3207,8 +3207,12 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
                </button>`
             : `${_opZoneOrd}<button class="btn-chiedi-assegna ${TW.btnPrimary}" onclick="event.stopPropagation(); apriModalAiuto('${righe[0].id_riga}', 'INTERO ORDINE', '${nOrd}', '${(cliente||'').replace(/'/g,"\\'")}')">\n                   <i class="fa-regular fa-envelope"></i> <span class="btn-txt">Chiedi</span>\n               </button>
                ${_isCommerciale()
-                   ? `<button class="btn-sollecita" onclick="event.stopPropagation(); apriModalSollecito('','${nOrd.replace(/'/g,"\\'")  }','${(cliente||'').replace(/'/g,"\\'")  }','Intero Ordine')"><i class="fa-solid fa-clock"></i> <span class="btn-txt">Sollecita</span></button>`
-                   : `<button class="btn-archivia-prod ${TW.btnSuccess}" onclick="event.stopPropagation(); gestisciArchiviazione('${nOrd}')">
+                   ? `<button class="btn-sollecita" onclick="event.stopPropagation(); apriModalSollecito('','${nOrd.replace(/'/g,"\\'")  }','${(cliente||'').replace(/'/g,"\\'")  }','Intero Ordine')"><i class="fa-solid fa-calendar-alt"></i> <span class="btn-txt">Scadenza</span></button>`
+                   : _isUtenteEsente()
+                       ? `<button class="btn-archivia-prod ${TW.btnSuccess}" onclick="event.stopPropagation(); gestisciArchiviazione('${nOrd}')">
+                   <i class="fa-solid fa-box-archive"></i> <span class="btn-txt">Archivia</span>
+               </button><button class="btn-sollecita" onclick="event.stopPropagation(); apriModalSollecito('','${nOrd.replace(/'/g,"\\'")  }','${(cliente||'').replace(/'/g,"\\'")  }','Intero Ordine')"><i class="fa-solid fa-calendar-alt"></i> <span class="btn-txt">Scadenza</span></button>`
+                       : `<button class="btn-archivia-prod ${TW.btnSuccess}" onclick="event.stopPropagation(); gestisciArchiviazione('${nOrd}')">
                    <i class="fa-solid fa-box-archive"></i> <span class="btn-txt">Archivia</span>
                </button>`
                }`;
@@ -3248,7 +3252,7 @@ function generaCardArticolo(art, nOrd, cliente) {
             const _ns  = op.nome.trim().replace(/'/g, "\\'");
             return `<button type="button" class="op-option${_sel ? ' is-selected' : ''}" onclick="selezionaOpAssegna(this,'${art.id_riga}','${nOrd}','${_ns}')"><span class="op-opt-dot" style="background:${_col}"></span><span>${_normNome(op.nome)}</span>${_sel ? '<i class="fas fa-check op-check-icon"></i>' : ''}</button>`;
         }).join('');
-        opZoneCard = `<div class="op-dropdown" data-id-riga="${art.id_riga}" data-assegna="${(art.assegna||'').replace(/"/g,'&quot;')}" data-nord="${nOrd}"><button type="button" class="op-trigger" onclick="toggleOpDropdown(this)"><i class="fas fa-user-tag op-icon"></i><span class="op-trigger-label">${_lbl}</span><i class="fas fa-chevron-down op-chevron"></i></button><div class="op-popup">${_opts}</div></div>`;
+        opZoneCard = `<div class="op-dropdown" data-id-riga="${art.id_riga}" data-assegna="${(art.assegna||'').replace(/"/g,'&quot;')}" data-nord="${nOrd}"><button type="button" class="op-trigger" onclick="toggleOpDropdown(this)"><i class="fas fa-user-tag op-icon"></i><span class="op-trigger-label">${_lbl}</span><i class="fas fa-chevron-down op-chevron"></i></button><div class="op-popup">${_opts}</div></div>${!_assegnatiCard.some(n => n.toUpperCase() === (utenteAttuale?.nome||'').toUpperCase().trim()) ? `<button class="btn-assegnami" onclick="autoAssegnami('${art.id_riga}','${nOrd}',this)" title="Assegnami"><i class="fas fa-user-plus"></i></button>` : ''}`;
     } else {
         const _mio = (utenteAttuale?.nome || '').toUpperCase().trim();
         const _bdg = _assegnatiCard.map(n => {
@@ -3283,7 +3287,7 @@ function generaCardArticolo(art, nOrd, cliente) {
             ${opZoneCard}
         </div>
         <div class="order-info-col">
-            <button class="btn-chiedi-assegna ${TW.btnPrimary}" onclick="apriModalAiuto('${art.id_riga}', '${codicePrincipale}', '${nOrd}', '${(cliente||'').replace(/'/g,"\\'")}')">\n                <i class="fa-regular fa-envelope"></i> Chiedi\n            </button>\n            ${_isCommerciale() ? `<button class="btn-sollecita" onclick="apriModalSollecito('${art.id_riga}','${nOrd}','${(cliente||'').replace(/'/g,"\\'")  }','${codicePrincipale.replace(/'/g,"\\'")  }')"><i class="fa-solid fa-clock"></i> Sollecita</button>` : ''}\n        </div>
+            <button class="btn-chiedi-assegna ${TW.btnPrimary}" onclick="apriModalAiuto('${art.id_riga}', '${codicePrincipale}', '${nOrd}', '${(cliente||'').replace(/'/g,"\\'")}')">\n                <i class="fa-regular fa-envelope"></i> Chiedi\n            </button>\n            ${(_isCommerciale() || _isUtenteEsente()) ? `<button class="btn-sollecita" onclick="apriModalSollecito('${art.id_riga}','${nOrd}','${(cliente||'').replace(/'/g,"\\'")  }','${codicePrincipale.replace(/'/g,"\\'")  }')"><i class="fa-solid fa-calendar-alt"></i> Scadenza</button>` : ''}\n        </div>
     </div>`;
 }
 /* ---- MODAL SOLLECITO (COMMERCIALE) ---- */
