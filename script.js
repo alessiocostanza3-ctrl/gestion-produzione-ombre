@@ -4953,16 +4953,15 @@ function cambiaVistaUtente(valoreSelezionato) {
     // Ricarichiamo la pagina per aggiornare bolle e filtri
     caricaPaginaRichieste();
 }
-async function aggiornaRichiesta(idRiga, tipoAzione) {
+async function aggiornaRichiesta(idRiga, tipoAzione, tuttiIds) {
     try {
-        await fetch(URL_GOOGLE, {
-            method: 'POST',
-            body: JSON.stringify({
-                azione: 'aggiorna_richiesta_stato',
-                id_riga: idRiga,
-                tipo: tipoAzione
-            })
-        });
+        const body = { azione: 'aggiorna_richiesta_stato', tipo: tipoAzione };
+        if (tipoAzione === 'risolto' && tuttiIds && tuttiIds.length > 1) {
+            body.id_righe = tuttiIds;
+        } else {
+            body.id_riga = idRiga;
+        }
+        await fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify(body) });
         delete cacheContenuti['STORICO_RICHIESTE'];
         delete cacheFetchTime['STORICO_RICHIESTE'];
         _lsCacheDel('_html_STORICO_RICHIESTE');
@@ -4972,8 +4971,8 @@ async function aggiornaRichiesta(idRiga, tipoAzione) {
 function _sollecitaConferma(idRiga) {
     mostraConferma('Sollecita Richiesta', 'Inviare un sollecito per questa richiesta?', () => sollecitaRichiesta(idRiga), 'Sollecita');
 }
-function _archiviaConferma(idRiga) {
-    mostraConferma('Archivia Richiesta', 'Archiviare definitivamente questa discussione?', () => aggiornaRichiesta(idRiga, 'risolto'), 'Archivia');
+function _archiviaConferma(idRiga, tuttiIds) {
+    mostraConferma('Archivia Richiesta', 'Archiviare definitivamente questa discussione?', () => aggiornaRichiesta(idRiga, 'risolto', tuttiIds), 'Archivia');
 }
 
 // ── Chiudi box risposta/conferma toccando fuori dalla card (mobile) ──
@@ -5064,6 +5063,8 @@ function generaCardRichiesta(msgs, io, isArchiviata) {
 
     // Icona tipo — usa il tipo del PRIMO messaggio, non delle risposte
     const tipoRaw = (primo.TIPO || 'MSG').toUpperCase();
+    // Array di tutti gli id_riga del thread (per archiviazione bulk)
+    const tuttiIds = msgs.map(m => m.id_riga).join(',');
     const isAssegnazione = tipoRaw === 'ASSEGNAZIONE';
     const tipoIconaHtml = isAssegnazione
         ? `<span class="rc-tipo rc-tipo-assegna" title="Assegnazione"><i class="fas fa-arrow-right"></i></span>`
@@ -5123,7 +5124,7 @@ function generaCardRichiesta(msgs, io, isArchiviata) {
                     <div class="box-message">Archiviare definitivamente questa discussione?</div>
                     <div class="box-actions">
                         <button onclick="toggleBoxArchivia('${ultimo.id_riga}')" class="btn-cancel button-small">Annulla</button>
-                        <button onclick="aggiornaRichiesta('${ultimo.id_riga}', 'risolto')" class="btn-archive-action button-small">Sì, Archivia</button>
+                        <button onclick="aggiornaRichiesta('${ultimo.id_riga}', 'risolto', [${tuttiIds}])" class="btn-archive-action button-small">Sì, Archivia</button>
                     </div>
                 </div>
 
@@ -5142,7 +5143,7 @@ function generaCardRichiesta(msgs, io, isArchiviata) {
                 <div class="rc-actions">
                     <button onclick="toggleAreaRisposta('${ultimo.id_riga}')" class="rc-btn rc-btn-reply" title="Rispondi"><i class="fa-regular fa-comment"></i></button>
                     <button onclick="_sollecitaConferma('${ultimo.id_riga}')" class="rc-btn rc-btn-sol" title="Sollecita"><i class="fa-solid fa-bullhorn"></i></button>
-                    <button onclick="_archiviaConferma('${ultimo.id_riga}')" class="rc-btn rc-btn-arch" title="Archivia"><i class="fa-solid fa-box-archive"></i></button>
+                    <button onclick="_archiviaConferma('${ultimo.id_riga}', [${tuttiIds}])" class="rc-btn rc-btn-arch" title="Archivia"><i class="fa-solid fa-box-archive"></i></button>
                 </div>
             ` : ''}
         </div>`;
