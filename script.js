@@ -4300,7 +4300,7 @@ function _buildCaricoOperatoriHtml(attivi) {
     }).join('');
 
     const card1 = `<details class="ov-stato-card" open style="grid-column:4;grid-row:1">
-        <summary class="ov-stato-header" style="--ov-col:#242424">
+        <summary class="ov-stato-header" style="--ov-col:#242424" onclick="if(window.innerWidth>600){event.preventDefault();return false;}">
             <span class="ov-stato-dot" style="background:#242424"></span>
             <span class="ov-stato-nome">Operatori</span>
             <span class="ov-stato-tot" style="background:#24242422;color:#475569">${OPS_PROD.length} op.</span>
@@ -4310,7 +4310,7 @@ function _buildCaricoOperatoriHtml(attivi) {
     </details>`;
 
     const card2 = `<details class="ov-stato-card" open style="grid-column:4;grid-row:2">
-        <summary class="ov-stato-header" style="--ov-col:#f59e0b">
+        <summary class="ov-stato-header" style="--ov-col:#f59e0b" onclick="if(window.innerWidth>600){event.preventDefault();return false;}">
             <span class="ov-stato-dot" style="background:#f59e0b"></span>
             <span class="ov-stato-nome">Carico operatori</span>
             <span class="ov-stato-tot" style="background:#f59e0b33;color:#f59e0b">${OPS_PROD.length} tot.</span>
