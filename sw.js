@@ -9,12 +9,12 @@
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbyVMV9MkGiqphN0AKXJdHXF0Arp1vxTYrCYi1SGv_4MKLRJkx--5HoGq7mmQX-p0ZTZ/exec';
 var APP_URL = 'https://alessiocostanza3-ctrl.github.io/gestion-produzione-ombre/';
 
-var SHELL_CACHE = 'prod-shell-v48';
+var SHELL_CACHE = 'prod-shell-v49';
 var SHELL_ASSETS = [
     APP_URL,
     APP_URL + 'index.html',
-    APP_URL + 'style.css?v=20260312o',
-    APP_URL + 'script.js?v=20260312o',
+    APP_URL + 'style.css?v=20260312p',
+    APP_URL + 'script.js?v=20260312p',
     APP_URL + 'manifest.json'
 ];
 
@@ -148,11 +148,9 @@ function _showNotif_(titolo, corpo, username) {
 }
 
 function _deveMostrareNotificaVisibile_(username, titolo) {
-    var uname = String(username || '').toUpperCase().trim();
-    if (!uname) return true;
-    if (uname === 'ALESSIO' || uname === '0000' || uname === 'MASTER') return true;
-    if (_isRiepilogoNotifiche_(titolo) && _isOrarioRiepilogoNotifiche_()) return true;
-    return false;
+    // GAS filtra già l'orario lavorativo prima di mandare il ping push.
+    // Qui mostriamo sempre la notifica: se il push è arrivato, va mostrato.
+    return true;
 }
 
 function _isRiepilogoNotifiche_(titolo) {
