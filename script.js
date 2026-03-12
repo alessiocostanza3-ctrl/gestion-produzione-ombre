@@ -3254,7 +3254,7 @@ function generaCardArticolo(art, nOrd, cliente) {
         const _bdg = _assegnatiCard.map(n => {
             const _col = _getOpColor(n); const _ns = n.replace(/'/g, "\\'");
             const _xBtn = n.toUpperCase() === _mio ? `<button class="btn-rimuovi-op" onclick="rimuoviOperatore('${art.id_riga}','${nOrd}','${_ns}')" title="Rimuovi assegnazione">&times;</button>` : '';
-            return `<span class="badge-operatore" style="background:${_col};border-color:${_col}">${n}${_xBtn}</span>`;
+            return `<span class="badge-operatore" data-nome="${n}" style="background:${_col};border-color:${_col}">${n}${_xBtn}</span>`;
         }).join('');
         const _giaIo = _assegnatiCard.some(n => n.toUpperCase() === _mio);
         const _btnIo = !_giaIo ? `<button class="btn-assegnami" onclick="autoAssegnami('${art.id_riga}','${nOrd}',this)"><i class="fas fa-user-plus"></i> Assegnami</button>` : '';
@@ -3638,9 +3638,67 @@ async function _pollProdStep() {
         if (!resp.ok) return;
         const bundle = await resp.json();
         if (!bundle || !bundle.produzione) return;
+        if (bundle.avatarColors) _syncAvatarColors(bundle.avatarColors);
         const newAttivi = (bundle.produzione || []).filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE');
         _patchProduzione(newAttivi, bundle.produzione, bundle.archivio || []);
     } catch (_) { /* errore di rete silenzioso */ }
+}
+
+/** Aggiorna i colori avatar ricevuti dal server; ri-vernicia i badge visibili se qualcosa è cambiato */
+function _syncAvatarColors(serverMap) {
+    if (!serverMap || typeof serverMap !== 'object') return;
+    let changed = false;
+    Object.entries(serverMap).forEach(([nome, colore]) => {
+        if (!colore) return;
+        const k = nome.toUpperCase().trim();
+        if (_avatarColorsCache[k] !== colore) {
+            _avatarColorsCache[k] = colore;
+            try { localStorage.setItem('avatarColor_' + k, colore); } catch {}
+            changed = true;
+        }
+    });
+    if (!changed) return;
+    // Ri-applica il colore del proprio avatar
+    if (utenteAttuale?.nome) {
+        const mio = serverMap[utenteAttuale.nome.toUpperCase().trim()];
+        if (mio) _applyAvatarColorUI(mio);
+    }
+    // Aggiorna tutti i badge visibili nella pagina
+    _repaintOpColors();
+}
+
+/** Ri-vernicia i badge operatore già nel DOM senza fare un re-render completo */
+function _repaintOpColors() {
+    const cont = document.getElementById('contenitore-dati');
+    if (!cont) return;
+    // 1. Badge inline nelle item-card (hanno data-nome)
+    cont.querySelectorAll('.badge-operatore[data-nome]').forEach(el => {
+        const col = _getOpColor(el.dataset.nome);
+        el.style.background = col;
+        el.style.borderColor = col;
+    });
+    // 2. Re-render delle card Operatori e Carico operatori (usano _getOpColor internamente)
+    if (_attiviProd && _attiviProd.length) {
+        const newHtml = _buildCaricoOperatoriHtml(_attiviProd);
+        const cards = cont.querySelectorAll('.ov-stato-card');
+        // Cerca le due card per grid-row in style
+        const opCards = Array.from(cards).filter(c => /grid-column.*4/.test(c.getAttribute('style') || ''));
+        if (opCards.length >= 2) {
+            const tmp = document.createElement('div');
+            tmp.innerHTML = newHtml;
+            const newCards = tmp.querySelectorAll('.ov-stato-card');
+            newCards.forEach((nc, i) => { if (opCards[i]) opCards[i].replaceWith(nc); });
+        }
+    }
+    // 3. Dot nei popup operatori aperti (ri-colorati in tempo reale)
+    cont.querySelectorAll('.op-opt-dot').forEach(dot => {
+        const btn = dot.closest('.op-option');
+        if (!btn) return;
+        const spans = btn.querySelectorAll('span');
+        // Il secondo span contiene il nome
+        const nomeTxt = spans[1]?.textContent?.trim() || spans[0]?.textContent?.trim();
+        if (nomeTxt) dot.style.background = _getOpColor(nomeTxt);
+    });
 }
 
 function _patchProduzione(newAttivi, allProd, allArch) {
