@@ -2424,6 +2424,8 @@ h1 {
 }
 .rc-btn-reply  { background: #eff6ff; color: #3b82f6; }
 .rc-btn-reply:hover  { background: #dbeafe; color: #1d4ed8; }
+.rc-btn-cal    { background: #fff7ed; color: #f59e0b; }
+.rc-btn-cal:hover    { background: #fef3c7; color: #d97706; }
 .rc-btn-sol    { background: #fef3c7; color: #d97706; }
 .rc-btn-sol:hover    { background: #fde68a; color: #b45309; }
 .rc-btn-arch   { background: #f0fdf4; color: #16a34a; }

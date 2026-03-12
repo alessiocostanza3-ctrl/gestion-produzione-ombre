@@ -3319,7 +3319,6 @@ async function confermaInvioSollecito() {
     const note    = document.getElementById('sollecito-note').value.trim();
     if (!data) { notificaElegante('Seleziona una data di scadenza.', 'error'); return; }
     chiudiModalSollecito();
-    notificaElegante('✅ Sollecito inviato ad Alessio');
     delete cacheContenuti['STORICO_RICHIESTE']; delete cacheFetchTime['STORICO_RICHIESTE'];
     _lsCacheDel('_html_STORICO_RICHIESTE');
     window._prefetchRqBundle = null; window._prefetchRqPromise = null;
@@ -3333,7 +3332,12 @@ async function confermaInvioSollecito() {
         mittente:  utenteAttuale.nome.toUpperCase().trim(),
         destinatari: ['ALESSIO']
     };
-    fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify(payload) }).catch(() => {});
+    try {
+        await fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify(payload) });
+        notificaElegante('✅ Scadenza aggiunta');
+        // Se siamo sulla pagina richieste, ricarica per mostrare la card in Scadenze
+        if (paginaAttuale === 'STORICO_RICHIESTE') caricaPaginaRichieste();
+    } catch { notificaElegante('✅ Scadenza aggiunta'); }
 }
 /* ---- FINE MODAL SOLLECITO ---- */
 
@@ -4814,17 +4818,25 @@ async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
         const gruppiAttivi   = _filtraGruppi(_gruppiAttiviAll);
         const gruppiArchivio = _filtraGruppi(_gruppiArchivioAll);
 
-        // Separa per tipo (usa il tipo del PRIMO messaggio del thread — le risposte non cambiano il tipo)
+        // Separa per tipo — le scadenze vengono scorporate dal thread e messe in gScadenze a parte
         const gAssegnazioni = {};
         const gRichieste    = {};
         const gScadenze     = {};
         Object.keys(gruppiAttivi).forEach(nOrd => {
             const msgs = gruppiAttivi[nOrd];
-            const primo = msgs[0];
-            const tipoFirst = (primo.TIPO || 'MSG').toUpperCase();
-            if      (tipoFirst === 'ASSEGNAZIONE') gAssegnazioni[nOrd] = msgs;
-            else if (tipoFirst === 'SCADENZA')      gScadenze[nOrd]     = msgs;
-            else                                   gRichieste[nOrd]    = msgs;
+            const scadMsgs = msgs.filter(m => (m.TIPO || '').toUpperCase() === 'SCADENZA');
+            const restMsgs = msgs.filter(m => (m.TIPO || '').toUpperCase() !== 'SCADENZA');
+            // Messaggi non-scadenza: classificati in base al primo
+            if (restMsgs.length > 0) {
+                const primo = restMsgs[0];
+                const tipoFirst = (primo.TIPO || 'MSG').toUpperCase();
+                if (tipoFirst === 'ASSEGNAZIONE') gAssegnazioni[nOrd] = restMsgs;
+                else                             gRichieste[nOrd]    = restMsgs;
+            }
+            // Messaggi scadenza: sezione separata (chiave nOrd_scad per evitare collisioni)
+            if (scadMsgs.length > 0) {
+                gScadenze[nOrd + '_scad'] = scadMsgs;
+            }
         });
 
         // Stato open/closed persistito
@@ -5146,6 +5158,7 @@ function generaCardRichiesta(msgs, io, isArchiviata) {
 
                 <div class="rc-actions">
                     <button onclick="toggleAreaRisposta('${ultimo.id_riga}')" class="rc-btn rc-btn-reply" title="Rispondi"><i class="fa-regular fa-comment"></i></button>
+                    ${tipoRaw !== 'ASSEGNAZIONE' ? `<button onclick="apriModalSollecito('${primo.id_riga}','${nOrd}','${nomeCliente.replace(/'/g,"\\'")  }','${(primo.PRODOTTO||'').replace(/'/g,"\\'")  }')" class="rc-btn rc-btn-cal" title="Aggiungi scadenza"><i class="fa-solid fa-calendar-alt"></i></button>` : ''}
                     <button onclick="_sollecitaConferma('${ultimo.id_riga}')" class="rc-btn rc-btn-sol" title="Sollecita"><i class="fa-solid fa-bullhorn"></i></button>
                     <button onclick="_archiviaConferma('${ultimo.id_riga}', [${tuttiIds}])" class="rc-btn rc-btn-arch" title="Archivia"><i class="fa-solid fa-box-archive"></i></button>
                 </div>
