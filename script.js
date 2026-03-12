@@ -4810,16 +4810,16 @@ async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
         const gruppiAttivi   = _filtraGruppi(_gruppiAttiviAll);
         const gruppiArchivio = _filtraGruppi(_gruppiArchivioAll);
 
-        // Separa per tipo (usa il tipo dell'ULTIMO messaggio del thread)
+        // Separa per tipo (usa il tipo del PRIMO messaggio del thread — le risposte non cambiano il tipo)
         const gAssegnazioni = {};
         const gRichieste    = {};
         const gScadenze     = {};
         Object.keys(gruppiAttivi).forEach(nOrd => {
             const msgs = gruppiAttivi[nOrd];
-            const ultimo = msgs[msgs.length - 1];
-            const tipoLast = (ultimo.TIPO || 'MSG').toUpperCase();
-            if      (tipoLast === 'ASSEGNAZIONE') gAssegnazioni[nOrd] = msgs;
-            else if (tipoLast === 'SCADENZA')      gScadenze[nOrd]     = msgs;
+            const primo = msgs[0];
+            const tipoFirst = (primo.TIPO || 'MSG').toUpperCase();
+            if      (tipoFirst === 'ASSEGNAZIONE') gAssegnazioni[nOrd] = msgs;
+            else if (tipoFirst === 'SCADENZA')      gScadenze[nOrd]     = msgs;
             else                                   gRichieste[nOrd]    = msgs;
         });
 
@@ -5046,27 +5046,28 @@ function formattaData(stringaData) {
     return `${giorno}/${mese}/${anno} ${ore}:${minuti}`;
 }
 function generaCardRichiesta(msgs, io, isArchiviata) {
-    const ultimo = msgs[msgs.length - 1];
-    const nOrd = ultimo.ORDINE;
+    const ultimo = msgs[msgs.length - 1]; // per id_riga, DATA ORA e riferimento (ultimo aggiornamento)
+    const primo  = msgs[0];               // per tipo, mittente e destinatario originali del thread
+    const nOrd = primo.ORDINE || ultimo.ORDINE;
     // Usa il CLIENTE salvato nel record; se mancante (record vecchi) prova la cache degli ordini di produzione
-    const nomeCliente = ultimo.CLIENTE || ((_ordiniAutocompleteCache || []).find(o => o.ordine === nOrd) || {}).cliente || "";
+    const nomeCliente = primo.CLIENTE || ultimo.CLIENTE || ((_ordiniAutocompleteCache || []).find(o => o.ordine === nOrd) || {}).cliente || "";
 
     // Controlla se almeno un messaggio del gruppo è sollecitato
     const isSollecitata = msgs.some(m => String(m.SOLLECITO).toLowerCase() === 'true');
 
-    // Raccoglie tutti i destinatari unici del thread (per assegnazioni multiple)
-    const mittenteUnico = _normNome(ultimo.DA) || '—';
-    const destinatariUnici = [...new Set(msgs.map(m => _normNome(m.A)).filter(Boolean))];
-    const destinatariHtml = destinatariUnici.length > 1
-        ? destinatariUnici.map(d => `<span class="rc-val rc-val-a">${d}</span>`).join('<span style="color:#cbd5e1;margin:0 1px">,</span> ')
-        : `<span class="rc-val rc-val-a">${destinatariUnici[0] || '—'}</span>`;
+    // Mittente e destinatario presi dal PRIMO messaggio (le risposte non cambiano il mittente originale)
+    const mittenteUnico = _normNome(primo.DA) || '—';
+    const destinatariOriginali = [_normNome(primo.A)].filter(Boolean);
+    const destinatariHtml = destinatariOriginali.length > 1
+        ? destinatariOriginali.map(d => `<span class="rc-val rc-val-a">${d}</span>`).join('<span style="color:#cbd5e1;margin:0 1px">,</span> ')
+        : `<span class="rc-val rc-val-a">${destinatariOriginali[0] || '—'}</span>`;
 
-    // Icona tipo
-    const tipoRaw = (ultimo.TIPO || 'MSG').toUpperCase();
-    const isDomanda = tipoRaw === 'AIUTO' || tipoRaw === 'DOMANDA';
-    const tipoIconaHtml = isDomanda
-        ? `<span class="rc-tipo rc-tipo-domanda" title="Domanda"><i class="fas fa-question"></i></span>`
-        : `<span class="rc-tipo rc-tipo-assegna" title="Assegnazione"><i class="fas fa-arrow-right"></i></span>`;
+    // Icona tipo — usa il tipo del PRIMO messaggio, non delle risposte
+    const tipoRaw = (primo.TIPO || 'MSG').toUpperCase();
+    const isAssegnazione = tipoRaw === 'ASSEGNAZIONE';
+    const tipoIconaHtml = isAssegnazione
+        ? `<span class="rc-tipo rc-tipo-assegna" title="Assegnazione"><i class="fas fa-arrow-right"></i></span>`
+        : `<span class="rc-tipo rc-tipo-domanda" title="Richiesta"><i class="fas fa-question"></i></span>`;
 
     return `
         <div class="req-card${isArchiviata ? ' archiviata' : ''}${isSollecitata ? ' sollecitata' : ''}" data-ordine="${String(nOrd || '')}" data-cliente="${(nomeCliente || '').toLowerCase().replace(/"/g, '')}" data-riferimento="${(ultimo.RIFERIMENTO || '').toLowerCase().replace(/"/g, '')}">
