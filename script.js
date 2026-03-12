@@ -164,6 +164,7 @@ try {
 } catch (e) {}
 
 let paginaAttuale = null; // NON leggere subito da localStorage
+let filtroRicercaArticoli = false; // filtro ricerca per codice articolo
 let modifichePendenti = false;
 let listaOperatori = [];
 let listaStati = [];
@@ -1514,6 +1515,8 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
     }
     localStorage.setItem('ultimaPaginaProduzione', nomeFoglio);
     paginaAttuale = nomeFoglio;
+    // Gestisce visibilità pulsante filtro articoli (solo su pagina Produzione)
+    _aggiornaVisibilitaFiltroArticoli(nomeFoglio);
     // Classe sul body per eccezioni CSS by-page (es. landscape su PIPISTRELLI)
     document.body.classList.toggle('page-pip', nomeFoglio === 'PIPISTRELLI');
     // Reset flag fetch pip quando si lascia la pagina (così al prossimo accesso rilegge dal server)
@@ -3175,7 +3178,7 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
                }`;
 
         html += `
-        <div class="ordine-wrapper ${classWrapper}" data-ordine="${nOrd}" data-cliente="${(cliente || '').toLowerCase().replace(/"/g, '')}" data-riferimento="${(riferimento || '').toLowerCase().replace(/"/g, '')}">
+        <div class="ordine-wrapper ${classWrapper}" data-ordine="${nOrd}" data-cliente="${(cliente || '').toLowerCase().replace(/"/g, '')}" data-riferimento="${(riferimento || '').toLowerCase().replace(/"/g, '')}" data-codici="${righe.map(a => (a.codice && a.codice !== 'false' ? a.codice : '')).join('|').toLowerCase()}">
             <div class="riga-ordine ${classHeader}" onclick="toggleAccordion(this)">
                 <div class="flex-grow">
                     <span class="order-title" style="--order-color:${colorCliente}" title="${cliente}">${cliente} ${htmlRiferimento}</span>
@@ -6658,6 +6661,7 @@ function filtraUniversale() {
         // SECONDARIO: il testo contiene il termine (attivo solo da 3 caratteri)
         const isNumericOnly  = input !== '' && /^\d+$/.test(input);
         const secondaryOn    = input.length >= 3;
+        const isArticoloMode = filtroRicercaArticoli; // modalità "cerca articolo"
 
         elementiDaFiltrareCache.forEach(el => {
             let primary = false;
@@ -6665,19 +6669,50 @@ function filtraUniversale() {
 
             if (input === '') {
                 primary = true;
+                // ── Reset item-card visibility quando input vuoto ──
+                if (isArticoloMode && el.classList.contains('ordine-wrapper')) {
+                    el.querySelectorAll('.item-card').forEach(c => c.classList.remove('hidden-search'));
+                }
             } else if (el.classList.contains('ordine-wrapper') || el.classList.contains('chat-card')) {
-                const ordine     = String(el.dataset.ordine      || '').toLowerCase();
-                const cliente    = String(el.dataset.cliente     || '').toLowerCase();
-                const riferimento = String(el.dataset.riferimento || '').toLowerCase();
-                // Testo completo: cerca in tutto (nome cliente, riferimento GHP, numero ordine)
-                const full = cliente + ' ' + riferimento + ' ' + ordine;
-                if (isNumericOnly) {
-                    primary = ordine.startsWith(input);
+
+                if (isArticoloMode && el.classList.contains('ordine-wrapper')) {
+                    // ── MODALITÀ ARTICOLO: cerca nei codici prodotto ──────────
+                    const codici = String(el.dataset.codici || '').toLowerCase();
+                    const codiciArr = codici.split('|').filter(Boolean);
+                    // primary: qualche codice inizia per il termine
+                    primary = codiciArr.some(c => c.startsWith(input));
+                    // secondary: qualche codice contiene il termine (da 3 char)
+                    if (!primary && secondaryOn) secondary = codiciArr.some(c => c.includes(input));
+
+                    // ── Filtra anche le singole item-card dentro l'ordine ──
+                    const cards = el.querySelectorAll('.item-card');
+                    cards.forEach(card => {
+                        const codTxt = (card.querySelector('b')?.textContent || '').toLowerCase();
+                        const match = codTxt.startsWith(input) || (secondaryOn && codTxt.includes(input));
+                        card.classList.toggle('hidden-search', !match);
+                    });
+                    // Se l'ordine è visibile, apri automaticamente l'accordion
+                    if (primary || secondary) {
+                        const rigaOrdine = el.querySelector('.riga-ordine');
+                        const dettagli = el.querySelector('.dettagli-container');
+                        if (rigaOrdine && dettagli && !rigaOrdine.classList.contains('open')) {
+                            rigaOrdine.classList.add('open');
+                            dettagli.style.display = 'block';
+                        }
+                    }
+
                 } else {
-                    // primary: match da inizio di qualsiasi parola/token
-                    primary = full.split(/[\s(),;]+/).some(token => token.startsWith(input));
-                    // secondary (fallback): il testo contiene la stringa ovunque
-                    if (!primary) secondary = full.includes(input);
+                    // ── MODALITÀ STANDARD: cerca ordine/cliente/riferimento ──
+                    const ordine     = String(el.dataset.ordine      || '').toLowerCase();
+                    const cliente    = String(el.dataset.cliente     || '').toLowerCase();
+                    const riferimento = String(el.dataset.riferimento || '').toLowerCase();
+                    const full = cliente + ' ' + riferimento + ' ' + ordine;
+                    if (isNumericOnly) {
+                        primary = ordine.startsWith(input);
+                    } else {
+                        primary = full.split(/[\s(),;]+/).some(token => token.startsWith(input));
+                        if (!primary) secondary = full.includes(input);
+                    }
                 }
             } else {
                 // Acquisti (materiale-card)
@@ -6713,6 +6748,45 @@ function filtraUniversale() {
         if (sezioneArchivio) sezioneArchivio.style.display = input === '' ? 'block' : 'none';
     }, 120);
 }
+
+/* ── Toggle filtro "Cerca Articolo" sulla barra di ricerca ────────────── */
+function toggleFiltroArticoli() {
+    filtroRicercaArticoli = !filtroRicercaArticoli;
+    // Aggiorna UI pulsanti (desktop + mobile)
+    document.querySelectorAll('.btn-filtro-articoli').forEach(btn => {
+        btn.classList.toggle('active', filtroRicercaArticoli);
+    });
+    // Aggiorna placeholder
+    const ph = filtroRicercaArticoli ? 'Cerca codice articolo...' : 'Cerca in tutte le pagine...';
+    const phMob = filtroRicercaArticoli ? 'Cerca articolo' : 'Cerca';
+    const deskInput = document.getElementById('universal-search');
+    const mobInput  = document.getElementById('mobile-search');
+    if (deskInput) deskInput.placeholder = ph;
+    if (mobInput)  mobInput.placeholder  = phMob;
+    // Reset le item-card nascoste
+    document.querySelectorAll('.item-card.hidden-search').forEach(c => c.classList.remove('hidden-search'));
+    // Rilancia ricerca con il nuovo filtro
+    filtraUniversale();
+}
+
+/* ── Mostra/nasconde il pulsante filtro articoli in base alla pagina ──── */
+function _aggiornaVisibilitaFiltroArticoli(nomeFoglio) {
+    const isProduzione = nomeFoglio === 'PROGRAMMA PRODUZIONE DEL MESE';
+    document.querySelectorAll('.btn-filtro-articoli').forEach(btn => {
+        btn.style.display = isProduzione ? 'flex' : 'none';
+    });
+    // Se si esce dalla produzione, resetta il filtro
+    if (!isProduzione && filtroRicercaArticoli) {
+        filtroRicercaArticoli = false;
+        document.querySelectorAll('.btn-filtro-articoli').forEach(btn => btn.classList.remove('active'));
+        const deskInput = document.getElementById('universal-search');
+        const mobInput  = document.getElementById('mobile-search');
+        if (deskInput) deskInput.placeholder = 'Cerca in tutte le pagine...';
+        if (mobInput)  mobInput.placeholder  = 'Cerca';
+        document.querySelectorAll('.item-card.hidden-search').forEach(c => c.classList.remove('hidden-search'));
+    }
+}
+
 function notificaElegante(messaggio) {
     // Crea l'elemento notifica
     const toast = document.createElement('div');
