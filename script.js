@@ -4182,7 +4182,7 @@ function _buildOverviewInnerHtml(attivi) {
         const totLabel = gruppiOrd.length + (gruppiOrd.length === 1 ? ' ord.' : ' ord.');
 
         return `<details class="ov-stato-card${isEmpty ? ' ov-stato-card-empty' : ''}" open>
-            <summary class="ov-stato-header" style="--ov-col:${colore}">
+            <summary class="ov-stato-header" style="--ov-col:${colore}" onclick="if(window.innerWidth>600){event.preventDefault();return false;}">
                 <span class="ov-stato-dot" style="background:${colore}"></span>
                 <span class="ov-stato-nome">${stato}</span>
                 <span class="ov-stato-tot" style="background:${colore}22;color:${colore}" data-stato-count="${stato}">${totLabel}</span>

@@ -5853,6 +5853,8 @@ button:active {
 
 /* ── Kanban drag & drop dinamico (pointer events, solo desktop ≥ 601px) ── */
 @media (min-width: 601px) {
+    /* Header colonna non cliccabile su desktop */
+    .ov-stato-header { cursor: default; }
     /* Struttura riga articolo */
     .ov-kanban-item {
         cursor: grab;
