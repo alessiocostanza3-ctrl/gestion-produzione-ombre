@@ -2309,7 +2309,7 @@ h1 {
 }
 .scad-no-nota { opacity: 0.4; font-style: italic; }
 /* ---- FINE SCADENZE CARD ---- */
-.rc-tipo-domanda  { background: #dbeafe; color: #1d4ed8; }
+.rc-tipo-domanda  { background: #fee2e2; color: #dc2626; }
 .rc-arch-badge {
     font-size: 10px;
     font-weight: 800;
