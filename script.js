@@ -3226,7 +3226,7 @@ function generaCardArticolo(art, nOrd, cliente) {
     }
 
     return `
-    <div class="item-card ${TW.card}">
+    <div class="item-card ${TW.card}" data-codice="${codicePrincipale.toLowerCase().replace(/"/g, '')}">
         <div><span class="label-sm ${TW.label}">Codice Prodotto</span><b class="${TW.value}">${codicePrincipale}</b></div>
         <div><span class="label-sm ${TW.label}">Quantità</span><b class="${TW.value}">${art.qty}</b></div>
         <div>
@@ -6676,23 +6676,35 @@ function filtraUniversale() {
             } else if (el.classList.contains('ordine-wrapper') || el.classList.contains('chat-card')) {
 
                 if (isArticoloMode && el.classList.contains('ordine-wrapper')) {
-                    // ── MODALITÀ ARTICOLO: cerca nei codici prodotto ──────────
-                    const codici = String(el.dataset.codici || '').toLowerCase();
-                    const codiciArr = codici.split('|').filter(Boolean);
-                    // primary: qualche codice inizia per il termine
-                    primary = codiciArr.some(c => c.startsWith(input));
-                    // secondary: qualche codice contiene il termine (da 3 char)
-                    if (!primary && secondaryOn) secondary = codiciArr.some(c => c.includes(input));
-
-                    // ── Filtra anche le singole item-card dentro l'ordine ──
+                    // ── MODALITÀ ARTICOLO: cerca nei data-codice delle singole card ──
                     const cards = el.querySelectorAll('.item-card');
+                    let hasMatch = false;
+
                     cards.forEach(card => {
-                        const codTxt = (card.querySelector('b')?.textContent || '').toLowerCase();
-                        const match = codTxt.startsWith(input) || (secondaryOn && codTxt.includes(input));
-                        card.classList.toggle('hidden-search', !match);
+                        // 1) attributo data-codice (nuovo deploy)
+                        const codAttr = card.dataset.codice || '';
+                        if (codAttr && (codAttr.startsWith(input) || (secondaryOn && codAttr.includes(input)))) {
+                            hasMatch = true;
+                            return;
+                        }
+                        // 2) fallback: prima <b> nella card (codice prodotto)
+                        const firstB = (card.querySelector('b')?.textContent || '').toLowerCase().trim();
+                        if (firstB && (firstB.startsWith(input) || (secondaryOn && firstB.includes(input)))) {
+                            hasMatch = true;
+                        }
                     });
-                    // Se l'ordine è visibile, apri automaticamente l'accordion
-                    if (primary || secondary) {
+
+                    // 3) fallback su data-codici del wrapper (cache precedente al deploy)
+                    if (!hasMatch) {
+                        const codiciArr = (el.dataset.codici || '').split('|').filter(Boolean);
+                        hasMatch = codiciArr.some(c => c.startsWith(input) || (secondaryOn && c.includes(input)));
+                    }
+
+                    if (hasMatch) {
+                        primary = true;
+                        // Assicura che tutte le item-card siano visibili (ordine completo)
+                        el.querySelectorAll('.item-card.hidden-search').forEach(c => c.classList.remove('hidden-search'));
+                        // Apri automaticamente l'accordion se chiuso
                         const rigaOrdine = el.querySelector('.riga-ordine');
                         const dettagli = el.querySelector('.dettagli-container');
                         if (rigaOrdine && dettagli && !rigaOrdine.classList.contains('open')) {
