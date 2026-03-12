@@ -447,6 +447,64 @@ function _vapidB64ToUint8_(b64url) {
     return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
 }
 
+/** Importa ordini dal CSV del gestionale direttamente sul foglio, senza passare da Sheets */
+async function importaCSVDaFile(input) {
+    const file = input && input.files && input.files[0];
+    const labelNome = document.getElementById('csv-upload-filename');
+    const risultato = document.getElementById('csv-upload-result');
+    if (!file) return;
+
+    if (labelNome) labelNome.textContent = file.name;
+    if (risultato) { risultato.style.display = 'none'; risultato.innerHTML = ''; }
+
+    // Legge il file come testo
+    const csvText = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result);
+        reader.onerror = reject;
+        reader.readAsText(file, 'UTF-8');
+    });
+
+    // Rileva automaticamente il separatore (; oppure ,)
+    const primaRiga = csvText.split('\n')[0] || '';
+    const separatore = (primaRiga.split(';').length >= primaRiga.split(',').length) ? ';' : ',';
+
+    // Mostra stato caricamento
+    if (risultato) {
+        risultato.style.display = 'block';
+        risultato.innerHTML = `<div style="display:flex;align-items:center;gap:8px;color:#64748b;font-size:0.88rem"><i class="fas fa-spinner fa-spin"></i> Invio in corso…</div>`;
+    }
+
+    try {
+        const res = await fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify({ azione: 'importaOrdiniCSV', csvText, separatore })
+        });
+        const json = await res.json().catch(() => ({}));
+
+        if (risultato) {
+            if (json.status === 'ok') {
+                risultato.innerHTML = `
+                    <div style="background:#dcfce7;border:1px solid #86efac;border-radius:10px;padding:12px 16px;font-size:0.88rem;color:#166534">
+                        <strong>✅ Importazione completata</strong><br>
+                        <span>Nuovi ordini inseriti: <strong>${json.nuove}</strong></span><br>
+                        <span>Duplicati saltati: <strong>${json.saltate}</strong></span>
+                    </div>`;
+                // Ricarica la dashboard per mostrare i nuovi dati
+                setTimeout(() => { if (typeof caricaDati === 'function') caricaDati('PROGRAMMA PRODUZIONE DEL MESE', true); }, 800);
+            } else {
+                risultato.innerHTML = `<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:12px 16px;font-size:0.88rem;color:#991b1b"><strong>❌ Errore:</strong> ${json.msg || json.message || 'Errore sconosciuto'}</div>`;
+            }
+        }
+    } catch (err) {
+        if (risultato) {
+            risultato.innerHTML = `<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:12px 16px;font-size:0.88rem;color:#991b1b"><strong>❌ Errore di rete:</strong> ${err.message}</div>`;
+        }
+    }
+    // Reset input per permettere di ricaricare lo stesso file
+    input.value = '';
+}
+
 /** Mostra la diagnostica push (solo MASTER): lista dispositivi registrati per ogni utente */
 async function _mostraDiagnosticaPush() {
     try {
@@ -5526,6 +5584,35 @@ function caricaInterfacciaImpostazioni() {
                         </div>
 
                         <div style="height:6px"></div>
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- ROW: Importa CSV Ordini (solo MASTER) -->
+                ${utenteAttuale.ruolo === "MASTER" ? `
+                <div class="settings-row" onclick="toggleSettingsSection('section-importa-csv', this)">
+                    <div class="settings-row-left">
+                        <div class="settings-row-icon"><i class="fas fa-file-csv"></i></div>
+                        <div>
+                            <div class="settings-row-title">Importa Ordini da CSV</div>
+                            <div class="settings-row-sub">Carica il CSV del gestionale direttamente, senza passare da Sheets</div>
+                        </div>
+                    </div>
+                    <i class="fas fa-chevron-down settings-row-arrow"></i>
+                </div>
+                <div id="section-importa-csv" class="settings-section-body" style="display:none">
+                    <div class="card-settings">
+                        <h3 style="margin:0 0 8px 0">Importa Ordini da CSV</h3>
+                        <p style="margin:0 0 14px 0;font-size:0.85rem;color:#64748b">Seleziona il file CSV esportato dal gestionale (separatore <strong>;</strong>). I duplicati vengono saltati automaticamente.</p>
+                        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                            <label style="display:flex;align-items:center;gap:8px;padding:10px 16px;background:#f1f5f9;border:2px dashed #94a3b8;border-radius:10px;cursor:pointer;font-size:0.88rem;font-weight:600;color:#334155;transition:background 0.15s" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
+                                <i class="fas fa-folder-open" style="color:#3b82f6"></i>
+                                Scegli file CSV
+                                <input type="file" id="csv-upload-input" accept=".csv,text/csv" style="display:none" onchange="importaCSVDaFile(this)">
+                            </label>
+                            <span id="csv-upload-filename" style="font-size:0.82rem;color:#64748b;font-style:italic">Nessun file selezionato</span>
+                        </div>
+                        <div id="csv-upload-result" style="margin-top:14px;display:none"></div>
                     </div>
                 </div>
                 ` : ''}
