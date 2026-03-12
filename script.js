@@ -552,6 +552,8 @@ function aggiornaListaFiltrabili() {
 // Cache raw ordini per autocomplete nel modal
 let _ordiniAutocompleteCache = [];
 let _attiviProd = [];  // cache per il chart overview nella pagina produzione
+let _pollProdTimer = null; // timer polling produzione
+const _POLL_PROD_MS = 30000; // 30 secondi
 
 async function fetchJson(pagina, signal) {
     const url = URL_GOOGLE + "?pagina=" + encodeURIComponent(pagina);
@@ -1382,6 +1384,13 @@ setInterval(function() {
     if (utenteAttuale && utenteAttuale.nome) _checkOrarioAccesso(true);
 }, 60 * 1000);
 
+// Quando l'utente torna sulla tab dopo averla lasciata, poll immediato su Produzione
+document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible' && paginaAttuale === 'PROGRAMMA PRODUZIONE DEL MESE') {
+        _pollProdStep();
+    }
+});
+
 /* ── Modal di conferma generico ─────────────────────── */
 function mostraConferma(titolo, messaggio, onOk, labelOk) {
     const modal  = document.getElementById('modal-conferma');
@@ -1502,6 +1511,8 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
 
     // reset possible filter cache when switching pages
     elementiDaFiltrareCache = null;
+    // Ferma il polling produzione se si naviga altrove
+    if (nomeFoglio !== 'PROGRAMMA PRODUZIONE DEL MESE') _stopPollingProduzione();
 
     // 1. Reset immediato della ricerca (per evitare di vedere dati filtrati della pagina precedente)
     const searchInput = document.getElementById('universal-search');
@@ -1628,6 +1639,9 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
         // Riattiva DnD kanban dopo restore da cache
         requestAnimationFrame(_initKanbanDnd);
         console.log("Rendering da cache:", nomeFoglio);
+
+        // Avvia polling live se si torna su Produzione
+        if (nomeFoglio === 'PROGRAMMA PRODUZIONE DEL MESE') _startPollingProduzione();
 
         // Aggiornamento dati in background solo se la cache è scaduta
         const ora = Date.now();
@@ -2995,6 +3009,14 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
             ? '<div class="ov-lazy-placeholder"><i class="fas fa-spinner fa-spin"></i></div>'
             : _buildOverviewInnerHtml(attivi);
 
+        // Snapshot accordions aperti prima di sostituire il DOM (preserva stato UI)
+        const _openOrdini = new Set();
+        if (isBackgroundUpdate) {
+            contenitore.querySelectorAll('.ordine-wrapper').forEach(w => {
+                if (w.querySelector('.riga-ordine.open')) _openOrdini.add(w.dataset.ordine);
+            });
+        }
+
         contenitore.innerHTML = `
             <details class="ov-accordion" id="ov-accordion"${isMobileOv ? '' : ' open'}>
                 <summary class="ov-accordion-summary" onclick="_ovLoadIfNeeded(this)">
@@ -3038,11 +3060,25 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
         }
 
         applicaFade(contenitore);
+
+        // Ripristina accordion aperti dopo background update (preserva stato UI)
+        if (isBackgroundUpdate && _openOrdini.size) {
+            contenitore.querySelectorAll('.ordine-wrapper').forEach(w => {
+                if (_openOrdini.has(w.dataset.ordine)) {
+                    const riga = w.querySelector('.riga-ordine');
+                    const det  = w.querySelector('.dettagli-container');
+                    if (riga && det) { riga.classList.add('open'); det.style.display = 'block'; }
+                }
+            });
+        }
+
         aggiornaListaFiltrabili();
         // Observer: apri archivio quando ci si scorre sopra
         _osservaArchivio('archivio-prod-details');
         // Attiva drag & drop kanban (solo desktop)
         requestAnimationFrame(_initKanbanDnd);
+        // Avvia (o riavvia) il polling live degli stati
+        _startPollingProduzione();
 
         // Salva raw data per autocomplete del modal
         _ordiniAutocompleteCache = datiProd.filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE').map(r => ({ ordine: r.ordine || '', cliente: r.cliente || '', riferimento: r.riferimento || '' }));
@@ -3567,12 +3603,177 @@ async function aggiornaDato(selectEl, idRiga, campo, nuovoValore) {
             })
         });
         if (selectEl) selectEl.style.opacity = '1';
+        // Invalida la HTML cache così il prossimo fetch (proprio o altrui) prende dati freschi
+        delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
+        cacheFetchTime['PROGRAMMA PRODUZIONE DEL MESE'] = 0;
+        _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
     } catch (e) {
         console.error('aggiornaDato error:', e);
         if (selectEl) selectEl.style.opacity = '1';
         notificaElegante('Errore nel salvataggio dello stato. Riprova.');
     }
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   LIVE SYNC – polling 30s + patch chirurgica del DOM
+   Obiettivo: altri utenti vedono i cambi di stato/operatori in ~30s
+   senza dover ricaricare manualmente la pagina.
+   ══════════════════════════════════════════════════════════════════ */
+
+function _startPollingProduzione() {
+    _stopPollingProduzione();
+    _pollProdTimer = setInterval(_pollProdStep, _POLL_PROD_MS);
+}
+function _stopPollingProduzione() {
+    if (_pollProdTimer) { clearInterval(_pollProdTimer); _pollProdTimer = null; }
+}
+
+async function _pollProdStep() {
+    if (paginaAttuale !== 'PROGRAMMA PRODUZIONE DEL MESE') { _stopPollingProduzione(); return; }
+    if (document.visibilityState === 'hidden') return;
+    // Non interrompere mentre l'utente ha un dropdown aperto
+    if (document.querySelector('.stato-dropdown.open, .op-dropdown.open')) return;
+    try {
+        const resp = await fetch(URL_GOOGLE + '?azione=getAllDashboard');
+        if (!resp.ok) return;
+        const bundle = await resp.json();
+        if (!bundle || !bundle.produzione) return;
+        const newAttivi = (bundle.produzione || []).filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE');
+        _patchProduzione(newAttivi, bundle.produzione, bundle.archivio || []);
+    } catch (_) { /* errore di rete silenzioso */ }
+}
+
+function _patchProduzione(newAttivi, allProd, allArch) {
+    if (!_attiviProd) return;
+
+    const oldIds = new Set(_attiviProd.map(r => String(r.id_riga)));
+    const newIds = new Set(newAttivi.map(r => String(r.id_riga)));
+    // Cambiamento strutturale = ordini aggiunti o rimossi → re-render preservando accordions
+    let structural = oldIds.size !== newIds.size;
+    if (!structural) { for (const id of oldIds) { if (!newIds.has(id)) { structural = true; break; } } }
+    if (!structural) { for (const id of newIds) { if (!oldIds.has(id)) { structural = true; break; } } }
+
+    if (structural) {
+        _backgroundRefreshProduzione(allProd, allArch);
+        return;
+    }
+
+    // ── Patch chirurgica: solo righe cambiate ──────────────────────────────
+    const contenitore = document.getElementById('contenitore-dati');
+    if (!contenitore) return;
+    let anyChange = false;
+
+    newAttivi.forEach(newRow => {
+        const idStr = String(newRow.id_riga);
+        const oldRow = _attiviProd.find(r => String(r.id_riga) === idStr);
+        if (!oldRow) return;
+
+        // ── Stato ──
+        const newStato = (newRow.stato || 'IN ATTESA').toUpperCase().trim();
+        const oldStato = (oldRow.stato || 'IN ATTESA').toUpperCase().trim();
+        if (newStato !== oldStato) {
+            anyChange = true;
+            const dd = contenitore.querySelector(`.stato-dropdown[data-id-riga="${idStr}"]`);
+            if (dd) {
+                const cfg = (listaStati || []).find(s => s.nome === newStato) || { colore: '#e2e8f0' };
+                const dot = dd.querySelector('.stato-dot');
+                const lbl = dd.querySelector('.stato-label-txt');
+                if (dot) dot.style.background = cfg.colore;
+                if (lbl) lbl.textContent = newStato;
+                dd.querySelectorAll('.stato-option').forEach(opt => {
+                    const nome = opt.querySelector('span:not(.stato-opt-dot)')?.textContent?.trim();
+                    const sel  = nome === newStato;
+                    opt.classList.toggle('is-selected', sel);
+                    opt.querySelector('.stato-check-icon')?.remove();
+                    if (sel) { const ic = document.createElement('i'); ic.className = 'fas fa-check stato-check-icon'; opt.appendChild(ic); }
+                });
+            }
+            oldRow.stato = newStato;
+            _syncKanbanFromStato(idStr, newStato);
+        }
+
+        // ── Operatori assegnati ──
+        const newAssegna = String(newRow.assegna || '').trim();
+        const oldAssegna = String(oldRow.assegna || '').trim();
+        if (newAssegna !== oldAssegna) {
+            anyChange = true;
+            oldRow.assegna = newAssegna;
+            // Aggiorna il data-assegna del widget (operatore/dropdown)
+            const opEl = contenitore.querySelector(`.visualizza-operatori[data-id-riga="${idStr}"], .op-dropdown[data-id-riga="${idStr}"]`);
+            if (opEl) opEl.dataset.assegna = newAssegna;
+        }
+    });
+
+    if (anyChange) {
+        // Aggiorna il puntatore globale e invalida la cache HTML
+        _attiviProd = newAttivi;
+        delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
+        cacheFetchTime['PROGRAMMA PRODUZIONE DEL MESE'] = Date.now();
+    }
+}
+
+function _backgroundRefreshProduzione(allProd, allArch) {
+    const contenitore = document.getElementById('contenitore-dati');
+    if (!contenitore) return;
+    // Salva quali accordions sono aperti (per data-ordine)
+    const openSet = new Set();
+    contenitore.querySelectorAll('.ordine-wrapper').forEach(w => {
+        if (w.querySelector('.riga-ordine.open')) openSet.add(w.dataset.ordine);
+    });
+    // Full re-render in background
+    const attivi = (allProd || []).filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE');
+    _attiviProd = attivi;
+    const htmlAttivi    = generaBloccoOrdiniUnificato(allProd, false);
+    const htmlArchiviati = generaBloccoOrdiniUnificato(allArch, true);
+    const isMobileOv   = window.innerWidth <= 600;
+    const ovContent    = isMobileOv ? '<div class="ov-lazy-placeholder"><i class="fas fa-spinner fa-spin"></i></div>' : _buildOverviewInnerHtml(attivi);
+    const STATI_OV     = ['CONTROLLARE MAGAZZINO','PREPARARE PER LAVORAZIONE','IN LAVORAZIONE','TORNATO DALLA LAVORAZIONE','IN PRODUZIONE','IMBALLATO'];
+    const numInFocus   = attivi.filter(r => STATI_OV.includes((r.stato||'').toUpperCase())).length;
+
+    contenitore.innerHTML = `
+        <details class="ov-accordion" id="ov-accordion"${isMobileOv ? '' : ' open'}>
+            <summary class="ov-accordion-summary" onclick="_ovLoadIfNeeded(this)">
+                <span class="ov-summary-label"><i class="fas fa-layer-group"></i> Stato Avanzamento</span>
+                <span class="ov-summary-meta">${numInFocus} art. in lavorazione</span>
+                <i class="fas fa-chevron-down ov-summary-chevron"></i>
+            </summary>
+            <div class="riepilogo-page" id="ov-content">${ovContent}</div>
+        </details>
+        <div class="scroll-wrapper">
+            <button class="scroll-btn" onclick="_apriArchivio('archivio-prod-details')">
+                <i class="fa-solid fa-box-archive"></i> Archivio
+            </button>
+        </div>
+        <div class="sezione-attiva">
+            ${htmlAttivi || "<div class='empty-msg'>Nessun ordine in produzione.</div>"}
+        </div>
+        <details id="archivio-prod-details" class="archivio-details">
+            <summary class="separatore-archivio archivio-summary">
+                <span>📦 ARCHIVIO STORICO ORDINI</span>
+                <i class="fas fa-chevron-down archivio-chevron"></i>
+            </summary>
+            <div class="sezione-archiviata">
+                ${htmlArchiviati || "<div class='empty-msg'>L'archivio è vuoto.</div>"}
+            </div>
+        </details>`;
+
+    // Ripristina accordions aperti
+    if (openSet.size) {
+        contenitore.querySelectorAll('.ordine-wrapper').forEach(w => {
+            if (openSet.has(w.dataset.ordine)) {
+                const riga = w.querySelector('.riga-ordine');
+                const det  = w.querySelector('.dettagli-container');
+                if (riga && det) { riga.classList.add('open'); det.style.display = 'block'; }
+            }
+        });
+    }
+
+    cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'] = contenitore.innerHTML;
+    cacheFetchTime['PROGRAMMA PRODUZIONE DEL MESE'] = Date.now();
+    aggiornaListaFiltrabili();
+    requestAnimationFrame(_initKanbanDnd);
+}
+/* ══ fine LIVE SYNC ══════════════════════════════════════════════ */
 
 /* Sposta la card nel kanban alla colonna giusta (senza ricaricare). */
 function _syncKanbanFromStato(idRiga, newStato) {
