@@ -4132,85 +4132,54 @@ function _buildOverviewInnerHtml(attivi) {
         const colore = coloriStati[stato] || coloreDefault;
         const isEmpty = righe.length === 0;
 
-        // ── Raggruppa righe per codice (stesso articolo in più ordini = 1 card) ──
+        // ── Raggruppa righe per ORDINE (una card per ordine, non per articolo) ──
         const gruppiMap = new Map();
         const gruppiOrd = [];
         righe.forEach(r => {
-            const codice = String(r.codice && r.codice !== 'false' ? r.codice : r.riferimento || '—').trim();
-            if (gruppiMap.has(codice)) {
-                gruppiMap.get(codice).push(r);
+            const key = String(r.ordine || '—').trim();
+            if (gruppiMap.has(key)) {
+                gruppiMap.get(key).push(r);
             } else {
                 const arr = [r];
-                gruppiMap.set(codice, arr);
-                gruppiOrd.push({ codice, rows: arr });
+                gruppiMap.set(key, arr);
+                gruppiOrd.push({ ordine: key, rows: arr });
             }
         });
 
-        const contenuto = gruppiOrd.map(({ codice, rows }) => {
-            const lbl = codice.length > 24 ? codice.substring(0, 24) + '\u2026' : codice;
+        const contenuto = gruppiOrd.map(({ ordine, rows }) => {
             const ids = rows.map(r => String(r.id_riga)).join(',');
 
-            // Sub-riga: raggruppa per cliente → stesso cliente = ordini uniti, cliente scritto una volta
-            // Helper: abbrevia nome (prime 2 parole, max 14 char)
+            // Etichetta cliente: usa nome cliente (o riferimento come fallback)
             function _abbr(s) {
                 const w = (s || '').trim().split(/\s+/).slice(0, 2).join(' ');
-                return w.length > 14 ? w.substring(0, 13) + '\u2026' : w;
+                return w.length > 18 ? w.substring(0, 17) + '\u2026' : w;
             }
-            // Determina etichetta cliente: se "DA DEFINIRE" (o vuoto) usa riferimento
-            function _cliLabel(r) {
-                const cli = String(r.cliente || '').trim().toUpperCase();
-                if (!cli || cli === 'DA DEFINIRE') {
-                    const rif = String(r.riferimento || '').trim();
-                    return _abbr(rif) || '';
-                }
-                return _abbr(r.cliente);
-            }
-            // Raggruppa le righe per etichetta cliente
-            const cliGroupMap = new Map();
-            const cliGroupOrd = [];
-            rows.forEach(r => {
-                const key = _cliLabel(r);
-                if (cliGroupMap.has(key)) {
-                    cliGroupMap.get(key).push(r);
-                } else {
-                    cliGroupMap.set(key, [r]);
-                    cliGroupOrd.push(key);
-                }
-            });
-            const subParts = cliGroupOrd.map(cliKey => {
-                const grp = cliGroupMap.get(cliKey);
-                // Tutti gli ordini di questo cliente, abbreviati e uniti con " / "
-                const ordsStr = grp.map(r => {
-                    const o = String(r.ordine || '').trim();
-                    return o.length > 12 ? o.substring(0, 12) + '\u2026' : o;
-                }).filter(Boolean).join(' / ');
-                if (!ordsStr && !cliKey) return '';
-                return ordsStr + (cliKey ? ' <em>' + cliKey + '</em>' : '');
-            }).filter(Boolean);
-            const subLine = subParts.join(' · ');
+            const primaRiga = rows[0];
+            const cli = String(primaRiga.cliente || '').trim().toUpperCase();
+            const cliLabel = (!cli || cli === 'DA DEFINIRE')
+                ? _abbr(primaRiga.riferimento || '') || ordine
+                : _abbr(primaRiga.cliente);
 
-            // Quantità: "7 pz" se singolo, "7pz+3pz" se multiplo
-            const qtyStr = rows.length > 1
-                ? rows.map(r => (r.qty || 1) + 'pz').join('+')
-                : (rows[0].qty || 1) + ' pz';
+            const ordLabel = ordine.length > 12 ? ordine.substring(0, 12) + '\u2026' : ordine;
+            const artCount = rows.length;
+            const qtyTot   = rows.reduce((s, r) => s + (parseInt(r.qty) || 1), 0);
 
             return `<div class="ov-stato-row ov-kanban-item"
-                data-id-riga="${rows[0].id_riga}"
+                data-id-riga="${primaRiga.id_riga}"
                 data-id-righe="${ids}"
-                data-count="${rows.length}"
-                data-codice="${codice.replace(/"/g, '&quot;')}"
+                data-count="${artCount}"
+                data-codice="${ordine.replace(/"/g, '&quot;')}"
                 data-ordine="${rows.map(r => r.ordine || '').join(',')}"
                 data-stato-corrente="${stato}">
                 <span class="ov-drag-handle"><i class="fas fa-grip-vertical"></i></span>
                 <span class="ov-row-main">
-                    <span class="ov-row-label" title="${codice}">${lbl}</span>
-                    ${subLine ? `<span class="ov-row-sub">${subLine}</span>` : ''}
+                    <span class="ov-row-label" title="${ordine}">${ordLabel} <em>${cliLabel}</em></span>
+                    <span class="ov-row-sub">${artCount} art. · ${qtyTot} pz</span>
                 </span>
-                <span class="ov-badge-qty">${qtyStr}</span>
             </div>`;
         }).join('');
 
-        const totLabel = righe.length + ' art.';
+        const totLabel = gruppiOrd.length + (gruppiOrd.length === 1 ? ' ord.' : ' ord.');
 
         return `<details class="ov-stato-card${isEmpty ? ' ov-stato-card-empty' : ''}" open>
             <summary class="ov-stato-header" style="--ov-col:${colore}">
@@ -4404,13 +4373,10 @@ function _initKanbanDnd() {
 function _aggiornaKanbanCount(grid) {
     grid.querySelectorAll('.ov-stato-body').forEach(body => {
         const stato = body.dataset.statoDrop;
-        // Somma data-count di ogni card (una card può raggruppare più articoli)
-        let count = 0;
-        body.querySelectorAll('.ov-kanban-item').forEach(item => {
-            count += parseInt(item.dataset.count || '1', 10);
-        });
+        // Conta le card-ordine (ora ogni card = 1 ordine)
+        const count = body.querySelectorAll('.ov-kanban-item').length;
         const badge = grid.querySelector(`[data-stato-count="${stato}"]`);
-        if (badge) badge.textContent = count + ' art.';
+        if (badge) badge.textContent = count + ' ord.';
         const card = body.closest('.ov-stato-card');
         if (card) card.classList.toggle('ov-stato-card-empty', count === 0);
     });
