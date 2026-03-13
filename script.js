@@ -166,6 +166,7 @@ if ('serviceWorker' in navigator) {
 const URL_GOOGLE = "https://script.google.com/macros/s/AKfycbyVMV9MkGiqphN0AKXJdHXF0Arp1vxTYrCYi1SGv_4MKLRJkx--5HoGq7mmQX-p0ZTZ/exec";
 
 let _fetchSessionPatchDone = false;
+let _sessionRefreshTimer = null;
 function _getSessionToken_() {
     try {
         if (utenteAttuale && utenteAttuale.sessionToken) return String(utenteAttuale.sessionToken);
@@ -213,6 +214,58 @@ function _patchFetchWithSession_() {
     _fetchSessionPatchDone = true;
 }
 _patchFetchWithSession_();
+
+async function _refreshSessionSilenzioso_() {
+    const token = _getSessionToken_();
+    if (!token) return;
+
+    let profilo = utenteAttuale || null;
+    if (!profilo) {
+        try {
+            const raw = localStorage.getItem('sessioneUtente') || sessionStorage.getItem('sessioneUtente');
+            profilo = raw ? JSON.parse(raw) : null;
+        } catch (e) {}
+    }
+
+    try {
+        const res = await fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify({
+                azione: 'refreshSession',
+                sessionToken: token,
+                username: (profilo && profilo.nome) ? String(profilo.nome) : '',
+                email: (profilo && profilo.email) ? String(profilo.email) : ''
+            })
+        });
+        const r = await res.json();
+        if (r && r.status === 'success' && r.sessionToken) {
+            if (!utenteAttuale) utenteAttuale = {};
+            utenteAttuale.sessionToken = r.sessionToken;
+            utenteAttuale.sessionExpiresAt = r.sessionExpiresAt || '';
+            if (!utenteAttuale.nome && r.nome) utenteAttuale.nome = r.nome;
+            if (!utenteAttuale.email && r.email) utenteAttuale.email = r.email;
+            if (!utenteAttuale.ruolo && r.ruolo) utenteAttuale.ruolo = r.ruolo;
+            try { localStorage.setItem('sessioneUtente', JSON.stringify(utenteAttuale)); } catch (e) {}
+            try { sessionStorage.setItem('sessioneUtente', JSON.stringify(utenteAttuale)); } catch (e) {}
+            return;
+        }
+        if (r && r.status === 'auth_error') {
+            logout();
+        }
+    } catch (e) {
+        // rete momentaneamente assente: riproverà al prossimo ciclo
+    }
+}
+
+function _startSessionRefreshTicker_() {
+    if (_sessionRefreshTimer) clearInterval(_sessionRefreshTimer);
+    _sessionRefreshTimer = setInterval(_refreshSessionSilenzioso_, 5 * 60 * 1000);
+}
+
+_startSessionRefreshTicker_();
+document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) _refreshSessionSilenzioso_();
+});
 
 // Fallback: se una sessione è già presente, nascondi subito l'overlay (evita blocchi/flicker
 // se il browser ritarda l'esecuzione di window.onload).
@@ -1376,6 +1429,8 @@ async function salvaEApriDashboard() {
     if (!_checkOrarioAccesso(true)) return;
     try { localStorage.setItem('sessioneUtente', JSON.stringify(utenteAttuale)); } catch (e) {}
     try { sessionStorage.setItem('sessioneUtente', JSON.stringify(utenteAttuale)); } catch (e) {}
+    _startSessionRefreshTicker_();
+    _refreshSessionSilenzioso_();
 
     const overlay = document.getElementById('login-overlay');
     overlay.style.transition = "opacity 0.4s ease";
@@ -1407,6 +1462,18 @@ async function salvaEApriDashboard() {
 }
 function logout() {
     try {
+        const tokenLogout = _getSessionToken_();
+        if (tokenLogout) {
+            fetch(URL_GOOGLE, {
+                method: 'POST',
+                body: JSON.stringify({ azione: 'logout', sessionToken: tokenLogout })
+            }).catch(function() {});
+        }
+        if (_sessionRefreshTimer) {
+            clearInterval(_sessionRefreshTimer);
+            _sessionRefreshTimer = null;
+        }
+
         // Preserva i dati per-device (non legati alla sessione utente)
         const datiDevice = {};
         const keysDevice = ['notifPrefs', '_pushStato', 'mlPipQty', 'mlPipCaricato', 'mlPipMovimenti', 'mlPipPronti'];
