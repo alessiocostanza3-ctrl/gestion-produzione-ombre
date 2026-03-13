@@ -42,16 +42,27 @@ function _notifIcona_(titolo) {
     if (/assegnaz/i.test(titolo))  return 'fa-user-check';
     return 'fa-bell';
 }
+function _escapeHtml_(value) {
+    return String(value == null ? '' : value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
 function _notifHtml_(arr) {
     if (!arr.length) return '<div class="notif-empty"><i class="far fa-bell-slash"></i><p>Nessuna notifica recente</p></div>';
     return arr.map(function(n) {
         const icon = _notifIcona_(n.titolo || '');
-        const ts   = n._ts ? `<span class="notifica-ts">${n._ts}</span>` : '';
+        const titolo = _escapeHtml_(n.titolo || 'Notifica');
+        const corpo  = _escapeHtml_(n.corpo || '');
+        const tsVal  = _escapeHtml_(n._ts || '');
+        const ts   = tsVal ? `<span class="notifica-ts">${tsVal}</span>` : '';
         return `<div class="notifica-item">
           <div class="notifica-icon-badge"><i class="fas ${icon}"></i></div>
           <div class="notifica-body">
-            <div class="notifica-titolo">${n.titolo || 'Notifica'}</div>
-            <div class="notifica-corpo">${n.corpo || ''}</div>
+            <div class="notifica-titolo">${titolo}</div>
+            <div class="notifica-corpo">${corpo}</div>
             ${ts}
           </div>
         </div>`;
@@ -819,7 +830,15 @@ async function _verificaAccessoUtente() {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifica...';
     try {
         const hash = await hashSHA256(password);
-        const res  = await fetch(`${URL_GOOGLE}?azione=verificaLogin&email=${encodeURIComponent(email)}&username=${encodeURIComponent(username)}&hash=${encodeURIComponent(hash)}`);
+        const res  = await fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify({
+                azione: 'verificaLogin',
+                email,
+                username,
+                hash
+            })
+        });
         const r    = await res.json();
         if (r.status === "success") {
             utenteAttuale = { nome: r.nome, ruolo: r.ruolo, email: r.email, vistaSimulata: r.nome };
