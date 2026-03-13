@@ -165,6 +165,55 @@ if ('serviceWorker' in navigator) {
 *******************************************************************************/
 const URL_GOOGLE = "https://script.google.com/macros/s/AKfycbyVMV9MkGiqphN0AKXJdHXF0Arp1vxTYrCYi1SGv_4MKLRJkx--5HoGq7mmQX-p0ZTZ/exec";
 
+let _fetchSessionPatchDone = false;
+function _getSessionToken_() {
+    try {
+        if (utenteAttuale && utenteAttuale.sessionToken) return String(utenteAttuale.sessionToken);
+    } catch (e) {}
+    try {
+        const raw = localStorage.getItem('sessioneUtente') || sessionStorage.getItem('sessioneUtente');
+        if (!raw) return '';
+        const s = JSON.parse(raw);
+        return s && s.sessionToken ? String(s.sessionToken) : '';
+    } catch (e) {
+        return '';
+    }
+}
+function _patchFetchWithSession_() {
+    if (_fetchSessionPatchDone || typeof window.fetch !== 'function') return;
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = function(input, init) {
+        try {
+            const token = _getSessionToken_();
+            if (!token) return originalFetch(input, init);
+
+            const rawUrl = (typeof input === 'string') ? input : (input && input.url ? input.url : '');
+            if (!rawUrl || rawUrl.indexOf(URL_GOOGLE) !== 0) return originalFetch(input, init);
+
+            const method = String((init && init.method) || 'GET').toUpperCase();
+            if (method === 'GET') {
+                if (rawUrl.indexOf('sessionToken=') !== -1) return originalFetch(input, init);
+                const sep = rawUrl.indexOf('?') === -1 ? '?' : '&';
+                return originalFetch(rawUrl + sep + 'sessionToken=' + encodeURIComponent(token), init);
+            }
+
+            if (method === 'POST' && init && typeof init.body === 'string') {
+                try {
+                    const payload = JSON.parse(init.body || '{}');
+                    if (!payload.sessionToken) {
+                        payload.sessionToken = token;
+                        const nextInit = Object.assign({}, init, { body: JSON.stringify(payload) });
+                        return originalFetch(input, nextInit);
+                    }
+                } catch (e) {}
+            }
+        } catch (e) {}
+        return originalFetch(input, init);
+    };
+    _fetchSessionPatchDone = true;
+}
+_patchFetchWithSession_();
+
 // Fallback: se una sessione è già presente, nascondi subito l'overlay (evita blocchi/flicker
 // se il browser ritarda l'esecuzione di window.onload).
 try {
@@ -841,7 +890,14 @@ async function _verificaAccessoUtente() {
         });
         const r    = await res.json();
         if (r.status === "success") {
-            utenteAttuale = { nome: r.nome, ruolo: r.ruolo, email: r.email, vistaSimulata: r.nome };
+            utenteAttuale = {
+                nome: r.nome,
+                ruolo: r.ruolo,
+                email: r.email,
+                vistaSimulata: r.nome,
+                sessionToken: r.sessionToken || '',
+                sessionExpiresAt: r.sessionExpiresAt || ''
+            };
             salvaEApriDashboard();
         } else {
             errorDiv.innerText = r.message || "Credenziali non valide.";
