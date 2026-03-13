@@ -3239,11 +3239,11 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
             if (_isUtenteEsente()) {
                 const _allAss = [...new Set(
                     righe.flatMap(r => (r.assegna && r.assegna !== '' && r.assegna !== 'undefined')
-                        ? r.assegna.split(',').map(n => n.trim()).filter(Boolean) : [])
+                        ? r.assegna.split(',').map(n => _normNome(n.trim())).filter(Boolean) : [])
                 )];
                 const _lblOrd = _allAss.length ? _allAss.map(_normNome).join(', ') : 'Libero';
                 const _opOptsOrd = listaOperatori.map(op => {
-                    const _sel = _allAss.some(a => a.toUpperCase() === op.nome.trim().toUpperCase());
+                    const _sel = _allAss.some(a => a.toUpperCase() === _normNome(op.nome).toUpperCase());
                     const _col = _getOpColor(op.nome.trim());
                     const _ns  = op.nome.trim().replace(/'/g, "\\'");
                     const _nOrdS = nOrd.replace(/'/g, "\\'");
@@ -3299,20 +3299,22 @@ function generaCardArticolo(art, nOrd, cliente) {
     const codicePrincipale = art.codice && art.codice !== "false" ? art.codice : "Senza Codice";
 
     // Zona operatori: dropdown completo per MASTER, badge+Assegnami per operatori
+    // Normalizza sempre i nomi al parse (es. "Fabio" → "Fabio T.") così tutti i confronti downstream funzionano
     const _assegnatiCard = (art.assegna && art.assegna !== '' && art.assegna !== 'undefined')
-        ? art.assegna.split(',').map(n => n.trim()).filter(Boolean) : [];
+        ? art.assegna.split(',').map(n => _normNome(n.trim())).filter(Boolean) : [];
     let opZoneCard;
     if (_isUtenteEsente()) {
         const _lbl = _assegnatiCard.length ? _assegnatiCard.map(_normNome).join(', ') : 'Libero';
         const _opts = listaOperatori.map(op => {
-            const _sel = _assegnatiCard.some(a => a.toUpperCase() === op.nome.trim().toUpperCase());
+            const _sel = _assegnatiCard.some(a => a.toUpperCase() === _normNome(op.nome).toUpperCase());
             const _col = _getOpColor(op.nome.trim());
             const _ns  = op.nome.trim().replace(/'/g, "\\'");
             return `<button type="button" class="op-option${_sel ? ' is-selected' : ''}" onclick="selezionaOpAssegna(this,'${art.id_riga}','${nOrd}','${_ns}')"><span class="op-opt-dot" style="background:${_col}"></span><span>${_normNome(op.nome)}</span>${_sel ? '<i class="fas fa-check op-check-icon"></i>' : ''}</button>`;
         }).join('');
-        opZoneCard = `<div class="op-dropdown" data-id-riga="${art.id_riga}" data-assegna="${(art.assegna||'').replace(/"/g,'&quot;')}" data-nord="${nOrd}"><button type="button" class="op-trigger" onclick="toggleOpDropdown(this)"><i class="fas fa-user-tag op-icon"></i><span class="op-trigger-label">${_lbl}</span><i class="fas fa-chevron-down op-chevron"></i></button><div class="op-popup">${_opts}</div></div>${!_assegnatiCard.some(n => n.toUpperCase() === (utenteAttuale?.nome||'').toUpperCase().trim()) ? `<button class="btn-assegnami" onclick="autoAssegnami('${art.id_riga}','${nOrd}',this)" title="Assegnami"><i class="fas fa-user-plus"></i></button>` : ''}`;
+        const _mioMasterNorm = _normNome(utenteAttuale?.nome||'').toUpperCase().trim();
+        opZoneCard = `<div class="op-dropdown" data-id-riga="${art.id_riga}" data-assegna="${(art.assegna||'').replace(/"/g,'&quot;')}" data-nord="${nOrd}"><button type="button" class="op-trigger" onclick="toggleOpDropdown(this)"><i class="fas fa-user-tag op-icon"></i><span class="op-trigger-label">${_lbl}</span><i class="fas fa-chevron-down op-chevron"></i></button><div class="op-popup">${_opts}</div></div>${!_assegnatiCard.some(n => n.toUpperCase() === _mioMasterNorm) ? `<button class="btn-assegnami" onclick="autoAssegnami('${art.id_riga}','${nOrd}',this)" title="Assegnami"><i class="fas fa-user-plus"></i></button>` : ''}`;
     } else {
-        const _mio = (utenteAttuale?.nome || '').toUpperCase().trim();
+        const _mio = _normNome(utenteAttuale?.nome || '').toUpperCase().trim();
         const _bdg = _assegnatiCard.map(n => {
             const _col = _getOpColor(n); const _ns = n.replace(/'/g, "\\'");
             const _xBtn = n.toUpperCase() === _mio ? `<button class="btn-rimuovi-op" onclick="rimuoviOperatore('${art.id_riga}','${nOrd}','${_ns}')" title="Rimuovi assegnazione">&times;</button>` : '';
@@ -3404,10 +3406,11 @@ async function rimuoviOperatore(idRiga, nOrd, nomeOperatore) {
     const container = document.querySelector(`.visualizza-operatori[data-id-riga="${idRiga}"]`);
     if (!container) return;
 
+    const _normOp = _normNome(nomeOperatore);
     const assegnaCorrente = container.dataset.assegna || '';
     const restanti = assegnaCorrente.split(',')
-        .map(o => o.trim())
-        .filter(o => o && o.toUpperCase() !== nomeOperatore.toUpperCase())
+        .map(o => _normNome(o.trim()))
+        .filter(o => o && o.toUpperCase() !== _normOp.toUpperCase())
         .join(',');
 
     // Aggiorna subito il DOM (ottimistico)
@@ -3415,9 +3418,9 @@ async function rimuoviOperatore(idRiga, nOrd, nomeOperatore) {
     if (!restanti) {
         container.innerHTML = `<span class="operatore-libero">Libero</span>`;
     } else {
-        const _mioR = (utenteAttuale?.nome || '').toUpperCase().trim();
+        const _mioR = _normNome(utenteAttuale?.nome || '').toUpperCase().trim();
         container.innerHTML = restanti.split(',').map(op => {
-            const nome = op.trim();
+            const nome = _normNome(op.trim());
             const col  = _getOpColor(nome);
             const nomeSafe = nome.replace(/'/g, "\\'");
             const xBtn = nome.toUpperCase() === _mioR ? `<button class="btn-rimuovi-op" onclick="rimuoviOperatore('${idRiga}','${nOrd}','${nomeSafe}')" title="Rimuovi assegnazione">&times;</button>` : '';
@@ -3454,9 +3457,10 @@ function toggleOpDropdown(btn) {
 function selezionaOpAssegna(optBtn, idRiga, nOrd, nomeOp) {
     const dropdown = optBtn.closest('.op-dropdown');
     const assegnaCorrente = dropdown.dataset.assegna || '';
-    const correnti = assegnaCorrente.split(',').map(n => n.trim()).filter(Boolean);
-    const idx = correnti.findIndex(n => n.toUpperCase() === nomeOp.toUpperCase());
-    if (idx >= 0) correnti.splice(idx, 1); else correnti.push(nomeOp);
+    const correnti = assegnaCorrente.split(',').map(n => _normNome(n.trim())).filter(Boolean);
+    const nomeOpNorm = _normNome(nomeOp);
+    const idx = correnti.findIndex(n => n.toUpperCase() === nomeOpNorm.toUpperCase());
+    if (idx >= 0) correnti.splice(idx, 1); else correnti.push(nomeOpNorm);
     const nuovaAssegna = correnti.join(',');
 
     // aggiorna DOM del dropdown
@@ -3480,9 +3484,10 @@ function selezionaOpAssegna(optBtn, idRiga, nOrd, nomeOp) {
 function selezionaOpAssegnaOrdine(optBtn, nOrd, nomeOp) {
     const dropdown = optBtn.closest('.op-dropdown');
     const assegnaCorrente = dropdown.dataset.assegnaOrd || '';
-    const correnti = assegnaCorrente.split(',').map(n => n.trim()).filter(Boolean);
-    const idx = correnti.findIndex(n => n.toUpperCase() === nomeOp.toUpperCase());
-    if (idx >= 0) correnti.splice(idx, 1); else correnti.push(nomeOp);
+    const correnti = assegnaCorrente.split(',').map(n => _normNome(n.trim())).filter(Boolean);
+    const nomeOpNorm = _normNome(nomeOp);
+    const idx = correnti.findIndex(n => n.toUpperCase() === nomeOpNorm.toUpperCase());
+    if (idx >= 0) correnti.splice(idx, 1); else correnti.push(nomeOpNorm);
     const nuovaAssegna = correnti.join(',');
 
     // aggiorna DOM header
@@ -3501,10 +3506,10 @@ function selezionaOpAssegnaOrdine(optBtn, nOrd, nomeOp) {
     const wrapper = dropdown.closest('.ordine-wrapper');
     if (wrapper) {
         wrapper.querySelectorAll('.op-dropdown[data-id-riga]').forEach(d => {
-            const curr = (d.dataset.assegna || '').split(',').map(n => n.trim()).filter(Boolean);
-            const i2 = curr.findIndex(n => n.toUpperCase() === nomeOp.toUpperCase());
+            const curr = (d.dataset.assegna || '').split(',').map(n => _normNome(n.trim())).filter(Boolean);
+            const i2 = curr.findIndex(n => n.toUpperCase() === nomeOpNorm.toUpperCase());
             if (idx >= 0 && i2 >= 0) curr.splice(i2, 1);
-            else if (idx < 0 && i2 < 0)  curr.push(nomeOp);
+            else if (idx < 0 && i2 < 0)  curr.push(nomeOpNorm);
             d.dataset.assegna = curr.join(',');
             const l2 = curr.length ? curr.map(_normNome).join(', ') : 'Libero';
             const lbl2 = d.querySelector('.op-trigger-label'); if (lbl2) lbl2.textContent = l2;
@@ -3527,11 +3532,11 @@ function selezionaOpAssegnaOrdine(optBtn, nOrd, nomeOp) {
 
 // OPERATORE: si autoassegna a una singola riga
 function autoAssegnami(idRiga, nOrd, btnEl) {
-    const mio = (utenteAttuale?.nome || '').trim();
+    const mio = _normNome((utenteAttuale?.nome || '').trim()); // normalizza: "Fabio" → "Fabio T."
     if (!mio) return;
     const container = document.querySelector(`.visualizza-operatori[data-id-riga="${idRiga}"]`);
     if (!container) return;
-    const correnti = (container.dataset.assegna || '').split(',').map(n => n.trim()).filter(Boolean);
+    const correnti = (container.dataset.assegna || '').split(',').map(n => _normNome(n.trim())).filter(Boolean);
     if (correnti.some(n => n.toUpperCase() === mio.toUpperCase())) return;
     correnti.push(mio);
     const nuova = correnti.join(',');
@@ -3552,13 +3557,13 @@ function autoAssegnami(idRiga, nOrd, btnEl) {
 
 // OPERATORE: si autoassegna a TUTTE le righe di un ordine
 function autoAssegnamiOrdine(nOrd) {
-    const mio = (utenteAttuale?.nome || '').trim();
+    const mio = _normNome((utenteAttuale?.nome || '').trim()); // normalizza: "Fabio" → "Fabio T."
     if (!mio) return;
     const mitt = mio.toUpperCase().trim();
     const wrapper = document.querySelector(`.ordine-wrapper[data-ordine="${nOrd}"]`);
     if (wrapper) {
         wrapper.querySelectorAll('.visualizza-operatori[data-id-riga]').forEach(cont => {
-            const curr = (cont.dataset.assegna || '').split(',').map(n => n.trim()).filter(Boolean);
+            const curr = (cont.dataset.assegna || '').split(',').map(n => _normNome(n.trim())).filter(Boolean);
             if (curr.some(n => n.toUpperCase() === mitt)) return;
             curr.push(mio);
             cont.dataset.assegna = curr.join(',');
