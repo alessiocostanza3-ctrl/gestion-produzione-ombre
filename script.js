@@ -4097,7 +4097,7 @@ async function confermaInvioSupporto() {
     window._prefetchRqPromise = null;
 
     // ── Fire-and-forget: entrambe le chiamate in background ──
-    const urlAssegnazione = `${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(listaNomiStr)}&id_riga=${idRiga}&mittente=${encodeURIComponent(utenteAttuale.nome.toUpperCase().trim())}`;
+    const urlAssegnazione = `${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(listaNomiStr)}&id_riga=${idRiga}&mittente=${encodeURIComponent(utenteAttuale.nome.toUpperCase().trim())}&registra=0`;
     const clienteVal = (modalElement.dataset.cliente || '').trim();
     const payload = {
         azione: 'supporto_multiplo',
