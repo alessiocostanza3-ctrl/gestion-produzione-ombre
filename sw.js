@@ -64,7 +64,7 @@ self.addEventListener('fetch', function(e) {
                 var fetchPromise = fetch(e.request, { cache: 'no-cache' }).then(function(res) {
                     if (res && res.ok) cache.put(e.request, res.clone());
                     return res;
-                }).catch(function() {});
+                }).catch(function(err) { console.warn('[SW] revalidate fallita per', e.request.url, err); });
                 // Restituisce subito la copia in cache (se esiste), altrimenti la rete
                 return cached || fetchPromise;
             });
@@ -176,7 +176,7 @@ function _broadcastNotifiche_(username, all) {
 function _salvaUltimaNotifCache_(titolo, corpo) {
     caches.open('prod-last-notif').then(function(c) {
         c.put('last', new Response(JSON.stringify({ titolo: titolo, corpo: corpo })));
-    }).catch(function() {});
+    }).catch(function(err) { console.warn('[SW] salvataggio ultima notifica in cache fallito:', err); });
 }
 
 /** Legge l'ultima notifica dalla cache. Restituisce null se non presente. */

@@ -72,7 +72,7 @@ function renderNotificheList() {
                     list.innerHTML = _notifHtml_(JSON.parse(localStorage.getItem('_notificheArr') || '[]'));
                 }
             })
-            .catch(function() {});
+            .catch(function(err) { console.warn('[notifiche] renderNotificheList fetch fallito:', err); });
     }
 }
 
@@ -138,7 +138,7 @@ function _initBadgeNotifiche() {
                 _mostraToastRiepilogoNotifiche_(d.all.length);
             }
         })
-        .catch(function() {});
+        .catch(function(err) { console.warn('[notifiche] _initBadgeNotifiche fetch fallito:', err); });
 }
 
 /** Listener per messaggi dal Service Worker (push ricevuta in background) */
@@ -1807,7 +1807,7 @@ function _pipPushToServer() {
     fetch(URL_GOOGLE, {
       method: 'POST',
       body:   JSON.stringify(payload)
-    }).catch(function() {});
+    }).catch(function(err) { console.warn('[pipistrelli] salvataggio remoto fallito:', err); });
   }, 1500);
 }
 
@@ -5319,7 +5319,7 @@ async function caricaDatiIniziali() {
             listaStati     = parsed.stati     || [];
             listaOperatori = parsed.operatori || [];
             return; // servito dalla cache: nessuna chiamata GAS
-        } catch(e) {}
+        } catch(e) { console.warn('[impostazioni] cache JSON corrotta, ricarico dal server:', e); }
     }
     try {
         const res = await fetch(URL_GOOGLE + '?azione=getImpostazioni');
