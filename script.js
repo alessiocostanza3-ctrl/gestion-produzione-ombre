@@ -167,6 +167,7 @@ const URL_GOOGLE = "https://script.google.com/macros/s/AKfycbyVMV9MkGiqphN0AKXJd
 
 let _fetchSessionPatchDone = false;
 let _sessionRefreshTimer = null;
+let _refreshAuthFailCount_ = 0; // conta auth_error consecutivi dal refresh silenzioso
 function _getSessionToken_() {
     try {
         if (utenteAttuale && utenteAttuale.sessionToken) return String(utenteAttuale.sessionToken);
@@ -239,6 +240,7 @@ async function _refreshSessionSilenzioso_() {
         });
         const r = await res.json();
         if (r && r.status === 'success' && r.sessionToken) {
+            _refreshAuthFailCount_ = 0; // reset contatore su successo
             if (!utenteAttuale) utenteAttuale = {};
             utenteAttuale.sessionToken = r.sessionToken;
             utenteAttuale.sessionExpiresAt = r.sessionExpiresAt || '';
@@ -250,7 +252,12 @@ async function _refreshSessionSilenzioso_() {
             return;
         }
         if (r && r.status === 'auth_error') {
-            logout();
+            _refreshAuthFailCount_++;
+            // Solo dopo 3 auth_error consecutivi eseguiamo il logout (evita logout per glitch temporanei)
+            if (_refreshAuthFailCount_ >= 3) {
+                _refreshAuthFailCount_ = 0;
+                logout();
+            }
         }
     } catch (e) {
         // rete momentaneamente assente: riproverà al prossimo ciclo
