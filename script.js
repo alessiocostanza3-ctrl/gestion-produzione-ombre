@@ -250,7 +250,7 @@ async function _refreshSessionSilenzioso_() {
             return;
         }
         if (r && r.status === 'auth_error') {
-            console.warn('[session] refresh non valido, continuo senza logout forzato');
+            logout();
         }
     } catch (e) {
         // rete momentaneamente assente: riproverà al prossimo ciclo
@@ -5680,8 +5680,6 @@ async function _caricaSessionStats_() {
         const totals = r.totals || {};
         const byUser = Array.isArray(r.byUser) ? r.byUser : [];
         const top = byUser.slice(0, 8);
-        const sessions = Array.isArray(r.sessions) ? r.sessions : [];
-        const recent = sessions.slice(0, 20);
 
         wrap.innerHTML = `
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
@@ -5701,46 +5699,9 @@ async function _caricaSessionStats_() {
                     </div>`;
                 }).join('') : `<div style="padding:10px;font-size:12px;color:#64748b">Nessuna sessione attiva</div>`}
             </div>
-            <div style="margin-top:10px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden">
-                <div style="display:grid;grid-template-columns:1fr .9fr .9fr .6fr;background:#f8fafc;padding:8px 10px;font-size:11px;font-weight:700;color:#475569">
-                    <div>Sessione</div><div>Utente</div><div>Scadenza</div><div style="text-align:right">Azione</div>
-                </div>
-                ${recent.length ? recent.map(function(s) {
-                    const badge = s.active ? '🟢' : '⚪';
-                    return `<div style="display:grid;grid-template-columns:1fr .9fr .9fr .6fr;align-items:center;padding:8px 10px;font-size:12px;border-top:1px solid #f1f5f9;gap:6px">
-                        <div title="${s.tokenPrefix || ''}">${badge} ${s.tokenPrefix || '-'}</div>
-                        <div>${s.username || '-'}</div>
-                        <div>${_fmtSessionTs_(s.expiresTs)}</div>
-                        <div style="text-align:right">
-                            <button class="qr-post-btn qr-post-btn-danger" style="padding:6px 8px;height:auto" onclick="_revocaSessioneSingolaDaUI_('${(s.tokenPrefix || '').replace(/'/g, '\\'')}')">Revoca</button>
-                        </div>
-                    </div>`;
-                }).join('') : `<div style="padding:10px;font-size:12px;color:#64748b">Nessuna sessione disponibile</div>`}
-            </div>
         `;
     } catch (e) {
         wrap.innerHTML = '<div style="font-size:12px;color:#b91c1c">Errore rete durante il caricamento sessioni.</div>';
-    }
-}
-
-async function _revocaSessioneSingolaDaUI_(tokenPrefix) {
-    const p = String(tokenPrefix || '').trim();
-    if (!p) return;
-    if (!confirm('Revocare la sessione ' + p + '?')) return;
-    try {
-        const res = await fetch(URL_GOOGLE, {
-            method: 'POST',
-            body: JSON.stringify({ azione: 'revocaSessioneByPrefix', tokenPrefix: p })
-        });
-        const r = await res.json();
-        if (r && r.status === 'success') {
-            notificaElegante('Sessione revocata: ' + (r.removed || 0));
-            _caricaSessionStats_();
-            return;
-        }
-        notificaElegante((r && (r.message || r.msg)) || 'Revoca sessione non riuscita.', 'error');
-    } catch (e) {
-        notificaElegante('Errore rete durante revoca sessione.', 'error');
     }
 }
 
