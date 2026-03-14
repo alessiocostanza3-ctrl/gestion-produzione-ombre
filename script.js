@@ -5656,6 +5656,98 @@ function eliminaUtente(idRiga, username) {
         }
     }, 'Elimina');
 }
+
+function _fmtSessionTs_(ts) {
+    const num = Number(ts || 0);
+    if (!num) return '-';
+    try { return new Date(num).toLocaleString('it-IT'); } catch (e) { return '-'; }
+}
+
+async function _caricaSessionStats_() {
+    if (!utenteAttuale || utenteAttuale.ruolo !== 'MASTER') return;
+    const wrap = document.getElementById('session-stats-wrap');
+    if (!wrap) return;
+    wrap.innerHTML = '<div style="font-size:12px;color:#64748b">Caricamento sessioni...</div>';
+    try {
+        const url = URL_GOOGLE + '?azione=getSessionStats&username=' + encodeURIComponent(String(utenteAttuale.nome || '').toUpperCase()) + '&email=' + encodeURIComponent(String(utenteAttuale.email || '').toLowerCase());
+        const res = await fetch(url);
+        const r = await res.json();
+        if (!r || r.status !== 'success') {
+            wrap.innerHTML = '<div style="font-size:12px;color:#b91c1c">Impossibile caricare statistiche sessioni.</div>';
+            return;
+        }
+
+        const totals = r.totals || {};
+        const byUser = Array.isArray(r.byUser) ? r.byUser : [];
+        const top = byUser.slice(0, 8);
+
+        wrap.innerHTML = `
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+                <span style="padding:4px 8px;border-radius:999px;background:#f1f5f9;font-size:11px;color:#334155">Sessioni attive: <strong>${totals.activeSessions || 0}</strong></span>
+                <span style="padding:4px 8px;border-radius:999px;background:#f1f5f9;font-size:11px;color:#334155">Utenti attivi: <strong>${totals.usersWithSessions || 0}</strong></span>
+                <span style="padding:4px 8px;border-radius:999px;background:#f1f5f9;font-size:11px;color:#334155">Righe sessione: <strong>${totals.rows || 0}</strong></span>
+            </div>
+            <div style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden">
+                <div style="display:grid;grid-template-columns:1.2fr .6fr .8fr;background:#f8fafc;padding:8px 10px;font-size:11px;font-weight:700;color:#475569">
+                    <div>Utente</div><div>Sessioni</div><div>Ultimo accesso</div>
+                </div>
+                ${top.length ? top.map(function(u) {
+                    return `<div style="display:grid;grid-template-columns:1.2fr .6fr .8fr;padding:8px 10px;font-size:12px;border-top:1px solid #f1f5f9">
+                        <div>${u.username || '-'}</div>
+                        <div>${u.activeSessions || 0}</div>
+                        <div>${_fmtSessionTs_(u.latestSeenTs)}</div>
+                    </div>`;
+                }).join('') : `<div style="padding:10px;font-size:12px;color:#64748b">Nessuna sessione attiva</div>`}
+            </div>
+        `;
+    } catch (e) {
+        wrap.innerHTML = '<div style="font-size:12px;color:#b91c1c">Errore rete durante il caricamento sessioni.</div>';
+    }
+}
+
+async function _revocaSessioniUtenteDaUI_() {
+    const usernameTarget = (document.getElementById('session-username-target')?.value || '').trim().toUpperCase();
+    if (!usernameTarget) {
+        notificaElegante('Inserisci uno username da revocare.', 'error');
+        return;
+    }
+    if (!confirm('Revocare tutte le sessioni per ' + usernameTarget + '?')) return;
+    try {
+        const res = await fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify({ azione: 'revocaSessioniUtente', usernameTarget })
+        });
+        const r = await res.json();
+        if (r && r.status === 'success') {
+            notificaElegante('Sessioni revocate: ' + (r.removed || 0));
+            _caricaSessionStats_();
+            return;
+        }
+        notificaElegante((r && (r.message || r.msg)) || 'Revoca non riuscita.', 'error');
+    } catch (e) {
+        notificaElegante('Errore rete durante revoca sessioni.', 'error');
+    }
+}
+
+async function _revocaTutteSessioniDaUI_() {
+    if (!confirm('Revocare TUTTE le sessioni (eccetto quella corrente)?')) return;
+    try {
+        const res = await fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify({ azione: 'revocaTutteSessioni' })
+        });
+        const r = await res.json();
+        if (r && r.status === 'success') {
+            notificaElegante('Sessioni globali revocate: ' + (r.removed || 0));
+            _caricaSessionStats_();
+            return;
+        }
+        notificaElegante((r && (r.message || r.msg)) || 'Revoca globale non riuscita.', 'error');
+    } catch (e) {
+        notificaElegante('Errore rete durante revoca globale.', 'error');
+    }
+}
+
 function caricaInterfacciaImpostazioni() {
         const contenitore = document.getElementById('contenitore-dati');
         if (!contenitore) return;
@@ -5731,6 +5823,28 @@ function caricaInterfacciaImpostazioni() {
                         </div>
 
                         <div style="height:6px"></div>
+                    </div>
+                </div>
+
+                <div class="settings-row" onclick="toggleSettingsSection('section-sessioni-attive', this); setTimeout(_caricaSessionStats_, 120)">
+                    <div class="settings-row-left">
+                        <div class="settings-row-icon"><i class="fas fa-shield-alt"></i></div>
+                        <div>
+                            <div class="settings-row-title">Sicurezza Sessioni</div>
+                            <div class="settings-row-sub">Monitor sessioni attive e revoca accessi</div>
+                        </div>
+                    </div>
+                    <i class="fas fa-chevron-down settings-row-arrow"></i>
+                </div>
+                <div id="section-sessioni-attive" class="settings-section-body" style="display:none">
+                    <div class="card-settings">
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+                            <input id="session-username-target" type="text" class="input-field-modern" placeholder="Username da revocare" style="max-width:220px">
+                            <button class="qr-post-btn" style="padding:8px 12px;height:auto" onclick="_revocaSessioniUtenteDaUI()">Revoca utente</button>
+                            <button class="qr-post-btn qr-post-btn-danger" style="padding:8px 12px;height:auto" onclick="_revocaTutteSessioniDaUI()">Revoca globale</button>
+                            <button class="qr-post-btn" style="padding:8px 12px;height:auto" onclick="_caricaSessionStats_()"><i class="fas fa-sync"></i></button>
+                        </div>
+                        <div id="session-stats-wrap"></div>
                     </div>
                 </div>
                 ` : ''}
