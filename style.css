@@ -2755,6 +2755,17 @@ h1 {
 .received .chat-bubble-name { color: #242424; text-align: left; }
 .sent .chat-bubble-name { color: #9ca3af; text-align: right; }
 
+.chat-bubble-time {
+    font-size: 10px;
+    opacity: 0.55;
+    margin-top: 5px;
+    display: block;
+    text-align: right;
+    letter-spacing: 0.02em;
+}
+.received .chat-bubble-time { color: #64748b; }
+.sent .chat-bubble-time { color: #cbd5e1; }
+
 
 
 

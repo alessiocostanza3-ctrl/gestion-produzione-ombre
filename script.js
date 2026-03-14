@@ -5246,7 +5246,7 @@ function formattaData(stringaData) {
             const match = String(stringaData).match(/(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
             if (match) {
                 const [, g, m, a] = match;
-                const oraMatch = String(stringaData).match(/(\d{2}):(\d{2})/);
+                const oraMatch = String(stringaData).match(/(\d{2})[:.](\d{2})/);
                 const h = oraMatch ? oraMatch[1] : "00";
                 const min = oraMatch ? oraMatch[2] : "00";
                 d = new Date(`${a}-${m}-${g}T${h}:${min}:00`);
@@ -5330,11 +5330,13 @@ function generaCardRichiesta(msgs, io, isArchiviata) {
                 ${msgs.map(m => {
                     const amIMittente = (String(m.DA).toUpperCase().trim() === io);
                     const testo = String(m.MESSAGGIO || "").includes("|") ? m.MESSAGGIO.split("|")[1] : m.MESSAGGIO;
+                    const orarioMsg = m['DATA ORA'] ? formattaData(m['DATA ORA']) : '';
                     return `
                         <div class="chat-bubble-wrapper ${amIMittente ? 'sent' : 'received'}">
                             <div class="chat-bubble">
                                 <div class="chat-bubble-name">${_normNome(m.DA)}</div>
                                 <div class="chat-bubble-text">${testo}</div>
+                                ${orarioMsg ? `<span class="chat-bubble-time">${orarioMsg}</span>` : ''}
                             </div>
                         </div>`;
                 }).join('')}
