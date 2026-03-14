@@ -250,7 +250,7 @@ async function _refreshSessionSilenzioso_() {
             return;
         }
         if (r && r.status === 'auth_error') {
-            logout();
+            console.warn('[session] refresh non valido, continuo senza logout forzato');
         }
     } catch (e) {
         // rete momentaneamente assente: riproverà al prossimo ciclo
