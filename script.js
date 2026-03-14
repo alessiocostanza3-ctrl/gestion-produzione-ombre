@@ -560,7 +560,11 @@ function _vapidB64ToUint8_(b64url) {
     return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
 }
 
-/** Importa ordini dal CSV del gestionale direttamente sul foglio, senza passare da Sheets */
+/**
+ * Importa ordini dal CSV del gestionale.
+ * Step 1: legge il file, fa parsing client-side, mostra preview + validazione colonne.
+ * Step 2 (_inviaCSVConfermato_): invia al backend e mostra report riga per riga.
+ */
 async function importaCSVDaFile(input) {
     const file = input && input.files && input.files[0];
     const labelNome = document.getElementById('csv-upload-filename');
@@ -571,51 +575,193 @@ async function importaCSVDaFile(input) {
     if (risultato) { risultato.style.display = 'none'; risultato.innerHTML = ''; }
 
     // Legge il file come testo
-    const csvText = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = e => resolve(e.target.result);
-        reader.onerror = reject;
-        reader.readAsText(file, 'UTF-8');
-    });
+    let csvText;
+    try {
+        csvText = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = e => resolve(e.target.result);
+            reader.onerror = reject;
+            reader.readAsText(file, 'UTF-8');
+        });
+    } catch(e) {
+        if (risultato) {
+            risultato.style.display = 'block';
+            risultato.innerHTML = `<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:12px 16px;font-size:0.88rem;color:#991b1b">❌ Impossibile leggere il file: ${_escapeHtml_(e.message)}</div>`;
+        }
+        input.value = '';
+        return;
+    }
 
     // Rileva automaticamente il separatore (; oppure ,)
     const primaRiga = csvText.split('\n')[0] || '';
     const separatore = (primaRiga.split(';').length >= primaRiga.split(',').length) ? ';' : ',';
 
-    // Mostra stato caricamento
-    if (risultato) {
-        risultato.style.display = 'block';
-        risultato.innerHTML = `<div style="display:flex;align-items:center;gap:8px;color:#64748b;font-size:0.88rem"><i class="fas fa-spinner fa-spin"></i> Invio in corso…</div>`;
+    // Parsing client-side leggero (senza gestione quote complessa, sufficiente per preview)
+    const righeCSV = csvText.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n')
+        .map(l => l.split(separatore).map(c => c.trim()))
+        .filter(r => r.some(c => c));
+
+    if (righeCSV.length < 2) {
+        if (risultato) {
+            risultato.style.display = 'block';
+            risultato.innerHTML = `<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:12px 16px;font-size:0.88rem;color:#991b1b">❌ Il file è vuoto o contiene solo l'intestazione.</div>`;
+        }
+        input.value = '';
+        return;
     }
 
-    try {
-        const res = await fetch(URL_GOOGLE, {
-            method: 'POST',
-            body: JSON.stringify({ azione: 'importaOrdiniCSV', csvText, separatore })
-        });
-        const json = await res.json().catch(() => ({}));
+    const header = righeCSV[0].map(h => h.toLowerCase().trim());
+    const totRighe = righeCSV.length - 1;
 
-        if (risultato) {
-            if (json.status === 'ok') {
-                risultato.innerHTML = `
-                    <div style="background:#dcfce7;border:1px solid #86efac;border-radius:10px;padding:12px 16px;font-size:0.88rem;color:#166534">
-                        <strong>✅ Importazione completata</strong><br>
-                        <span>Nuovi ordini inseriti: <strong>${json.nuove}</strong></span><br>
-                        <span>Duplicati saltati: <strong>${json.saltate}</strong></span>
-                    </div>`;
-                // Ricarica la dashboard per mostrare i nuovi dati
-                setTimeout(() => { if (typeof caricaDati === 'function') caricaDati('PROGRAMMA PRODUZIONE DEL MESE', true); }, 800);
-            } else {
-                risultato.innerHTML = `<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:12px 16px;font-size:0.88rem;color:#991b1b"><strong>❌ Errore:</strong> ${json.msg || json.message || 'Errore sconosciuto'}</div>`;
-            }
-        }
-    } catch (err) {
-        if (risultato) {
-            risultato.innerHTML = `<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:12px 16px;font-size:0.88rem;color:#991b1b"><strong>❌ Errore di rete:</strong> ${err.message}</div>`;
-        }
+    // Validazione colonne obbligatorie
+    const haOrdine = header.some(h => h.includes('ordine'));
+    const haCodice = header.some(h => h.includes('codice'));
+    const mancanti = [];
+    if (!haOrdine) mancanti.push('ordine');
+    if (!haCodice) mancanti.push('codice');
+
+    const warningHtml = mancanti.length
+        ? `<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:0.82rem;color:#92400e">
+               ⚠️ Colonne obbligatorie non rilevate: ${mancanti.map(m => `<strong>${m}</strong>`).join(', ')}.
+               L'importazione potrebbe non funzionare correttamente.
+           </div>`
+        : '';
+
+    // Anteprima: prime 5 righe dati
+    const datiPreview = righeCSV.slice(1, 6);
+    const thCells = header.map(h => `<th style="padding:6px 10px;white-space:nowrap;font-size:0.75rem;text-transform:uppercase;letter-spacing:.4px;text-align:left;color:#475569">${_escapeHtml_(h)}</th>`).join('');
+    const tdRows  = datiPreview.map(r =>
+        `<tr>${header.map((_, ci) => `<td style="padding:5px 10px;font-size:0.8rem;white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis;border-top:1px solid #f1f5f9">${_escapeHtml_((r[ci] || ''))}</td>`).join('')}</tr>`
+    ).join('');
+
+    // Salva il contenuto in attesa di conferma (evita di passare CSV in onclick inline)
+    window._csvImportPending_ = { csvText, separatore };
+
+    const previewHtml = `
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+                <div style="font-weight:700;font-size:0.9rem;color:#1e293b">
+                    📊 Anteprima — <span style="color:#3b82f6">${totRighe} righe rilevate</span>
+                    <span style="font-weight:400;color:#64748b;font-size:0.82rem;margin-left:8px">(separatore: <code>${_escapeHtml_(separatore)}</code>)</span>
+                </div>
+                ${datiPreview.length < totRighe ? `<span style="font-size:0.78rem;color:#94a3b8">Prime ${datiPreview.length} su ${totRighe}</span>` : ''}
+            </div>
+            ${warningHtml}
+            <div style="overflow-x:auto;margin-bottom:14px;border-radius:8px;border:1px solid #e2e8f0">
+                <table style="width:100%;border-collapse:collapse;background:#fff">
+                    <thead style="background:#f1f5f9"><tr>${thCells}</tr></thead>
+                    <tbody>${tdRows}</tbody>
+                </table>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+                <button onclick="_inviaCSVConfermato_()" ${mancanti.length ? 'disabled style="background:#94a3b8;cursor:not-allowed;color:#fff;border:none;border-radius:8px;padding:9px 20px;font-size:0.88rem;font-weight:700"' : 'style="background:#3b82f6;color:#fff;border:none;border-radius:8px;padding:9px 20px;font-size:0.88rem;font-weight:700;cursor:pointer"'}>
+                    <i class="fas fa-upload"></i> Conferma Importazione
+                </button>
+                <button onclick="window._csvImportPending_=null;document.getElementById('csv-upload-result').style.display='none';document.getElementById('csv-upload-filename').textContent='Nessun file selezionato'"
+                    style="background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;border-radius:8px;padding:9px 16px;font-size:0.88rem;cursor:pointer">
+                    Annulla
+                </button>
+            </div>
+        </div>`;
+
+    if (risultato) {
+        risultato.style.display = 'block';
+        risultato.innerHTML = previewHtml;
     }
     // Reset input per permettere di ricaricare lo stesso file
     input.value = '';
+}
+
+/** Step 2: invia il CSV al backend dopo conferma e mostra report riga per riga */
+async function _inviaCSVConfermato_() {
+    const pending  = window._csvImportPending_;
+    const risultato = document.getElementById('csv-upload-result');
+    if (!pending || !pending.csvText) {
+        if (risultato) risultato.innerHTML = `<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:12px 16px;font-size:0.88rem;color:#991b1b">❌ Nessun file in attesa di importazione.</div>`;
+        return;
+    }
+    window._csvImportPending_ = null;
+
+    if (risultato) {
+        risultato.innerHTML = `<div style="display:flex;align-items:center;gap:8px;color:#64748b;font-size:0.88rem;padding:12px 0"><i class="fas fa-spinner fa-spin"></i> Importazione in corso…</div>`;
+    }
+
+    try {
+        const res  = await fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify({ azione: 'importaOrdiniCSV', csvText: pending.csvText, separatore: pending.separatore })
+        });
+        const json = await res.json().catch(() => ({}));
+
+        if (!risultato) return;
+
+        if (json.status === 'ok') {
+            const righe    = Array.isArray(json.righe) ? json.righe : [];
+            const nInseriti = json.nuove  ?? righe.filter(r => r.esito === 'inserito').length;
+            const nSaltati  = json.saltate ?? righe.filter(r => r.esito !== 'inserito').length;
+
+            const _badgeEsito = r => {
+                if (r.esito === 'inserito')  return `<span style="background:#dcfce7;color:#16a34a;border-radius:5px;padding:2px 8px;font-size:0.74rem;font-weight:700">✅ Inserito</span>`;
+                if (r.esito === 'duplicato') return `<span style="background:#fef9c3;color:#b45309;border-radius:5px;padding:2px 8px;font-size:0.74rem;font-weight:700">⚠️ Duplicato</span>`;
+                if (r.esito === 'saltato')   return `<span style="background:#f1f5f9;color:#64748b;border-radius:5px;padding:2px 8px;font-size:0.74rem;font-weight:700">⏭ Saltato</span>`;
+                return `<span style="background:#fee2e2;color:#b91c1c;border-radius:5px;padding:2px 8px;font-size:0.74rem;font-weight:700">❌ Errore</span>`;
+            };
+
+            let righeHtml = '';
+            if (righe.length) {
+                const maxMostra = 150;
+                const trRighe = righe.slice(0, maxMostra).map(r =>
+                    `<tr>
+                        <td style="padding:4px 8px;font-size:0.78rem;color:#94a3b8;text-align:right">${r.riga || ''}</td>
+                        <td style="padding:4px 8px;font-size:0.8rem;font-weight:600">${_escapeHtml_(r.ordine || '')}</td>
+                        <td style="padding:4px 8px;font-size:0.8rem">${_escapeHtml_(r.codice || '')}</td>
+                        <td style="padding:4px 8px">${_badgeEsito(r)}</td>
+                        <td style="padding:4px 8px;font-size:0.78rem;color:#94a3b8;font-style:italic">${_escapeHtml_(r.motivo || '')}</td>
+                    </tr>`
+                ).join('');
+                const piuRighe = righe.length > maxMostra
+                    ? `<tr><td colspan="5" style="padding:6px 10px;text-align:center;font-size:0.78rem;color:#94a3b8">… e altre ${righe.length - maxMostra} righe</td></tr>`
+                    : '';
+                righeHtml = `
+                    <details style="margin-top:10px">
+                        <summary style="cursor:pointer;font-size:0.82rem;font-weight:700;color:#3b82f6;user-select:none;padding:4px 0">
+                            Dettaglio righe (${righe.length} totali)
+                        </summary>
+                        <div style="overflow-x:auto;margin-top:8px;border-radius:8px;border:1px solid #e2e8f0">
+                            <table style="width:100%;border-collapse:collapse;background:#fff">
+                                <thead style="background:#f1f5f9">
+                                    <tr>
+                                        <th style="padding:5px 8px;font-size:0.74rem;text-align:right;color:#64748b">#</th>
+                                        <th style="padding:5px 8px;font-size:0.74rem;text-align:left;color:#64748b">Ordine</th>
+                                        <th style="padding:5px 8px;font-size:0.74rem;text-align:left;color:#64748b">Codice</th>
+                                        <th style="padding:5px 8px;font-size:0.74rem;text-align:left;color:#64748b">Esito</th>
+                                        <th style="padding:5px 8px;font-size:0.74rem;text-align:left;color:#64748b">Motivo</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${trRighe}${piuRighe}</tbody>
+                            </table>
+                        </div>
+                    </details>`;
+            }
+
+            risultato.innerHTML = `
+                <div style="background:#dcfce7;border:1px solid #86efac;border-radius:10px;padding:14px 16px;font-size:0.88rem;color:#166534">
+                    <strong>✅ Importazione completata</strong>
+                    <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:8px">
+                        <span>🆕 Inseriti: <strong>${nInseriti}</strong></span>
+                        <span>⏭ Saltati/duplicati: <strong>${nSaltati}</strong></span>
+                    </div>
+                    ${righeHtml}
+                </div>`;
+            setTimeout(() => { if (typeof caricaDati === 'function') caricaDati('PROGRAMMA PRODUZIONE DEL MESE', true); }, 800);
+        } else {
+            risultato.innerHTML = `<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:12px 16px;font-size:0.88rem;color:#991b1b"><strong>❌ Errore:</strong> ${_escapeHtml_(json.msg || json.message || 'Errore sconosciuto')}</div>`;
+        }
+    } catch (err) {
+        if (risultato) {
+            risultato.innerHTML = `<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:12px 16px;font-size:0.88rem;color:#991b1b"><strong>❌ Errore di rete:</strong> ${_escapeHtml_(err.message)}</div>`;
+        }
+    }
 }
 
 /** Mostra la diagnostica push (solo MASTER): lista dispositivi registrati per ogni utente */
