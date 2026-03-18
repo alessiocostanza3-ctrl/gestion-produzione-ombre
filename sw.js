@@ -1,20 +1,20 @@
 /* ============================================================
    Service Worker PROD — notifiche push VAPID native
    Nessun servizio di terze parti richiesto.
-   Aggiornato: 2026-03-02
-   v15: bump cache v96 - ruolo COMMERCIALE, Sollecita, sezione SCADENZE
+   Aggiornato: 2026-03-18
+   v16: bump cache v51 - fix auth sessioni, orario 19:30
    ============================================================ */
 'use strict';
 
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbyVMV9MkGiqphN0AKXJdHXF0Arp1vxTYrCYi1SGv_4MKLRJkx--5HoGq7mmQX-p0ZTZ/exec';
 var APP_URL = 'https://alessiocostanza3-ctrl.github.io/gestion-produzione-ombre/';
 
-var SHELL_CACHE = 'prod-shell-v50';
+var SHELL_CACHE = 'prod-shell-v51';
 var SHELL_ASSETS = [
     APP_URL,
     APP_URL + 'index.html',
     APP_URL + 'style.css?v=20260314b',
-    APP_URL + 'script.js?v=20260314b',
+    APP_URL + 'script.js?v=20260318',
     APP_URL + 'manifest.json'
 ];
 
@@ -160,7 +160,7 @@ function _isRiepilogoNotifiche_(titolo) {
 function _isOrarioRiepilogoNotifiche_() {
     var now  = new Date();
     var mins = now.getHours() * 60 + now.getMinutes();
-    return mins >= 9 * 60 && mins < 18 * 60 + 30; // 09:00 – 18:30
+    return mins >= 9 * 60 && mins < 19 * 60 + 30; // 09:00 – 19:30
 }
 
 /** Invia notifiche alle finestre aperte dell'app (aggiorna badge + lista in-app) */

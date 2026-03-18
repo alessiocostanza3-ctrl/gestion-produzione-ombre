@@ -116,7 +116,7 @@ function _isPushVisibleUtenteEsente_() {
 function _isOrarioRiepilogoNotifiche_() {
     const now  = new Date();
     const mins = now.getHours() * 60 + now.getMinutes();
-    return mins >= 9 * 60 && mins < 18 * 60 + 30; // 09:00 – 18:30
+    return mins >= 9 * 60 && mins < 19 * 60 + 30; // 09:00 – 19:30
 }
 
 function _mostraToastRiepilogoNotifiche_(count) {
@@ -1462,7 +1462,7 @@ function initSidebarState() {
 document.addEventListener('DOMContentLoaded', initSidebarState);
 /* ---- FINE SIDEBAR TOGGLE ---- */ // QUESTA FUNZIONE È QUELLA CHE SCRIVE I DATI NELLA TUA SIDEBAR
 async function salvaEApriDashboard() {
-    // Blocco orario: impedisce l'accesso fuori dalle 08:30-18:30 (tranne esenti)
+    // Blocco orario: impedisce l'accesso fuori dalle 08:30-19:30 (tranne esenti)
     if (!_checkOrarioAccesso(true)) return;
     try { localStorage.setItem('sessioneUtente', JSON.stringify(utenteAttuale)); } catch (e) {}
     try { sessionStorage.setItem('sessioneUtente', JSON.stringify(utenteAttuale)); } catch (e) {}
@@ -1539,7 +1539,7 @@ function logout() {
 // aggiornaBadgeNotifiche è definita all'inizio del file (riga 22) — NON ridichiarare qui
 
 /* ── Blocco orario accesso ───────────────────────────────────────────────────
-   L'app è utilizzabile dalle 08:30 alle 18:30.
+   L'app è utilizzabile dalle 08:30 alle 19:30.
    Sono esenti: account ALESSIO e account 0000 (MASTER).
 ─────────────────────────────────────────────────────────────────────────── */
 function _isUtenteEsente() {
@@ -1554,7 +1554,7 @@ function _isCommerciale() {
 function _isOrarioConsentito() {
     const now  = new Date();
     const mins = now.getHours() * 60 + now.getMinutes();
-    return mins >= 8 * 60 + 30 && mins < 18 * 60 + 30; // 08:30 – 18:30
+    return mins >= 8 * 60 + 30 && mins < 19 * 60 + 30; // 08:30 – 19:30
 }
 /**
  * Verifica se l'utente corrente può accedere in base all'orario.
@@ -1576,7 +1576,7 @@ function _checkOrarioAccesso(mostraMessaggio) {
             // Siamo al login → mostra messaggio nel form
             const errEl = document.getElementById('login-error') || document.getElementById('login-error-msg');
             if (errEl) {
-                errEl.textContent = '⏰ App non disponibile fuori dall\'orario lavorativo (08:30 – 18:30).';
+                errEl.textContent = '⏰ App non disponibile fuori dall\'orario lavorativo (08:30 – 19:30).';
                 errEl.style.display = 'block';
             }
             if (overlay) { overlay.style.display = 'flex'; overlay.style.opacity = '1'; }
@@ -1602,7 +1602,7 @@ function _bloccaSchermo_() {
         <div style="font-size:1.3rem;font-weight:700;letter-spacing:0.02em">App bloccata</div>
         <div style="font-size:0.95rem;color:#94a3b8;text-align:center;max-width:280px;line-height:1.5">
             L'app è disponibile dalle <strong style="color:#e2e8f0">08:30</strong> alle
-            <strong style="color:#e2e8f0">18:30</strong>.<br>
+            <strong style="color:#e2e8f0">19:30</strong>.<br>
             Si sbloccherà automaticamente.
         </div>
         <div style="margin-top:8px;font-size:0.82rem;color:#64748b">
@@ -4910,15 +4910,36 @@ function _initKanbanDnd() {
             setTimeout(() => { elDrop.style.transition = ''; }, 200);
         });
 
-        // Salva backend per tutte le righe del gruppo
+        // Aggiorna cache locale
         idRighe.forEach(id => {
-            aggiornaDato(null, id, 'stato', newStato);
             if (_attiviProd) {
                 const r = _attiviProd.find(x => String(x.id_riga) === id);
                 if (r) r.stato = newStato;
             }
         });
-        _syncStatoItemCard(idRiga, newStato, colore);
+        // Salva backend: richiesta singola con tutte le righe del gruppo
+        // (evita conflitti di lock GAS quando ci sono più articoli in parallelo)
+        if (idRighe.length === 1) {
+            aggiornaDato(null, idRighe[0], 'stato', newStato);
+        } else {
+            fetch(URL_GOOGLE, {
+                method: 'POST',
+                body: JSON.stringify({
+                    azione:    'aggiorna_produzione',
+                    id_righe:  idRighe,
+                    colonna:   'stato',
+                    valore:    newStato,
+                    mittente:  (utenteAttuale && utenteAttuale.nome) ? utenteAttuale.nome.toUpperCase() : ''
+                })
+            }).then(r => r.json()).then(r => {
+                if (r && r.status === 'auth_error') { _gestisciAuthError_(r.message); return; }
+                delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
+                cacheFetchTime['PROGRAMMA PRODUZIONE DEL MESE'] = 0;
+                _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
+            }).catch(() => notificaElegante('Errore nel salvataggio dello stato. Riprova.'));
+        }
+        // Sincronizza il dropdown stato per TUTTI gli articoli del gruppo nel pannello dettaglio
+        idRighe.forEach(id => _syncStatoItemCard(id, newStato, colore));
         notificaElegante(`Stato → ${newStato}`);
     });
 
