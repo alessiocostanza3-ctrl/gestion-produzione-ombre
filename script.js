@@ -748,6 +748,7 @@ let _ordiniAutocompleteCache = [];
 let _attiviProd = [];  // cache per il chart overview nella pagina produzione
 let _pollProdTimer = null; // timer polling produzione
 const _POLL_PROD_MS = 30000; // 30 secondi
+let _lastKanbanDragTs = 0; // timestamp ultimo drag kanban (evita revert poll)
 
 async function fetchJson(pagina, signal) {
     const url = URL_GOOGLE + "?pagina=" + encodeURIComponent(pagina);
@@ -3888,6 +3889,8 @@ async function _pollProdStep() {
     if (document.visibilityState === 'hidden') return;
     // Non interrompere mentre l'utente ha un dropdown aperto
     if (document.querySelector('.stato-dropdown.open, .op-dropdown.open')) return;
+    // Non eseguire il poll per 5s dopo un drag kanban (evita revert dell'update ottimistico)
+    if (Date.now() - _lastKanbanDragTs < 5000) return;
     try {
         const resp = await fetch(URL_GOOGLE + '?azione=getAllDashboard');
         if (!resp.ok) return;
@@ -4910,34 +4913,21 @@ function _initKanbanDnd() {
             setTimeout(() => { elDrop.style.transition = ''; }, 200);
         });
 
-        // Aggiorna cache locale
+        // Aggiorna cache locale per tutti gli articoli del gruppo
         idRighe.forEach(id => {
             if (_attiviProd) {
                 const r = _attiviProd.find(x => String(x.id_riga) === id);
                 if (r) r.stato = newStato;
             }
         });
-        // Salva backend: richiesta singola con tutte le righe del gruppo
-        // (evita conflitti di lock GAS quando ci sono più articoli in parallelo)
-        if (idRighe.length === 1) {
-            aggiornaDato(null, idRighe[0], 'stato', newStato);
-        } else {
-            fetch(URL_GOOGLE, {
-                method: 'POST',
-                body: JSON.stringify({
-                    azione:    'aggiorna_produzione',
-                    id_righe:  idRighe,
-                    colonna:   'stato',
-                    valore:    newStato,
-                    mittente:  (utenteAttuale && utenteAttuale.nome) ? utenteAttuale.nome.toUpperCase() : ''
-                })
-            }).then(r => r.json()).then(r => {
-                if (r && r.status === 'auth_error') { _gestisciAuthError_(r.message); return; }
-                delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
-                cacheFetchTime['PROGRAMMA PRODUZIONE DEL MESE'] = 0;
-                _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
-            }).catch(() => notificaElegante('Errore nel salvataggio dello stato. Riprova.'));
-        }
+        // Salva backend in modo sequenziale (evita contention del lock GAS)
+        // Usa aggiornaDato che ha già session token + error handling testati
+        _lastKanbanDragTs = Date.now();
+        (async () => {
+            for (const id of idRighe) {
+                await aggiornaDato(null, id, 'stato', newStato);
+            }
+        })();
         // Sincronizza il dropdown stato per TUTTI gli articoli del gruppo nel pannello dettaglio
         idRighe.forEach(id => _syncStatoItemCard(id, newStato, colore));
         notificaElegante(`Stato → ${newStato}`);
