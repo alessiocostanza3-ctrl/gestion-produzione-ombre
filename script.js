@@ -274,12 +274,28 @@ document.addEventListener('visibilitychange', function() {
     if (!document.hidden) _refreshSessionSilenzioso_();
 });
 
-// Fallback: se una sessione è già presente, nascondi subito l'overlay (evita blocchi/flicker
-// se il browser ritarda l'esecuzione di window.onload).
+/**
+ * Gestisce risposte auth_error dal server GAS.
+ * Mostra un messaggio e forza il re-login dopo 2 secondi.
+ */
+function _gestisciAuthError_(messaggio) {
+    notificaElegante(
+        messaggio || 'Sessione scaduta. Effettua nuovamente il login.',
+        'error'
+    );
+    setTimeout(function() { logout(); }, 2000);
+}
+
+// Fallback: se una sessione è già presente E ha un sessionToken valido,
+// nascondi subito l'overlay (evita blocchi/flicker prima di window.onload).
 try {
-    if (localStorage.getItem('sessioneUtente') || sessionStorage.getItem('sessioneUtente')) {
-        const overlay = document.getElementById('login-overlay');
-        if (overlay) overlay.style.display = 'none';
+    const _rawSess = localStorage.getItem('sessioneUtente') || sessionStorage.getItem('sessioneUtente');
+    if (_rawSess) {
+        const _parsedSess = JSON.parse(_rawSess);
+        if (_parsedSess && _parsedSess.sessionToken) {
+            const overlay = document.getElementById('login-overlay');
+            if (overlay) overlay.style.display = 'none';
+        }
     }
 } catch (e) {}
 
@@ -824,6 +840,20 @@ window.onload = async function() {
     if (sessione) {
         // Se c'è una sessione, la leggiamo subito
         utenteAttuale = JSON.parse(sessione);
+
+        // Verifica che la sessione includa un sessionToken (aggiunto con il nuovo sistema di auth).
+        // Se manca (login effettuato prima dell'aggiornamento del backend), forza il re-login.
+        if (utenteAttuale.ruolo !== 'MASTER' && !utenteAttuale.sessionToken) {
+            utenteAttuale = null;
+            try { localStorage.removeItem('sessioneUtente'); sessionStorage.removeItem('sessioneUtente'); } catch(_e) {}
+            if (overlay) { overlay.style.display = 'flex'; overlay.style.opacity = '1'; }
+            const _errDiv = document.getElementById('login-error');
+            if (_errDiv) {
+                _errDiv.innerText = 'Sessione non più valida. Effettua di nuovo il login.';
+                _errDiv.style.color = '#ef4444';
+            }
+            return;
+        }
 
         // Blocco orario: se fuori orario e non esente → blocca schermo (senza return, carica l'app sotto)
         const _fuoriOrario = !_isUtenteEsente() && !_isOrarioConsentito();
@@ -3812,7 +3842,7 @@ async function aggiornaDato(selectEl, idRiga, campo, nuovoValore) {
     // Feedback visivo immediato sull'elemento
     if (selectEl) selectEl.style.opacity = '0.5';
     try {
-        await fetch(URL_GOOGLE, {
+        const res = await fetch(URL_GOOGLE, {
             method: 'POST',
             body: JSON.stringify({
                 azione:    'aggiorna_produzione',
@@ -3823,6 +3853,11 @@ async function aggiornaDato(selectEl, idRiga, campo, nuovoValore) {
             })
         });
         if (selectEl) selectEl.style.opacity = '1';
+        const r = await res.json();
+        if (r && r.status === 'auth_error') {
+            _gestisciAuthError_(r.message);
+            return;
+        }
         // Invalida la HTML cache così il prossimo fetch (proprio o altrui) prende dati freschi
         delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
         cacheFetchTime['PROGRAMMA PRODUZIONE DEL MESE'] = 0;
@@ -5189,7 +5224,9 @@ async function aggiornaRichiesta(idRiga, tipoAzione, tuttiIds) {
         } else {
             body.id_riga = idRiga;
         }
-        await fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify(body) });
+        const res = await fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify(body) });
+        const r = await res.json();
+        if (r && r.status === 'auth_error') { _gestisciAuthError_(r.message); return; }
         delete cacheContenuti['STORICO_RICHIESTE'];
         delete cacheFetchTime['STORICO_RICHIESTE'];
         _lsCacheDel('_html_STORICO_RICHIESTE');
@@ -6910,6 +6947,8 @@ document.addEventListener('click', () => {
 
       const r = await res.json();
 
+      if (r && r.status === 'auth_error') { _gestisciAuthError_(r.message); return; }
+
       if (r.status === "success") {
 
           chiudiModalArticolo(); // CHIUDI PRIMA DI RICARICARE
@@ -7160,6 +7199,7 @@ document.addEventListener('click', () => {
                 body: JSON.stringify({ azione: "eliminaMateriale", id_riga: idRiga })
             });
             const r = await res.json();
+            if (r && r.status === 'auth_error') { _gestisciAuthError_(r.message); return; }
             if (r.status !== "success") throw new Error();
             caricaMateriali(true);
         } catch (e) {
@@ -7203,6 +7243,7 @@ document.addEventListener('click', () => {
         });
 
         const r = await res.json();
+        if (r && r.status === 'auth_error') { _gestisciAuthError_(r.message); return; }
         if (r.status === "success") {
             notificaElegante("Articoli eliminati con successo");
 
