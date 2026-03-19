@@ -4624,8 +4624,9 @@ function _apriArchivio(id) {
 function _osservaArchivio(id) { /* disabilitato: apri solo col tasto */ }
 
 function _buildCaricoOperatoriHtml(attivi) {
-    // Solo articoli IN PRODUZIONE: gli altri stati non devono comparire nella card operatori
-    const attiviOp = attivi.filter(r => (r.stato || '').toUpperCase().trim() === 'IN PRODUZIONE');
+    // Tutti gli articoli attivi (tutti gli stati, non solo IN PRODUZIONE)
+    // così un operatore assegnato a qualsiasi stato risulta "occupato" e non "Libero"
+    const attiviOp = attivi;
 
     // Operatori della produzione da mostrare (in ordine fisso) — Title Case canonical
     const OPS_PROD = ['Riccardo', 'Fabio T.', 'Niccolò', 'Alessio'];

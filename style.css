@@ -3456,19 +3456,19 @@ h1 {
     padding: 6px 10px;
     border-radius: 16px;
     font-size: 10px;
-    background: rgba(255,255,255,0.12);
-    border-color: rgba(255,255,255,0.25);
-    color: #e2e8f0;
+    background: rgba(255,255,255,0.85);
+    border-color: rgba(0,0,0,0.18);
+    color: #1e293b;
 }
 .op-trigger-ord:hover {
-    background: rgba(255,255,255,0.2);
-    border-color: rgba(255,255,255,0.4);
-    color: #fff;
+    background: rgba(255,255,255,0.97);
+    border-color: rgba(0,0,0,0.32);
+    color: #0f172a;
 }
 .op-dropdown.open .op-trigger    { background: #f1f5f9; border-color: #94a3b8; }
-.op-dropdown.open .op-trigger-ord { background: rgba(255,255,255,0.22); border-color: rgba(255,255,255,0.5); color: #fff; }
+.op-dropdown.open .op-trigger-ord { background: #fff; border-color: #94a3b8; color: #0f172a; }
 .op-icon { font-size: 11px; flex-shrink: 0; color: #64748b; }
-.op-trigger-ord .op-icon { color: #94a3b8; }
+.op-trigger-ord .op-icon { color: #64748b; }
 .op-trigger-label { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; }
 .op-chevron { font-size: 9px; flex-shrink: 0; color: #94a3b8; transition: transform 0.2s ease; }
 .op-dropdown.open .op-chevron { transform: rotate(180deg); }
