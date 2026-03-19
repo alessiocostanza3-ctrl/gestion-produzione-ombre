@@ -28,17 +28,28 @@ async function rispondiAccessoApp(richiestaId, nome, risposta, btnEl) {
         const url = URL_GOOGLE + '?azione=rispondiAccessoFuoriOrario&id=' + encodeURIComponent(richiestaId) + '&ok=' + encodeURIComponent(risposta) + '&json=1';
         const res  = await fetch(url);
         const data = await res.json();
-        if (wrap) {
-            if (data.status === 'ok') {
-                const msg = risposta === 'SI' ? '✅ Accesso consentito' : '🚫 Accesso negato';
-                wrap.innerHTML = '<span class="notif-risposta-ok">' + msg + '</span>';
-            } else {
-                wrap.innerHTML = '<span class="notif-risposta-err">⚠️ ' + (data.msg || 'Errore') + '</span>';
-            }
+        if (data.status === 'ok') {
+            const msg = risposta === 'SI' ? '✅ Accesso consentito' : '🚫 Accesso negato';
+            // Persisti il risultato in localStorage: la prossima apertura del pannello
+            // non mostrerà più i pulsanti per questa richiesta
+            _segnaAccessoGestito_(richiestaId, msg);
+            if (wrap) wrap.innerHTML = '<span class="notif-risposta-ok">' + msg + '</span>';
+        } else {
+            if (wrap) wrap.innerHTML = '<span class="notif-risposta-err">⚠️ ' + (data.msg || 'Errore') + '</span>';
         }
     } catch (err) {
         if (wrap) wrap.innerHTML = '<span class="notif-risposta-err">⚠️ Errore di rete</span>';
     }
+}
+function _getAccessiGestiti_() {
+    try { return JSON.parse(localStorage.getItem('_accRispIdx_') || '{}'); } catch { return {}; }
+}
+function _segnaAccessoGestito_(id, msg) {
+    try {
+        const h = _getAccessiGestiti_();
+        h[id] = msg;
+        localStorage.setItem('_accRispIdx_', JSON.stringify(h));
+    } catch {}
 }
 function _chiudiNotificheOutside(e) { /* dismesso */ }
 function aggiornaBadgeNotifiche(count) {
@@ -87,11 +98,17 @@ function _notifHtml_(arr) {
             if (parsed && parsed.tipo === 'accesso_richiesta') {
                 const rid  = _escapeHtml_(parsed.id   || '');
                 const nome = _escapeHtml_(parsed.nome || '');
-                corpoHtml = `<div class="notifica-corpo">Vuole entrare fuori orario.</div>
+                // Controlla se Alessio ha già risposto (persistito in localStorage)
+                const gestiti = _getAccessiGestiti_();
+                if (gestiti[parsed.id]) {
+                    corpoHtml = `<div class="notifica-corpo"><span class="notif-risposta-ok">${_escapeHtml_(gestiti[parsed.id])}</span></div>`;
+                } else {
+                    corpoHtml = `<div class="notifica-corpo">Vuole entrare fuori orario.</div>
                   <div class="notif-azioni-accesso">
                     <button class="notif-btn-consenti" onclick="rispondiAccessoApp('${rid}','${nome}','SI',this)">✅ Consenti</button>
                     <button class="notif-btn-nega"    onclick="rispondiAccessoApp('${rid}','${nome}','NO',this)">🚫 Nega</button>
                   </div>`;
+                }
             }
         } catch (_) {}
         if (!corpoHtml) {
