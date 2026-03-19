@@ -5257,7 +5257,11 @@ function _initKanbanDnd() {
             } catch (_) {}
         }
         if (ghost) { ghost.remove(); ghost = null; }
-        if (dragEl) { dragEl.classList.remove('ov-drag-active'); dragEl = null; }
+        if (dragEl) { 
+            dragEl.classList.remove('ov-drag-active');
+            dragEl.style.userSelect = '';  /* ripristina selezione testo */
+            dragEl = null;
+        }
         grid.querySelectorAll('.ov-stato-body').forEach(b => b.classList.remove('ov-drop-over'));
         srcStato = null;
         activeBody = null;
@@ -5307,6 +5311,8 @@ function _initKanbanDnd() {
             `top:${rect.top}px`,
             'opacity:0.92',
             'pointer-events:none',
+            'user-select:none',
+            '-webkit-user-select:none',
             'z-index:99999',
             'border-radius:8px',
             'box-shadow:0 10px 32px rgba(0,0,0,0.55)',
@@ -5316,6 +5322,9 @@ function _initKanbanDnd() {
             'border:1.5px solid #475569'
         ].join(';');
         document.body.appendChild(ghost);
+        
+        /* Impedisci selezione del testo durante il drag */
+        item.style.userSelect = 'none';
 
         // Placeholder opaco nella posizione originale
         dragEl.classList.add('ov-drag-active');

@@ -6116,6 +6116,11 @@ button:active {
         border-radius: 0 0 10px 10px;
         transition: background 0.15s;
     }
+    /* Impedisci selezione testo durante drag su tutti gli elementi figli */
+    .ov-kanban-item.ov-drag-active * {
+        user-select: none !important;
+        -webkit-user-select: none !important;
+    }
 }
 
 /* ── Override leggibilità: solo pannello Stato Avanzamento ── */
