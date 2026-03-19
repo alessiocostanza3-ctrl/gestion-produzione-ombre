@@ -625,6 +625,7 @@ async function importaCSVDaFile(input) {
                         <strong>✅ Importazione completata</strong><br>
                         <span>Nuovi ordini inseriti: <strong>${json.nuove}</strong></span><br>
                         <span>Duplicati saltati: <strong>${json.saltate}</strong></span>
+                        ${json.aggiornate > 0 ? `<br><span>Quantità aggiornate: <strong>${json.aggiornate}</strong></span>` : ''}
                         ${json.evasi > 0 ? `<br><span>Ordini evasi archiviati: <strong>${json.evasi}</strong></span>` : ''}
                     </div>`;
                 // Ricarica la dashboard per mostrare i nuovi dati
@@ -3541,7 +3542,7 @@ function generaCardArticolo(art, nOrd, cliente) {
                         <span class="qty-rim-lbl">Rim.</span>
                         <b class="qty-rimanente" id="qty-rimanente-${art.id_riga}">${
                             (parseFloat(art.qty_evasa) > 0)
-                                ? (parseFloat(art.qty) - parseFloat(art.qty_evasa))
+                                ? Math.max(0, parseFloat(art.qty) - parseFloat(art.qty_evasa))
                                 : '—'
                         }</b>
                     </span>
