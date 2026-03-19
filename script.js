@@ -1615,19 +1615,9 @@ function _checkOrarioAccesso(mostraMessaggio) {
         return true;
     }
     if (mostraMessaggio !== false) {
-        const overlay = document.getElementById('login-overlay');
-        if (overlay && overlay.style.display === 'none') {
-            // Siamo dentro l'app → blocca schermo senza distruggere la sessione
-            _bloccaSchermo_();
-        } else {
-            // Siamo al login → mostra messaggio nel form
-            const errEl = document.getElementById('login-error') || document.getElementById('login-error-msg');
-            if (errEl) {
-                errEl.textContent = '⏰ App non disponibile fuori dall\'orario lavorativo (08:30 – 19:30).';
-                errEl.style.display = 'block';
-            }
-            if (overlay) { overlay.style.display = 'flex'; overlay.style.opacity = '1'; }
-        }
+        // In entrambi i casi (dentro app o al login) mostriamo il lock screen.
+        // Il lock screen ha z-index:99999 e compare sopra tutto, incluso il login overlay.
+        _bloccaSchermo_();
     }
     return false;
 }
@@ -1644,6 +1634,16 @@ function _bloccaSchermo_() {
         'align-items:center','justify-content:center','gap:16px',
         'color:#e2e8f0','font-family:inherit'
     ].join(';');
+    // Se l'utente non è loggato mostriamo un input per il nome utente
+    const identitaBlock = nome
+        ? `<div style="margin-top:8px;font-size:0.82rem;color:#64748b">
+               Accesso come: <strong style="color:#94a3b8">${_normNome ? _normNome(nome) : nome}</strong>
+           </div>`
+        : `<input id="_lock-nome_" type="text" placeholder="Il tuo nome utente"
+               autocomplete="username" spellcheck="false"
+               style="margin-top:12px;padding:10px 16px;border-radius:10px;border:1px solid #334155;
+                      background:#0f172a;color:#e2e8f0;font-size:0.95rem;text-align:center;
+                      width:220px;outline:none;">`;
     div.innerHTML = `
         <div style="font-size:3rem">🔒</div>
         <div style="font-size:1.3rem;font-weight:700;letter-spacing:0.02em">App bloccata</div>
@@ -1652,9 +1652,7 @@ function _bloccaSchermo_() {
             <strong style="color:#e2e8f0">19:30</strong>.<br>
             Si sbloccherà automaticamente.
         </div>
-        <div style="margin-top:8px;font-size:0.82rem;color:#64748b">
-            Accesso come: <strong style="color:#94a3b8">${_normNome ? _normNome(nome) : nome}</strong>
-        </div>
+        ${identitaBlock}
         <button id="_btn-chiedi-accesso_"
             onclick="_richiestaAccessoFuoriOrario_()"
             style="margin-top:16px;padding:12px 28px;border-radius:12px;border:none;
@@ -1682,9 +1680,20 @@ function _stopPollingAccesso_() {
 }
 
 async function _richiestaAccessoFuoriOrario_() {
-    const btn    = document.getElementById('_btn-chiedi-accesso_');
+    const btn     = document.getElementById('_btn-chiedi-accesso_');
     const statoEl = document.getElementById('_lock-stato_');
     if (!btn || !statoEl) return;
+
+    // Nome: da profilo loggato oppure dall'input manuale (quando si accede da login screen)
+    let nome = (utenteAttuale && utenteAttuale.nome) ? utenteAttuale.nome : '';
+    if (!nome) {
+        const inputEl = document.getElementById('_lock-nome_');
+        nome = inputEl ? inputEl.value.trim() : '';
+    }
+    if (!nome) {
+        statoEl.textContent = '⚠️ Inserisci prima il tuo nome utente nel campo sopra.';
+        return;
+    }
 
     btn.disabled = true;
     btn.textContent = '⏳ Invio richiesta…';
@@ -1693,13 +1702,16 @@ async function _richiestaAccessoFuoriOrario_() {
     try {
         const res = await fetch(URL_GOOGLE, {
             method: 'POST',
-            body: JSON.stringify({ azione: 'richiestaAccessoFuoriOrario', nome: utenteAttuale?.nome || '' })
+            body: JSON.stringify({ azione: 'richiestaAccessoFuoriOrario', nome })
         });
         const json = await res.json().catch(() => ({}));
         if (json.status === 'ok' && json.id) {
             _accessoRichiestaId = json.id;
             btn.textContent = '📨 Richiesta inviata';
             statoEl.textContent = 'In attesa di approvazione da Alessio…';
+            // Blocca l'input nome per evitare modifiche durante il polling
+            const inputEl = document.getElementById('_lock-nome_');
+            if (inputEl) inputEl.disabled = true;
             // Inizia polling ogni 4 secondi
             _accessoPollingTimer = setInterval(_pollAccessoApprovato_, 4000);
         } else {
@@ -1716,7 +1728,12 @@ async function _richiestaAccessoFuoriOrario_() {
 
 async function _pollAccessoApprovato_() {
     if (!_accessoRichiestaId) return;
-    const nome = (utenteAttuale?.nome || '').toUpperCase();
+    // Nome: da profilo loggato o dall'input manuale nel lock screen
+    let nome = (utenteAttuale && utenteAttuale.nome) ? utenteAttuale.nome.toUpperCase() : '';
+    if (!nome) {
+        const inputEl = document.getElementById('_lock-nome_');
+        nome = inputEl ? inputEl.value.trim().toUpperCase() : '';
+    }
     try {
         const res = await fetch(URL_GOOGLE +
             '?azione=verificaAccessoFuoriOrario&id=' + encodeURIComponent(_accessoRichiestaId) +
