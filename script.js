@@ -57,6 +57,10 @@ async function eliminaNotificaApp(rid, titoloEnc, corpoEnc, btnEl) {
     const rowId  = String(rid || '').trim();
     const card   = btnEl ? btnEl.closest('.notifica-item') : null;
 
+    if (card) {
+        card.classList.add('notif-removing');
+        await new Promise(function(resolve) { setTimeout(resolve, 190); });
+    }
     _rimuoviNotificaInLocale_(rowId, titolo, corpo);
     if (card) card.remove();
     const list = document.getElementById('notifiche-list');

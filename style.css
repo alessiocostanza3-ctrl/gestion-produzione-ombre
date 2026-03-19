@@ -197,6 +197,13 @@
     position: relative;
 }
 .notifica-item:hover { background: #f1f5f9; }
+.notifica-item.notif-removing {
+    opacity: 0;
+    transform: translateX(10px) scale(0.98);
+    filter: blur(0.6px);
+    pointer-events: none;
+    transition: opacity .18s ease, transform .18s ease, filter .18s ease;
+}
 .notif-del-btn {
     position: absolute;
     top: 6px;
