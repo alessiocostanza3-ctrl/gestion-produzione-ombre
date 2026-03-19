@@ -1565,6 +1565,11 @@ function _isOrarioConsentito() {
  * Restituisce true se l'accesso è consentito, false altrimenti.
  */
 function _checkOrarioAccesso(mostraMessaggio) {
+    // Accesso extra temporaneo concesso da Alessio (valido solo per questa sessione browser)
+    if (sessionStorage.getItem('_accesso_extra_') === '1') {
+        _sbloccaSchermo_();
+        return true;
+    }
     if (_isUtenteEsente() || _isOrarioConsentito()) {
         // Se siamo rientrati in orario e c'era il blocco schermo, rimuovilo
         _sbloccaSchermo_();
@@ -1610,13 +1615,95 @@ function _bloccaSchermo_() {
         </div>
         <div style="margin-top:8px;font-size:0.82rem;color:#64748b">
             Accesso come: <strong style="color:#94a3b8">${_normNome ? _normNome(nome) : nome}</strong>
-        </div>`;
+        </div>
+        <button id="_btn-chiedi-accesso_"
+            onclick="_richiestaAccessoFuoriOrario_()"
+            style="margin-top:16px;padding:12px 28px;border-radius:12px;border:none;
+                   background:#f59e0b;color:#0f172a;font-weight:700;font-size:0.95rem;
+                   cursor:pointer;letter-spacing:0.02em;transition:background 0.15s">
+            🔑 Chiedi accesso a Alessio
+        </button>
+        <div id="_lock-stato_" style="font-size:0.82rem;color:#64748b;min-height:1.2em;text-align:center;max-width:260px"></div>`;
     document.body.appendChild(div);
 }
 
 function _sbloccaSchermo_() {
     const el = document.getElementById('_lock-screen_');
     if (el) el.remove();
+    _stopPollingAccesso_();
+}
+
+// ── Richiesta accesso fuori orario ─────────────────────────────────────────
+let _accessoRichiestaId  = null;
+let _accessoPollingTimer = null;
+
+function _stopPollingAccesso_() {
+    if (_accessoPollingTimer) { clearInterval(_accessoPollingTimer); _accessoPollingTimer = null; }
+    _accessoRichiestaId = null;
+}
+
+async function _richiestaAccessoFuoriOrario_() {
+    const btn    = document.getElementById('_btn-chiedi-accesso_');
+    const statoEl = document.getElementById('_lock-stato_');
+    if (!btn || !statoEl) return;
+
+    btn.disabled = true;
+    btn.textContent = '⏳ Invio richiesta…';
+    statoEl.textContent = '';
+
+    try {
+        const res = await fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify({ azione: 'richiestaAccessoFuoriOrario', nome: utenteAttuale?.nome || '' })
+        });
+        const json = await res.json().catch(() => ({}));
+        if (json.status === 'ok' && json.id) {
+            _accessoRichiestaId = json.id;
+            btn.textContent = '📨 Richiesta inviata';
+            statoEl.textContent = 'In attesa di approvazione da Alessio…';
+            // Inizia polling ogni 4 secondi
+            _accessoPollingTimer = setInterval(_pollAccessoApprovato_, 4000);
+        } else {
+            btn.disabled = false;
+            btn.textContent = '🔑 Chiedi accesso a Alessio';
+            statoEl.textContent = '⚠️ Errore nell\'invio. Riprova.';
+        }
+    } catch {
+        btn.disabled = false;
+        btn.textContent = '🔑 Chiedi accesso a Alessio';
+        statoEl.textContent = '⚠️ Errore di rete. Riprova.';
+    }
+}
+
+async function _pollAccessoApprovato_() {
+    if (!_accessoRichiestaId) return;
+    const nome = (utenteAttuale?.nome || '').toUpperCase();
+    try {
+        const res = await fetch(URL_GOOGLE +
+            '?azione=verificaAccessoFuoriOrario&id=' + encodeURIComponent(_accessoRichiestaId) +
+            '&usr=' + encodeURIComponent(nome));
+        const json = await res.json().catch(() => ({}));
+        if (json.esito === 'APPROVED') {
+            _stopPollingAccesso_();
+            _sbloccaSchermo_();
+            // Segna in sessionStorage: accesso temporaneo concesso (si resetta alla chiusura)
+            sessionStorage.setItem('_accesso_extra_', '1');
+            // Toast di benvenuto
+            const t = document.createElement('div');
+            t.textContent = '✅ Accesso consentito da Alessio!';
+            t.style.cssText = 'position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:#22c55e;color:#fff;padding:12px 24px;border-radius:12px;font-weight:700;font-size:0.95rem;z-index:99998;box-shadow:0 4px 20px rgba(0,0,0,0.35);pointer-events:none';
+            document.body.appendChild(t);
+            setTimeout(() => t.remove(), 4000);
+            // Ricarica l'app sotto se necessario
+            if (typeof caricaDati === 'function') caricaDati(paginaAttuale);
+        } else if (json.esito === 'DENIED') {
+            _stopPollingAccesso_();
+            const statoEl = document.getElementById('_lock-stato_');
+            const btn     = document.getElementById('_btn-chiedi-accesso_');
+            if (statoEl) statoEl.textContent = '🚫 Accesso negato da Alessio.';
+            if (btn) { btn.disabled = false; btn.textContent = '🔑 Richiedi di nuovo'; }
+        }
+    } catch { /* ignora errori di rete, riprova al prossimo tick */ }
 }
 
 // Controllo ogni minuto mentre l'app è aperta
