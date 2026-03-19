@@ -260,7 +260,7 @@
             }
         });
     </script>
-    <script src="script.js?v=20260320n" defer></script>
+    <script src="script.js?v=20260320k" defer></script>
 </head>
 
 <body>
@@ -316,22 +316,6 @@
             </div>
 
             <div id="login-error" class="login-error-msg"></div>
-            <div style="margin-top:18px;text-align:center">
-                <button type="button" onclick="
-                    if('serviceWorker' in navigator){
-                        navigator.serviceWorker.getRegistrations().then(function(regs){
-                            var p = regs.map(function(r){return r.unregister();});
-                            Promise.all(p).then(function(){
-                                caches.keys().then(function(keys){
-                                    return Promise.all(keys.map(function(k){return caches.delete(k);}));
-                                }).then(function(){ window.location.reload(true); });
-                            });
-                        });
-                    } else { window.location.reload(true); }
-                " style="background:none;border:none;color:#4b5563;font-size:0.72rem;cursor:pointer;text-decoration:underline;padding:4px 8px;opacity:0.7">
-                    ↺ Aggiorna app
-                </button>
-            </div>
         </div>
     </div>
 

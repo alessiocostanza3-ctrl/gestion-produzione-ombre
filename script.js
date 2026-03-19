@@ -299,12 +299,7 @@ function _patchFetchWithSession_() {
 }
 _patchFetchWithSession_();
 
-let _refreshDebounceTimer = null;
 async function _refreshSessionSilenzioso_() {
-    // Debounce: se già c'è un refresh in corso (es. visibilitychange + setInterval simultanei)
-    // aspettiamo e non lanciamo un secondo, evitando la race sui token
-    if (_refreshDebounceTimer) return;
-    _refreshDebounceTimer = setTimeout(() => { _refreshDebounceTimer = null; }, 15000);
     const token = _getSessionToken_();
     if (!token) return;
 
@@ -1553,8 +1548,8 @@ function initSidebarState() {
 document.addEventListener('DOMContentLoaded', initSidebarState);
 /* ---- FINE SIDEBAR TOGGLE ---- */ // QUESTA FUNZIONE È QUELLA CHE SCRIVE I DATI NELLA TUA SIDEBAR
 async function salvaEApriDashboard() {
-    // NON controlliamo l'orario qui: il login deve sempre procedere.
-    // Il blocco orario viene gestito da window.onload e dal setInterval dopo che la sessione è attiva.
+    // Blocco orario: impedisce l'accesso fuori dalle 08:30-19:30 (tranne esenti)
+    if (!_checkOrarioAccesso(true)) return;
     try { localStorage.setItem('sessioneUtente', JSON.stringify(utenteAttuale)); } catch (e) {}
     try { sessionStorage.setItem('sessioneUtente', JSON.stringify(utenteAttuale)); } catch (e) {}
     _startSessionRefreshTicker_();
@@ -1634,17 +1629,9 @@ function logout() {
    Sono esenti: account ALESSIO e account 0000 (MASTER).
 ─────────────────────────────────────────────────────────────────────────── */
 function _isUtenteEsente() {
-    if (!utenteAttuale) return false;
-    const nome = String(utenteAttuale.nome || '').trim().toUpperCase();
-    const email = String(utenteAttuale.email || '').trim().toLowerCase();
-    const ruolo = String(utenteAttuale.ruolo || '').trim().toUpperCase();
-    return (
-        nome === '0000' ||
-        nome === 'ALESSIO' ||
-        nome.startsWith('ALESSIO ') ||
-        email === 'alessiocostanza3@gmail.com' ||
-        ruolo === 'MASTER'
-    );
+    if (!utenteAttuale || !utenteAttuale.nome) return false;
+    const nome = utenteAttuale.nome.toUpperCase();
+    return nome === 'ALESSIO' || nome === '0000' || utenteAttuale.ruolo === 'MASTER';
 }
 function _isCommerciale() {
     if (!utenteAttuale) return false;
@@ -1661,35 +1648,24 @@ function _isOrarioConsentito() {
  * Restituisce true se l'accesso è consentito, false altrimenti.
  */
 function _checkOrarioAccesso(mostraMessaggio) {
+    // Accesso extra temporaneo concesso da Alessio (valido solo per questa sessione browser)
     if (sessionStorage.getItem('_accesso_extra_') === '1') {
         _sbloccaSchermo_();
         return true;
     }
     if (_isUtenteEsente() || _isOrarioConsentito()) {
+        // Se siamo rientrati in orario e c'era il blocco schermo, rimuovilo
         _sbloccaSchermo_();
         return true;
     }
-    // Se non c'è una sessione attiva (nome vuoto) non mostriamo nulla: il form di login gestisce da solo
-    if (!utenteAttuale || !utenteAttuale.nome) return false;
     if (mostraMessaggio !== false) {
-        const overlay = document.getElementById('login-overlay');
-        const loginVisibile = overlay && overlay.style.display !== 'none';
-        if (!loginVisibile) {
-            // Siamo dentro l'app (sessione attiva) → blocca schermo senza fare logout
-            _bloccaSchermo_();
-        }
-        // Al login form: non facciamo nulla (il form è già visibile, l'utente può accedere)
+        // In entrambi i casi (dentro app o al login) mostriamo il lock screen.
+        // Il lock screen ha z-index:99999 e compare sopra tutto, incluso il login overlay.
+        _bloccaSchermo_();
     }
     return false;
 }
 
-function _mostraLoginDaLockscreen_(e) {
-    if (e) { e.preventDefault(); e.preventDefault(); }
-    const lock = document.getElementById('_lock-screen_');
-    if (lock) lock.remove();
-    const overlay = document.getElementById('login-overlay');
-    if (overlay) { overlay.style.display = 'flex'; overlay.style.opacity = '1'; }
-}
 function _bloccaSchermo_() {
     if (document.getElementById('_lock-screen_')) return; // già attivo
     const nome = utenteAttuale && utenteAttuale.nome ? utenteAttuale.nome : '';
