@@ -187,44 +187,14 @@
     background: #f8fafc;
     border: 1px solid #e2e8f0;
     border-radius: 10px;
-    padding: 10px 12px 10px 12px;
+    padding: 10px 12px;
     display: flex;
     flex-direction: row;
     align-items: flex-start;
     gap: 10px;
     transition: background 0.15s;
-    position: relative;
 }
 .notifica-item:hover { background: #f1f5f9; }
-/* Pulsante × per cancellare la singola notifica */
-.notif-delete-btn {
-    position: absolute;
-    top: 6px;
-    right: 7px;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    border: none;
-    background: #ef4444;
-    color: #fff;
-    font-size: 10px;
-    line-height: 18px;
-    text-align: center;
-    cursor: pointer;
-    opacity: 0;
-    transition: opacity .15s;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.notifica-item:hover .notif-delete-btn {
-    opacity: 1;
-}
-/* Su touch: sempre visibile (non c'è hover) */
-@media (hover: none) {
-    .notif-delete-btn { opacity: 0.7; }
-}
 .notifica-icon-badge {
     width: 30px;
     height: 30px;
@@ -6039,16 +6009,9 @@ button:active {
     .ov-stato-card[open] .ov-sub-chevron { transform: rotate(180deg); }
     .ov-stato-body { height: auto; max-height: 260px; }
     .ov-row-label { font-size: 0.70rem; }
-    /* nascondi drag handle su mobile — ora ri-abilitato per DnD mobile */
-    .ov-drag-handle { display: flex; opacity: 0.5; }
+    /* nascondi drag handle su mobile */
+    .ov-drag-handle { display: none; }
     .ov-row-main { flex: 1; min-width: 0; }
-    /* item draggabili su mobile */
-    .ov-kanban-item {
-        cursor: grab;
-        touch-action: none;
-        user-select: none;
-        -webkit-user-select: none;
-    }
 }
 
 /* ── Kanban drag & drop dinamico (pointer events, solo desktop ≥ 601px) ── */

@@ -41,30 +41,6 @@ async function rispondiAccessoApp(richiestaId, nome, risposta, btnEl) {
         if (wrap) wrap.innerHTML = '<span class="notif-risposta-err">⚠️ Errore di rete</span>';
     }
 }
-function _getNotifCancellate_() {
-    try { return JSON.parse(localStorage.getItem('_notifCancellate_') || '[]'); } catch { return []; }
-}
-function _segnaCancellata_(titolo, corpo) {
-    try {
-        const arr = _getNotifCancellate_();
-        const key = titolo + '||' + corpo;
-        if (!arr.includes(key)) { arr.push(key); localStorage.setItem('_notifCancellate_', JSON.stringify(arr.slice(-60))); }
-    } catch {}
-}
-function cancellaNotifica(keyB64) {
-    try {
-        const key = atob(keyB64);
-        const parts = key.split('||');
-        _segnaCancellata_(parts[0], parts.slice(1).join('||'));
-        // Rimuovi dall'array locale
-        const arr = JSON.parse(localStorage.getItem('_notificheArr') || '[]');
-        const next = arr.filter(n => (n.titolo + '||' + n.corpo) !== key);
-        localStorage.setItem('_notificheArr', JSON.stringify(next));
-        // Re-renderizza la lista
-        const list = document.getElementById('notifiche-list');
-        if (list) list.innerHTML = _notifHtml_(next);
-    } catch {}
-}
 function _getAccessiGestiti_() {
     try { return JSON.parse(localStorage.getItem('_accRispIdx_') || '{}'); } catch { return {}; }
 }
@@ -76,6 +52,7 @@ function _segnaAccessoGestito_(id, msg) {
     } catch {}
 }
 function _chiudiNotificheOutside(e) { /* dismesso */ }
+function aggiornaBadgeNotifiche(count) {
     const badgeDesk = document.getElementById('badge-notifiche-desktop');
     const badgeMob = document.getElementById('badge-notifiche-mobile');
     const badgeMobMenu = document.getElementById('badge-notifiche-mobile-menu');
@@ -92,7 +69,7 @@ function _chiudiNotificheOutside(e) { /* dismesso */ }
         badgeMobMenu.style.display = count > 0 ? 'flex' : 'none';
     }
 }
-function aggiornaBadgeNotifiche(count) {
+function _notifIcona_(titolo) {
     if (!titolo) return 'fa-bell';
     if (/stato/i.test(titolo))     return 'fa-rotate';
     if (/richiesta|comunic/i.test(titolo)) return 'fa-comment-dots';
@@ -109,15 +86,11 @@ function _escapeHtml_(value) {
 }
 function _notifHtml_(arr) {
     if (!arr.length) return '<div class="notif-empty"><i class="far fa-bell-slash"></i><p>Nessuna notifica recente</p></div>';
-    const cancellate = _getNotifCancellate_();
-    const visibili = arr.filter(n => !cancellate.includes(n.titolo + '||' + n.corpo));
-    if (!visibili.length) return '<div class="notif-empty"><i class="far fa-bell-slash"></i><p>Nessuna notifica recente</p></div>';
-    return visibili.map(function(n) {
+    return arr.map(function(n) {
         const icon   = _notifIcona_(n.titolo || '');
         const titolo = _escapeHtml_(n.titolo || 'Notifica');
         const tsVal  = _escapeHtml_(n._ts || '');
         const ts     = tsVal ? `<span class="notifica-ts">${tsVal}</span>` : '';
-        const keyB64 = btoa((n.titolo || '') + '||' + (n.corpo || ''));
         // Rilevamento notifica accesso_richiesta (corpo è JSON strutturato)
         let corpoHtml = '';
         try {
@@ -125,6 +98,7 @@ function _notifHtml_(arr) {
             if (parsed && parsed.tipo === 'accesso_richiesta') {
                 const rid  = _escapeHtml_(parsed.id   || '');
                 const nome = _escapeHtml_(parsed.nome || '');
+                // Controlla se Alessio ha già risposto (persistito in localStorage)
                 const gestiti = _getAccessiGestiti_();
                 if (gestiti[parsed.id]) {
                     corpoHtml = `<div class="notifica-corpo"><span class="notif-risposta-ok">${_escapeHtml_(gestiti[parsed.id])}</span></div>`;
@@ -141,7 +115,6 @@ function _notifHtml_(arr) {
             corpoHtml = `<div class="notifica-corpo">${_escapeHtml_(n.corpo || '')}</div>`;
         }
         return `<div class="notifica-item">
-          <button class="notif-delete-btn" onclick="cancellaNotifica('${keyB64}')" title="Rimuovi notifica">✕</button>
           <div class="notifica-icon-badge"><i class="fas ${icon}"></i></div>
           <div class="notifica-body">
             <div class="notifica-titolo">${titolo}</div>
@@ -5148,18 +5121,17 @@ function _scrollToOrdineList(ordine) {
    ricaricare e salva sul backend tramite aggiornaDato().
    ──────────────────────────────────────────────────────────────── */
 function _initKanbanDnd() {
+    if (window.innerWidth <= 600) return;
     const grid = document.getElementById('ov-kanban-grid');
     if (!grid || grid._dndInit) return;
     grid._dndInit = true;
-    const isDesktop = window.innerWidth > 600;
 
-    // Su desktop le colonne devono restare sempre aperte
-    if (isDesktop) {
-        grid.addEventListener('click', e => {
-            const summary = e.target.closest('.ov-stato-header');
-            if (summary) e.preventDefault();
-        }, true);
-    }
+    // Su desktop le colonne devono restare sempre aperte:
+    // blocca il toggle nativo di <details> quando si clicca il <summary>
+    grid.addEventListener('click', e => {
+        const summary = e.target.closest('.ov-stato-header');
+        if (summary) e.preventDefault();
+    }, true);
 
     let dragEl     = null;
     let ghost      = null;
@@ -5207,23 +5179,22 @@ function _initKanbanDnd() {
     /* ── Doppio click rilevato lato pointerdown (prima che preventDefault blocchi dblclick) ── */
     let _lastPointerDownTime = 0;
     let _lastPointerDownItem = null;
-    const _DBL_MS = 350; // soglia ms doppio-tap (più larga per touch)
 
     /* ── Inizio del drag ── */
     grid.addEventListener('pointerdown', e => {
-        // Solo tasto sinistro su mouse; su touch accetta qualsiasi pointer
+        // Solo tasto sinistro del mouse
         if (e.pointerType === 'mouse' && e.button !== 0) return;
         const item = e.target.closest('.ov-kanban-item');
         if (!item) return;
 
-        // Rileva doppio tap/click (350ms)
+        // Rileva doppio click manualmente (250ms): se è il secondo tap rapido navigiamo, non trasciniamo
         const now = Date.now();
-        if (_lastPointerDownItem === item && now - _lastPointerDownTime < _DBL_MS) {
+        if (_lastPointerDownItem === item && now - _lastPointerDownTime < 280) {
             _lastPointerDownTime = 0;
             _lastPointerDownItem = null;
             const ordine = (item.dataset.ordine || '').split(',')[0].trim();
             if (ordine) _scrollToOrdineList(ordine);
-            return;
+            return; // Non avviare il drag
         }
         _lastPointerDownTime = now;
         _lastPointerDownItem = item;
