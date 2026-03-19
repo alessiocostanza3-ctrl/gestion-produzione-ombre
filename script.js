@@ -4796,7 +4796,6 @@ function _buildOverviewInnerHtml(attivi) {
                     data-codice="${ordine.replace(/"/g, '&quot;')}"
                     data-ordine="${rows.map(r => r.ordine || '').join(',')}"
                     data-stato-corrente="${stato}"
-                    ondblclick="_scrollToOrdineList(this.dataset.ordine.split(',')[0])"
                     title="Doppio clic → vai all'ordine nella lista">
                     <span class="ov-drag-handle"><i class="fas fa-grip-vertical"></i></span>
                     <span class="ov-row-main">
@@ -4851,7 +4850,6 @@ function _buildOverviewInnerHtml(attivi) {
                     data-codice="${codice.replace(/"/g, '&quot;')}"
                     data-ordine="${rows.map(r => r.ordine || '').join(',')}"
                     data-stato-corrente="${stato}"
-                    ondblclick="_scrollToOrdineList(this.dataset.ordine.split(',')[0])"
                     title="Doppio clic → vai all'ordine nella lista">
                     <span class="ov-drag-handle"><i class="fas fa-grip-vertical"></i></span>
                     <span class="ov-row-main">
@@ -4965,12 +4963,28 @@ function _initKanbanDnd() {
         activeBody = null;
     }
 
+    /* ── Doppio click rilevato lato pointerdown (prima che preventDefault blocchi dblclick) ── */
+    let _lastPointerDownTime = 0;
+    let _lastPointerDownItem = null;
+
     /* ── Inizio del drag ── */
     grid.addEventListener('pointerdown', e => {
         // Solo tasto sinistro del mouse
         if (e.pointerType === 'mouse' && e.button !== 0) return;
         const item = e.target.closest('.ov-kanban-item');
         if (!item) return;
+
+        // Rileva doppio click manualmente (250ms): se è il secondo tap rapido navigiamo, non trasciniamo
+        const now = Date.now();
+        if (_lastPointerDownItem === item && now - _lastPointerDownTime < 280) {
+            _lastPointerDownTime = 0;
+            _lastPointerDownItem = null;
+            const ordine = (item.dataset.ordine || '').split(',')[0].trim();
+            if (ordine) _scrollToOrdineList(ordine);
+            return; // Non avviare il drag
+        }
+        _lastPointerDownTime = now;
+        _lastPointerDownItem = item;
 
         e.preventDefault();
         dragEl   = item;
