@@ -17,6 +17,29 @@ function chiudiPopupNotifiche() {
     if (!modal) return;
     modal.classList.remove('is-open');
 }
+async function rispondiAccessoApp(richiestaId, nome, risposta, btnEl) {
+    // Disabilita entrambi i pulsanti mentre si attende la risposta
+    const wrap = btnEl ? btnEl.closest('.notif-azioni-accesso') : null;
+    if (wrap) {
+        wrap.querySelectorAll('button').forEach(function(b) { b.disabled = true; });
+        wrap.innerHTML = '<span class="notif-risposta-wait">⏳ Invio in corso…</span>';
+    }
+    try {
+        const url = URL_GOOGLE + '?azione=rispondiAccessoFuoriOrario&id=' + encodeURIComponent(richiestaId) + '&ok=' + encodeURIComponent(risposta) + '&json=1';
+        const res  = await fetch(url);
+        const data = await res.json();
+        if (wrap) {
+            if (data.status === 'ok') {
+                const msg = risposta === 'SI' ? '✅ Accesso consentito' : '🚫 Accesso negato';
+                wrap.innerHTML = '<span class="notif-risposta-ok">' + msg + '</span>';
+            } else {
+                wrap.innerHTML = '<span class="notif-risposta-err">⚠️ ' + (data.msg || 'Errore') + '</span>';
+            }
+        }
+    } catch (err) {
+        if (wrap) wrap.innerHTML = '<span class="notif-risposta-err">⚠️ Errore di rete</span>';
+    }
+}
 function _chiudiNotificheOutside(e) { /* dismesso */ }
 function aggiornaBadgeNotifiche(count) {
     const badgeDesk = document.getElementById('badge-notifiche-desktop');
@@ -53,16 +76,32 @@ function _escapeHtml_(value) {
 function _notifHtml_(arr) {
     if (!arr.length) return '<div class="notif-empty"><i class="far fa-bell-slash"></i><p>Nessuna notifica recente</p></div>';
     return arr.map(function(n) {
-        const icon = _notifIcona_(n.titolo || '');
+        const icon   = _notifIcona_(n.titolo || '');
         const titolo = _escapeHtml_(n.titolo || 'Notifica');
-        const corpo  = _escapeHtml_(n.corpo || '');
         const tsVal  = _escapeHtml_(n._ts || '');
-        const ts   = tsVal ? `<span class="notifica-ts">${tsVal}</span>` : '';
+        const ts     = tsVal ? `<span class="notifica-ts">${tsVal}</span>` : '';
+        // Rilevamento notifica accesso_richiesta (corpo è JSON strutturato)
+        let corpoHtml = '';
+        try {
+            const parsed = JSON.parse(n.corpo || '');
+            if (parsed && parsed.tipo === 'accesso_richiesta') {
+                const rid  = _escapeHtml_(parsed.id   || '');
+                const nome = _escapeHtml_(parsed.nome || '');
+                corpoHtml = `<div class="notifica-corpo">Vuole entrare fuori orario.</div>
+                  <div class="notif-azioni-accesso">
+                    <button class="notif-btn-consenti" onclick="rispondiAccessoApp('${rid}','${nome}','SI',this)">✅ Consenti</button>
+                    <button class="notif-btn-nega"    onclick="rispondiAccessoApp('${rid}','${nome}','NO',this)">🚫 Nega</button>
+                  </div>`;
+            }
+        } catch (_) {}
+        if (!corpoHtml) {
+            corpoHtml = `<div class="notifica-corpo">${_escapeHtml_(n.corpo || '')}</div>`;
+        }
         return `<div class="notifica-item">
           <div class="notifica-icon-badge"><i class="fas ${icon}"></i></div>
           <div class="notifica-body">
             <div class="notifica-titolo">${titolo}</div>
-            <div class="notifica-corpo">${corpo}</div>
+            ${corpoHtml}
             ${ts}
           </div>
         </div>`;
