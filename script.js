@@ -3316,6 +3316,19 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
         _osservaArchivio('archivio-prod-details');
         // Attiva drag & drop kanban (solo desktop)
         requestAnimationFrame(_initKanbanDnd);
+        // Riapri automaticamente il blocco qty_evasa per le righe già valorizzate
+        requestAnimationFrame(() => {
+            if (_attiviProd) {
+                _attiviProd.forEach(r => {
+                    if (parseFloat(r.qty_evasa) > 0) {
+                        const block = document.getElementById('qty-evasa-block-' + r.id_riga);
+                        const btn   = block && block.closest('.qty-cell')?.querySelector('.btn-qty-evasa-toggle');
+                        if (block) block.style.display = 'inline-flex';
+                        if (btn)   btn.classList.add('active');
+                    }
+                });
+            }
+        });
         // Avvia (o riavvia) il polling live degli stati
         _startPollingProduzione();
 
@@ -3509,7 +3522,32 @@ function generaCardArticolo(art, nOrd, cliente) {
     return `
     <div class="item-card ${TW.card}" data-codice="${codicePrincipale.toLowerCase().replace(/"/g, '')}">
         <div><span class="label-sm ${TW.label}">Codice Prodotto</span><b class="${TW.value}">${codicePrincipale}</b></div>
-        <div><span class="label-sm ${TW.label}">Quantità</span><b class="${TW.value}">${art.qty}</b></div>
+        <div class="qty-cell">
+            <span class="label-sm ${TW.label}">Quantità</span>
+            <div class="qty-row">
+                <b class="${TW.value} qty-totale">${art.qty}</b>
+                <button class="btn-qty-evasa-toggle" title="Imposta quantità evasa" onclick="toggleQtyEvasa(this, '${art.id_riga}', ${parseFloat(art.qty)||0})" aria-label="Quantità parziale">
+                    <i class="fas fa-flag-checkered"></i>
+                </button>
+                <span class="qty-evasa-block" id="qty-evasa-block-${art.id_riga}" style="display:none">
+                    <input type="number" class="qty-evasa-input" id="qty-evasa-input-${art.id_riga}"
+                        min="0" max="${parseFloat(art.qty)||9999}" step="1"
+                        value="${parseFloat(art.qty_evasa)||''}"
+                        placeholder="Evasa"
+                        onchange="salvaQtyEvasa('${art.id_riga}', ${parseFloat(art.qty)||0}, this.value)"
+                        oninput="aggiornaRimanente('${art.id_riga}', ${parseFloat(art.qty)||0}, this.value)"
+                    />
+                    <span class="qty-rimanente-wrap">
+                        <span class="qty-rim-lbl">Rim.</span>
+                        <b class="qty-rimanente" id="qty-rimanente-${art.id_riga}">${
+                            (parseFloat(art.qty_evasa) > 0)
+                                ? (parseFloat(art.qty) - parseFloat(art.qty_evasa))
+                                : '—'
+                        }</b>
+                    </span>
+                </span>
+            </div>
+        </div>
         <div>
             <span class="label-sm ${TW.label}">Stato</span>
             <div class="stato-dropdown" data-id-riga="${art.id_riga}">
@@ -4476,6 +4514,43 @@ async function gestisciArchiviazione(nOrd, tipo) {
         'Archivia'
     );
 }
+
+/* ── QUANTITÀ EVASA / PARZIALE ────────────────────────────────── */
+function toggleQtyEvasa(btn, idRiga, qtyTot) {
+    const block = document.getElementById('qty-evasa-block-' + idRiga);
+    if (!block) return;
+    const isOpen = block.style.display !== 'none';
+    block.style.display = isOpen ? 'none' : 'inline-flex';
+    btn.classList.toggle('active', !isOpen);
+    if (!isOpen) {
+        const inp = document.getElementById('qty-evasa-input-' + idRiga);
+        if (inp) { inp.focus(); inp.select(); }
+    }
+}
+function aggiornaRimanente(idRiga, qtyTot, val) {
+    const el = document.getElementById('qty-rimanente-' + idRiga);
+    if (!el) return;
+    const evasa = parseFloat(val);
+    if (!isNaN(evasa) && evasa >= 0) {
+        el.textContent = Math.max(0, qtyTot - evasa);
+        el.style.color = (qtyTot - evasa) <= 0 ? '#22c55e' : '';
+    } else {
+        el.textContent = '—';
+        el.style.color = '';
+    }
+}
+async function salvaQtyEvasa(idRiga, qtyTot, val) {
+    const evasa = parseFloat(val);
+    if (isNaN(evasa) || evasa < 0) return;
+    aggiornaRimanente(idRiga, qtyTot, evasa);
+    // Aggiorna cache in-memory
+    if (_attiviProd) {
+        const r = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
+        if (r) r.qty_evasa = String(evasa);
+    }
+    await aggiornaDato(null, idRiga, 'qty_evasa', evasa);
+}
+
 async function gestisciRipristino(id_o_numero, tipo) {
     const msgConferma = tipo === 'ORDINE'
         ? `Riportare l'intero ordine ${id_o_numero} in PRODUZIONE?`

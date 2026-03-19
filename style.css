@@ -1571,6 +1571,58 @@ h1 {
     color: #242424!important;
     box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important;
 }
+
+/* ── Quantità evasa / parziale ────────────────────────────────── */
+.qty-cell { display: flex; flex-direction: column; gap: 3px; }
+.qty-row  { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.btn-qty-evasa-toggle {
+    background: none;
+    border: 1px solid #cbd5e1;
+    border-radius: 5px;
+    padding: 2px 5px;
+    cursor: pointer;
+    font-size: 0.72rem;
+    color: #94a3b8;
+    line-height: 1;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.btn-qty-evasa-toggle:hover,
+.btn-qty-evasa-toggle.active {
+    background: #f59e0b22;
+    border-color: #f59e0b;
+    color: #f59e0b;
+}
+.qty-evasa-block {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: nowrap;
+}
+.qty-evasa-input {
+    width: 62px;
+    padding: 3px 6px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    background: #f8fafc;
+    color: #1e293b;
+    text-align: center;
+    outline: none;
+    transition: border-color 0.15s;
+}
+.qty-evasa-input:focus { border-color: #f59e0b; background: #fff; }
+.qty-rimanente-wrap {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.78rem;
+    background: #f1f5f9;
+    border-radius: 5px;
+    padding: 2px 7px;
+    white-space: nowrap;
+}
+.qty-rim-lbl { color: #94a3b8; font-size: 0.72rem; }
+.qty-rimanente { color: #0f172a; font-size: 0.82rem; font-weight: 700; }
 /* Tasto Sollecita (commerciali) */
 .btn-sollecita {
     background: #d97706 !important;
