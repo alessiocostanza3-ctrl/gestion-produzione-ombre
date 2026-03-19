@@ -282,6 +282,18 @@ let _fetchSessionPatchDone = false;
 let _sessionRefreshTimer = null;
 let _refreshAuthFailCount_ = 0; // conta auth_error consecutivi dal refresh silenzioso
 function _getSessionToken_() {
+    // Priorità allo storage condiviso tra tab: evita uso di token in-memory obsoleto.
+    try {
+        const rawShared = localStorage.getItem('sessioneUtente') || sessionStorage.getItem('sessioneUtente');
+        if (rawShared) {
+            const s = JSON.parse(rawShared);
+            if (s && s.sessionToken) {
+                const t = String(s.sessionToken);
+                if (utenteAttuale && utenteAttuale.sessionToken !== t) utenteAttuale.sessionToken = t;
+                return t;
+            }
+        }
+    } catch (e) {}
     try {
         if (utenteAttuale && utenteAttuale.sessionToken) return String(utenteAttuale.sessionToken);
     } catch (e) {}
@@ -383,6 +395,16 @@ function _startSessionRefreshTicker_() {
 }
 
 _startSessionRefreshTicker_();
+window.addEventListener('storage', function(ev) {
+    if (ev.key !== 'sessioneUtente' || !ev.newValue) return;
+    try {
+        const s = JSON.parse(ev.newValue);
+        if (!s || !s.sessionToken) return;
+        if (!utenteAttuale) utenteAttuale = {};
+        utenteAttuale.sessionToken = String(s.sessionToken);
+        if (s.sessionExpiresAt) utenteAttuale.sessionExpiresAt = s.sessionExpiresAt;
+    } catch (e) {}
+});
 document.addEventListener('visibilitychange', function() {
     if (!document.hidden) _refreshSessionSilenzioso_();
 });
