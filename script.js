@@ -51,6 +51,54 @@ function _segnaAccessoGestito_(id, msg) {
         localStorage.setItem('_accRispIdx_', JSON.stringify(h));
     } catch {}
 }
+async function eliminaNotificaApp(rid, titoloEnc, corpoEnc, btnEl) {
+    const titolo = decodeURIComponent(titoloEnc || '');
+    const corpo  = decodeURIComponent(corpoEnc || '');
+    const rowId  = String(rid || '').trim();
+    const card   = btnEl ? btnEl.closest('.notifica-item') : null;
+
+    _rimuoviNotificaInLocale_(rowId, titolo, corpo);
+    if (card) card.remove();
+    const list = document.getElementById('notifiche-list');
+    if (list && !list.querySelector('.notifica-item')) {
+        list.innerHTML = _notifHtml_([]);
+    }
+
+    try {
+        const uname = (utenteAttuale && utenteAttuale.nome) ? utenteAttuale.nome.toUpperCase() : '';
+        if (!uname) return;
+        const url = URL_GOOGLE
+            + '?azione=eliminaNotifica'
+            + '&username=' + encodeURIComponent(uname)
+            + '&rid=' + encodeURIComponent(rowId)
+            + '&titolo=' + encodeURIComponent(titolo)
+            + '&corpo=' + encodeURIComponent(corpo);
+        const res = await fetch(url);
+        const data = await res.json().catch(() => ({}));
+        if (data.status !== 'ok' && data.status !== 'not_found') {
+            console.warn('[notifiche] eliminaNotifica non ok:', data);
+        }
+    } catch (err) {
+        console.warn('[notifiche] eliminaNotifica errore rete:', err);
+    }
+}
+function _rimuoviNotificaInLocale_(rid, titolo, corpo) {
+    try {
+        const arr = JSON.parse(localStorage.getItem('_notificheArr') || '[]');
+        let removed = false;
+        const next = arr.filter(function(n) {
+            if (removed) return true;
+            const sameRid = rid && String(n.rid || '') === String(rid);
+            const sameTxt = String(n.titolo || '') === String(titolo || '') && String(n.corpo || '') === String(corpo || '');
+            if (sameRid || sameTxt) {
+                removed = true;
+                return false;
+            }
+            return true;
+        });
+        localStorage.setItem('_notificheArr', JSON.stringify(next));
+    } catch {}
+}
 function _chiudiNotificheOutside(e) { /* dismesso */ }
 function aggiornaBadgeNotifiche(count) {
     const badgeDesk = document.getElementById('badge-notifiche-desktop');
@@ -89,6 +137,9 @@ function _notifHtml_(arr) {
     return arr.map(function(n) {
         const icon   = _notifIcona_(n.titolo || '');
         const titolo = _escapeHtml_(n.titolo || 'Notifica');
+        const ridRaw = _escapeHtml_(n.rid || '');
+        const titoloEnc = encodeURIComponent(n.titolo || '');
+        const corpoEnc  = encodeURIComponent(n.corpo || '');
         const tsVal  = _escapeHtml_(n._ts || '');
         const ts     = tsVal ? `<span class="notifica-ts">${tsVal}</span>` : '';
         // Rilevamento notifica accesso_richiesta (corpo è JSON strutturato)
@@ -114,7 +165,9 @@ function _notifHtml_(arr) {
         if (!corpoHtml) {
             corpoHtml = `<div class="notifica-corpo">${_escapeHtml_(n.corpo || '')}</div>`;
         }
-        return `<div class="notifica-item">
+                return `<div class="notifica-item">
+                    <button class="notif-del-btn" title="Elimina notifica"
+                        onclick="eliminaNotificaApp('${ridRaw}','${titoloEnc}','${corpoEnc}',this)">×</button>
           <div class="notifica-icon-badge"><i class="fas ${icon}"></i></div>
           <div class="notifica-body">
             <div class="notifica-titolo">${titolo}</div>
@@ -5121,7 +5174,7 @@ function _scrollToOrdineList(ordine) {
    ricaricare e salva sul backend tramite aggiornaDato().
    ──────────────────────────────────────────────────────────────── */
 function _initKanbanDnd() {
-    if (window.innerWidth <= 600) return;
+    const isMobileKanban = window.innerWidth <= 600;
     const grid = document.getElementById('ov-kanban-grid');
     if (!grid || grid._dndInit) return;
     grid._dndInit = true;
@@ -5130,7 +5183,7 @@ function _initKanbanDnd() {
     // blocca il toggle nativo di <details> quando si clicca il <summary>
     grid.addEventListener('click', e => {
         const summary = e.target.closest('.ov-stato-header');
-        if (summary) e.preventDefault();
+        if (!isMobileKanban && summary) e.preventDefault();
     }, true);
 
     let dragEl     = null;
