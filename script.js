@@ -1553,8 +1553,8 @@ function initSidebarState() {
 document.addEventListener('DOMContentLoaded', initSidebarState);
 /* ---- FINE SIDEBAR TOGGLE ---- */ // QUESTA FUNZIONE È QUELLA CHE SCRIVE I DATI NELLA TUA SIDEBAR
 async function salvaEApriDashboard() {
-    // Blocco orario: impedisce l'accesso fuori dalle 08:30-19:30 (tranne esenti)
-    if (!_checkOrarioAccesso(true)) return;
+    // NON controlliamo l'orario qui: il login deve sempre procedere.
+    // Il blocco orario viene gestito da window.onload e dal setInterval dopo che la sessione è attiva.
     try { localStorage.setItem('sessioneUtente', JSON.stringify(utenteAttuale)); } catch (e) {}
     try { sessionStorage.setItem('sessioneUtente', JSON.stringify(utenteAttuale)); } catch (e) {}
     _startSessionRefreshTicker_();
@@ -1653,32 +1653,24 @@ function _isOrarioConsentito() {
  * Restituisce true se l'accesso è consentito, false altrimenti.
  */
 function _checkOrarioAccesso(mostraMessaggio) {
-    // Accesso extra temporaneo concesso da Alessio (valido solo per questa sessione browser)
     if (sessionStorage.getItem('_accesso_extra_') === '1') {
         _sbloccaSchermo_();
         return true;
     }
     if (_isUtenteEsente() || _isOrarioConsentito()) {
-        // Se siamo rientrati in orario e c'era il blocco schermo, rimuovilo
         _sbloccaSchermo_();
         return true;
     }
+    // Se non c'è una sessione attiva (nome vuoto) non mostriamo nulla: il form di login gestisce da solo
+    if (!utenteAttuale || !utenteAttuale.nome) return false;
     if (mostraMessaggio !== false) {
         const overlay = document.getElementById('login-overlay');
         const loginVisibile = overlay && overlay.style.display !== 'none';
         if (!loginVisibile) {
             // Siamo dentro l'app (sessione attiva) → blocca schermo senza fare logout
             _bloccaSchermo_();
-        } else {
-            // Siamo al form di login: mostra errore nel form
-            // (il lock screen NON appare qui per non bloccare accesso admin/Alessio)
-            const errEl = document.getElementById('login-error');
-            if (errEl) {
-                errEl.innerHTML = '⏰ App non disponibile fuori orario (08:30–19:30).' +
-                    '<br><a href="#" style="color:#f59e0b;font-weight:600;" onclick="_mostraLoginDaLockscreen_(event)">Sono un amministratore &rarr;</a>';
-                errEl.style.display = 'block';
-            }
         }
+        // Al login form: non facciamo nulla (il form è già visibile, l'utente può accedere)
     }
     return false;
 }
