@@ -3406,7 +3406,15 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
     });
 
     let html = "";
-    Object.keys(gruppi).forEach(nOrd => {
+    // ── Ordina alfabeticamente per nome cliente (con fallback su riferimento → numero ordine) ──
+    const _ordKeys = Object.keys(gruppi).sort((a, b) => {
+        const _cliA = (gruppi[a][0].cliente || '').trim().toUpperCase();
+        const _nA   = (!_cliA || _cliA === 'DA DEFINIRE') ? (gruppi[a][0].riferimento || a).toUpperCase() : _cliA;
+        const _cliB = (gruppi[b][0].cliente || '').trim().toUpperCase();
+        const _nB   = (!_cliB || _cliB === 'DA DEFINIRE') ? (gruppi[b][0].riferimento || b).toUpperCase() : _cliB;
+        return _nA < _nB ? -1 : _nA > _nB ? 1 : (a < b ? -1 : a > b ? 1 : 0);
+    });
+    _ordKeys.forEach(nOrd => {
         const righe = gruppi[nOrd];
         const cliente = righe[0].cliente;
         const riferimento = righe[0].riferimento || "";
@@ -4760,6 +4768,14 @@ function _buildOverviewInnerHtml(attivi) {
                 if (gruppiMap.has(key)) { gruppiMap.get(key).push(r); }
                 else { gruppiMap.set(key, [r]); gruppiOrd.push({ ordine: key, rows: gruppiMap.get(key) }); }
             });
+            // Ordina alfabeticamente per cliente
+            gruppiOrd.sort((a, b) => {
+                const _cliA = (a.rows[0].cliente || '').trim().toUpperCase();
+                const _nA   = (!_cliA || _cliA === 'DA DEFINIRE') ? (a.rows[0].riferimento || a.ordine).toUpperCase() : _cliA;
+                const _cliB = (b.rows[0].cliente || '').trim().toUpperCase();
+                const _nB   = (!_cliB || _cliB === 'DA DEFINIRE') ? (b.rows[0].riferimento || b.ordine).toUpperCase() : _cliB;
+                return _nA < _nB ? -1 : _nA > _nB ? 1 : 0;
+            });
             contenuto = gruppiOrd.map(({ ordine, rows }) => {
                 const ids = rows.map(r => String(r.id_riga)).join(',');
                 const primaRiga = rows[0];
@@ -4778,7 +4794,9 @@ function _buildOverviewInnerHtml(attivi) {
                     data-count="${artCount}"
                     data-codice="${ordine.replace(/"/g, '&quot;')}"
                     data-ordine="${rows.map(r => r.ordine || '').join(',')}"
-                    data-stato-corrente="${stato}">
+                    data-stato-corrente="${stato}"
+                    ondblclick="_scrollToOrdineList(this.dataset.ordine.split(',')[0])"
+                    title="Doppio clic → vai all'ordine nella lista">
                     <span class="ov-drag-handle"><i class="fas fa-grip-vertical"></i></span>
                     <span class="ov-row-main">
                         <span class="ov-row-label" title="${ordine}">${ordLabel} <em>${cliLabel}</em></span>
@@ -4797,6 +4815,8 @@ function _buildOverviewInnerHtml(attivi) {
                 if (gruppiMap.has(codice)) { gruppiMap.get(codice).push(r); }
                 else { gruppiMap.set(codice, [r]); gruppiOrd.push({ codice, rows: gruppiMap.get(codice) }); }
             });
+            // Ordina codici alfabeticamente
+            gruppiOrd.sort((a, b) => a.codice < b.codice ? -1 : a.codice > b.codice ? 1 : 0);
             contenuto = gruppiOrd.map(({ codice, rows }) => {
                 const lbl = codice.length > 24 ? codice.substring(0, 24) + '\u2026' : codice;
                 const ids = rows.map(r => String(r.id_riga)).join(',');
@@ -4829,7 +4849,9 @@ function _buildOverviewInnerHtml(attivi) {
                     data-count="${rows.length}"
                     data-codice="${codice.replace(/"/g, '&quot;')}"
                     data-ordine="${rows.map(r => r.ordine || '').join(',')}"
-                    data-stato-corrente="${stato}">
+                    data-stato-corrente="${stato}"
+                    ondblclick="_scrollToOrdineList(this.dataset.ordine.split(',')[0])"
+                    title="Doppio clic → vai all'ordine nella lista">
                     <span class="ov-drag-handle"><i class="fas fa-grip-vertical"></i></span>
                     <span class="ov-row-main">
                         <span class="ov-row-label" title="${codice}">${lbl}</span>
@@ -4859,6 +4881,26 @@ function _buildOverviewInnerHtml(attivi) {
 }
 
 function _buildOverviewChart() { /* non più usato */ }
+
+// Doppio clic su item overview → apre e scrolla all'ordine nella lista principale
+function _scrollToOrdineList(ordine) {
+    if (!ordine) return;
+    const wrapper = [...document.querySelectorAll('.ordine-wrapper')].find(el => el.dataset.ordine === ordine);
+    if (!wrapper) return;
+    // Apre l'accordion se chiuso
+    const riga = wrapper.querySelector('.riga-ordine');
+    const det  = wrapper.querySelector('.dettagli-container');
+    if (riga && !riga.classList.contains('open')) {
+        riga.classList.add('open');
+        if (det) det.style.display = 'block';
+    }
+    // Scrolla con un piccolo delay per permettere al DOM di espandersi
+    setTimeout(() => { wrapper.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 60);
+    // Flash highlight ambra per 1.8s
+    wrapper.style.transition = 'box-shadow 0.2s ease';
+    wrapper.style.boxShadow = '0 0 0 3px #f59e0b99, 0 4px 24px #f59e0b33';
+    setTimeout(() => { wrapper.style.transition = 'box-shadow 0.7s ease'; wrapper.style.boxShadow = ''; }, 1800);
+}
 
 /* ────────────────────────────────────────────────────────────────
    KANBAN DRAG & DROP DINAMICO  –  solo desktop (≥ 601 px)
