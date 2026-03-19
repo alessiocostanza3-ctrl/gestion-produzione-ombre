@@ -299,7 +299,12 @@ function _patchFetchWithSession_() {
 }
 _patchFetchWithSession_();
 
+let _refreshDebounceTimer = null;
 async function _refreshSessionSilenzioso_() {
+    // Debounce: se già c'è un refresh in corso (es. visibilitychange + setInterval simultanei)
+    // aspettiamo e non lanciamo un secondo, evitando la race sui token
+    if (_refreshDebounceTimer) return;
+    _refreshDebounceTimer = setTimeout(() => { _refreshDebounceTimer = null; }, 15000);
     const token = _getSessionToken_();
     if (!token) return;
 
@@ -1659,13 +1664,32 @@ function _checkOrarioAccesso(mostraMessaggio) {
         return true;
     }
     if (mostraMessaggio !== false) {
-        // In entrambi i casi (dentro app o al login) mostriamo il lock screen.
-        // Il lock screen ha z-index:99999 e compare sopra tutto, incluso il login overlay.
-        _bloccaSchermo_();
+        const overlay = document.getElementById('login-overlay');
+        const loginVisibile = overlay && overlay.style.display !== 'none';
+        if (!loginVisibile) {
+            // Siamo dentro l'app (sessione attiva) → blocca schermo senza fare logout
+            _bloccaSchermo_();
+        } else {
+            // Siamo al form di login: mostra errore nel form
+            // (il lock screen NON appare qui per non bloccare accesso admin/Alessio)
+            const errEl = document.getElementById('login-error');
+            if (errEl) {
+                errEl.innerHTML = '⏰ App non disponibile fuori orario (08:30–19:30).' +
+                    '<br><a href="#" style="color:#f59e0b;font-weight:600;" onclick="_mostraLoginDaLockscreen_(event)">Sono un amministratore &rarr;</a>';
+                errEl.style.display = 'block';
+            }
+        }
     }
     return false;
 }
 
+function _mostraLoginDaLockscreen_(e) {
+    if (e) { e.preventDefault(); e.preventDefault(); }
+    const lock = document.getElementById('_lock-screen_');
+    if (lock) lock.remove();
+    const overlay = document.getElementById('login-overlay');
+    if (overlay) { overlay.style.display = 'flex'; overlay.style.opacity = '1'; }
+}
 function _bloccaSchermo_() {
     if (document.getElementById('_lock-screen_')) return; // già attivo
     const nome = utenteAttuale && utenteAttuale.nome ? utenteAttuale.nome : '';
