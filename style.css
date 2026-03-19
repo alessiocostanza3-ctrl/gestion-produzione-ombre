@@ -6044,6 +6044,12 @@ button:active {
     /* nascondi drag handle su mobile */
     .ov-drag-handle { display: none; }
     .ov-row-main { flex: 1; min-width: 0; }
+    /* migliora affidabilità drag touch: evita che lo scroll rubi il puntatore */
+    .ov-kanban-item {
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+    }
 }
 
 /* ── Kanban drag & drop dinamico (pointer events, solo desktop ≥ 601px) ── */

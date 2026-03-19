@@ -5216,6 +5216,7 @@ function _initKanbanDnd() {
     let ghost      = null;
     let srcStato   = null;
     let activeBody = null;   // colonna attualmente evidenziata
+    let dragPointerId = null;
     let offX = 0, offY = 0;
 
     /* ── Trova la colonna destinazione nascondendo temporaneamente il ghost ── */
@@ -5248,11 +5249,19 @@ function _initKanbanDnd() {
 
     /* ── Pulizia stato drag ── */
     function _cleanup() {
+        if (dragEl && dragPointerId != null) {
+            try {
+                if (dragEl.hasPointerCapture && dragEl.hasPointerCapture(dragPointerId)) {
+                    dragEl.releasePointerCapture(dragPointerId);
+                }
+            } catch (_) {}
+        }
         if (ghost) { ghost.remove(); ghost = null; }
         if (dragEl) { dragEl.classList.remove('ov-drag-active'); dragEl = null; }
         grid.querySelectorAll('.ov-stato-body').forEach(b => b.classList.remove('ov-drop-over'));
         srcStato = null;
         activeBody = null;
+        dragPointerId = null;
     }
 
     /* ── Doppio click rilevato lato pointerdown (prima che preventDefault blocchi dblclick) ── */
@@ -5281,6 +5290,7 @@ function _initKanbanDnd() {
         e.preventDefault();
         dragEl   = item;
         srcStato = item.dataset.statoCorrente;
+        dragPointerId = e.pointerId;
 
         const rect = item.getBoundingClientRect();
         offX = e.clientX - rect.left;
@@ -5310,20 +5320,25 @@ function _initKanbanDnd() {
         // Placeholder opaco nella posizione originale
         dragEl.classList.add('ov-drag-active');
 
-        // Pointer capture: riceve tutti gli eventi anche fuori dal grid
-        grid.setPointerCapture(e.pointerId);
+        // Pointer capture robusto: prima sull'item, fallback sul grid
+        try {
+            if (dragEl.setPointerCapture) dragEl.setPointerCapture(e.pointerId);
+            else if (grid.setPointerCapture) grid.setPointerCapture(e.pointerId);
+        } catch (_) {}
     });
 
     /* ── Movimento del ghost ── */
-    grid.addEventListener('pointermove', e => {
+    function _onPointerMove(e) {
         if (!dragEl || !ghost) return;
         ghost.style.left = (e.clientX - offX) + 'px';
         ghost.style.top  = (e.clientY - offY) + 'px';
         _highlight(_bodyAtPoint(e.clientX, e.clientY));
-    });
+    }
+    grid.addEventListener('pointermove', _onPointerMove);
+    window.addEventListener('pointermove', _onPointerMove, { passive: true });
 
     /* ── Rilascio: sposta il nodo nel DOM ed aggiorna il backend ── */
-    grid.addEventListener('pointerup', e => {
+    function _onPointerUp(e) {
         if (!dragEl) return;
         const body     = _bodyAtPoint(e.clientX, e.clientY);
         const newStato = body?.dataset?.statoDrop;
@@ -5378,10 +5393,13 @@ function _initKanbanDnd() {
         // Sincronizza il dropdown stato per TUTTI gli articoli del gruppo nel pannello dettaglio
         idRighe.forEach(id => _syncStatoItemCard(id, newStato, colore));
         notificaElegante(`Stato → ${newStato}`);
-    });
+    }
+    grid.addEventListener('pointerup', _onPointerUp);
+    window.addEventListener('pointerup', _onPointerUp, { passive: true });
 
     /* ── Annullamento (es. tasto Esc o interruzione sistema) ── */
     grid.addEventListener('pointercancel', _cleanup);
+    window.addEventListener('pointercancel', _cleanup, { passive: true });
 
     // Previeni il drag HTML5 nativo che interferisce
     grid.addEventListener('dragstart', e => e.preventDefault());
