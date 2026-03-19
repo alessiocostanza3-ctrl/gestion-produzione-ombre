@@ -3549,21 +3549,57 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
                 }
             }
         }
-        const bottoniHeader = isArchivio
-            ? `<button class="btn-ripristina ${TW.btnWarning}" onclick="event.stopPropagation(); gestisciRipristino('${nOrd}', 'ORDINE')">
+        const _nOrdEsc  = nOrd.replace(/'/g, "\\'");
+        const _cliEsc   = (cliente || '').replace(/'/g, "\\'");
+        const _idRiga0  = righe[0].id_riga;
+
+        // Azioni disponibili per questo ordine (active variant)
+        const _aChiedi   = `apriModalAiuto('${_idRiga0}', 'INTERO ORDINE', '${_nOrdEsc}', '${_cliEsc}')`;
+        const _aArchivia = `gestisciArchiviazione('${_nOrdEsc}')`;
+        const _aSollecit = `apriModalSollecito('','${_nOrdEsc}','${_cliEsc}','Intero Ordine')`;
+        const _aRiprist  = `gestisciRipristino('${_nOrdEsc}', 'ORDINE')`;
+
+        // Costruisce la lista di voci del menu per questo ordine
+        let _menuVoci = '';
+        if (isArchivio) {
+            _menuVoci = `<button class="ord-menu-item" onclick="event.stopPropagation();chiudiTuttiMenuAzioni();${_aRiprist}"><i class="fa-solid fa-rotate-left"></i> Ripristina</button>`;
+        } else {
+            _menuVoci += `<button class="ord-menu-item" onclick="event.stopPropagation();chiudiTuttiMenuAzioni();${_aChiedi}"><i class="fa-regular fa-envelope"></i> Chiedi</button>`;
+            if (_isUtenteEsente()) {
+                _menuVoci += `<button class="ord-menu-item ord-menu-item--danger" onclick="event.stopPropagation();chiudiTuttiMenuAzioni();${_aArchivia}"><i class="fa-solid fa-box-archive"></i> Archivia</button>`;
+            }
+            if (_isCommerciale() || _isUtenteEsente()) {
+                _menuVoci += `<button class="ord-menu-item ord-menu-item--warn" onclick="event.stopPropagation();chiudiTuttiMenuAzioni();${_aSollecit}"><i class="fa-solid fa-calendar-alt"></i> Scadenza</button>`;
+            }
+        }
+
+        // Bottoni desktop (invariati) + menu mobile (wrappa tutto in uno)
+        const _desktopBtns = isArchivio
+            ? `<button class="btn-ripristina ${TW.btnWarning} hide-mobile" onclick="event.stopPropagation(); ${_aRiprist}">
                    <i class="fa-solid fa-rotate-left"></i> <span class="btn-txt">Ripristina</span>
                </button>`
-            : `${_opZoneOrd}<button class="btn-chiedi-assegna ${TW.btnPrimary}" onclick="event.stopPropagation(); apriModalAiuto('${righe[0].id_riga}', 'INTERO ORDINE', '${nOrd}', '${(cliente||'').replace(/'/g,"\\'")}')">\n                   <i class="fa-regular fa-envelope"></i> <span class="btn-txt">Chiedi</span>\n               </button>
+            : `${_opZoneOrd}<button class="btn-chiedi-assegna ${TW.btnPrimary} hide-mobile" onclick="event.stopPropagation(); ${_aChiedi}">
+                   <i class="fa-regular fa-envelope"></i> <span class="btn-txt">Chiedi</span>
+               </button>
                ${_isCommerciale()
-                   ? `<button class="btn-sollecita" onclick="event.stopPropagation(); apriModalSollecito('','${nOrd.replace(/'/g,"\\'")  }','${(cliente||'').replace(/'/g,"\\'")  }','Intero Ordine')"><i class="fa-solid fa-calendar-alt"></i> <span class="btn-txt">Scadenza</span></button>`
+                   ? `<button class="btn-sollecita hide-mobile" onclick="event.stopPropagation(); ${_aSollecit}"><i class="fa-solid fa-calendar-alt"></i> <span class="btn-txt">Scadenza</span></button>`
                    : _isUtenteEsente()
-                       ? `<button class="btn-archivia-prod ${TW.btnSuccess}" onclick="event.stopPropagation(); gestisciArchiviazione('${nOrd}')">
+                       ? `<button class="btn-archivia-prod ${TW.btnSuccess} hide-mobile" onclick="event.stopPropagation(); ${_aArchivia}">
                    <i class="fa-solid fa-box-archive"></i> <span class="btn-txt">Archivia</span>
-               </button><button class="btn-sollecita" onclick="event.stopPropagation(); apriModalSollecito('','${nOrd.replace(/'/g,"\\'")  }','${(cliente||'').replace(/'/g,"\\'")  }','Intero Ordine')"><i class="fa-solid fa-calendar-alt"></i> <span class="btn-txt">Scadenza</span></button>`
-                       : `<button class="btn-archivia-prod ${TW.btnSuccess}" onclick="event.stopPropagation(); gestisciArchiviazione('${nOrd}')">
+               </button><button class="btn-sollecita hide-mobile" onclick="event.stopPropagation(); ${_aSollecit}"><i class="fa-solid fa-calendar-alt"></i> <span class="btn-txt">Scadenza</span></button>`
+                       : `<button class="btn-archivia-prod ${TW.btnSuccess} hide-mobile" onclick="event.stopPropagation(); ${_aArchivia}">
                    <i class="fa-solid fa-box-archive"></i> <span class="btn-txt">Archivia</span>
                </button>`
                }`;
+
+        const _mobileTrigger = `<div class="ord-azioni-menu show-mobile-flex" onclick="event.stopPropagation()">
+            <button class="ord-azioni-trigger" onclick="toggleMenuAzioni(this)" title="Azioni">
+                <i class="fas fa-ellipsis-v"></i>
+            </button>
+            <div class="ord-azioni-popup">${_menuVoci}</div>
+        </div>`;
+
+        const bottoniHeader = _desktopBtns + _mobileTrigger;
 
         html += `
         <div class="ordine-wrapper ${classWrapper}" data-ordine="${nOrd}" data-cliente="${(cliente || '').toLowerCase().replace(/"/g, '')}" data-riferimento="${(riferimento || '').toLowerCase().replace(/"/g, '')}" data-codici="${righe.map(a => (a.codice && a.codice !== 'false' ? a.codice : '')).join('|').toLowerCase()}">
@@ -3767,6 +3803,23 @@ function toggleOpDropdown(btn) {
         if (rigaOrd)  rigaOrd.classList.add('op-aperto-ord');
     }
 }
+
+// ── Menu azioni mobile (tre puntini) ─────────────────────────────────────────
+function chiudiTuttiMenuAzioni() {
+    document.querySelectorAll('.ord-azioni-menu.open').forEach(m => m.classList.remove('open'));
+}
+
+function toggleMenuAzioni(btn) {
+    const menu = btn.closest('.ord-azioni-menu');
+    const isOpen = menu.classList.contains('open');
+    chiudiTuttiMenuAzioni();
+    if (!isOpen) menu.classList.add('open');
+}
+
+// Chiude menu azioni se si clicca fuori
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.ord-azioni-menu')) chiudiTuttiMenuAzioni();
+});
 
 // MASTER: toggle un operatore su una singola riga articolo
 function selezionaOpAssegna(optBtn, idRiga, nOrd, nomeOp) {
