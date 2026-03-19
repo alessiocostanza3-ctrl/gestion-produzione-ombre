@@ -1634,9 +1634,17 @@ function logout() {
    Sono esenti: account ALESSIO e account 0000 (MASTER).
 ─────────────────────────────────────────────────────────────────────────── */
 function _isUtenteEsente() {
-    if (!utenteAttuale || !utenteAttuale.nome) return false;
-    const nome = utenteAttuale.nome.toUpperCase();
-    return nome === 'ALESSIO' || nome === '0000' || utenteAttuale.ruolo === 'MASTER';
+    if (!utenteAttuale) return false;
+    const nome = String(utenteAttuale.nome || '').trim().toUpperCase();
+    const email = String(utenteAttuale.email || '').trim().toLowerCase();
+    const ruolo = String(utenteAttuale.ruolo || '').trim().toUpperCase();
+    return (
+        nome === '0000' ||
+        nome === 'ALESSIO' ||
+        nome.startsWith('ALESSIO ') ||
+        email === 'alessiocostanza3@gmail.com' ||
+        ruolo === 'MASTER'
+    );
 }
 function _isCommerciale() {
     if (!utenteAttuale) return false;
