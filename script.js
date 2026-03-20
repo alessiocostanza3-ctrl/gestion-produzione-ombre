@@ -5524,6 +5524,91 @@ function _saveReqGroup(id, el) {
     try { localStorage.setItem('_rg_' + id, el.open ? '1' : '0'); } catch {}
 }
 
+function _parseQtyProduzione_(value) {
+    const raw = String(value == null ? '' : value).trim();
+    if (!raw) return 0;
+    const normalized = raw.replace(/\./g, '').replace(',', '.');
+    const qty = Number(normalized);
+    return Number.isFinite(qty) ? qty : 0;
+}
+
+function _formatQtyProduzione_(value) {
+    if (!Number.isFinite(value)) return '0';
+    if (Math.abs(value - Math.round(value)) < 0.0001) return String(Math.round(value));
+    return value.toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
+function _isStatoEsclusoFabbisogno_(stato) {
+    const key = String(stato || '').trim().toUpperCase();
+    return [
+        'IMBALLATO',
+        'SPEDITO',
+        'CONSEGNATO',
+        'SPEDITO/CONSEGNATO',
+        'SPEDITI/CONSEGNATI',
+        'ANNULLATO',
+        'ANNULLATI'
+    ].includes(key);
+}
+
+function _buildFabbisognoProduzioneRows_(righeProduzione) {
+    const grouped = new Map();
+    (righeProduzione || []).forEach(riga => {
+        if (!riga) return;
+        if (String(riga.archiviato || '').toUpperCase() === 'TRUE') return;
+        if (_isStatoEsclusoFabbisogno_(riga.stato)) return;
+
+        const prodotto = String(riga.prodotto || '').trim();
+        if (!prodotto) return;
+
+        const qtyTotale = _parseQtyProduzione_(riga.qty);
+        const qtyEvasa = _parseQtyProduzione_(riga.qty_evasa);
+        const qtyNetta = Math.max(qtyTotale - qtyEvasa, 0);
+        if (qtyNetta <= 0) return;
+
+        const key = prodotto.toLocaleUpperCase('it-IT');
+        if (!grouped.has(key)) {
+            grouped.set(key, {
+                prodotto,
+                qty: 0,
+                ordini: new Set()
+            });
+        }
+
+        const entry = grouped.get(key);
+        entry.qty += qtyNetta;
+        if (riga.ordine) entry.ordini.add(String(riga.ordine).trim());
+    });
+
+    return Array.from(grouped.values())
+        .map(entry => ({
+            prodotto: entry.prodotto,
+            qty: entry.qty,
+            ordini: Array.from(entry.ordini).sort((a, b) => a.localeCompare(b, 'it'))
+        }))
+        .sort((a, b) => a.prodotto.localeCompare(b.prodotto, 'it', { sensitivity: 'base' }));
+}
+
+async function _loadFabbisognoProduzioneRows_() {
+    if (Array.isArray(_attiviProd) && _attiviProd.length) {
+        return _buildFabbisognoProduzioneRows_(_attiviProd);
+    }
+
+    let dashBundle = null;
+    if (window._prefetchDashBundle) {
+        dashBundle = window._prefetchDashBundle;
+    } else if (window._prefetchDashPromise) {
+        dashBundle = await window._prefetchDashPromise;
+    } else {
+        const dashResp = await fetch(URL_GOOGLE + '?azione=getAllDashboard');
+        if (!dashResp.ok) throw new Error(`HTTP ${dashResp.status}`);
+        dashBundle = await dashResp.json();
+    }
+
+    const produzione = (dashBundle && dashBundle.produzione) || [];
+    return _buildFabbisognoProduzioneRows_(produzione);
+}
+
 async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
     const contenitore = document.getElementById('contenitore-dati');
     if (!contenitore) return;
@@ -5566,6 +5651,13 @@ async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
 
         aggiornaBadgeSidebar(messaggiAttivi);
         aggiornaBadgeNotifiche(messaggiAttivi);
+
+        let fabbisognoRows = [];
+        try {
+            fabbisognoRows = await _loadFabbisognoProduzioneRows_();
+        } catch (fabbErr) {
+            console.warn('Fabbisogno Produzione non disponibile:', fabbErr);
+        }
 
         if (paginaAttuale !== 'STORICO_RICHIESTE') return;
 
@@ -5624,9 +5716,11 @@ async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
         const asseOpen = localStorage.getItem('_rg_assegnazioni') !== '0';
         const richOpen = localStorage.getItem('_rg_richieste') !== '0';
         const scadOpen = localStorage.getItem('_rg_scadenze')    !== '0';
+        const fabbOpen = localStorage.getItem('_rg_fabbisogno_produzione') !== '0';
         const cntA = Object.keys(gAssegnazioni).length;
         const cntR = Object.keys(gRichieste).length;
         const cntS = Object.values(gScadenze).reduce((n, ms) => n + ms.length, 0);
+        const cntF = fabbisognoRows.length;
 
         const _renderGroup = (gruppi, io) => {
             let s = '';
@@ -5644,6 +5738,20 @@ async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
             });
             return allMsgs.map(m => generaCardScadenza(m, io)).join('')
                 || `<div class="empty-msg" style="margin:16px 0 8px">Nessuna scadenza.</div>`;
+        };
+        const _renderFabbisogno = () => {
+            if (!fabbisognoRows.length) {
+                return `<div class="empty-msg" style="margin:16px 0 8px">Nessun articolo attivo da produrre.</div>`;
+            }
+            return fabbisognoRows.map(row => `
+                <div class="fabprod-card" data-prodotto="${row.prodotto.toLowerCase().replace(/"/g, '')}">
+                    <div class="fabprod-top">
+                        <div class="fabprod-name">${row.prodotto}</div>
+                        <span class="fabprod-qty">${_formatQtyProduzione_(row.qty)} pz</span>
+                    </div>
+                    <div class="fabprod-orders">${row.ordini.map(ord => `<span class="fabprod-order-pill">ORD. ${ord}</span>`).join('')}</div>
+                </div>
+            `).join('');
         };
 
         let htmlArchReq = '';
@@ -5663,6 +5771,19 @@ async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
             </div>
 
             <div class="req-groups">
+
+                <details id="rg-fabbisogno-produzione" class="req-group" ${fabbOpen ? 'open' : ''}
+                         ontoggle="_saveReqGroup('fabbisogno_produzione', this)">
+                    <summary class="req-group-summary">
+                        <span class="rg-left">
+                            <span class="rg-icon rg-icon-fabbisogno"><i class="fas fa-boxes-stacked"></i></span>
+                            <span class="rg-title">FABBISOGNO PRODUZIONE</span>
+                            ${cntF > 0 ? `<span class="rg-count rg-count-fabb">${cntF}</span>` : ''}
+                        </span>
+                        <i class="fas fa-chevron-down rg-chevron"></i>
+                    </summary>
+                    <div class="fabprod-list">${_renderFabbisogno()}</div>
+                </details>
 
                 <details id="rg-assegnazioni" class="req-group" ${asseOpen ? 'open' : ''}
                          ontoggle="_saveReqGroup('assegnazioni', this)">
