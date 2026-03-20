@@ -761,7 +761,7 @@ async function importaCSVDaFile(input) {
                         <span>Nuovi ordini inseriti: <strong>${json.nuove}</strong></span><br>
                         <span>Duplicati saltati: <strong>${json.saltate}</strong></span>
                         ${json.aggiornate > 0 ? `<br><span>Quantità aggiornate: <strong>${json.aggiornate}</strong></span>` : ''}
-                        ${json.evasi > 0 ? `<br><span>Ordini evasi archiviati: <strong>${json.evasi}</strong></span>` : ''}
+                        ${json.evasi > 0 ? `<br><span>🚚 Spostati a SPEDITO (non in CSV): <strong>${json.evasi}</strong></span>` : ''}
                     </div>`;
                 // Ricarica la dashboard per mostrare i nuovi dati
                 setTimeout(() => { if (typeof caricaDati === 'function') caricaDati('PROGRAMMA PRODUZIONE DEL MESE', true); }, 800);
