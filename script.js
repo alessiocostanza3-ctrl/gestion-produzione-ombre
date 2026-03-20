@@ -5589,7 +5589,7 @@ function _buildFabbisognoProduzioneRows_(righeProduzione) {
             qty: entry.qty,
             ordini: Array.from(entry.ordini).sort((a, b) => a.localeCompare(b, 'it'))
         }))
-        .sort((a, b) => a.prodotto.localeCompare(b.prodotto, 'it', { sensitivity: 'base' }));
+        .sort((a, b) => (a.codice || '').localeCompare(b.codice || '', 'it', { sensitivity: 'base' }));
 }
 
 async function _loadFabbisognoProduzioneRows_() {
