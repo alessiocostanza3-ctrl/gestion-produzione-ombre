@@ -1515,6 +1515,8 @@ async function _caricaColoriAvatarDaServer() {
             const mioColore = map[utenteAttuale.nome.toUpperCase().trim()];
             if (mioColore) _applyAvatarColorUI(mioColore);
         }
+        // Ri-vernicia i badge degli altri operatori già nel DOM
+        _repaintOpColors();
     } catch (e) {
         console.warn('_caricaColoriAvatarDaServer:', e);
     }
@@ -3927,7 +3929,7 @@ async function rimuoviOperatore(idRiga, nOrd, nomeOperatore) {
             const col  = _getOpColor(nome);
             const nomeSafe = nome.replace(/'/g, "\\'");
             const xBtn = nome.toUpperCase() === _mioR ? `<button class="btn-rimuovi-op" onclick="rimuoviOperatore('${idRiga}','${nOrd}','${nomeSafe}')" title="Rimuovi assegnazione">&times;</button>` : '';
-            return `<span class="badge-operatore" style="background:${col};border-color:${col}">${nome}${xBtn}</span>`;
+            return `<span class="badge-operatore" data-nome="${nome}" style="background:${col};border-color:${col}">${nome}${xBtn}</span>`;
         }).join('');
     }
 
@@ -4066,7 +4068,7 @@ function autoAssegnami(idRiga, nOrd, btnEl) {
     container.innerHTML = correnti.map(n => {
         const col = _getOpColor(n); const ns = n.replace(/'/g, "\\'");
         const xBtn = n.toUpperCase() === _mioUp ? `<button class="btn-rimuovi-op" onclick="rimuoviOperatore('${idRiga}','${nOrd}','${ns}')" title="Rimuovi assegnazione">&times;</button>` : '';
-        return `<span class="badge-operatore" style="background:${col};border-color:${col}">${n}${xBtn}</span>`;
+        return `<span class="badge-operatore" data-nome="${n}" style="background:${col};border-color:${col}">${n}${xBtn}</span>`;
     }).join('');
     // rimuovi pulsante Assegnami
     if (btnEl && btnEl.parentNode) btnEl.remove();
@@ -4091,7 +4093,7 @@ function autoAssegnamiOrdine(nOrd) {
             cont.innerHTML = curr.map(n => {
                 const col = _getOpColor(n); const idR = cont.dataset.idRiga; const ns = n.replace(/'/g,"\\'");
                 const xBtn = n.toUpperCase() === _mioUp ? `<button class="btn-rimuovi-op" onclick="rimuoviOperatore('${idR}','${nOrd}','${ns}')" title="Rimuovi assegnazione">&times;</button>` : '';
-                return `<span class="badge-operatore" style="background:${col};border-color:${col}">${n}${xBtn}</span>`;
+                return `<span class="badge-operatore" data-nome="${n}" style="background:${col};border-color:${col}">${n}${xBtn}</span>`;
             }).join('');
         });
         // rimuovi pulsante Assegnami header
