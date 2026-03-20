@@ -1534,8 +1534,11 @@ function chiudiAccountMenu() {
     if (dropdown) dropdown.classList.remove('open');
 }
 
-/** Aggiorna la pagina corrente: svuota cache e ricarica i dati dal server */
-function _aggiornaPagina() {
+/** Aggiorna la pagina corrente: svuota cache, ricarica impostazioni e ricarica dati dal server */
+async function _aggiornaPagina() {
+    // Invalida cache impostazioni e ricarica dal server
+    _lsCacheDel('_impostazioni_cache');
+    await _fetchImpostazioniDaServer();
     if (typeof paginaAttuale !== 'undefined' && paginaAttuale) {
         delete cacheContenuti[paginaAttuale];
         if (typeof _lsCacheDel === 'function') _lsCacheDel('_html_' + paginaAttuale);
@@ -4885,10 +4888,11 @@ async function gestisciRipristino(id_o_numero, tipo) {
 //OVERVIEW HELPERS (usati da caricaDati)//
 
 // 4 stati: focus su articolo (raggruppati per codice)
-// Overview: 4 stati articolo + 2 stati ordine (fissi, sottoinsieme del flusso produttivo)
-const _OV_STATI_ART = ['PREPARARE','PREPARARE PER LAVORAZIONE','IN LAVORAZIONE','TORNATO DALLA LAVORAZIONE'];
-const _OV_STATI_ORD = ['IN PRODUZIONE','IMBALLATO'];
-function _getOvStatiAll() { return [..._OV_STATI_ART, ..._OV_STATI_ORD]; }
+// Overview: stati articolo + ordine — letti dal server (ScriptProperties OVERVIEW_STATI).
+// Defaults usati solo se il server non restituisce overviewStati.
+let _ovStatiArt = ['PREPARARE','PREPARARE PER LAVORAZIONE','IN LAVORAZIONE','TORNATO DALLA LAVORAZIONE'];
+let _ovStatiOrd = ['IN PRODUZIONE','IMBALLATO'];
+function _getOvStatiAll() { return [..._ovStatiArt, ..._ovStatiOrd]; }
 
 // Lazy load overview su mobile
 function _ovLoadIfNeeded(summary) {
@@ -5049,7 +5053,7 @@ function _buildOverviewInnerHtml(attivi) {
         const colore = coloriStati[stato] || coloreDefault;
         const isEmpty = righe.length === 0;
 
-        const isOrdMode = _OV_STATI_ORD.includes(stato); // IN PRODUZIONE, IMBALLATO → per ordine
+        const isOrdMode = _ovStatiOrd.includes(stato); // IN PRODUZIONE, IMBALLATO → per ordine
         let contenuto = '';
         let totLabel  = '';
 
@@ -5467,7 +5471,7 @@ function _initKanbanDnd() {
 function _aggiornaKanbanCount(grid) {
     grid.querySelectorAll('.ov-stato-body').forEach(body => {
         const stato = body.dataset.statoDrop;
-        const isOrd = _OV_STATI_ORD.includes(stato);
+        const isOrd = _ovStatiOrd.includes(stato);
         const items = body.querySelectorAll('.ov-kanban-item');
         // Per stati ordine conta le card; per stati articolo somma data-count
         let count = 0;
@@ -6242,18 +6246,36 @@ async function caricaDatiIniziali() {
             const parsed = (typeof cached === 'string') ? JSON.parse(cached) : cached;
             listaStati     = parsed.stati     || [];
             listaOperatori = parsed.operatori || [];
-            return; // servito dalla cache: nessuna chiamata GAS
+            _applicaOverviewConfig(parsed.overviewStati);
+            return;
         } catch(e) { console.warn('[impostazioni] cache JSON corrotta, ricarico dal server:', e); }
     }
+    await _fetchImpostazioniDaServer();
+}
+
+/** Fetch fresco dal server e aggiorna cache LS + variabili globali */
+async function _fetchImpostazioniDaServer() {
+    const LS_KEY = '_impostazioni_cache';
     try {
         const res = await fetch(URL_GOOGLE + '?azione=getImpostazioni');
         const settings = await res.json();
         listaStati     = settings.stati     || [];
         listaOperatori = settings.operatori || [];
-        _lsCacheSet(LS_KEY, JSON.stringify({ stati: listaStati, operatori: listaOperatori }));
+        _applicaOverviewConfig(settings.overviewStati);
+        _lsCacheSet(LS_KEY, JSON.stringify({
+            stati: listaStati, operatori: listaOperatori,
+            overviewStati: settings.overviewStati
+        }));
     } catch(e) {
-        console.warn('[Boot] caricaDatiIniziali: impossibile caricare impostazioni:', e);
+        console.warn('[Boot] _fetchImpostazioniDaServer:', e);
     }
+}
+
+/** Popola le variabili overview dai dati server (con fallback ai default) */
+function _applicaOverviewConfig(ov) {
+    if (!ov) return;
+    if (Array.isArray(ov.art) && ov.art.length) _ovStatiArt = ov.art.map(s => s.toUpperCase().trim());
+    if (Array.isArray(ov.ord) && ov.ord.length) _ovStatiOrd = ov.ord.map(s => s.toUpperCase().trim());
 }
 
 function toggleSettingsSection(sectionId, rowEl) {
@@ -6890,6 +6912,11 @@ async function salvaTutteImpostazioni() {
                     btn.style.background = '';
                     btn.innerHTML = "<i class='fas fa-save'></i> Salva Impostazioni";
                 }
+                // Invalida TUTTE le cache frontend (HTML, impostazioni) e ricarica config dal server
+                _lsCacheDel('_impostazioni_cache');
+                Object.keys(cacheContenuti).forEach(k => delete cacheContenuti[k]);
+                Object.keys(localStorage).filter(k => k.startsWith('_html_')).forEach(k => localStorage.removeItem(k));
+                await _fetchImpostazioniDaServer();
             } else {
                 notificaElegante('Errore: ' + (json.message || 'risposta inattesa dal server'), 'error');
             }
