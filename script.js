@@ -4885,21 +4885,10 @@ async function gestisciRipristino(id_o_numero, tipo) {
 //OVERVIEW HELPERS (usati da caricaDati)//
 
 // 4 stati: focus su articolo (raggruppati per codice)
-// 2 stati: focus su ordine completo
-// 4 stati: focus su articolo — titoli letti da listaStati per posizione,
-// così un rename nelle Impostazioni si riflette subito nell'overview.
-// 2 stati: focus su ordine completo (fissi)
-const _OV_STATI_ART_DEFAULT = ['PREPARARE','PREPARARE PER LAVORAZIONE','IN LAVORAZIONE','TORNATO DALLA LAVORAZIONE'];
-const _OV_STATI_ORD  = ['IN PRODUZIONE','IMBALLATO'];
-function _getOvStatiArt() {
-    if (!listaStati || !listaStati.length) return _OV_STATI_ART_DEFAULT;
-    const nonOrd = listaStati
-        .map(s => s.nome.toUpperCase().trim())
-        .filter(n => !_OV_STATI_ORD.includes(n));
-    // Mappa per posizione: mantiene esattamente 4 slot, usa il nome aggiornato se disponibile
-    return _OV_STATI_ART_DEFAULT.map((def, i) => nonOrd[i] || def);
-}
-function _getOvStatiAll() { return [..._getOvStatiArt(), ..._OV_STATI_ORD]; }
+// Overview: 4 stati articolo + 2 stati ordine (fissi, sottoinsieme del flusso produttivo)
+const _OV_STATI_ART = ['PREPARARE','PREPARARE PER LAVORAZIONE','IN LAVORAZIONE','TORNATO DALLA LAVORAZIONE'];
+const _OV_STATI_ORD = ['IN PRODUZIONE','IMBALLATO'];
+function _getOvStatiAll() { return [..._OV_STATI_ART, ..._OV_STATI_ORD]; }
 
 // Lazy load overview su mobile
 function _ovLoadIfNeeded(summary) {
