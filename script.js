@@ -3476,7 +3476,7 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
         // --- OVERVIEW STATI ---
         const attivi = datiProd.filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE');
         _attiviProd = attivi;
-        const STATI_OV = _OV_STATI_ALL;
+        const STATI_OV = _getOvStatiAll();
         const numInFocus = attivi.filter(r => STATI_OV.includes((r.stato||'').toUpperCase().trim())).length;
 
         // --- SEZIONE ATTIVA ---
@@ -4385,7 +4385,7 @@ function _backgroundRefreshProduzione(allProd, allArch) {
     const htmlArchiviati = generaBloccoOrdiniUnificato(allArch, true);
     const isMobileOv   = window.innerWidth <= 600;
     const ovContent    = isMobileOv ? '<div class="ov-lazy-placeholder"><i class="fas fa-spinner fa-spin"></i></div>' : _buildOverviewInnerHtml(attivi);
-    const numInFocus   = attivi.filter(r => _OV_STATI_ALL.includes((r.stato||'').toUpperCase().trim())).length;
+    const numInFocus   = attivi.filter(r => _getOvStatiAll().includes((r.stato||'').toUpperCase().trim())).length;
 
     contenitore.innerHTML = `
         <details class="ov-accordion" id="ov-accordion"${isMobileOv ? '' : ' open'}>
@@ -4886,9 +4886,20 @@ async function gestisciRipristino(id_o_numero, tipo) {
 
 // 4 stati: focus su articolo (raggruppati per codice)
 // 2 stati: focus su ordine completo
-const _OV_STATI_ART  = ['CONTROLLARE MAGAZZINO','PREPARARE PER LAVORAZIONE','IN LAVORAZIONE','TORNATO DALLA LAVORAZIONE'];
+// 4 stati: focus su articolo — titoli letti da listaStati per posizione,
+// così un rename nelle Impostazioni si riflette subito nell'overview.
+// 2 stati: focus su ordine completo (fissi)
+const _OV_STATI_ART_DEFAULT = ['CONTROLLARE MAGAZZINO','PREPARARE PER LAVORAZIONE','IN LAVORAZIONE','TORNATO DALLA LAVORAZIONE'];
 const _OV_STATI_ORD  = ['IN PRODUZIONE','IMBALLATO'];
-const _OV_STATI_ALL  = [..._OV_STATI_ART, ..._OV_STATI_ORD];
+function _getOvStatiArt() {
+    if (!listaStati || !listaStati.length) return _OV_STATI_ART_DEFAULT;
+    const nonOrd = listaStati
+        .map(s => s.nome.toUpperCase().trim())
+        .filter(n => !_OV_STATI_ORD.includes(n));
+    // Mappa per posizione: mantiene esattamente 4 slot, usa il nome aggiornato se disponibile
+    return _OV_STATI_ART_DEFAULT.map((def, i) => nonOrd[i] || def);
+}
+function _getOvStatiAll() { return [..._getOvStatiArt(), ..._OV_STATI_ORD]; }
 
 // Lazy load overview su mobile
 function _ovLoadIfNeeded(summary) {
@@ -5043,7 +5054,7 @@ function _buildOverviewInnerHtml(attivi) {
     (listaStati || []).forEach(s => { coloriStati[s.nome.toUpperCase()] = s.colore; });
     const coloreDefault = '#94a3b8';
 
-    const cardsHtml = _OV_STATI_ALL.map(stato => {
+    const cardsHtml = _getOvStatiAll().map(stato => {
         // .trim() evita spazi extra nel nome stato (fix IN LAVORAZIONE)
         const righe = attivi.filter(r => (r.stato || '').toUpperCase().trim() === stato.trim());
         const colore = coloriStati[stato] || coloreDefault;
