@@ -4889,7 +4889,7 @@ async function gestisciRipristino(id_o_numero, tipo) {
 // 4 stati: focus su articolo — titoli letti da listaStati per posizione,
 // così un rename nelle Impostazioni si riflette subito nell'overview.
 // 2 stati: focus su ordine completo (fissi)
-const _OV_STATI_ART_DEFAULT = ['CONTROLLARE MAGAZZINO','PREPARARE PER LAVORAZIONE','IN LAVORAZIONE','TORNATO DALLA LAVORAZIONE'];
+const _OV_STATI_ART_DEFAULT = ['PREPARARE','PREPARARE PER LAVORAZIONE','IN LAVORAZIONE','TORNATO DALLA LAVORAZIONE'];
 const _OV_STATI_ORD  = ['IN PRODUZIONE','IMBALLATO'];
 function _getOvStatiArt() {
     if (!listaStati || !listaStati.length) return _OV_STATI_ART_DEFAULT;
