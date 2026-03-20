@@ -5570,12 +5570,14 @@ function _buildFabbisognoProduzioneRows_(righeProduzione) {
         if (!grouped.has(key)) {
             grouped.set(key, {
                 prodotto,
+                codice: String(riga.codice || '').trim(),
                 qty: 0,
                 ordini: new Set()
             });
         }
 
         const entry = grouped.get(key);
+        if (!entry.codice && riga.codice) entry.codice = String(riga.codice).trim();
         entry.qty += qtyNetta;
         if (riga.ordine) entry.ordini.add(String(riga.ordine).trim());
     });
@@ -5583,6 +5585,7 @@ function _buildFabbisognoProduzioneRows_(righeProduzione) {
     return Array.from(grouped.values())
         .map(entry => ({
             prodotto: entry.prodotto,
+            codice: entry.codice,
             qty: entry.qty,
             ordini: Array.from(entry.ordini).sort((a, b) => a.localeCompare(b, 'it'))
         }))
@@ -5746,7 +5749,7 @@ async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
             return fabbisognoRows.map(row => `
                 <div class="fabprod-card" data-prodotto="${row.prodotto.toLowerCase().replace(/"/g, '')}">
                     <div class="fabprod-top">
-                        <div class="fabprod-name">${row.prodotto}</div>
+                        <div class="fabprod-name">${row.codice ? `<span class="fabprod-code">${row.codice}</span>` : ''}${row.prodotto}</div>
                         <span class="fabprod-qty">${_formatQtyProduzione_(row.qty)} pz</span>
                     </div>
                     <div class="fabprod-orders">${row.ordini.map(ord => `<span class="fabprod-order-pill">ORD. ${ord}</span>`).join('')}</div>
