@@ -5551,6 +5551,70 @@ function _isStatoEsclusoFabbisogno_(stato) {
     ].includes(key);
 }
 
+// ── Fabbisogno Produzione: navigazione e modals ──────────────────────────────
+function _fabprodVaiOrdine(nOrd) {
+    document.querySelectorAll('.fabprod-modal-overlay').forEach(el => el.remove());
+    cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', null);
+    setTimeout(() => {
+        ['universal-search', 'mobile-search'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) { el.value = nOrd; el.dispatchEvent(new Event('input')); }
+        });
+        if (typeof filtraUniversale === 'function') filtraUniversale();
+    }, 420);
+}
+
+function _fabprodApriModalOrdine(nOrd, cliente) {
+    document.getElementById('fabprod-modal-ordine')?.remove();
+    const cli = cliente ? ` · ${cliente}` : '';
+    const safeOrd = nOrd.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const el = document.createElement('div');
+    el.id = 'fabprod-modal-ordine';
+    el.className = 'fabprod-modal-overlay';
+    el.innerHTML = `
+        <div class="fabprod-modal-box">
+            <div class="fabprod-modal-title"><i class="fas fa-box-open"></i> Vai all'ordine?</div>
+            <div class="fabprod-modal-body">ORD. <strong>${nOrd}</strong>${cli ? `<span class="fabprod-modal-sub">${cli}</span>` : ''}</div>
+            <div class="fabprod-modal-btns">
+                <button class="fabprod-btn-cancel" onclick="document.getElementById('fabprod-modal-ordine').remove()">Annulla</button>
+                <button class="fabprod-btn-confirm" onclick="_fabprodVaiOrdine('${safeOrd}')">Vai <i class='fas fa-arrow-right'></i></button>
+            </div>
+        </div>`;
+    el.addEventListener('click', e => { if (e.target === el) el.remove(); });
+    document.body.appendChild(el);
+}
+
+function _fabprodApriModalArticolo(idx) {
+    const rows = window._fabprodCurrentRows;
+    if (!rows || !rows[idx]) return;
+    const row = rows[idx];
+    document.getElementById('fabprod-modal-articolo')?.remove();
+    const pillsHtml = row.ordini.map(o => {
+        const safeOrd = o.ordine.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const safeCli = (o.cliente || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        return `<span class="fabprod-order-pill fabprod-order-pill--click" onclick="document.getElementById('fabprod-modal-articolo').remove();_fabprodApriModalOrdine('${safeOrd}','${safeCli}')">ORD. ${o.ordine}${o.cliente ? `<span class="fabprod-pill-cliente"> · ${o.cliente}</span>` : ''}</span>`;
+    }).join('');
+    const el = document.createElement('div');
+    el.id = 'fabprod-modal-articolo';
+    el.className = 'fabprod-modal-overlay';
+    el.innerHTML = `
+        <div class="fabprod-modal-box fabprod-modal-box--art">
+            <button class="fabprod-modal-close" onclick="document.getElementById('fabprod-modal-articolo').remove()"><i class="fas fa-times"></i></button>
+            ${row.codice ? `<div class="fabprod-modal-art-code">${row.codice}</div>` : ''}
+            <div class="fabprod-modal-art-name">${row.prodotto}</div>
+            <div class="fabprod-modal-art-qty">${_formatQtyProduzione_(row.qty)} pz totali richiesti</div>
+            <div class="fabprod-modal-art-orders">${pillsHtml || '<span style="color:#94a3b8;font-size:0.8rem">Nessun ordine</span>'}</div>
+        </div>`;
+    el.addEventListener('click', e => { if (e.target === el) el.remove(); });
+    document.body.appendChild(el);
+}
+
+function _fabprodCardClick(idx) {
+    if (window.innerWidth <= 768) _fabprodApriModalArticolo(idx);
+    // desktop: pills gestiscono il click da soli
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 function _buildFabbisognoProduzioneRows_(righeProduzione) {
     const grouped = new Map();
     (righeProduzione || []).forEach(riga => {
@@ -5572,14 +5636,18 @@ function _buildFabbisognoProduzioneRows_(righeProduzione) {
                 prodotto,
                 codice: String(riga.codice || '').trim(),
                 qty: 0,
-                ordini: new Set()
+                ordini: new Map()   // key=nOrdine, value=cliente
             });
         }
 
         const entry = grouped.get(key);
         if (!entry.codice && riga.codice) entry.codice = String(riga.codice).trim();
         entry.qty += qtyNetta;
-        if (riga.ordine) entry.ordini.add(String(riga.ordine).trim());
+        if (riga.ordine) {
+            const nOrd = String(riga.ordine).trim();
+            const cli  = String(riga.cliente || '').trim();
+            if (!entry.ordini.has(nOrd) || !entry.ordini.get(nOrd)) entry.ordini.set(nOrd, cli);
+        }
     });
 
     return Array.from(grouped.values())
@@ -5587,7 +5655,9 @@ function _buildFabbisognoProduzioneRows_(righeProduzione) {
             prodotto: entry.prodotto,
             codice: entry.codice,
             qty: entry.qty,
-            ordini: Array.from(entry.ordini).sort((a, b) => a.localeCompare(b, 'it'))
+            ordini: Array.from(entry.ordini.entries())
+                .map(([ord, cli]) => ({ ordine: ord, cliente: cli }))
+                .sort((a, b) => a.ordine.localeCompare(b.ordine, 'it'))
         }))
         .sort((a, b) => (a.codice || '').localeCompare(b.codice || '', 'it', { sensitivity: 'base' }));
 }
@@ -5746,15 +5816,22 @@ async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
             if (!fabbisognoRows.length) {
                 return `<div class="empty-msg" style="margin:16px 0 8px">Nessun articolo attivo da produrre.</div>`;
             }
-            return fabbisognoRows.map(row => `
-                <div class="fabprod-card" data-prodotto="${row.prodotto.toLowerCase().replace(/"/g, '')}">
+            window._fabprodCurrentRows = fabbisognoRows;
+            return fabbisognoRows.map((row, idx) => {
+                const pillsHtml = row.ordini.map(o => {
+                    const safeOrd = o.ordine.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    const safeCli = (o.cliente || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    return `<span class="fabprod-order-pill fabprod-order-pill--click" onclick="event.stopPropagation();_fabprodApriModalOrdine('${safeOrd}','${safeCli}')">ORD. ${o.ordine}${o.cliente ? `<span class="fabprod-pill-cliente"> · ${o.cliente}</span>` : ''}</span>`;
+                }).join('');
+                return `
+                <div class="fabprod-card" onclick="_fabprodCardClick(${idx})">
                     <div class="fabprod-top">
                         <div class="fabprod-name">${row.codice ? `<span class="fabprod-code">${row.codice}</span>` : ''}${row.prodotto}</div>
                         <span class="fabprod-qty">${_formatQtyProduzione_(row.qty)} pz</span>
                     </div>
-                    <div class="fabprod-orders">${row.ordini.map(ord => `<span class="fabprod-order-pill">ORD. ${ord}</span>`).join('')}</div>
-                </div>
-            `).join('');
+                    <div class="fabprod-orders">${pillsHtml}</div>
+                </div>`;
+            }).join('');
         };
 
         let htmlArchReq = '';

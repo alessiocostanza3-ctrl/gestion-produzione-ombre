@@ -2425,6 +2425,144 @@ h1 {
     font-weight: 700;
     letter-spacing: 0.02em;
 }
+.fabprod-order-pill--click {
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+.fabprod-order-pill--click:hover {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+.fabprod-pill-cliente {
+    font-weight: 500;
+    opacity: 0.72;
+}
+
+/* Mobile: card compatta (solo codice + qty), tocco apre modal */
+@media (max-width: 768px) {
+    .fabprod-orders { display: none; }
+    .fabprod-card { cursor: pointer; }
+}
+
+/* ─── FABBISOGNO MODALS ──────────────────────────────────────────────────── */
+.fabprod-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+}
+.fabprod-modal-box {
+    background: #fff;
+    border-radius: 16px;
+    padding: 22px 20px 18px;
+    max-width: 340px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.22);
+    position: relative;
+}
+.fabprod-modal-box--art { max-width: 400px; }
+.fabprod-modal-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+.fabprod-modal-body {
+    font-size: 1rem;
+    color: #1e293b;
+    margin-bottom: 20px;
+    line-height: 1.4;
+}
+.fabprod-modal-sub {
+    display: block;
+    font-size: 0.82rem;
+    color: #64748b;
+    margin-top: 5px;
+    font-weight: 400;
+}
+.fabprod-modal-btns {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+.fabprod-btn-cancel {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    color: #64748b;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+.fabprod-btn-confirm {
+    padding: 8px 18px;
+    border-radius: 8px;
+    border: none;
+    background: #1d4ed8;
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.fabprod-btn-confirm:active { opacity: 0.85; }
+.fabprod-modal-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: #f1f5f9;
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #64748b;
+    font-size: 0.75rem;
+}
+.fabprod-modal-art-code {
+    font-size: 0.72rem;
+    color: #64748b;
+    font-weight: 600;
+    margin-bottom: 3px;
+    letter-spacing: 0.03em;
+}
+.fabprod-modal-art-name {
+    font-size: 1rem;
+    font-weight: 800;
+    color: #1e293b;
+    margin-bottom: 10px;
+    line-height: 1.3;
+}
+.fabprod-modal-art-qty {
+    font-size: 0.82rem;
+    color: #1d4ed8;
+    font-weight: 700;
+    background: #dbeafe;
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    margin-bottom: 14px;
+}
+.fabprod-modal-art-orders {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
 
 /* ─── CARD QUADRATE RICHIESTE ───────────────────────── */
 .req-card {
