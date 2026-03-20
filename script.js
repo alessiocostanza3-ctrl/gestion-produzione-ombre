@@ -5218,7 +5218,7 @@ function _initKanbanDnd() {
     let activeBody = null;   // colonna attualmente evidenziata
     let dragPointerId = null;
     let pendingTouchDrag = null;
-    const TOUCH_HOLD_MS = 170;
+    const TOUCH_HOLD_MS = 380;
     const TOUCH_MOVE_CANCEL_PX = 10;
     let offX = 0, offY = 0;
 
@@ -5254,6 +5254,7 @@ function _initKanbanDnd() {
     function _cleanup() {
         if (pendingTouchDrag && pendingTouchDrag.pressTimer) {
             clearTimeout(pendingTouchDrag.pressTimer);
+            if (pendingTouchDrag.item) pendingTouchDrag.item.classList.remove('ov-touch-hold-pending');
             pendingTouchDrag = null;
         }
         if (dragEl && dragPointerId != null) {
@@ -5347,7 +5348,9 @@ function _initKanbanDnd() {
         if (e.pointerType === 'touch') {
             if (pendingTouchDrag && pendingTouchDrag.pressTimer) {
                 clearTimeout(pendingTouchDrag.pressTimer);
+                if (pendingTouchDrag.item) pendingTouchDrag.item.classList.remove('ov-touch-hold-pending');
             }
+            item.classList.add('ov-touch-hold-pending');
             pendingTouchDrag = {
                 item,
                 pointerId: e.pointerId,
@@ -5355,6 +5358,7 @@ function _initKanbanDnd() {
                 startY: e.clientY,
                 pressTimer: setTimeout(() => {
                     if (!pendingTouchDrag || pendingTouchDrag.pointerId !== e.pointerId || dragEl) return;
+                    pendingTouchDrag.item.classList.remove('ov-touch-hold-pending');
                     _startDrag(item, pendingTouchDrag.startX, pendingTouchDrag.startY, e.pointerId);
                     pendingTouchDrag = null;
                 }, TOUCH_HOLD_MS)
@@ -5373,6 +5377,7 @@ function _initKanbanDnd() {
             const dy = Math.abs(e.clientY - pendingTouchDrag.startY);
             if (dx > TOUCH_MOVE_CANCEL_PX || dy > TOUCH_MOVE_CANCEL_PX) {
                 clearTimeout(pendingTouchDrag.pressTimer);
+                pendingTouchDrag.item.classList.remove('ov-touch-hold-pending');
                 pendingTouchDrag = null;
             }
         }
@@ -5388,6 +5393,7 @@ function _initKanbanDnd() {
     function _onPointerUp(e) {
         if (pendingTouchDrag && !dragEl && e.pointerId === pendingTouchDrag.pointerId) {
             clearTimeout(pendingTouchDrag.pressTimer);
+            pendingTouchDrag.item.classList.remove('ov-touch-hold-pending');
             pendingTouchDrag = null;
             return;
         }

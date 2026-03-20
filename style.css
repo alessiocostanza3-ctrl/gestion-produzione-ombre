@@ -6050,6 +6050,10 @@ button:active {
         user-select: none;
         -webkit-user-select: none;
     }
+    .ov-kanban-item.ov-touch-hold-pending {
+        transform: scale(0.985);
+        filter: brightness(1.04);
+    }
     .ov-kanban-item.ov-drag-active { touch-action: none; }
 }
 
