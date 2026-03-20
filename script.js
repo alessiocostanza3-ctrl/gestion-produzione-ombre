@@ -5217,6 +5217,9 @@ function _initKanbanDnd() {
     let srcStato   = null;
     let activeBody = null;   // colonna attualmente evidenziata
     let dragPointerId = null;
+    let pendingTouchDrag = null;
+    const TOUCH_HOLD_MS = 170;
+    const TOUCH_MOVE_CANCEL_PX = 10;
     let offX = 0, offY = 0;
 
     /* ── Trova la colonna destinazione nascondendo temporaneamente il ghost ── */
@@ -5249,6 +5252,10 @@ function _initKanbanDnd() {
 
     /* ── Pulizia stato drag ── */
     function _cleanup() {
+        if (pendingTouchDrag && pendingTouchDrag.pressTimer) {
+            clearTimeout(pendingTouchDrag.pressTimer);
+            pendingTouchDrag = null;
+        }
         if (dragEl && dragPointerId != null) {
             try {
                 if (dragEl.hasPointerCapture && dragEl.hasPointerCapture(dragPointerId)) {
@@ -5272,33 +5279,14 @@ function _initKanbanDnd() {
     let _lastPointerDownTime = 0;
     let _lastPointerDownItem = null;
 
-    /* ── Inizio del drag ── */
-    grid.addEventListener('pointerdown', e => {
-        // Solo tasto sinistro del mouse
-        if (e.pointerType === 'mouse' && e.button !== 0) return;
-        const item = e.target.closest('.ov-kanban-item');
-        if (!item) return;
-
-        // Rileva doppio click manualmente (250ms): se è il secondo tap rapido navigiamo, non trasciniamo
-        const now = Date.now();
-        if (_lastPointerDownItem === item && now - _lastPointerDownTime < 280) {
-            _lastPointerDownTime = 0;
-            _lastPointerDownItem = null;
-            const ordine = (item.dataset.ordine || '').split(',')[0].trim();
-            if (ordine) _scrollToOrdineList(ordine);
-            return; // Non avviare il drag
-        }
-        _lastPointerDownTime = now;
-        _lastPointerDownItem = item;
-
-        e.preventDefault();
-        dragEl   = item;
+    function _startDrag(item, clientX, clientY, pointerId) {
+        dragEl = item;
         srcStato = item.dataset.statoCorrente;
-        dragPointerId = e.pointerId;
+        dragPointerId = pointerId;
 
         const rect = item.getBoundingClientRect();
-        offX = e.clientX - rect.left;
-        offY = e.clientY - rect.top;
+        offX = clientX - rect.left;
+        offY = clientY - rect.top;
 
         // Ghost: clone visivo che segue il cursore
         ghost = item.cloneNode(true);
@@ -5322,7 +5310,7 @@ function _initKanbanDnd() {
             'border:1.5px solid #475569'
         ].join(';');
         document.body.appendChild(ghost);
-        
+
         /* Impedisci selezione del testo durante il drag */
         item.style.userSelect = 'none';
 
@@ -5331,13 +5319,63 @@ function _initKanbanDnd() {
 
         // Pointer capture robusto: prima sull'item, fallback sul grid
         try {
-            if (dragEl.setPointerCapture) dragEl.setPointerCapture(e.pointerId);
-            else if (grid.setPointerCapture) grid.setPointerCapture(e.pointerId);
+            if (dragEl.setPointerCapture) dragEl.setPointerCapture(pointerId);
+            else if (grid.setPointerCapture) grid.setPointerCapture(pointerId);
         } catch (_) {}
+    }
+
+    /* ── Inizio del drag ── */
+    grid.addEventListener('pointerdown', e => {
+        // Solo tasto sinistro del mouse
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        const item = e.target.closest('.ov-kanban-item');
+        if (!item) return;
+
+        // Rileva doppio click manualmente (250ms): se è il secondo tap rapido navigiamo, non trasciniamo
+        const now = Date.now();
+        if (_lastPointerDownItem === item && now - _lastPointerDownTime < 280) {
+            _lastPointerDownTime = 0;
+            _lastPointerDownItem = null;
+            const ordine = (item.dataset.ordine || '').split(',')[0].trim();
+            if (ordine) _scrollToOrdineList(ordine);
+            return; // Non avviare il drag
+        }
+        _lastPointerDownTime = now;
+        _lastPointerDownItem = item;
+
+        // Touch: avvia drag solo dopo un tocco leggermente prolungato
+        if (e.pointerType === 'touch') {
+            if (pendingTouchDrag && pendingTouchDrag.pressTimer) {
+                clearTimeout(pendingTouchDrag.pressTimer);
+            }
+            pendingTouchDrag = {
+                item,
+                pointerId: e.pointerId,
+                startX: e.clientX,
+                startY: e.clientY,
+                pressTimer: setTimeout(() => {
+                    if (!pendingTouchDrag || pendingTouchDrag.pointerId !== e.pointerId || dragEl) return;
+                    _startDrag(item, pendingTouchDrag.startX, pendingTouchDrag.startY, e.pointerId);
+                    pendingTouchDrag = null;
+                }, TOUCH_HOLD_MS)
+            };
+            return;
+        }
+
+        e.preventDefault();
+        _startDrag(item, e.clientX, e.clientY, e.pointerId);
     });
 
     /* ── Movimento del ghost ── */
     function _onPointerMove(e) {
+        if (pendingTouchDrag && !dragEl && e.pointerId === pendingTouchDrag.pointerId) {
+            const dx = Math.abs(e.clientX - pendingTouchDrag.startX);
+            const dy = Math.abs(e.clientY - pendingTouchDrag.startY);
+            if (dx > TOUCH_MOVE_CANCEL_PX || dy > TOUCH_MOVE_CANCEL_PX) {
+                clearTimeout(pendingTouchDrag.pressTimer);
+                pendingTouchDrag = null;
+            }
+        }
         if (!dragEl || !ghost) return;
         ghost.style.left = (e.clientX - offX) + 'px';
         ghost.style.top  = (e.clientY - offY) + 'px';
@@ -5348,6 +5386,11 @@ function _initKanbanDnd() {
 
     /* ── Rilascio: sposta il nodo nel DOM ed aggiorna il backend ── */
     function _onPointerUp(e) {
+        if (pendingTouchDrag && !dragEl && e.pointerId === pendingTouchDrag.pointerId) {
+            clearTimeout(pendingTouchDrag.pressTimer);
+            pendingTouchDrag = null;
+            return;
+        }
         if (!dragEl) return;
         const body     = _bodyAtPoint(e.clientX, e.clientY);
         const newStato = body?.dataset?.statoDrop;

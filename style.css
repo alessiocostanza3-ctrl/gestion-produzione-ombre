@@ -6046,10 +6046,11 @@ button:active {
     .ov-row-main { flex: 1; min-width: 0; }
     /* migliora affidabilità drag touch: evita che lo scroll rubi il puntatore */
     .ov-kanban-item {
-        touch-action: none;
+        touch-action: pan-y;
         user-select: none;
         -webkit-user-select: none;
     }
+    .ov-kanban-item.ov-drag-active { touch-action: none; }
 }
 
 /* ── Kanban drag & drop dinamico (pointer events, solo desktop ≥ 601px) ── */
