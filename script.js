@@ -4886,16 +4886,22 @@ async function gestisciRipristino(id_o_numero, tipo) {
 
 // 4 stati: focus su articolo (raggruppati per codice)
 // 2 stati: focus su ordine completo
-// _OV_STATI_ART e _OV_STATI_ALL sono dinamici (leggono da listaStati);
-// _OV_STATI_ORD è fisso: queste due colonne mostrano l'ordine intero anziché gli articoli.
+// _OV_STATI_ORD è fisso; _getOvStatiArt prende esattamente i primi 4 stati non-ORD
+// da listaStati (per posizione), così i rename nelle impostazioni si riflettono subito.
 const _OV_STATI_ORD  = ['IN PRODUZIONE','IMBALLATO'];
+const _OV_STATI_ART_FALLBACK = ['CONTROLLARE MAGAZZINO','PREPARARE PER LAVORAZIONE','IN LAVORAZIONE','TORNATO DALLA LAVORAZIONE'];
 function _getOvStatiArt() {
     if (listaStati && listaStati.length) {
-        return listaStati
+        const nonOrd = listaStati
             .map(s => s.nome.toUpperCase().trim())
             .filter(n => !_OV_STATI_ORD.includes(n));
+        // Usa esattamente i primi N slot (stessi di prima), prende i nomi aggiornati per posizione
+        const n = _OV_STATI_ART_FALLBACK.length;
+        return nonOrd.length >= n
+            ? nonOrd.slice(0, n)
+            : [...nonOrd, ..._OV_STATI_ART_FALLBACK.slice(nonOrd.length)];
     }
-    return ['CONTROLLARE MAGAZZINO','PREPARARE PER LAVORAZIONE','IN LAVORAZIONE','TORNATO DALLA LAVORAZIONE'];
+    return _OV_STATI_ART_FALLBACK;
 }
 function _getOvStatiAll() { return [..._getOvStatiArt(), ..._OV_STATI_ORD]; }
 
