@@ -1706,10 +1706,7 @@ function _canOpenHivesTestPage() {
 function _syncHivesTestVisibility() {
     const show = _canOpenHivesTestPage();
     const menuBtn = document.getElementById('menu-item-hives-test');
-    const tabBtn = document.getElementById('tab-item-hives-test');
-    // solo desktop: il tab mobile è sempre nascosto
     if (menuBtn) menuBtn.style.display = show ? '' : 'none';
-    if (tabBtn) tabBtn.style.display = 'none';
     if (!show && paginaAttuale === _HIVES_TEST_PAGE_ID) cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', null);
 }
 function _isCommerciale() {
