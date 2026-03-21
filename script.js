@@ -8304,15 +8304,38 @@ function _hivesMonths2026_() {
 
 function _hivesDefaultState_() {
         const months = _hivesMonths2026_();
-        const planned = [1991, 1991, 1991, 1991, 1991, 1991, 1991, 1991, 1991, 1990, 1991];
-        const comps = Array.from({ length: 7 }).map((_, i) => ({
-                id: 'c' + (i + 1),
-                codice: 'MAT-00' + (i + 1),
-                nome: 'Componente ' + (i + 1),
-                prezzoUnit: 0,
-                coeffPerPip: 1,
-                ricevuto: {}
-        }));
+    const codes = [
+        'IPLM500mA-PRO',
+        'LED Bat-1-PRO',
+        'IPLM600mA-PRO',
+        'LED Bat-2-PRO',
+        'IPLM700mA-PRO',
+        'LED Bat-3-RED-PRO',
+        'LED Bat-3-BLACK-PRO'
+    ];
+    const monthlyByCode = {
+        'IPLM500mA-PRO':      [0, 700, 1000, 500, 500, 500, 0, 500, 500, 100, 0],
+        'LED Bat-1-PRO':      [0, 700, 1000, 500, 500, 500, 0, 500, 500, 100, 0],
+        'IPLM600mA-PRO':      [650, 400, 1000, 500, 500, 500, 0, 500, 200, 0, 0],
+        'LED Bat-2-PRO':      [650, 400, 1000, 500, 500, 500, 0, 500, 200, 0, 0],
+        'IPLM700mA-PRO':      [200, 0, 0, 200, 200, 200, 0, 200, 200, 200, 200],
+        'LED Bat-3-RED-PRO':  [200, 0, 0, 200, 200, 200, 0, 200, 200, 200, 200],
+        'LED Bat-3-BLACK-PRO':[200, 0, 0, 200, 200, 200, 0, 200, 200, 200, 200]
+    };
+    const comps = codes.map((cod, i) => {
+        const pianoMensile = {};
+        months.forEach((m, ix) => { pianoMensile[m.id] = Number(monthlyByCode[cod][ix] || 0); });
+        return {
+            id: 'c' + (i + 1),
+            codice: cod,
+            nome: cod,
+            prezzoUnit: 0,
+            coeffPerPip: 1,
+            pianoMensile,
+            ricevuto: {}
+        };
+    });
+    const planned = months.map(m => comps.reduce((s, c) => s + (Number((c.pianoMensile || {})[m.id]) || 0), 0));
         return {
                 suppliers: [{
                         id: 'hives',
@@ -8343,7 +8366,11 @@ function _hivesLoad_() {
         try {
                 const raw = localStorage.getItem(_HIVES_TEST_LS_KEY);
                 if (!raw) return _hivesDefaultState_();
-                return JSON.parse(raw);
+        const parsed = JSON.parse(raw);
+        const ord = parsed?.suppliers?.[0]?.orders?.[0];
+        const legacy = ord?.componenti?.some(c => String(c.codice || '').startsWith('MAT-00'));
+        if (!ord || legacy) return _hivesDefaultState_();
+        return parsed;
         } catch (_) {
                 return _hivesDefaultState_();
         }
@@ -8352,18 +8379,29 @@ function _hivesSave_() {
         try { localStorage.setItem(_HIVES_TEST_LS_KEY, JSON.stringify(_hivesState)); } catch (_) {}
 }
 function _hivesOrder_() { return _hivesState.suppliers[0].orders[0]; }
+function _hivesCompMonthQty_(ord, c, monthId) {
+    if (c && c.pianoMensile && typeof c.pianoMensile[monthId] !== 'undefined') return Number(c.pianoMensile[monthId]) || 0;
+    const m = ord.mesi.find(x => x.id === monthId);
+    return Number(m?.qtyAccordo || 0) * Number(c?.coeffPerPip || 0);
+}
+function _hivesSyncMonthAccordo_(ord) {
+    ord.mesi.forEach(m => {
+        m.qtyAccordo = ord.componenti.reduce((s, c) => s + _hivesCompMonthQty_(ord, c, m.id), 0);
+    });
+}
 function _hivesFmt_(n) { return new Intl.NumberFormat('it-IT').format(Math.round(Number(n) || 0)); }
 function _hivesMoney_(n) {
         return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(Number(n) || 0);
 }
 function _hivesCalc_(ord) {
+    _hivesSyncMonthAccordo_(ord);
         const totalAccordo = Number(ord.totalAccordoPz || 0);
         const totalPianificato = ord.mesi.reduce((s, m) => s + (Number(m.qtyAccordo) || 0), 0);
         const unitBudget = ord.componenti.reduce((s, c) => s + ((Number(c.prezzoUnit) || 0) * (Number(c.coeffPerPip) || 0)), 0);
         const budgetTotale = totalPianificato * unitBudget;
         const budgetPagato = ord.mesi.reduce((s, m) => s + (Number(m.accontoValore) || 0) + (Number(m.saldoValore) || 0), 0);
         const compStats = ord.componenti.map(c => {
-                const need = ord.mesi.reduce((s, m) => s + (Number(m.qtyAccordo) || 0) * (Number(c.coeffPerPip) || 0), 0);
+            const need = ord.mesi.reduce((s, m) => s + _hivesCompMonthQty_(ord, c, m.id), 0);
                 const arr = ord.mesi.reduce((s, m) => s + (Number((c.ricevuto || {})[m.id]) || 0), 0);
                 return { id: c.id, need, arrived: arr, rem: Math.max(0, need - arr) };
         });
@@ -8395,6 +8433,7 @@ function caricaPaginaHivesTest() {
 
 function _renderHivesTest_() {
         const ord = _hivesOrder_();
+    _hivesSyncMonthAccordo_(ord);
         const calc = _hivesCalc_(ord);
         const root = document.getElementById('contenitore-dati');
         if (!root) return;
@@ -8454,15 +8493,17 @@ function _hivesOpenMonthModal_(monthId) {
         const ord = _hivesOrder_();
         const m = ord.mesi.find(x => x.id === monthId);
         if (!m) return;
+        _hivesSyncMonthAccordo_(ord);
         const unitBudget = ord.componenti.reduce((s, c) => s + ((Number(c.prezzoUnit) || 0) * (Number(c.coeffPerPip) || 0)), 0);
         const meseBudget = (Number(m.qtyAccordo) || 0) * unitBudget;
         _hivesModalCtx = { type: 'month', id: monthId };
+        const rows = ord.componenti.map(c => `<tr><td>${c.codice}</td><td>${c.nome}</td><td>${_hivesFmt_(_hivesCompMonthQty_(ord, c, m.id))}</td></tr>`).join('');
         document.getElementById('hives-modal-root').innerHTML = `
             <div class="hives-modal-overlay" onclick="_hivesCloseModal_(event)">
                 <div class="hives-modal-box" onclick="event.stopPropagation()">
                     <div class="hives-modal-head"><h3>${m.label}</h3><button class="hives-btn-x" onclick="_hivesCloseModal_()">✕</button></div>
                     <div class="hives-form-grid">
-                        <label>Quantità accordata (pz)<input id="hives-m-qty" type="number" min="0" value="${Number(m.qtyAccordo)||0}"></label>
+                        <label>Quantità accordata (pz)<input id="hives-m-qty" type="number" min="0" value="${Number(m.qtyAccordo)||0}" readonly></label>
                         <label>Sotto-ordine gestionale<input id="hives-m-sub" type="text" value="${m.sottoOrdine || ''}"></label>
                         <label>Acconto pagato (€)<input id="hives-m-acc" type="number" min="0" value="${Number(m.accontoValore)||0}"></label>
                         <label>Saldo pagato (€)<input id="hives-m-sal" type="number" min="0" value="${Number(m.saldoValore)||0}"></label>
@@ -8473,6 +8514,7 @@ function _hivesOpenMonthModal_(monthId) {
                         <button class="hives-btn hives-btn-soft" onclick="document.getElementById('hives-m-sal').value='${Math.round(meseBudget * 0.5)}'">Imposta saldo 50%</button>
                         <button class="hives-btn" onclick="_hivesSaveMonthModal_()">Salva mese</button>
                     </div>
+                    <table class="hives-table"><thead><tr><th>Codice</th><th>Componente</th><th>Qta mese</th></tr></thead><tbody>${rows}</tbody></table>
                 </div>
             </div>`;
 }
@@ -8483,9 +8525,9 @@ function _hivesOpenCompModal_(compId) {
         if (!c) return;
         _hivesModalCtx = { type: 'comp', id: compId };
         const rows = ord.mesi.map(m => {
-                const fab = (Number(m.qtyAccordo) || 0) * (Number(c.coeffPerPip) || 0);
+        const fab = _hivesCompMonthQty_(ord, c, m.id);
                 const arr = Number((c.ricevuto || {})[m.id]) || 0;
-                return `<tr><td>${m.label}</td><td>${_hivesFmt_(fab)}</td><td><input type="number" min="0" value="${arr}" onchange="_hivesSetCompArrived_('${compId}','${m.id}', this.value)"></td><td><button class="hives-btn hives-btn-soft" onclick="_hivesSetCompArrived_('${compId}','${m.id}', '${fab}')">Completo</button></td></tr>`;
+        return `<tr><td>${m.label}</td><td><input type="number" min="0" value="${fab}" onchange="_hivesSetCompPlanned_('${compId}','${m.id}', this.value)"></td><td><input type="number" min="0" value="${arr}" onchange="_hivesSetCompArrived_('${compId}','${m.id}', this.value)"></td><td><button class="hives-btn hives-btn-soft" onclick="_hivesSetCompArrived_('${compId}','${m.id}', '${fab}')">Completo</button></td></tr>`;
         }).join('');
         document.getElementById('hives-modal-root').innerHTML = `
             <div class="hives-modal-overlay" onclick="_hivesCloseModal_(event)">
@@ -8498,7 +8540,7 @@ function _hivesOpenCompModal_(compId) {
                         <label>Coeff per Pipistrello<input id="hives-c-coeff" type="number" min="0" value="${Number(c.coeffPerPip)||0}"></label>
                     </div>
                     <div class="hives-actions-row"><button class="hives-btn" onclick="_hivesSaveCompMeta_()">Salva componente</button></div>
-                    <table class="hives-table"><thead><tr><th>Mese</th><th>Fabbisogno</th><th>Arrivato</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+                    <table class="hives-table"><thead><tr><th>Mese</th><th>Qta pianificata</th><th>Arrivato</th><th></th></tr></thead><tbody>${rows}</tbody></table>
                 </div>
             </div>`;
 }
@@ -8507,10 +8549,10 @@ function _hivesSaveMonthModal_() {
         const ord = _hivesOrder_();
         const m = ord.mesi.find(x => x.id === _hivesModalCtx?.id);
         if (!m) return;
-        m.qtyAccordo = Math.max(0, Number(document.getElementById('hives-m-qty')?.value || 0));
         m.sottoOrdine = String(document.getElementById('hives-m-sub')?.value || '').trim();
         m.accontoValore = Math.max(0, Number(document.getElementById('hives-m-acc')?.value || 0));
         m.saldoValore = Math.max(0, Number(document.getElementById('hives-m-sal')?.value || 0));
+    _hivesSyncMonthAccordo_(ord);
         _hivesSave_();
         _hivesCloseModal_();
         _renderHivesTest_();
@@ -8538,6 +8580,17 @@ function _hivesSetCompArrived_(compId, monthId, val) {
         _hivesSave_();
         _hivesOpenCompModal_(compId);
 }
+
+    function _hivesSetCompPlanned_(compId, monthId, val) {
+        const ord = _hivesOrder_();
+        const c = ord.componenti.find(x => x.id === compId);
+        if (!c) return;
+        c.pianoMensile = c.pianoMensile || {};
+        c.pianoMensile[monthId] = Math.max(0, Number(val || 0));
+        _hivesSyncMonthAccordo_(ord);
+        _hivesSave_();
+        _hivesOpenCompModal_(compId);
+    }
 
 function _hivesCloseModal_(ev) {
         if (ev && ev.target && ev.target.className && String(ev.target.className).indexOf('hives-modal-overlay') === -1) return;
