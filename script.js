@@ -8432,56 +8432,99 @@ function caricaPaginaHivesTest() {
 
 function _renderHivesTest_() {
         const ord = _hivesOrder_();
-    _hivesSyncMonthAccordo_(ord);
+        _hivesSyncMonthAccordo_(ord);
         const calc = _hivesCalc_(ord);
         const root = document.getElementById('contenitore-dati');
         if (!root) return;
-        const kpi = [
-                ['Accordo Totale', _hivesFmt_(calc.totalAccordo) + ' pz'],
-                ['Pianificato', _hivesFmt_(calc.totalPianificato) + ' pz'],
-                ['Residuo Accordo', _hivesFmt_(calc.residuoAccordo) + ' pz'],
-                ['Budget Totale', _hivesMoney_(calc.budgetTotale)],
-                ['Budget Pagato', _hivesMoney_(calc.budgetPagato)],
-                ['Budget Residuo', _hivesMoney_(calc.budgetResiduo)],
-                ['Pz Arrivati (eq.)', _hivesFmt_(calc.pipEqArrivati) + ' pz'],
-                ['Pz Mancanti (eq.)', _hivesFmt_(calc.pipEqRimanenti) + ' pz']
-        ];
         const unitBudget = ord.componenti.reduce((s, c) => s + ((Number(c.prezzoUnit) || 0) * (Number(c.coeffPerPip) || 0)), 0);
+        const cs = id => calc.compStats.find(s => s.id === id) || { need: 0, arrived: 0, rem: 0 };
+        const bat3Need = cs('c6').need + cs('c7').need;
+        const bat3Rem  = cs('c6').rem  + cs('c7').rem;
         root.innerHTML = `
             <section class="hives-wrap">
-                <div class="hives-head">
-                    <div><h2>🧪 TEST · ${ord.titolo}</h2><p>Fornitore <b>HIVES</b> · Frontend real-time · Dati locali cancellabili</p></div>
-                    <div class="hives-head-actions"><button class="hives-btn hives-btn-soft" onclick="_hivesResetAll_()">Reset Test</button></div>
-                </div>
-                <div class="hives-kpi-grid">${kpi.map(([l, v]) => `<article class="hives-kpi"><span>${l}</span><strong>${v}</strong></article>`).join('')}</div>
-                <div class="hives-section-title">Sotto-ordini Mensili (clicca per dettaglio)</div>
-                <div class="hives-month-grid">
-                    ${ord.mesi.map(m => {
-                        const meseBudget = (Number(m.qtyAccordo) || 0) * unitBudget;
-                        const accontoTarget = meseBudget * 0.5;
-                        const saldoTarget = meseBudget * 0.5;
-                        const accontoDone = Number(m.accontoValore || 0) >= accontoTarget && accontoTarget > 0;
-                        const saldoDone = Number(m.saldoValore || 0) >= saldoTarget && saldoTarget > 0;
-                        return `<button class="hives-card" onclick="_hivesOpenMonthModal_('${m.id}')">
-                                <div class="hives-card-top"><b>${m.label}</b><span>${_hivesFmt_(m.qtyAccordo)} pz</span></div>
-                                <div class="hives-card-sub">Ordine: ${m.sottoOrdine || '—'}</div>
-                                <div class="hives-pay-row"><span class="${accontoDone ? 'ok' : ''}">Acconto</span><span>${_hivesMoney_(m.accontoValore || 0)}</span></div>
-                                <div class="hives-pay-row"><span class="${saldoDone ? 'ok' : ''}">Saldo</span><span>${_hivesMoney_(m.saldoValore || 0)}</span></div>
-                            </button>`;
-                    }).join('')}
-                </div>
-                <div class="hives-section-title">Componenti (clicca per confermare arrivi)</div>
-                <div class="hives-comp-grid">
-                    ${ord.componenti.map(c => {
-                        const st = calc.compStats.find(s => s.id === c.id) || { arrived: 0, rem: 0 };
-                        return `<button class="hives-card hives-card-comp" onclick="_hivesOpenCompModal_('${c.id}')">
-                            <div class="hives-card-top"><b>${c.nome}</b><span>${c.codice}</span></div>
-                            <div class="hives-card-sub">Coeff/Pip: ${Number(c.coeffPerPip) || 0} · Prezzo: ${_hivesMoney_(c.prezzoUnit || 0)}</div>
-                            <div class="hives-pay-row"><span>Arrivati</span><span>${_hivesFmt_(st.arrived)}</span></div>
-                            <div class="hives-pay-row"><span>Rimanenti</span><span>${_hivesFmt_(st.rem)}</span></div>
-                        </button>`;
-                    }).join('')}
-                </div>
+                <details class="hives-accordion" id="hives-main-accordion" open>
+                    <summary class="hives-accordion-summary">
+                        <div class="hives-head-left">
+                            <div class="hives-head-title">🧪 TEST · ${ord.titolo}</div>
+                            <div class="hives-head-sub">Fornitore <b>HIVES</b> · Frontend real-time · Dati locali cancellabili</div>
+                        </div>
+                        <div class="hives-head-actions">
+                            <button class="hives-btn hives-btn-soft" onclick="event.stopPropagation();_hivesResetAll_()">Reset Test</button>
+                            <i class="fas fa-chevron-down hives-chevron"></i>
+                        </div>
+                    </summary>
+                    <div class="hives-accordion-body">
+                        <div class="hives-kpi-grid">
+                            <article class="hives-kpi hives-kpi-multi">
+                                <div class="hives-kpi-row"><span>Accordo Totale</span><strong>${_hivesFmt_(calc.totalAccordo)} pz</strong></div>
+                                <div class="hives-kpi-row"><span>Residuo</span><strong>${_hivesFmt_(calc.residuoAccordo)} pz</strong></div>
+                            </article>
+                            <article class="hives-kpi hives-kpi-multi">
+                                <div class="hives-kpi-row"><span>Totale</span><strong>${_hivesMoney_(calc.budgetTotale)}</strong></div>
+                                <div class="hives-kpi-row"><span>Pagato</span><strong>${_hivesMoney_(calc.budgetPagato)}</strong></div>
+                                <div class="hives-kpi-row"><span>Residuo</span><strong>${_hivesMoney_(calc.budgetResiduo)}</strong></div>
+                            </article>
+                            <article class="hives-kpi hives-kpi-comp">
+                                <div class="hives-kpi-comp-lbl">IPLM 500mA-PRO</div>
+                                <div class="hives-kpi-row"><span>Tot.</span><strong>${_hivesFmt_(cs('c1').need)} pz</strong></div>
+                                <div class="hives-kpi-row"><span>Rim.</span><strong>${_hivesFmt_(cs('c1').rem)} pz</strong></div>
+                            </article>
+                            <article class="hives-kpi hives-kpi-comp">
+                                <div class="hives-kpi-comp-lbl">IPLM 600mA-PRO</div>
+                                <div class="hives-kpi-row"><span>Tot.</span><strong>${_hivesFmt_(cs('c3').need)} pz</strong></div>
+                                <div class="hives-kpi-row"><span>Rim.</span><strong>${_hivesFmt_(cs('c3').rem)} pz</strong></div>
+                            </article>
+                            <article class="hives-kpi hives-kpi-comp">
+                                <div class="hives-kpi-comp-lbl">IPLM 700mA-PRO</div>
+                                <div class="hives-kpi-row"><span>Tot.</span><strong>${_hivesFmt_(cs('c5').need)} pz</strong></div>
+                                <div class="hives-kpi-row"><span>Rim.</span><strong>${_hivesFmt_(cs('c5').rem)} pz</strong></div>
+                            </article>
+                            <article class="hives-kpi hives-kpi-comp">
+                                <div class="hives-kpi-comp-lbl">LED Bat-1-PRO</div>
+                                <div class="hives-kpi-row"><span>Tot.</span><strong>${_hivesFmt_(cs('c2').need)} pz</strong></div>
+                                <div class="hives-kpi-row"><span>Rim.</span><strong>${_hivesFmt_(cs('c2').rem)} pz</strong></div>
+                            </article>
+                            <article class="hives-kpi hives-kpi-comp">
+                                <div class="hives-kpi-comp-lbl">LED Bat-2-PRO</div>
+                                <div class="hives-kpi-row"><span>Tot.</span><strong>${_hivesFmt_(cs('c4').need)} pz</strong></div>
+                                <div class="hives-kpi-row"><span>Rim.</span><strong>${_hivesFmt_(cs('c4').rem)} pz</strong></div>
+                            </article>
+                            <article class="hives-kpi hives-kpi-comp">
+                                <div class="hives-kpi-comp-lbl">LED Bat-3 (RED+BLACK)</div>
+                                <div class="hives-kpi-row"><span>Tot.</span><strong>${_hivesFmt_(bat3Need)} pz</strong></div>
+                                <div class="hives-kpi-row"><span>Rim.</span><strong>${_hivesFmt_(bat3Rem)} pz</strong></div>
+                            </article>
+                        </div>
+                        <div class="hives-section-title">Sotto-ordini Mensili (clicca per dettaglio)</div>
+                        <div class="hives-month-grid">
+                            ${ord.mesi.map(m => {
+                                const meseBudget = (Number(m.qtyAccordo) || 0) * unitBudget;
+                                const accontoTarget = meseBudget * 0.5;
+                                const saldoTarget = meseBudget * 0.5;
+                                const accontoDone = Number(m.accontoValore || 0) >= accontoTarget && accontoTarget > 0;
+                                const saldoDone = Number(m.saldoValore || 0) >= saldoTarget && saldoTarget > 0;
+                                return `<button class="hives-card" onclick="_hivesOpenMonthModal_('${m.id}')">
+                                        <div class="hives-card-top"><b>${m.label}</b><span>${_hivesFmt_(m.qtyAccordo)} pz</span></div>
+                                        <div class="hives-card-sub">Ordine: ${m.sottoOrdine || '—'}</div>
+                                        <div class="hives-pay-row"><span class="${accontoDone ? 'ok' : ''}">Acconto</span><span>${_hivesMoney_(m.accontoValore || 0)}</span></div>
+                                        <div class="hives-pay-row"><span class="${saldoDone ? 'ok' : ''}">Saldo</span><span>${_hivesMoney_(m.saldoValore || 0)}</span></div>
+                                    </button>`;
+                            }).join('')}
+                        </div>
+                        <div class="hives-section-title">Componenti (clicca per confermare arrivi)</div>
+                        <div class="hives-comp-grid">
+                            ${ord.componenti.map(c => {
+                                const st = calc.compStats.find(s => s.id === c.id) || { arrived: 0, rem: 0 };
+                                return `<button class="hives-card hives-card-comp" onclick="_hivesOpenCompModal_('${c.id}')">
+                                    <div class="hives-card-top"><b>${c.nome}</b><span>${c.codice}</span></div>
+                                    <div class="hives-card-sub">Coeff/Pip: ${Number(c.coeffPerPip) || 0} · Prezzo: ${_hivesMoney_(c.prezzoUnit || 0)}</div>
+                                    <div class="hives-pay-row"><span>Arrivati</span><span>${_hivesFmt_(st.arrived)}</span></div>
+                                    <div class="hives-pay-row"><span>Rimanenti</span><span>${_hivesFmt_(st.rem)}</span></div>
+                                </button>`;
+                            }).join('')}
+                        </div>
+                    </div>
+                </details>
             </section>
             <div id="hives-modal-root"></div>
         `;

@@ -7971,19 +7971,28 @@ body.page-pip #rotate-overlay { display: none !important; }
     flex-direction: column;
     gap: 14px;
 }
-.hives-head {
+.hives-accordion > summary::-webkit-details-marker { display: none; }
+.hives-accordion-summary {
     display: flex;
     justify-content: space-between;
-    gap: 14px;
     align-items: center;
+    gap: 14px;
     background: linear-gradient(120deg, #111827 0%, #1f2937 100%);
     color: #fff;
     border-radius: 14px;
     padding: 14px 16px;
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
 }
-.hives-head h2 { margin: 0 0 4px 0; font-size: 1rem; }
-.hives-head p { margin: 0; color: #cbd5e1; font-size: 0.82rem; }
-.hives-head-actions { display: flex; gap: 8px; }
+.hives-accordion-summary::-webkit-details-marker { display: none; }
+.hives-head-left { flex: 1 1 auto; }
+.hives-head-title { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
+.hives-head-sub { color: #cbd5e1; font-size: 0.82rem; }
+.hives-head-actions { display: flex; gap: 8px; align-items: center; }
+.hives-chevron { transition: transform .25s ease; }
+.hives-accordion[open] .hives-chevron { transform: rotate(180deg); }
+.hives-accordion-body { display: flex; flex-direction: column; gap: 14px; margin-top: 14px; }
 
 .hives-btn {
     border: none;
@@ -8003,7 +8012,7 @@ body.page-pip #rotate-overlay { display: none !important; }
 
 .hives-kpi-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     gap: 10px;
 }
 .hives-kpi {
@@ -8016,7 +8025,10 @@ body.page-pip #rotate-overlay { display: none !important; }
     gap: 3px;
 }
 .hives-kpi span { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; }
-.hives-kpi strong { font-size: 0.98rem; color: #0f172a; }
+.hives-kpi strong { font-size: 0.9rem; color: #0f172a; }
+.hives-kpi-row { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.hives-kpi-multi .hives-kpi-row:not(:last-child) { border-bottom: 1px solid #f1f5f9; padding-bottom: 5px; margin-bottom: 5px; }
+.hives-kpi-comp-lbl { font-size: 10px; font-weight: 800; color: #334155; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 5px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
 
 .hives-section-title {
     font-size: 0.82rem;
@@ -8134,7 +8146,6 @@ body.page-pip #rotate-overlay { display: none !important; }
 
 @media (max-width: 768px) {
     .hives-wrap { padding: 10px; }
-    .hives-head { flex-direction: column; align-items: flex-start; }
     .hives-month-grid,
     .hives-comp-grid { grid-template-columns: 1fr; }
 }
