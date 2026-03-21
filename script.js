@@ -761,6 +761,8 @@ async function importaCSVDaFile(input) {
                         <span>Nuovi ordini inseriti: <strong>${json.nuove}</strong></span><br>
                         <span>Duplicati saltati: <strong>${json.saltate}</strong></span>
                         ${json.aggiornate > 0 ? `<br><span>Quantità aggiornate: <strong>${json.aggiornate}</strong></span>` : ''}
+                        ${json.finiture > 0 ? `<br><span>Finiture rilevate dal CSV: <strong>${json.finiture}</strong></span>` : ''}
+                        ${json.defaultStato > 0 ? `<br><span>Stato default "MANDA IN LAVORAZIONE": <strong>${json.defaultStato}</strong></span>` : ''}
                         ${json.evasi > 0 ? `<br><span>🚚 Spostati a SPEDITO (non in CSV): <strong>${json.evasi}</strong></span>` : ''}
                     </div>`;
                 // Ricarica la dashboard per mostrare i nuovi dati
