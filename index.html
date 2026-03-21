@@ -260,7 +260,7 @@
             }
         });
     </script>
-    <script src="script.js?v=20260321e" defer></script>
+    <script src="script.js?v=20260321f" defer></script>
 </head>
 
 <body>
@@ -367,6 +367,10 @@
 
         <button type="button" class="menu-item" title="Pipistrelli" data-page="PIPISTRELLI" onclick="cambiaPagina('PIPISTRELLI', this)">
             <div class="menu-content"><span>🦇</span><span class="menu-label"> Pipistrello</span></div>
+        </button>
+
+        <button type="button" class="menu-item" id="menu-item-hives-test" title="Test Hives" data-page="TEST_HIVES_ANNUALE" onclick="cambiaPagina('TEST_HIVES_ANNUALE', this)" style="display:none">
+            <div class="menu-content"><span>🧪</span><span class="menu-label"> Test Hives</span></div>
         </button>
 
         <button type="button" class="menu-item" title="Impostazioni" data-page="IMPOSTAZIONI" onclick="cambiaPagina('IMPOSTAZIONI', this)">
@@ -527,6 +531,10 @@
             <button type="button" class="tab-item" data-page="PIPISTRELLI" onclick="cambiaPagina('PIPISTRELLI', this)">
                 <i class="fas fa-lightbulb"></i>
                 <span>Pipistrelli</span>
+            </button>
+            <button type="button" class="tab-item" id="tab-item-hives-test" data-page="TEST_HIVES_ANNUALE" onclick="cambiaPagina('TEST_HIVES_ANNUALE', this)" style="display:none">
+                <i class="fas fa-flask"></i>
+                <span>Test</span>
             </button>
         </div>
     </div>

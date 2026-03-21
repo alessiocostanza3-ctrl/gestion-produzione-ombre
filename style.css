@@ -7961,3 +7961,180 @@ body.page-pip #rotate-overlay { display: none !important; }
     color: #64748b;
     font-size: 13px;
 }
+
+/* ─────────────────────────────────────────────────────────────
+   TEST HIVES ANNUALE (solo Alessio)
+   ───────────────────────────────────────────────────────────── */
+.hives-wrap {
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.hives-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    align-items: center;
+    background: linear-gradient(120deg, #111827 0%, #1f2937 100%);
+    color: #fff;
+    border-radius: 14px;
+    padding: 14px 16px;
+}
+.hives-head h2 { margin: 0 0 4px 0; font-size: 1rem; }
+.hives-head p { margin: 0; color: #cbd5e1; font-size: 0.82rem; }
+.hives-head-actions { display: flex; gap: 8px; }
+
+.hives-btn {
+    border: none;
+    background: #242424;
+    color: #fff;
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.hives-btn-soft {
+    background: #f1f5f9;
+    color: #0f172a;
+    border: 1px solid #e2e8f0;
+}
+
+.hives-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 10px;
+}
+.hives-kpi {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #fff;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.hives-kpi span { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; }
+.hives-kpi strong { font-size: 0.98rem; color: #0f172a; }
+
+.hives-section-title {
+    font-size: 0.82rem;
+    font-weight: 800;
+    color: #334155;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-top: 6px;
+}
+
+.hives-month-grid,
+.hives-comp-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 10px;
+}
+.hives-card {
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    border-radius: 12px;
+    padding: 10px 12px;
+    text-align: left;
+    cursor: pointer;
+}
+.hives-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+    color: #0f172a;
+}
+.hives-card-sub { font-size: 12px; color: #64748b; margin-bottom: 6px; }
+.hives-pay-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #334155;
+    margin-bottom: 4px;
+}
+.hives-pay-row .ok { color: #16a34a; font-weight: 700; }
+
+.hives-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 6, 23, 0.72);
+    z-index: 100050;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 14px;
+}
+.hives-modal-box {
+    width: min(760px, 100%);
+    background: #fff;
+    border-radius: 14px;
+    padding: 14px;
+    max-height: 88dvh;
+    overflow: auto;
+}
+.hives-modal-box-lg { width: min(980px, 100%); }
+.hives-modal-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+.hives-modal-head h3 { margin: 0; color: #0f172a; }
+.hives-btn-x {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    cursor: pointer;
+}
+.hives-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+}
+.hives-form-grid label {
+    font-size: 12px;
+    color: #475569;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.hives-form-grid input {
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-size: 13px;
+}
+.hives-inline-note { font-size: 12px; color: #64748b; margin: 10px 0; }
+.hives-actions-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.hives-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+.hives-table th,
+.hives-table td {
+    border-bottom: 1px solid #e2e8f0;
+    padding: 7px 8px;
+    text-align: left;
+}
+.hives-table th { color: #334155; background: #f8fafc; }
+.hives-table input {
+    width: 110px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 6px 8px;
+}
+
+@media (max-width: 768px) {
+    .hives-wrap { padding: 10px; }
+    .hives-head { flex-direction: column; align-items: flex-start; }
+    .hives-month-grid,
+    .hives-comp-grid { grid-template-columns: 1fr; }
+}

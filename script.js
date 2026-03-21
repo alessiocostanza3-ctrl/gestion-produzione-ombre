@@ -1226,6 +1226,7 @@ function aggiornaProfiloSidebar() {
         if (ddropRoleMob) ddropRoleMob.innerText = (utenteAttuale.ruolo || 'Utente').toUpperCase();
     }
     _initAvatarColor();
+    _syncHivesTestVisibility();
 }
 
 /** Restituisce il colore avatar salvato per un operatore (UPPERCASE). Fallback: grigio */
@@ -1692,6 +1693,24 @@ function _isUtenteEsente() {
     const nome = utenteAttuale.nome.toUpperCase();
     return nome === 'ALESSIO' || nome === '0000' || utenteAttuale.ruolo === 'MASTER';
 }
+const _ENABLE_HIVES_TEST_PAGE = true;
+const _HIVES_TEST_PAGE_ID = 'TEST_HIVES_ANNUALE';
+function _isAlessioOnly() {
+    const nome = String((utenteAttuale && utenteAttuale.nome) || '').toUpperCase().trim();
+    const email = String((utenteAttuale && utenteAttuale.email) || '').toLowerCase().trim();
+    return nome === 'ALESSIO' || email === 'alessio@ombre-1.com';
+}
+function _canOpenHivesTestPage() {
+    return _ENABLE_HIVES_TEST_PAGE && _isAlessioOnly();
+}
+function _syncHivesTestVisibility() {
+    const show = _canOpenHivesTestPage();
+    const menuBtn = document.getElementById('menu-item-hives-test');
+    const tabBtn = document.getElementById('tab-item-hives-test');
+    if (menuBtn) menuBtn.style.display = show ? '' : 'none';
+    if (tabBtn) tabBtn.style.display = show ? 'flex' : 'none';
+    if (!show && paginaAttuale === _HIVES_TEST_PAGE_ID) cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', null);
+}
 function _isCommerciale() {
     if (!utenteAttuale) return false;
     return String(utenteAttuale.ruolo || '').toUpperCase() === 'COMMERCIALE';
@@ -2010,12 +2029,16 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
     if (!nomeFoglio || nomeFoglio === "undefined" || nomeFoglio === "null") {
         nomeFoglio = "PROGRAMMA PRODUZIONE DEL MESE";
     }
+    if (nomeFoglio === _HIVES_TEST_PAGE_ID && !_canOpenHivesTestPage()) {
+        nomeFoglio = 'PROGRAMMA PRODUZIONE DEL MESE';
+    }
     localStorage.setItem('ultimaPaginaProduzione', nomeFoglio);
     paginaAttuale = nomeFoglio;
     // Gestisce visibilità pulsante filtro articoli (solo su pagina Produzione)
     _aggiornaVisibilitaFiltroArticoli(nomeFoglio);
     // Classe sul body per eccezioni CSS by-page (es. landscape su PIPISTRELLI)
     document.body.classList.toggle('page-pip', nomeFoglio === 'PIPISTRELLI');
+    document.body.classList.toggle('page-hives-test', nomeFoglio === _HIVES_TEST_PAGE_ID);
     // Reset flag fetch pip quando si lascia la pagina (così al prossimo accesso rilegge dal server)
     if (nomeFoglio !== 'PIPISTRELLI') caricaPaginaPipistrello._fetched = false;
 
@@ -2047,7 +2070,8 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
         'MATERIALE DA ORDINARE': "Gestione Acquisti",
 
         'PROGRAMMA PRODUZIONE DEL MESE': "Dashboard Produzione",
-        'PIPISTRELLI': "🦇 Pipistrelli"
+        'PIPISTRELLI': "🦇 Pipistrelli",
+        'TEST_HIVES_ANNUALE': "🧪 Test Hives Annuale"
     };
     const titolo = document.getElementById('titolo-pagina');
     if (titolo) titolo.innerText = titoli[nomeFoglio] || nomeFoglio;
@@ -2165,6 +2189,9 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
             return;
         case 'PIPISTRELLI':
             caricaPaginaPipistrello();
+            break;
+        case 'TEST_HIVES_ANNUALE':
+            caricaPaginaHivesTest();
             break;
         default:
             caricaDati(nomeFoglio, false, requestId, navSignal);
@@ -8256,6 +8283,274 @@ function _aggiornaVisibilitaFiltroArticoli(nomeFoglio) {
         if (mobInput)  mobInput.placeholder  = 'Cerca';
         document.querySelectorAll('.item-card.hidden-search').forEach(c => c.classList.remove('hidden-search'));
     }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TEST PAGE (ALESSIO ONLY): Macro-ordine annuale fornitore (HIVES)
+// Tutto client-side, salvato in localStorage, cancellabile in qualsiasi momento.
+// ─────────────────────────────────────────────────────────────────────────────
+const _HIVES_TEST_LS_KEY = 'prod_hives_test_v1';
+
+function _hivesMonths2026_() {
+        return [
+                { id: '2026-02', label: 'FEB 2026' }, { id: '2026-03', label: 'MAR 2026' },
+                { id: '2026-04', label: 'APR 2026' }, { id: '2026-05', label: 'MAG 2026' },
+                { id: '2026-06', label: 'GIU 2026' }, { id: '2026-07', label: 'LUG 2026' },
+                { id: '2026-08', label: 'AGO 2026' }, { id: '2026-09', label: 'SET 2026' },
+                { id: '2026-10', label: 'OTT 2026' }, { id: '2026-11', label: 'NOV 2026' },
+                { id: '2026-12', label: 'DIC 2026' }
+        ];
+}
+
+function _hivesDefaultState_() {
+        const months = _hivesMonths2026_();
+        const planned = [1991, 1991, 1991, 1991, 1991, 1991, 1991, 1991, 1991, 1990, 1991];
+        const comps = Array.from({ length: 7 }).map((_, i) => ({
+                id: 'c' + (i + 1),
+                codice: 'MAT-00' + (i + 1),
+                nome: 'Componente ' + (i + 1),
+                prezzoUnit: 0,
+                coeffPerPip: 1,
+                ricevuto: {}
+        }));
+        return {
+                suppliers: [{
+                        id: 'hives',
+                        name: 'HIVES',
+                        orders: [{
+                                id: 'pipistrello-2026',
+                                titolo: 'Pipistrello · Macro ordine 2026',
+                                totalAccordoPz: 21900,
+                                mesi: months.map((m, i) => ({
+                                        id: m.id,
+                                        label: m.label,
+                                        qtyAccordo: planned[i] || 0,
+                                        sottoOrdine: '',
+                                        accontoValore: 0,
+                                        saldoValore: 0
+                                })),
+                                componenti: comps,
+                                note: 'TEST PAGE: visibile solo ad Alessio'
+                        }]
+                }]
+        };
+}
+
+let _hivesState = null;
+let _hivesModalCtx = null;
+
+function _hivesLoad_() {
+        try {
+                const raw = localStorage.getItem(_HIVES_TEST_LS_KEY);
+                if (!raw) return _hivesDefaultState_();
+                return JSON.parse(raw);
+        } catch (_) {
+                return _hivesDefaultState_();
+        }
+}
+function _hivesSave_() {
+        try { localStorage.setItem(_HIVES_TEST_LS_KEY, JSON.stringify(_hivesState)); } catch (_) {}
+}
+function _hivesOrder_() { return _hivesState.suppliers[0].orders[0]; }
+function _hivesFmt_(n) { return new Intl.NumberFormat('it-IT').format(Math.round(Number(n) || 0)); }
+function _hivesMoney_(n) {
+        return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(Number(n) || 0);
+}
+function _hivesCalc_(ord) {
+        const totalAccordo = Number(ord.totalAccordoPz || 0);
+        const totalPianificato = ord.mesi.reduce((s, m) => s + (Number(m.qtyAccordo) || 0), 0);
+        const unitBudget = ord.componenti.reduce((s, c) => s + ((Number(c.prezzoUnit) || 0) * (Number(c.coeffPerPip) || 0)), 0);
+        const budgetTotale = totalPianificato * unitBudget;
+        const budgetPagato = ord.mesi.reduce((s, m) => s + (Number(m.accontoValore) || 0) + (Number(m.saldoValore) || 0), 0);
+        const compStats = ord.componenti.map(c => {
+                const need = ord.mesi.reduce((s, m) => s + (Number(m.qtyAccordo) || 0) * (Number(c.coeffPerPip) || 0), 0);
+                const arr = ord.mesi.reduce((s, m) => s + (Number((c.ricevuto || {})[m.id]) || 0), 0);
+                return { id: c.id, need, arrived: arr, rem: Math.max(0, need - arr) };
+        });
+        let pipEqArrivati = totalPianificato;
+        compStats.forEach(cs => {
+                const comp = ord.componenti.find(c => c.id === cs.id);
+                const coeff = Number(comp?.coeffPerPip || 0);
+                if (coeff > 0) pipEqArrivati = Math.min(pipEqArrivati, Math.floor(cs.arrived / coeff));
+        });
+        if (!isFinite(pipEqArrivati)) pipEqArrivati = 0;
+        return {
+                totalAccordo,
+                totalPianificato,
+                residuoAccordo: Math.max(0, totalAccordo - totalPianificato),
+                budgetTotale,
+                budgetPagato,
+                budgetResiduo: Math.max(0, budgetTotale - budgetPagato),
+                pipEqArrivati,
+                pipEqRimanenti: Math.max(0, totalPianificato - pipEqArrivati),
+                compStats
+        };
+}
+
+function caricaPaginaHivesTest() {
+        if (!_canOpenHivesTestPage()) { cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', null); return; }
+        _hivesState = _hivesLoad_();
+        _renderHivesTest_();
+}
+
+function _renderHivesTest_() {
+        const ord = _hivesOrder_();
+        const calc = _hivesCalc_(ord);
+        const root = document.getElementById('contenitore-dati');
+        if (!root) return;
+        const kpi = [
+                ['Accordo Totale', _hivesFmt_(calc.totalAccordo) + ' pz'],
+                ['Pianificato', _hivesFmt_(calc.totalPianificato) + ' pz'],
+                ['Residuo Accordo', _hivesFmt_(calc.residuoAccordo) + ' pz'],
+                ['Budget Totale', _hivesMoney_(calc.budgetTotale)],
+                ['Budget Pagato', _hivesMoney_(calc.budgetPagato)],
+                ['Budget Residuo', _hivesMoney_(calc.budgetResiduo)],
+                ['Pz Arrivati (eq.)', _hivesFmt_(calc.pipEqArrivati) + ' pz'],
+                ['Pz Mancanti (eq.)', _hivesFmt_(calc.pipEqRimanenti) + ' pz']
+        ];
+        const unitBudget = ord.componenti.reduce((s, c) => s + ((Number(c.prezzoUnit) || 0) * (Number(c.coeffPerPip) || 0)), 0);
+        root.innerHTML = `
+            <section class="hives-wrap">
+                <div class="hives-head">
+                    <div><h2>🧪 TEST · ${ord.titolo}</h2><p>Fornitore <b>HIVES</b> · Frontend real-time · Dati locali cancellabili</p></div>
+                    <div class="hives-head-actions"><button class="hives-btn hives-btn-soft" onclick="_hivesResetAll_()">Reset Test</button></div>
+                </div>
+                <div class="hives-kpi-grid">${kpi.map(([l, v]) => `<article class="hives-kpi"><span>${l}</span><strong>${v}</strong></article>`).join('')}</div>
+                <div class="hives-section-title">Sotto-ordini Mensili (clicca per dettaglio)</div>
+                <div class="hives-month-grid">
+                    ${ord.mesi.map(m => {
+                        const meseBudget = (Number(m.qtyAccordo) || 0) * unitBudget;
+                        const accontoTarget = meseBudget * 0.5;
+                        const saldoTarget = meseBudget * 0.5;
+                        const accontoDone = Number(m.accontoValore || 0) >= accontoTarget && accontoTarget > 0;
+                        const saldoDone = Number(m.saldoValore || 0) >= saldoTarget && saldoTarget > 0;
+                        return `<button class="hives-card" onclick="_hivesOpenMonthModal_('${m.id}')">
+                                <div class="hives-card-top"><b>${m.label}</b><span>${_hivesFmt_(m.qtyAccordo)} pz</span></div>
+                                <div class="hives-card-sub">Ordine: ${m.sottoOrdine || '—'}</div>
+                                <div class="hives-pay-row"><span class="${accontoDone ? 'ok' : ''}">Acconto</span><span>${_hivesMoney_(m.accontoValore || 0)}</span></div>
+                                <div class="hives-pay-row"><span class="${saldoDone ? 'ok' : ''}">Saldo</span><span>${_hivesMoney_(m.saldoValore || 0)}</span></div>
+                            </button>`;
+                    }).join('')}
+                </div>
+                <div class="hives-section-title">Componenti (clicca per confermare arrivi)</div>
+                <div class="hives-comp-grid">
+                    ${ord.componenti.map(c => {
+                        const st = calc.compStats.find(s => s.id === c.id) || { arrived: 0, rem: 0 };
+                        return `<button class="hives-card hives-card-comp" onclick="_hivesOpenCompModal_('${c.id}')">
+                            <div class="hives-card-top"><b>${c.nome}</b><span>${c.codice}</span></div>
+                            <div class="hives-card-sub">Coeff/Pip: ${Number(c.coeffPerPip) || 0} · Prezzo: ${_hivesMoney_(c.prezzoUnit || 0)}</div>
+                            <div class="hives-pay-row"><span>Arrivati</span><span>${_hivesFmt_(st.arrived)}</span></div>
+                            <div class="hives-pay-row"><span>Rimanenti</span><span>${_hivesFmt_(st.rem)}</span></div>
+                        </button>`;
+                    }).join('')}
+                </div>
+            </section>
+            <div id="hives-modal-root"></div>
+        `;
+        applicaFade(root);
+}
+
+function _hivesOpenMonthModal_(monthId) {
+        const ord = _hivesOrder_();
+        const m = ord.mesi.find(x => x.id === monthId);
+        if (!m) return;
+        const unitBudget = ord.componenti.reduce((s, c) => s + ((Number(c.prezzoUnit) || 0) * (Number(c.coeffPerPip) || 0)), 0);
+        const meseBudget = (Number(m.qtyAccordo) || 0) * unitBudget;
+        _hivesModalCtx = { type: 'month', id: monthId };
+        document.getElementById('hives-modal-root').innerHTML = `
+            <div class="hives-modal-overlay" onclick="_hivesCloseModal_(event)">
+                <div class="hives-modal-box" onclick="event.stopPropagation()">
+                    <div class="hives-modal-head"><h3>${m.label}</h3><button class="hives-btn-x" onclick="_hivesCloseModal_()">✕</button></div>
+                    <div class="hives-form-grid">
+                        <label>Quantità accordata (pz)<input id="hives-m-qty" type="number" min="0" value="${Number(m.qtyAccordo)||0}"></label>
+                        <label>Sotto-ordine gestionale<input id="hives-m-sub" type="text" value="${m.sottoOrdine || ''}"></label>
+                        <label>Acconto pagato (€)<input id="hives-m-acc" type="number" min="0" value="${Number(m.accontoValore)||0}"></label>
+                        <label>Saldo pagato (€)<input id="hives-m-sal" type="number" min="0" value="${Number(m.saldoValore)||0}"></label>
+                    </div>
+                    <div class="hives-inline-note">Target 50% mese: ${_hivesMoney_(meseBudget * 0.5)} · Totale mese: ${_hivesMoney_(meseBudget)}</div>
+                    <div class="hives-actions-row">
+                        <button class="hives-btn hives-btn-soft" onclick="document.getElementById('hives-m-acc').value='${Math.round(meseBudget * 0.5)}'">Imposta acconto 50%</button>
+                        <button class="hives-btn hives-btn-soft" onclick="document.getElementById('hives-m-sal').value='${Math.round(meseBudget * 0.5)}'">Imposta saldo 50%</button>
+                        <button class="hives-btn" onclick="_hivesSaveMonthModal_()">Salva mese</button>
+                    </div>
+                </div>
+            </div>`;
+}
+
+function _hivesOpenCompModal_(compId) {
+        const ord = _hivesOrder_();
+        const c = ord.componenti.find(x => x.id === compId);
+        if (!c) return;
+        _hivesModalCtx = { type: 'comp', id: compId };
+        const rows = ord.mesi.map(m => {
+                const fab = (Number(m.qtyAccordo) || 0) * (Number(c.coeffPerPip) || 0);
+                const arr = Number((c.ricevuto || {})[m.id]) || 0;
+                return `<tr><td>${m.label}</td><td>${_hivesFmt_(fab)}</td><td><input type="number" min="0" value="${arr}" onchange="_hivesSetCompArrived_('${compId}','${m.id}', this.value)"></td><td><button class="hives-btn hives-btn-soft" onclick="_hivesSetCompArrived_('${compId}','${m.id}', '${fab}')">Completo</button></td></tr>`;
+        }).join('');
+        document.getElementById('hives-modal-root').innerHTML = `
+            <div class="hives-modal-overlay" onclick="_hivesCloseModal_(event)">
+                <div class="hives-modal-box hives-modal-box-lg" onclick="event.stopPropagation()">
+                    <div class="hives-modal-head"><h3>${c.nome}</h3><button class="hives-btn-x" onclick="_hivesCloseModal_()">✕</button></div>
+                    <div class="hives-form-grid">
+                        <label>Codice materiale<input id="hives-c-code" type="text" value="${c.codice || ''}"></label>
+                        <label>Nome componente<input id="hives-c-name" type="text" value="${c.nome || ''}"></label>
+                        <label>Prezzo unitario (€)<input id="hives-c-price" type="number" min="0" value="${Number(c.prezzoUnit)||0}"></label>
+                        <label>Coeff per Pipistrello<input id="hives-c-coeff" type="number" min="0" value="${Number(c.coeffPerPip)||0}"></label>
+                    </div>
+                    <div class="hives-actions-row"><button class="hives-btn" onclick="_hivesSaveCompMeta_()">Salva componente</button></div>
+                    <table class="hives-table"><thead><tr><th>Mese</th><th>Fabbisogno</th><th>Arrivato</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+                </div>
+            </div>`;
+}
+
+function _hivesSaveMonthModal_() {
+        const ord = _hivesOrder_();
+        const m = ord.mesi.find(x => x.id === _hivesModalCtx?.id);
+        if (!m) return;
+        m.qtyAccordo = Math.max(0, Number(document.getElementById('hives-m-qty')?.value || 0));
+        m.sottoOrdine = String(document.getElementById('hives-m-sub')?.value || '').trim();
+        m.accontoValore = Math.max(0, Number(document.getElementById('hives-m-acc')?.value || 0));
+        m.saldoValore = Math.max(0, Number(document.getElementById('hives-m-sal')?.value || 0));
+        _hivesSave_();
+        _hivesCloseModal_();
+        _renderHivesTest_();
+}
+
+function _hivesSaveCompMeta_() {
+        const ord = _hivesOrder_();
+        const c = ord.componenti.find(x => x.id === _hivesModalCtx?.id);
+        if (!c) return;
+        c.codice = String(document.getElementById('hives-c-code')?.value || '').trim();
+        c.nome = String(document.getElementById('hives-c-name')?.value || '').trim() || c.nome;
+        c.prezzoUnit = Math.max(0, Number(document.getElementById('hives-c-price')?.value || 0));
+        c.coeffPerPip = Math.max(0, Number(document.getElementById('hives-c-coeff')?.value || 0));
+        _hivesSave_();
+        _hivesCloseModal_();
+        _renderHivesTest_();
+}
+
+function _hivesSetCompArrived_(compId, monthId, val) {
+        const ord = _hivesOrder_();
+        const c = ord.componenti.find(x => x.id === compId);
+        if (!c) return;
+        c.ricevuto = c.ricevuto || {};
+        c.ricevuto[monthId] = Math.max(0, Number(val || 0));
+        _hivesSave_();
+        _hivesOpenCompModal_(compId);
+}
+
+function _hivesCloseModal_(ev) {
+        if (ev && ev.target && ev.target.className && String(ev.target.className).indexOf('hives-modal-overlay') === -1) return;
+        const root = document.getElementById('hives-modal-root');
+        if (root) root.innerHTML = '';
+        _hivesModalCtx = null;
+}
+
+function _hivesResetAll_() {
+        if (!confirm('Cancellare tutti i dati della pagina TEST HIVES?')) return;
+        try { localStorage.removeItem(_HIVES_TEST_LS_KEY); } catch (_) {}
+        _hivesState = _hivesDefaultState_();
+        _renderHivesTest_();
 }
 
 function notificaElegante(messaggio) {
