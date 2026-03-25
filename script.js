@@ -438,6 +438,20 @@ let paginaAttuale = null; // NON leggere subito da localStorage
 let filtroRicercaArticoli = false; // filtro ricerca per codice articolo
 let modifichePendenti = false;
 let listaOperatori = [];
+
+function _defaultListaStati_() {
+    return [
+        { nome: 'PREPARARE', colore: '#94a3b8' },
+        { nome: 'PREPARARE PER LAVORAZIONE', colore: '#64748b' },
+        { nome: 'MANDA IN LAVORAZIONE', colore: '#475569' },
+        { nome: 'IN LAVORAZIONE', colore: '#f59e0b' },
+        { nome: 'TORNATO DALLA LAVORAZIONE', colore: '#7c3aed' },
+        { nome: 'IN PRODUZIONE', colore: '#242424' },
+        { nome: 'IMBALLATO', colore: '#22c55e' },
+        { nome: 'SPEDITO', colore: '#0ea5e9' },
+        { nome: 'CONSEGNATO', colore: '#2563eb' }
+    ];
+}
 let listaStati = [];
 let tipoTrascinamento = "";
 const cacheContenuti = {};
@@ -6454,10 +6468,13 @@ async function caricaDatiIniziali() {
     if (cached) {
         try {
             const parsed = (typeof cached === 'string') ? JSON.parse(cached) : cached;
-            listaStati     = parsed.stati     || [];
-            listaOperatori = parsed.operatori || [];
-            _applicaOverviewConfig(parsed.overviewStati);
-            return;
+            if (parsed.stati && parsed.stati.length) {
+                listaStati     = parsed.stati;
+                listaOperatori = parsed.operatori || [];
+                _applicaOverviewConfig(parsed.overviewStati);
+                return;
+            }
+            _lsCacheDel(LS_KEY);
         } catch(e) { console.warn('[impostazioni] cache JSON corrotta, ricarico dal server:', e); }
     }
     await _fetchImpostazioniDaServer();
@@ -6469,7 +6486,7 @@ async function _fetchImpostazioniDaServer() {
     try {
         const res = await fetch(URL_GOOGLE + '?azione=getImpostazioni');
         const settings = await res.json();
-        listaStati     = settings.stati     || [];
+        listaStati     = (settings.stati && settings.stati.length) ? settings.stati : _defaultListaStati_();
         listaOperatori = settings.operatori || [];
         _applicaOverviewConfig(settings.overviewStati);
         _lsCacheSet(LS_KEY, JSON.stringify({
