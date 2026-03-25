@@ -3402,6 +3402,153 @@ h1 {
 .settings-row-title { font-weight: 700; font-size: 15px; color: #1e293b; }
 .settings-row-sub { font-size: 12px; color: #94a3b8; margin-top: 1px; }
 .settings-row-arrow { color: #94a3b8; font-size: 13px; transition: transform 0.2s; flex-shrink: 0; }
+
+.csv-import-review-overlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(4px);
+    z-index: 100120;
+    opacity: 0;
+    transition: opacity 0.18s ease;
+}
+.csv-import-review-overlay.active { opacity: 1; }
+.csv-import-review-box {
+    width: min(1040px, 96vw);
+    max-height: 88vh;
+    overflow: auto;
+    background: #fff;
+    border-radius: 22px;
+    box-shadow: 0 30px 80px rgba(15, 23, 42, 0.22);
+    padding: 22px;
+}
+.csv-import-review-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+.csv-import-review-head h3 { margin: 0 0 4px 0; font-size: 1.1rem; color: #0f172a; }
+.csv-import-review-head p { margin: 0; font-size: 0.9rem; color: #64748b; }
+.csv-import-review-close {
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    color: #334155;
+    border-radius: 999px;
+    width: 34px;
+    height: 34px;
+    cursor: pointer;
+    font-size: 16px;
+}
+.csv-import-review-body { display: flex; flex-direction: column; gap: 18px; }
+.csv-import-review-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+}
+.csv-import-review-summary > div {
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    background: #f8fafc;
+    padding: 11px 12px;
+    font-size: 0.88rem;
+    color: #334155;
+}
+.csv-import-review-section {
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 14px;
+    background: #fff;
+}
+.csv-import-review-section-title {
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 8px;
+}
+.csv-import-review-note {
+    margin: 0 0 12px 0;
+    font-size: 0.86rem;
+    color: #64748b;
+}
+.csv-import-review-choice {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+    font-size: 0.9rem;
+    color: #334155;
+}
+.csv-import-review-choice label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.csv-import-review-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 10px;
+}
+.csv-import-review-item {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #f8fafc;
+    padding: 10px 12px;
+    font-size: 0.84rem;
+    color: #334155;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.csv-import-review-table-wrap { overflow: auto; }
+.csv-import-review-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.84rem;
+}
+.csv-import-review-table th,
+.csv-import-review-table td {
+    border-bottom: 1px solid #e2e8f0;
+    padding: 9px 10px;
+    text-align: left;
+    vertical-align: top;
+}
+.csv-import-review-table th {
+    background: #f8fafc;
+    color: #334155;
+    position: sticky;
+    top: 0;
+}
+.csv-import-review-cell-sub {
+    margin-top: 3px;
+    color: #94a3b8;
+    font-size: 0.78rem;
+}
+.csv-import-review-select {
+    min-width: 210px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 8px 10px;
+    background: #fff;
+    color: #0f172a;
+}
+.csv-import-review-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 18px;
+}
+
+@media (max-width: 768px) {
+    .csv-import-review-box { width: min(96vw, 96vw); padding: 16px; }
+    .csv-import-review-head,
+    .csv-import-review-actions { flex-direction: column; align-items: stretch; }
+    .csv-import-review-select { min-width: 160px; width: 100%; }
+}
 .settings-section-body { border-bottom: 1px solid #f1f5f9; }
 .settings-section-body .card-settings {
     border-radius: 0;
