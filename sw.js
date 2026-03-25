@@ -9,12 +9,12 @@
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbyVMV9MkGiqphN0AKXJdHXF0Arp1vxTYrCYi1SGv_4MKLRJkx--5HoGq7mmQX-p0ZTZ/exec';
 var APP_URL = 'https://alessiocostanza3-ctrl.github.io/gestion-produzione-ombre/';
 
-var SHELL_CACHE = 'prod-shell-v94';
+var SHELL_CACHE = 'prod-shell-v95';
 var SHELL_ASSETS = [
     APP_URL,
     APP_URL + 'index.html',
     APP_URL + 'style.css?v=20260325a',
-    APP_URL + 'script.js?v=20260325a',
+    APP_URL + 'script.js?v=20260325b',
     APP_URL + 'manifest.json'
 ];
 
@@ -47,7 +47,7 @@ self.addEventListener('activate', function(e) {
     );
 });
 
-/* ---- intercetta fetch: cache-first per shell, network per tutto il resto ---- */
+/* ---- intercetta fetch: network-first per shell, cache fallback per tutto il resto ---- */
 self.addEventListener('fetch', function(e) {
     var url = e.request.url;
     // Non intercettare chiamate GAS, push, o cross-origin non-shell
@@ -59,14 +59,15 @@ self.addEventListener('fetch', function(e) {
 
     e.respondWith(
         caches.open(SHELL_CACHE).then(function(cache) {
-            return cache.match(e.request).then(function(cached) {
-                // Aggiorna in background (stale-while-revalidate)
-                var fetchPromise = fetch(e.request, { cache: 'no-cache' }).then(function(res) {
-                    if (res && res.ok) cache.put(e.request, res.clone());
-                    return res;
-                }).catch(function(err) { console.warn('[SW] revalidate fallita per', e.request.url, err); });
-                // Restituisce subito la copia in cache (se esiste), altrimenti la rete
-                return cached || fetchPromise;
+            return fetch(e.request, { cache: 'no-store' }).then(function(res) {
+                if (res && res.ok) cache.put(e.request, res.clone());
+                return res;
+            }).catch(function(err) {
+                console.warn('[SW] network fallita, uso cache per', e.request.url, err);
+                return cache.match(e.request).then(function(cached) {
+                    if (cached) return cached;
+                    return fetch(e.request);
+                });
             });
         })
     );

@@ -1716,12 +1716,20 @@ function chiudiAccountMenu() {
 async function _aggiornaPagina() {
     // Invalida cache impostazioni e ricarica dal server
     _lsCacheDel('_impostazioni_cache');
+    try {
+        if ('serviceWorker' in navigator) {
+            const reg = await navigator.serviceWorker.getRegistration();
+            if (reg) await reg.update();
+        }
+    } catch (e) {
+        console.warn('[refresh] update service worker:', e);
+    }
     await _fetchImpostazioniDaServer();
     if (typeof paginaAttuale !== 'undefined' && paginaAttuale) {
         delete cacheContenuti[paginaAttuale];
         if (typeof _lsCacheDel === 'function') _lsCacheDel('_html_' + paginaAttuale);
-        cambiaPagina(paginaAttuale);
     }
+    window.location.reload();
 }
 
 // Chiude il dropdown cliccando fuori
@@ -8921,8 +8929,13 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // 🔥 Avvia subito warm-up GAS in background (senza await: non blocca la navigazione)
     _prefetchBackground();
-    // Carica impostazioni in parallelo con la navigazione (non blocca il render iniziale)
-    caricaDatiIniziali().catch(function() {});
+    // Carica impostazioni PRIMA del primo render della pagina.
+    // Evita UI iniziale senza colori stati/operatori e dropdown monchi.
+    try {
+        await caricaDatiIniziali();
+    } catch (e) {
+        console.warn('[Boot] caricaDatiIniziali DOMContentLoaded:', e);
+    }
 
     // 2️⃣ Recupera pagina salvata
     let paginaSalvata = localStorage.getItem('ultimaPaginaProduzione');
