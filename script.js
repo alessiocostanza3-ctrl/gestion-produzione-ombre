@@ -3973,12 +3973,8 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
             }
         }
 
-        // Bottoni desktop (invariati) + menu mobile (wrappa tutto in uno)
-        const _desktopBtns = isArchivio
-            ? `<button class="btn-ripristina ${TW.btnWarning} hide-mobile" onclick="event.stopPropagation(); ${_aRiprist}">
-                   <i class="fa-solid fa-rotate-left"></i> <span class="btn-txt">Ripristina</span>
-               </button>`
-            : `${_opZoneOrd}${_statoZoneOrd}`;
+        // Dropdowns + menu hamburger (sempre visibile, anche desktop)
+        const _desktopBtns = isArchivio ? '' : `${_opZoneOrd}${_statoZoneOrd}`;
 
         const _mobileTrigger = `<div class="ord-azioni-menu" onclick="event.stopPropagation()">
             <button class="ord-azioni-trigger" onclick="toggleMenuAzioni(this)" title="Azioni">
@@ -4212,14 +4208,22 @@ function toggleStatoDropdown(btn) {
 
 // ── Menu azioni mobile (tre puntini) ─────────────────────────────────────────
 function chiudiTuttiMenuAzioni() {
-    document.querySelectorAll('.ord-azioni-menu.open').forEach(m => m.classList.remove('open'));
+    document.querySelectorAll('.ord-azioni-menu.open').forEach(m => {
+        m.classList.remove('open');
+        const r = m.closest('.riga-ordine');
+        if (r) r.classList.remove('azioni-aperto-ord');
+    });
 }
 
 function toggleMenuAzioni(btn) {
     const menu = btn.closest('.ord-azioni-menu');
+    const rigaOrd = btn.closest('.riga-ordine');
     const isOpen = menu.classList.contains('open');
     chiudiTuttiMenuAzioni();
-    if (!isOpen) menu.classList.add('open');
+    if (!isOpen) {
+        menu.classList.add('open');
+        if (rigaOrd) rigaOrd.classList.add('azioni-aperto-ord');
+    }
 }
 
 // Chiude menu azioni se si clicca fuori

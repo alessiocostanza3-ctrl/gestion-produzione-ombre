@@ -1287,6 +1287,11 @@ h1 {
     box-shadow: 0 8px 24px rgba(0,0,0,0.12);
     border-color: var(--border-color);
 }
+.riga-ordine.op-aperto-ord:hover,
+.riga-ordine.stato-aperto-ord:hover,
+.riga-ordine.azioni-aperto-ord:hover {
+    transform: none;
+}
 
 .riga-ordine.open {
     border-left: 6px solid #242424;
@@ -1338,8 +1343,11 @@ h1 {
 }
 
 /* Stesso per il dropdown nelle righe header ordine */
-.riga-ordine.op-aperto-ord {
+.riga-ordine.op-aperto-ord,
+.riga-ordine.stato-aperto-ord,
+.riga-ordine.azioni-aperto-ord {
     z-index: 50;
+    transform: none !important;
 }
 
 .item-card:hover {
