@@ -287,6 +287,15 @@ function _getSessionToken_() {
         const rawShared = localStorage.getItem('sessioneUtente') || sessionStorage.getItem('sessioneUtente');
         if (rawShared) {
             const s = JSON.parse(rawShared);
+            // Verifica scadenza lato client
+            if (s && s.expiresAt && Date.now() > s.expiresAt) {
+                try { localStorage.removeItem('sessioneUtente'); } catch (_e) {}
+                try { sessionStorage.removeItem('sessioneUtente'); } catch (_e) {}
+                utenteAttuale = null;
+                const ov = document.getElementById('login-overlay');
+                if (ov) { ov.style.display = 'flex'; ov.style.opacity = '1'; }
+                return '';
+            }
             if (s && s.sessionToken) {
                 const t = String(s.sessionToken);
                 if (utenteAttuale && utenteAttuale.sessionToken !== t) utenteAttuale.sessionToken = t;
@@ -306,12 +315,27 @@ function _getSessionToken_() {
         return '';
     }
 }
+
+/** Aggiorna expiresAt a +8h in entrambi gli storage ad ogni azione utente. */
+function _refreshSessionExpiry_() {
+    try {
+        const raw = localStorage.getItem('sessioneUtente') || sessionStorage.getItem('sessioneUtente');
+        if (!raw) return;
+        const s = JSON.parse(raw);
+        if (!s || !s.sessionToken) return;
+        s.expiresAt = Date.now() + (8 * 60 * 60 * 1000);
+        if (utenteAttuale) utenteAttuale.expiresAt = s.expiresAt;
+        try { localStorage.setItem('sessioneUtente', JSON.stringify(s)); } catch (_e) {}
+        try { sessionStorage.setItem('sessioneUtente', JSON.stringify(s)); } catch (_e) {}
+    } catch (e) {}
+}
 function _patchFetchWithSession_() {
     if (_fetchSessionPatchDone || typeof window.fetch !== 'function') return;
     const originalFetch = window.fetch.bind(window);
 
     // Intercetta auth_error in background su ogni risposta GAS, senza consumare il body originale
     function _intercettaAuthError_(resp) {
+        _refreshSessionExpiry_(); // rinnova expiresAt ad ogni chiamata verso GAS
         resp.clone().text().then(function(txt) {
             try {
                 const data = JSON.parse(txt);
@@ -382,11 +406,13 @@ async function _refreshSessionSilenzioso_() {
             if (!utenteAttuale) utenteAttuale = {};
             utenteAttuale.sessionToken = r.sessionToken;
             utenteAttuale.sessionExpiresAt = r.sessionExpiresAt || '';
+            utenteAttuale.expiresAt = Date.now() + (8 * 60 * 60 * 1000);
             if (!utenteAttuale.nome && r.nome) utenteAttuale.nome = r.nome;
             if (!utenteAttuale.email && r.email) utenteAttuale.email = r.email;
             if (!utenteAttuale.ruolo && r.ruolo) utenteAttuale.ruolo = r.ruolo;
             try { localStorage.setItem('sessioneUtente', JSON.stringify(utenteAttuale)); } catch (e) {}
             try { sessionStorage.setItem('sessioneUtente', JSON.stringify(utenteAttuale)); } catch (e) {}
+            // window.storage event: propaga expiresAt aggiornato alle altre tab
             return;
         }
         if (r && r.status === 'auth_error') {
@@ -1182,6 +1208,16 @@ window.onload = async function() {
         // Se c'è una sessione, la leggiamo subito
         utenteAttuale = JSON.parse(sessione);
 
+        // Verifica scadenza lato client
+        if (utenteAttuale.expiresAt && Date.now() > utenteAttuale.expiresAt) {
+            utenteAttuale = null;
+            try { localStorage.removeItem('sessioneUtente'); sessionStorage.removeItem('sessioneUtente'); } catch (_e) {}
+            if (overlay) { overlay.style.display = 'flex'; overlay.style.opacity = '1'; }
+            const _errScad = document.getElementById('login-error');
+            if (_errScad) { _errScad.innerText = 'Sessione scaduta. Effettua nuovamente il login.'; _errScad.style.color = '#ef4444'; }
+            return;
+        }
+
         // Verifica che la sessione includa un sessionToken (aggiunto con il nuovo sistema di auth).
         // Se manca (login effettuato prima dell'aggiornamento del backend), forza il re-login.
         if (utenteAttuale.ruolo !== 'MASTER' && !utenteAttuale.sessionToken) {
@@ -1819,6 +1855,7 @@ document.addEventListener('DOMContentLoaded', initSidebarState);
 async function salvaEApriDashboard() {
     // Blocco orario: impedisce l'accesso fuori dalle 08:30-19:30 (tranne esenti)
     if (!_checkOrarioAccesso(true)) return;
+    if (utenteAttuale) utenteAttuale.expiresAt = Date.now() + (8 * 60 * 60 * 1000);
     try { localStorage.setItem('sessioneUtente', JSON.stringify(utenteAttuale)); } catch (e) {}
     try { sessionStorage.setItem('sessioneUtente', JSON.stringify(utenteAttuale)); } catch (e) {}
     _startSessionRefreshTicker_();
