@@ -4542,72 +4542,13 @@ async function aggiornaDato(selectEl, idRiga, campo, nuovoValore) {
    senza dover ricaricare manualmente la pagina.
    ══════════════════════════════════════════════════════════════════ */
 
-let _autoArchivioTimer = null;
-const _AUTO_ARCHIVIO_MS = 60000; // Controlla ogni 60s
-
-/** Verifica se ordini sono pronti per auto-archiviazione (tutte righe SPEDITO/CONSEGNATO) */
-async function _controllaAutoArchivio() {
-    if (paginaAttuale !== 'PROGRAMMA PRODUZIONE DEL MESE' || !_attiviProd?.length) return;
-    if (document.visibilityState === 'hidden') return;
-    
-    // Raggruppa per ordine
-    const ordiniMap = new Map();
-    _attiviProd.forEach(r => {
-        const nOrd = String(r.ordine || '').trim();
-        if (!nOrd) return;
-        if (!ordiniMap.has(nOrd)) ordiniMap.set(nOrd, []);
-        ordiniMap.get(nOrd).push(r);
-    });
-    
-    // Controlla ogni ordine
-    for (const [nOrd, righe] of ordiniMap) {
-        const tutteSpedite = righe.every(r => String(r.stato || '').toUpperCase().trim() === 'SPEDITO/CONSEGNATO');
-        console.log(`[Auto-archivio check] ${nOrd}: [${righe.map(r => r.stato).join(', ')}] → tutteSpedite=${tutteSpedite}`);
-        
-        if (tutteSpedite) {
-            try {
-                const url = URL_GOOGLE + "?azione=archiviaOrdine&ordine=" + encodeURIComponent(nOrd);
-                const response = await fetch(url);
-                const risultato = await response.json();
-                
-                if (risultato.status === "success") {
-                    // Rimuovi dal DOM
-                    const wrapper = document.querySelector(`.ordine-wrapper[data-ordine="${CSS.escape(nOrd)}"]`);
-                    if (wrapper) {
-                        wrapper.style.transition = 'opacity 0.3s';
-                        wrapper.style.opacity = '0';
-                        setTimeout(() => wrapper.remove(), 300);
-                    }
-                    // Pulisci cache
-                    _attiviProd = _attiviProd.filter(r => String(r.ordine || '').trim() !== nOrd);
-                    delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
-                    console.log(`[Auto-archivio] Ordine ${nOrd} archiviato ✓`);
-                } else {
-                    console.warn(`[Auto-archivio] Errore per ${nOrd}: ${risultato.message}`);
-                }
-            } catch (err) {
-                console.warn(`[Auto-archivio] Errore per ${nOrd}:`, err);
-            }
-        }
-    }
-}
-
-function _startAutoArchivio() {
-    _stopAutoArchivio();
-    _autoArchivioTimer = setInterval(_controllaAutoArchivio, _AUTO_ARCHIVIO_MS);
-}
-
-function _stopAutoArchivio() {
-    if (_autoArchivioTimer) { clearInterval(_autoArchivioTimer); _autoArchivioTimer = null; }
-}
+// Auto-archivio gestito dal trigger GAS (backend) → nessun timer frontend necessario
 
 function _startPollingProduzione() {
     _stopPollingProduzione();
-    _startAutoArchivio();
     _pollProdTimer = setInterval(_pollProdStep, _POLL_PROD_MS);
 }
 function _stopPollingProduzione() {
-    _stopAutoArchivio();
     if (_pollProdTimer) { clearInterval(_pollProdTimer); _pollProdTimer = null; }
 }
 
