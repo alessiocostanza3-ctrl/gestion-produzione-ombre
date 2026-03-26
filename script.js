@@ -4695,10 +4695,19 @@ function selezionaStato(optBtn, idRiga, colore) {
     const trigger = dropdown.querySelector('.stato-trigger');
     const labelEl = trigger.querySelector('.stato-label-txt');
     const dot = trigger.querySelector('.stato-dot');
-    // aggiorna dot e testo del trigger direttamente via style inline
+
+    // ─── Salva stato precedente per rollback ───
+    const statoPrec = {
+        testo:  labelEl.textContent,
+        colore: dot ? dot.style.background : '',
+        selectedBtn: dropdown.querySelector('.stato-option.is-selected')
+    };
+    const prevProd = _attiviProd ? _attiviProd.find(x => String(x.id_riga) === String(idRiga)) : null;
+    const prevStatoProd = prevProd ? prevProd.stato : null;
+
+    // ─── Optimistic: aggiorna DOM subito ───
     if (dot) dot.style.background = colore || '#94a3b8';
     labelEl.textContent = nuovoStato;
-    // aggiorna selezione nelle opzioni
     dropdown.querySelectorAll('.stato-option').forEach(o => {
         o.classList.remove('is-selected');
         const existing = o.querySelector('.stato-check-icon');
@@ -4708,19 +4717,47 @@ function selezionaStato(optBtn, idRiga, colore) {
     const checkIcon = document.createElement('i');
     checkIcon.className = 'fas fa-check stato-check-icon';
     optBtn.appendChild(checkIcon);
-    // chiudi
     dropdown.classList.remove('open');
     const card = dropdown.closest('.item-card');
     if (card) card.classList.remove('stato-aperto');
-    // salva in background – skipForceSync=true: DOM già aggiornato ottimisticamente
-    aggiornaDato(null, idRiga, 'stato', nuovoStato, true);
-    // aggiorna cache _attiviProd
-    if (_attiviProd) {
-        const r = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
-        if (r) r.stato = nuovoStato;
-    }
-    // sposta la card nel kanban senza ricaricare
+    if (_attiviProd && prevProd) prevProd.stato = nuovoStato;
     _syncKanbanFromStato(idRiga, nuovoStato);
+
+    // ─── Indicazione visiva "in corso" ───
+    if (card) { card.classList.add('optimistic-pending'); card.style.opacity = '0.7'; card.style.transition = 'opacity 0.3s'; }
+
+    // ─── Backend in background ───
+    aggiornaDato(null, idRiga, 'stato', nuovoStato, true).then(ok => {
+        if (card) { card.classList.remove('optimistic-pending'); card.style.opacity = ''; }
+        if (ok) {
+            ProdCache.invalidate('PROGRAMMA_PRODUZIONE').catch(() => {});
+        } else {
+            // ─── Rollback ───
+            if (dot) dot.style.background = statoPrec.colore;
+            labelEl.textContent = statoPrec.testo;
+            dropdown.querySelectorAll('.stato-option').forEach(o => {
+                o.classList.remove('is-selected');
+                const ic = o.querySelector('.stato-check-icon'); if (ic) ic.remove();
+            });
+            if (statoPrec.selectedBtn) {
+                statoPrec.selectedBtn.classList.add('is-selected');
+                const ic = document.createElement('i'); ic.className = 'fas fa-check stato-check-icon';
+                statoPrec.selectedBtn.appendChild(ic);
+            }
+            if (_attiviProd && prevProd && prevStatoProd !== null) prevProd.stato = prevStatoProd;
+            _syncKanbanFromStato(idRiga, statoPrec.testo);
+            notificaElegante('⚠️ Modifica non salvata — riprova', 'error');
+            console.error('[selezionaStato] Rollback', { idRiga, nuovoStato, statoPrec: statoPrec.testo });
+        }
+    }).catch(err => {
+        if (card) { card.classList.remove('optimistic-pending'); card.style.opacity = ''; }
+        if (dot) dot.style.background = statoPrec.colore;
+        labelEl.textContent = statoPrec.testo;
+        if (_attiviProd && prevProd && prevStatoProd !== null) prevProd.stato = prevStatoProd;
+        _syncKanbanFromStato(idRiga, statoPrec.testo);
+        notificaElegante('⚠️ Modifica non salvata — riprova', 'error');
+        console.error('[selezionaStato] Errore + Rollback', err, { idRiga, nuovoStato });
+    });
 }
 // chiudi dropdown cliccando fuori
 document.addEventListener('click', function(e) {
@@ -4746,46 +4783,98 @@ function selezionaStatoOrdine(optBtn, nOrdine, nuovoStato, nuovoColore) {
     const labelEl = trigger ? trigger.querySelector('.stato-label-txt') : null;
     const dot     = trigger ? trigger.querySelector('.stato-dot') : null;
 
-    // Aggiorna label e dot del trigger immediatamente
+    // ─── Salva stato precedente per rollback ───
+    const statoPrec = {
+        testo:  labelEl ? labelEl.textContent : '',
+        colore: dot ? dot.style.background : ''
+    };
+
+    // ─── Optimistic: aggiorna trigger ordine subito ───
     if (labelEl) labelEl.textContent = nuovoStato;
     if (dot && nuovoColore) dot.style.background = nuovoColore;
-
-    // Chiudi dropdown
     dropdown.classList.remove('open');
     const rigaOrd = dropdown.closest('.riga-ordine');
     if (rigaOrd) rigaOrd.classList.remove('stato-aperto-ord');
 
-    notificaElegante(`⏳ Aggiornamento stato ordine ${nOrdine}...`, 'info');
+    const wrapper = document.querySelector(`.ordine-wrapper[data-ordine="${CSS.escape(nOrdine)}"]`);
+    if (!wrapper) return;
 
-    // Cambia stato su TUTTE le righe dell'ordine in parallelo (skipForceSync=true)
+    const righe = Array.from(wrapper.querySelectorAll('[data-id-riga]')).map(el => el.dataset.idRiga);
+
+    // Salva stati precedenti per rollback individuale
+    const statiPrecRighe = {};
+    righe.forEach(idRiga => {
+        const r = _attiviProd ? _attiviProd.find(x => String(x.id_riga) === String(idRiga)) : null;
+        statiPrecRighe[idRiga] = r ? r.stato : null;
+    });
+
+    // ─── Optimistic: aggiorna cache + card singole + kanban SUBITO ───
+    righe.forEach(idRiga => {
+        if (_attiviProd) {
+            const r = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
+            if (r) r.stato = nuovoStato;
+        }
+        _syncKanbanFromStato(idRiga, nuovoStato);
+        _syncStatoItemCard(idRiga, nuovoStato, nuovoColore);
+    });
+
+    // ─── Indicazione visiva "in corso" ───
+    wrapper.classList.add('optimistic-pending');
+    wrapper.style.opacity = '0.7'; wrapper.style.transition = 'opacity 0.3s';
+
+    // ─── Backend in parallelo ───
     (async () => {
         try {
-            const wrapper = document.querySelector(`.ordine-wrapper[data-ordine="${CSS.escape(nOrdine)}"]`);
-            if (!wrapper) return;
-
-            const righe = Array.from(wrapper.querySelectorAll('[data-id-riga]')).map(el => el.dataset.idRiga);
-
             const risultati = await Promise.all(
                 righe.map(idRiga => aggiornaDato(null, idRiga, 'stato', nuovoStato, true))
             );
-            const successi = risultati.filter(Boolean).length;
+            wrapper.classList.remove('optimistic-pending'); wrapper.style.opacity = '';
 
+            const successi = risultati.filter(Boolean).length;
             if (successi === righe.length) {
                 notificaElegante(`✓ Ordine ${nOrdine} aggiornato a ${nuovoStato}`, 'success');
+                ProdCache.invalidate('PROGRAMMA_PRODUZIONE').catch(() => {});
             } else {
-                notificaElegante(`⚠ ${successi}/${righe.length} righe aggiornate`, 'warning');
-            }
-
-            // Aggiorna cache _attiviProd per tutte le righe dell'ordine
-            if (_attiviProd) {
-                righe.forEach(idRiga => {
-                    const r = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
-                    if (r) r.stato = nuovoStato;
+                // ─── Rollback parziale: ripristina le righe fallite ───
+                righe.forEach((idRiga, i) => {
+                    if (!risultati[i] && statiPrecRighe[idRiga]) {
+                        const prev = statiPrecRighe[idRiga];
+                        if (_attiviProd) {
+                            const r = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
+                            if (r) r.stato = prev;
+                        }
+                        const prevColore = (listaStati.find(s => s.nome === prev) || {}).colore || '#e2e8f0';
+                        _syncKanbanFromStato(idRiga, prev);
+                        _syncStatoItemCard(idRiga, prev, prevColore);
+                    }
                 });
+                // Aggiorna label ordine con stato misto
+                const statiAttuali = righe.map(id => {
+                    const r = _attiviProd ? _attiviProd.find(x => String(x.id_riga) === String(id)) : null;
+                    return r ? r.stato : '';
+                }).filter((s, i, a) => a.indexOf(s) === i);
+                if (labelEl) labelEl.textContent = statiAttuali.length === 1 ? statiAttuali[0] : `${statiAttuali.length} Stati`;
+                notificaElegante(`⚠ ${successi}/${righe.length} righe aggiornate — riprova`, 'warning');
             }
         } catch (err) {
-            notificaElegante('✗ Errore aggiornamento ordine', 'error');
-            console.error('Errore selezionaStatoOrdine:', err);
+            wrapper.classList.remove('optimistic-pending'); wrapper.style.opacity = '';
+            // ─── Rollback completo ───
+            if (labelEl) labelEl.textContent = statoPrec.testo;
+            if (dot) dot.style.background = statoPrec.colore;
+            righe.forEach(idRiga => {
+                const prev = statiPrecRighe[idRiga];
+                if (prev && _attiviProd) {
+                    const r = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
+                    if (r) r.stato = prev;
+                }
+                if (prev) {
+                    const prevColore = (listaStati.find(s => s.nome === prev) || {}).colore || '#e2e8f0';
+                    _syncKanbanFromStato(idRiga, prev);
+                    _syncStatoItemCard(idRiga, prev, prevColore);
+                }
+            });
+            notificaElegante('⚠️ Modifica non salvata — riprova', 'error');
+            console.error('[selezionaStatoOrdine] Rollback', err, { nOrdine, nuovoStato });
         }
     })();
 }
@@ -4817,11 +4906,13 @@ async function aggiornaDato(selectEl, idRiga, campo, nuovoValore, skipForceSync 
         }
         if (r && r.status !== 'success') {
             console.warn('Backend response:', r);
-            notificaElegante('⚠️ Cambio non salvato. Riprova.', 'warning');
+            // Toast solo se non è un caller optimistic (skipForceSync=false)
+            if (!skipForceSync) notificaElegante('⚠️ Cambio non salvato. Riprova.', 'warning');
             return false;
         }
         // ✓ Salvataggio confermato dal backend
-        notificaElegante('✓ ' + (campo === 'stato' ? 'Stato' : 'Modifica') + ' salvato', 'success');
+        // Toast solo se non è un caller optimistic (skipForceSync=false → il caller gestisce i propri toast)
+        if (!skipForceSync) notificaElegante('✓ ' + (campo === 'stato' ? 'Stato' : 'Modifica') + ' salvato', 'success');
         
         // Invalida le cache
         delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
@@ -4847,7 +4938,7 @@ async function aggiornaDato(selectEl, idRiga, campo, nuovoValore, skipForceSync 
     } catch (e) {
         console.error('aggiornaDato error:', e);
         if (selectEl) selectEl.style.opacity = '1';
-        notificaElegante('✗ Errore: cambio NON salvato. Riprova.', 'error');
+        if (!skipForceSync) notificaElegante('✗ Errore: cambio NON salvato. Riprova.', 'error');
         return false;
     }
 }
@@ -6104,6 +6195,13 @@ function _initKanbanDnd() {
             setTimeout(() => { elDrop.style.transition = ''; }, 200);
         });
 
+        // ─── Salva stati precedenti per rollback ───
+        const _kanbanStatiPrec = {};
+        idRighe.forEach(id => {
+            const r = _attiviProd ? _attiviProd.find(x => String(x.id_riga) === id) : null;
+            _kanbanStatiPrec[id] = r ? r.stato : oldStato;
+        });
+
         // Aggiorna cache locale per tutti gli articoli del gruppo
         idRighe.forEach(id => {
             if (_attiviProd) {
@@ -6111,6 +6209,11 @@ function _initKanbanDnd() {
                 if (r) r.stato = newStato;
             }
         });
+
+        // ─── Indicazione visiva "in corso" ───
+        elDrop.classList.add('optimistic-pending');
+        elDrop.style.opacity = '0.7'; elDrop.style.transition = 'opacity 0.3s';
+
         // Salva backend in modo sequenziale + await per assicurare il salvataggio
         // Usa aggiornaDato che ha già session token + error handling + force-sync
         _lastKanbanDragTs = Date.now();
@@ -6120,8 +6223,30 @@ function _initKanbanDnd() {
                 const ok = await aggiornaDato(null, id, 'stato', newStato);
                 if (!ok) anyFailed = true;
             }
+            elDrop.classList.remove('optimistic-pending'); elDrop.style.opacity = '';
             if (anyFailed) {
-                notificaElegante('⚠️ Qualche articolo potrebbe non essere stato salvato. Verifica.', 'warning');
+                // ─── Rollback: riporta card nella colonna originale ───
+                const srcBody = grid.querySelector(`.ov-stato-body[data-stato-drop="${oldStato}"]`);
+                if (srcBody) {
+                    elDrop.dataset.statoCorrente = oldStato;
+                    srcBody.querySelectorAll('.ov-empty-lbl').forEach(el => el.remove());
+                    srcBody.appendChild(elDrop);
+                }
+                idRighe.forEach(id => {
+                    const prev = _kanbanStatiPrec[id] || oldStato;
+                    if (_attiviProd) {
+                        const r = _attiviProd.find(x => String(x.id_riga) === id);
+                        if (r) r.stato = prev;
+                    }
+                    const prevCol = (listaStati.find(s => s.nome === prev) || {}).colore || '#94a3b8';
+                    _syncStatoItemCard(id, prev, prevCol);
+                });
+                _aggiornaKanbanCount(grid);
+                _checkKanbanEmpty(grid);
+                notificaElegante('⚠️ Modifica non salvata — riprova', 'error');
+                console.error('[Kanban DnD] Rollback', { idRighe, newStato, oldStato });
+            } else {
+                ProdCache.invalidate('PROGRAMMA_PRODUZIONE').catch(() => {});
             }
         })();
         // Sincronizza il dropdown stato per TUTTI gli articoli del gruppo nel pannello dettaglio
@@ -9880,25 +10005,48 @@ async function _confermaSpostaPostazione() {
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvataggio...'; }
 
     const idRighe = checkboxes.map(c => c.dataset.idRiga);
-    let errori = 0;
 
+    // ─── Salva stati precedenti per rollback ───
+    const statiPrec = {};
+    idRighe.forEach(idRiga => {
+        const r = _attiviProd ? _attiviProd.find(x => String(x.id_riga) === String(idRiga)) : null;
+        statiPrec[idRiga] = r ? r.stato : null;
+    });
+
+    // ─── Optimistic: aggiorna cache + kanban SUBITO ───
+    idRighe.forEach(idRiga => {
+        if (_attiviProd) {
+            const r = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
+            if (r) r.stato = _qrStatoScelto;
+        }
+        _syncKanbanFromStato(idRiga, _qrStatoScelto);
+    });
+
+    // ─── Backend ───
+    let errori = 0;
+    const falliti = [];
     for (const idRiga of idRighe) {
-        try {
-            await aggiornaDato(null, idRiga, 'stato', _qrStatoScelto);
-            if (_attiviProd) {
-                const r = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
-                if (r) r.stato = _qrStatoScelto;
-            }
-            _syncKanbanFromStato(idRiga, _qrStatoScelto);
-        } catch { errori++; }
+        const ok = await aggiornaDato(null, idRiga, 'stato', _qrStatoScelto, true);
+        if (!ok) { errori++; falliti.push(idRiga); }
     }
 
     if (errori === 0) {
         notificaElegante(`✅ ${idRighe.length} articolo/i → ${_qrStatoScelto}`);
         delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
         _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
+        ProdCache.invalidate('PROGRAMMA_PRODUZIONE').catch(() => {});
     } else {
-        notificaElegante(`⚠️ ${errori} errori su ${idRighe.length} articoli`, 'error');
+        // ─── Rollback righe fallite ───
+        falliti.forEach(idRiga => {
+            const prev = statiPrec[idRiga];
+            if (prev && _attiviProd) {
+                const r = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
+                if (r) r.stato = prev;
+            }
+            if (prev) _syncKanbanFromStato(idRiga, prev);
+        });
+        notificaElegante(`⚠️ ${errori} errori su ${idRighe.length} articoli — riprova`, 'error');
+        console.error('[QR Postazione] Rollback', { falliti, statiPrec });
     }
     _chiudiModaleQRAzione();
 }
