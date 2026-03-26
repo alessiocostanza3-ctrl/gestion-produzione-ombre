@@ -1598,6 +1598,28 @@ h1 {
     color: #0369a1;
 }
 
+/* ── Variante header-ordine del dropdown stato ─────────────────────────────── */
+.stato-dropdown-ord {
+    width: auto;
+    min-width: 0;
+    flex-shrink: 0;
+}
+.stato-dropdown-ord .stato-trigger {
+    width: auto;
+    min-width: 110px;
+    max-width: 190px;
+    padding: 6px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+}
+/* ── z-index: eleva il wrapper quando qualsiasi dropdown è aperto ────────── */
+.ordine-wrapper:has(.stato-dropdown.open),
+.ordine-wrapper:has(.op-dropdown.open),
+.ordine-wrapper:has(.ord-azioni-menu.open) {
+    position: relative;
+    z-index: 20;
+}
+
 .scroll-wrapper { text-align: right; margin: 10px 0; }
 .scroll-btn {
     background: #242424;
@@ -1721,7 +1743,7 @@ h1 {
 .hide-mobile  { /* visibile di default, nascosto da @media ≤600 */ }
 .show-mobile-flex { display: none; } /* mostrato da @media ≤600 */
 
-/* ── Menu azioni mobile (tre puntini) ─────────────────────────────────────── */
+/* ── Menu azioni (tre puntini) – visibile sempre ──────────────────────────── */
 .ord-azioni-menu {
     position: relative;
     display: flex;
@@ -1729,59 +1751,73 @@ h1 {
     flex-shrink: 0;
 }
 .ord-azioni-trigger {
-    width: 44px;
-    height: 44px;
-    border-radius: 10px;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
     border: none;
-    background: #242424;
-    color: #e2e8f0;
-    font-size: 1.1rem;
+    background: transparent;
+    color: #94a3b8;
+    font-size: 1rem;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    transition: background 0.15s;
+    transition: background 0.15s, color 0.15s;
 }
-.ord-azioni-trigger:hover { background: #334155; }
+.ord-azioni-trigger:hover {
+    background: #f1f5f9;
+    color: #334155;
+}
+.ord-azioni-menu.open .ord-azioni-trigger {
+    background: #f1f5f9;
+    color: #334155;
+}
 .ord-azioni-popup {
     display: none;
     position: absolute;
     right: 0;
-    top: calc(100% + 6px);
-    background: #242424;
-    border: 1px solid #242424;
+    top: calc(100% + 4px);
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
     z-index: 10001;
-    min-width: 170px;
+    min-width: 160px;
     overflow: hidden;
     flex-direction: column;
+    padding: 4px;
 }
 .ord-azioni-menu.open .ord-azioni-popup { display: flex; }
 .ord-menu-item {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 9px;
     width: 100%;
-    padding: 13px 16px;
+    padding: 9px 12px;
     border: none;
     background: none;
-    color: #e2e8f0;
-    font-size: 0.9rem;
+    color: #334155;
+    font-size: 11px;
     font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
     cursor: pointer;
     text-align: left;
+    border-radius: 8px;
     transition: background 0.12s;
     font-family: inherit;
+    box-sizing: border-box;
 }
-.ord-menu-item i { width: 16px; text-align: center; flex-shrink: 0; }
-.ord-menu-item:hover { background: #334155; }
-.ord-menu-item + .ord-menu-item { border-top: 1px solid #2d3f55; }
-.ord-menu-item--danger { color: #f87171; }
-.ord-menu-item--danger:hover { background: #3b1f1f; }
-.ord-menu-item--warn   { color: #fbbf24; }
-.ord-menu-item--warn:hover   { background: #3b2e0e; }
+.ord-menu-item i { width: 14px; text-align: center; flex-shrink: 0; color: #64748b; }
+.ord-menu-item:hover { background: #f1f5f9; }
+.ord-menu-item + .ord-menu-item { border-top: none; }
+.ord-menu-item--danger { color: #dc2626; }
+.ord-menu-item--danger i { color: #dc2626; }
+.ord-menu-item--danger:hover { background: #fef2f2; }
+.ord-menu-item--warn { color: #d97706; }
+.ord-menu-item--warn i { color: #d97706; }
+.ord-menu-item--warn:hover { background: #fffbeb; }
 
 
 
@@ -4002,110 +4038,7 @@ h1 {
 }
 .op-check-icon { margin-left: auto; font-size: 10px; color: #166534; }
 
-/* ─────────────────────────────────────────────────────────────────
-   STATO DROPDOWN (Dropdown cambio stato per righe e ordini)
-   ───────────────────────────────────────────────────────────────── */
-.stato-dropdown {
-    position: relative;
-    display: inline-block;
-    width: auto;
-    min-width: 110px;
-}
-.stato-dropdown.stato-dropdown-ord {
-    width: auto;
-    min-width: 130px;
-    max-width: 200px;
-}
-.stato-trigger {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 6px 10px;
-    background: rgba(255,255,255,0.85);
-    border: 1.5px solid #e2e8f0;
-    border-radius: 16px;
-    cursor: pointer;
-    font-family: inherit;
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-    color: #1e293b;
-    white-space: nowrap;
-    box-sizing: border-box;
-    transition: background 0.2s, border-color 0.2s;
-}
-.stato-trigger:hover {
-    background: #ffffff;
-    border-color: #cbd5e1;
-}
-.stato-trigger-ord {
-    padding: 6px 10px;
-    border-radius: 16px;
-    font-size: 10px;
-    background: rgba(255,255,255,0.85);
-    border-color: rgba(0,0,0,0.18);
-    color: #1e293b;
-}
-.stato-trigger-ord:hover {
-    background: rgba(255,255,255,0.97);
-    border-color: rgba(0,0,0,0.32);
-    color: #0f172a;
-}
-.stato-dropdown.open .stato-trigger { background: #ffffff; border-color: #94a3b8; }
-.stato-dropdown.open .stato-trigger-ord { background: #fff; border-color: #94a3b8; color: #0f172a; }
-.stato-trigger-label { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; font-weight: 700; }
-.stato-chevron { font-size: 9px; flex-shrink: 0; color: #94a3b8; transition: transform 0.2s ease; }
-.stato-dropdown.open .stato-chevron { transform: rotate(180deg); }
-.stato-popup {
-    position: absolute;
-    top: calc(100% + 5px);
-    left: 0;
-    min-width: 160px;
-    width: max-content;
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
-    z-index: 10000;
-    padding: 5px;
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(-4px);
-    transition: opacity 0.15s ease, transform 0.15s ease, visibility 0s linear 0.15s;
-    pointer-events: none;
-}
-.stato-dropdown.open .stato-popup {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
-    transition: opacity 0.15s ease, transform 0.15s ease, visibility 0s linear 0s;
-    pointer-events: auto;
-}
-.stato-option {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 7px 11px;
-    border-radius: 8px;
-    border: none;
-    background: transparent;
-    font-family: inherit;
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-    color: #334155;
-    cursor: pointer;
-    text-align: left;
-    width: 100%;
-    box-sizing: border-box;
-    transition: background 0.15s;
-}
-.stato-option:hover { background: #f1f5f9; }
+/* stato-dropdown-ord specific overrides are in the earlier section */
 
 /* Pulsante Assegnami per operatori */
 .btn-assegnami {

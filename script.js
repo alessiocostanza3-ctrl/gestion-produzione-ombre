@@ -3942,12 +3942,10 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
             const _statoBulkLbl = _statiBulk.length === 1 ? _statiBulk[0] : `${_statiBulk.length} Stati`;
             const _configStato = listaStati.find(s => s.nome === _statiBulk[0]) || {colore: "#e2e8f0"};
             const _statoOptsOrd = listaStati.map(st => {
-                const _col = st.colore;
-                const _lbl = st.nome;
                 const _nOrdS = nOrd.replace(/'/g, "\\'");
-                return `<button type="button" class="stato-option" style="border-left:3px solid ${_col}" onclick="selezionaStatoOrdine(this,'${_nOrdS}','${_lbl}')">${_lbl}</button>`;
+                return `<button type="button" class="stato-option" onclick="selezionaStatoOrdine(this,'${_nOrdS}','${st.nome}')"><span class="stato-opt-dot" style="background:${st.colore}"></span><span>${st.nome}</span></button>`;
             }).join('');
-            _statoZoneOrd = `<div class="stato-dropdown stato-dropdown-ord" data-nord="${nOrd}"><button type="button" class="stato-trigger stato-trigger-ord" onclick="event.stopPropagation(); toggleStatoDropdown(this)" title="Cambia stato tutte righe"><span class="stato-trigger-label" style="color:${_configStato.colore}">${_statoBulkLbl}</span><i class="fas fa-chevron-down stato-chevron"></i></button><div class="stato-popup">${_statoOptsOrd}</div></div>`;
+            _statoZoneOrd = `<div class="stato-dropdown stato-dropdown-ord" data-nord="${nOrd}"><button type="button" class="stato-trigger" onclick="event.stopPropagation(); toggleStatoDropdown(this)" title="Cambia stato tutte righe"><span class="stato-dot" style="background:${_configStato.colore}"></span><span class="stato-label-txt">${_statoBulkLbl}</span><i class="fas fa-chevron-down stato-chevron"></i></button><div class="stato-popup">${_statoOptsOrd}</div></div>`;
             console.log(`[Stato Dropdown] Ordine ${nOrd}: visibile per ${utenteAttuale?.nome}, stati=${_statiBulk.join(',')}`);
         } else if (isArchivio || !_isUtenteEsente()) {
             console.log(`[Stato Dropdown] Ordine ${nOrd}: NASCOSTO (isArchivio=${isArchivio}, esente=${_isUtenteEsente()})`);
