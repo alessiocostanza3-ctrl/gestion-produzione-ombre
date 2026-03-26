@@ -5102,11 +5102,25 @@ async function gestisciArchiviazione(nOrd, tipo) {
         async () => {
             notificaElegante('⏳ Archiviazione in corso...', 'info');
 
-            try {
+            const _eseguiArchivia = async () => {
                 const url = URL_GOOGLE + "?azione=archiviaOrdine&ordine=" + encodeURIComponent(nOrd);
                 const response = await fetch(url);
-                const risultato = await response.json();
-                
+                const text = await response.text();
+                let risultato;
+                try { risultato = JSON.parse(text); }
+                catch { throw new Error('Risposta non valida dal server. Riprova tra qualche secondo.'); }
+                return risultato;
+            };
+
+            try {
+                let risultato;
+                try { risultato = await _eseguiArchivia(); }
+                catch (e1) {
+                    // Primo tentativo fallito → attendi 2s e riprova
+                    await new Promise(r => setTimeout(r, 2000));
+                    risultato = await _eseguiArchivia();
+                }
+
                 if (risultato.status === "success") {
                     // ✓ Successo — rimuovi dal DOM
                     const wrapper = document.querySelector(`.ordine-wrapper[data-ordine="${CSS.escape(nOrd)}"]`);
@@ -5123,24 +5137,22 @@ async function gestisciArchiviazione(nOrd, tipo) {
                     // Rimuovi dal kanban
                     const kanbanItem = document.querySelector(`.ov-kanban-item[data-codice="${CSS.escape(nOrd)}"], .ov-kanban-item[data-ordine*="${nOrd}"]`);
                     if (kanbanItem) { kanbanItem.remove(); }
-                    
+
                     // Invalida cache
                     delete cacheContenuti['ARCHIVIO_ORDINI'];
                     delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
                     _lsCacheDel('_html_ARCHIVIO_ORDINI');
                     _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
-                    
+
                     notificaElegante('✓ Ordine ' + nOrd + ' archiviato con successo', 'success');
                 } else {
-                    // ✗ Errore dal server — mostra messaggio e permetti retry
                     const msgErr = (risultato.message || risultato.error || 'Errore sconosciuto').toString();
-                    notificaElegante('✗ Errore: ' + msgErr, 'error');
+                    notificaElegante('✗ ' + msgErr, 'error');
                     console.error('Archiviazione fallita:', risultato);
                 }
             } catch (errore) {
-                // ✗ Errore rete/parsing — mostra messaggio
                 console.error('Errore archiviazione:', errore);
-                notificaElegante('✗ Errore di rete: ' + errore.message, 'error');
+                notificaElegante('✗ ' + (errore.message || 'Errore di rete'), 'error');
             }
         },
         'Archivia'
