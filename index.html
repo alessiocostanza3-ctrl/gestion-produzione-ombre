@@ -200,23 +200,34 @@
             const isAdmin = adminView && adminView.style.display !== 'none';
 
             if (isAdmin) {
-                // ── ADMIN PIN ── completamente inline, zero dipendenze da script.js
                 const codice = (document.getElementById('login-codice')?.value || '').trim();
-                if (codice === '0000') {
-                    try {
-                        localStorage.setItem('sessioneUtente', JSON.stringify({ nome: 'MASTER', ruolo: 'MASTER', vistaSimulata: 'MASTER' }));
-                    } catch(e) {}
-                    try {
-                        sessionStorage.setItem('sessioneUtente', JSON.stringify({ nome: 'MASTER', ruolo: 'MASTER', vistaSimulata: 'MASTER' }));
-                    } catch(e) {}
-                    try { document.documentElement.classList.remove('needs-login'); } catch (e) {}
-                    // Ricarica sempre: window.onload legge la sessione e nasconde il login
-                    window.location.reload();
-                } else {
-                    if (errorDiv) errorDiv.innerText = 'PIN non valido.';
-                    const input = document.getElementById('login-codice');
-                    if (input) { input.value = ''; input.focus(); }
+                if (!codice) {
+                    if (errorDiv) errorDiv.innerText = 'Inserisci il PIN.';
+                    return;
                 }
+                const btnAdmin = document.querySelector('#login-view-admin .btn-login');
+                if (btnAdmin) btnAdmin.disabled = true;
+                if (errorDiv) errorDiv.innerText = 'Verifica in corso...';
+                const GAS_URL = 'https://script.google.com/macros/s/AKfycbyVMV9MkGiqphN0AKXJdHXF0Arp1vxTYrCYi1SGv_4MKLRJkx--5HoGq7mmQX-p0ZTZ/exec';
+                fetch(GAS_URL + '?azione=verificaPinAdmin&pin=' + encodeURIComponent(codice) + '&json=1')
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data && data.status === 'ok') {
+                            try { localStorage.setItem('sessioneUtente', JSON.stringify(data.sessione)); } catch(e) {}
+                            try { sessionStorage.setItem('sessioneUtente', JSON.stringify(data.sessione)); } catch(e) {}
+                            try { document.documentElement.classList.remove('needs-login'); } catch(e) {}
+                            window.location.reload();
+                        } else {
+                            if (errorDiv) errorDiv.innerText = (data && data.msg) ? data.msg : 'PIN non valido.';
+                            const input = document.getElementById('login-codice');
+                            if (input) { input.value = ''; input.focus(); }
+                            if (btnAdmin) btnAdmin.disabled = false;
+                        }
+                    })
+                    .catch(() => {
+                        if (errorDiv) errorDiv.innerText = 'Errore di connessione. Riprova.';
+                        if (btnAdmin) btnAdmin.disabled = false;
+                    });
                 return;
             }
 
