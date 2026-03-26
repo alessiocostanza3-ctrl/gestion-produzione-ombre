@@ -1600,9 +1600,7 @@ h1 {
 
 /* ── Variante header-ordine del dropdown stato ─────────────────────────────── */
 .stato-dropdown-ord {
-    width: auto;
-    min-width: 130px;
-    max-width: 200px;
+    width: 160px;
     flex-shrink: 0;
 }
 .stato-dropdown-ord .stato-trigger {
@@ -3935,9 +3933,7 @@ h1 {
     width: 100%;
 }
 .op-dropdown.op-dropdown-ord {
-    width: auto;
-    min-width: 130px;
-    max-width: 200px;
+    width: 160px;
 }
 .op-trigger {
     display: inline-flex;
