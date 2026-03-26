@@ -448,8 +448,7 @@ function _defaultListaStati_() {
         { nome: 'TORNATO DALLA LAVORAZIONE', colore: '#7c3aed' },
         { nome: 'IN PRODUZIONE', colore: '#242424' },
         { nome: 'IMBALLATO', colore: '#22c55e' },
-        { nome: 'SPEDITO', colore: '#0ea5e9' },
-        { nome: 'CONSEGNATO', colore: '#2563eb' }
+        { nome: 'SPEDITO/CONSEGNATO', colore: '#06b6d4' }
     ];
 }
 let listaStati = [];
@@ -3934,6 +3933,23 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
         const _cliEsc   = (cliente || '').replace(/'/g, "\\'");
         const _idRiga0  = righe[0].id_riga;
 
+        // Dropdown STATO per l'ordine (bulk change tutte righe)
+        let _statoZoneOrd = '';
+        if (!isArchivio && _isUtenteEsente()) {
+            const _statiBulk = righe
+                .map(r => String(r.stato || 'IN ATTESA').toUpperCase().trim())
+                .filter((s, i, arr) => arr.indexOf(s) === i); // unique
+            const _statoBulkLbl = _statiBulk.length === 1 ? _statiBulk[0] : `${_statiBulk.length} Stati`;
+            const _configStato = listaStati.find(s => s.nome === _statiBulk[0]) || {colore: "#e2e8f0"};
+            const _statoOptsOrd = listaStati.map(st => {
+                const _col = st.colore;
+                const _lbl = st.nome;
+                const _nOrdS = nOrd.replace(/'/g, "\\'");
+                return `<button type="button" class="stato-option" style="border-left:3px solid ${_col}" onclick="selezionaStatoOrdine(this,'${_nOrdS}','${_lbl}')">${_lbl}</button>`;
+            }).join('');
+            _statoZoneOrd = `<div class="stato-dropdown stato-dropdown-ord" data-nord="${nOrd}"><button type="button" class="stato-trigger stato-trigger-ord" onclick="event.stopPropagation(); toggleStatoDropdown(this)" title="Cambia stato tutte righe"><span class="stato-trigger-label" style="color:${_configStato.colore}">${_statoBulkLbl}</span><i class="fas fa-chevron-down stato-chevron"></i></button><div class="stato-popup">${_statoOptsOrd}</div></div>`;
+        }
+
         // Azioni disponibili per questo ordine (active variant)
         const _aChiedi   = `apriModalAiuto('${_idRiga0}', 'INTERO ORDINE', '${_nOrdEsc}', '${_cliEsc}')`;
         const _aArchivia = `gestisciArchiviazione('${_nOrdEsc}')`;
@@ -3959,7 +3975,7 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
             ? `<button class="btn-ripristina ${TW.btnWarning} hide-mobile" onclick="event.stopPropagation(); ${_aRiprist}">
                    <i class="fa-solid fa-rotate-left"></i> <span class="btn-txt">Ripristina</span>
                </button>`
-            : `${_opZoneOrd}<button class="btn-chiedi-assegna ${TW.btnPrimary} hide-mobile" onclick="event.stopPropagation(); ${_aChiedi}">
+            : `${_opZoneOrd}${_statoZoneOrd}<button class="btn-chiedi-assegna ${TW.btnPrimary} hide-mobile" onclick="event.stopPropagation(); ${_aChiedi}">
                    <i class="fa-regular fa-envelope"></i> <span class="btn-txt">Chiedi</span>
                </button>
                ${_isCommerciale()
@@ -4185,6 +4201,24 @@ function toggleOpDropdown(btn) {
     }
 }
 
+function toggleStatoDropdown(btn) {
+    const dropdown = btn.closest('.stato-dropdown');
+    const itemCard  = btn.closest('.item-card');
+    const rigaOrd   = btn.closest('.riga-ordine');
+    const isOpen = dropdown.classList.contains('open');
+    // chiudi tutti gli altri stato-dropdown
+    document.querySelectorAll('.stato-dropdown.open').forEach(d => {
+        d.classList.remove('open');
+        const c = d.closest('.item-card');    if (c) c.classList.remove('stato-aperto');
+        const r = d.closest('.riga-ordine'); if (r) r.classList.remove('stato-aperto-ord');
+    });
+    if (!isOpen) {
+        dropdown.classList.add('open');
+        if (itemCard) itemCard.classList.add('stato-aperto');
+        if (rigaOrd)  rigaOrd.classList.add('stato-aperto-ord');
+    }
+}
+
 // ── Menu azioni mobile (tre puntini) ─────────────────────────────────────────
 function chiudiTuttiMenuAzioni() {
     document.querySelectorAll('.ord-azioni-menu.open').forEach(m => m.classList.remove('open'));
@@ -4393,15 +4427,59 @@ function selezionaStato(optBtn, idRiga, colore) {
 }
 // chiudi dropdown cliccando fuori
 document.addEventListener('click', function(e) {
-    if (!e.target.closest('.stato-dropdown')) {
-        document.querySelectorAll('.stato-dropdown.open').forEach(d => {
+    if (!e.target.closest('.stato-dropdown') && !e.target.closest('.stato-dropdown-ord')) {
+        document.querySelectorAll('.stato-dropdown.open, .stato-dropdown-ord.open').forEach(d => {
             d.classList.remove('open');
             const c = d.closest('.item-card');
             if (c) c.classList.remove('stato-aperto');
+            const r = d.closest('.riga-ordine');
+            if (r) r.classList.remove('stato-aperto-ord');
         });
     }
 }, true);
 /* ---- FINE STATO DROPDOWN CUSTOM ---- */
+
+/** Cambia lo stato di TUTTE le righe di un ordine e sincronizza */
+function selezionaStatoOrdine(optBtn, nOrdine, nuovoStato) {
+    const dropdown = optBtn.closest('.stato-dropdown-ord');
+    if (!dropdown) return;
+    
+    const trigger = dropdown.querySelector('.stato-trigger-ord');
+    const labelEl = trigger.querySelector('.stato-trigger-label');
+    
+    // Aggiorna label del trigger
+    if (labelEl) labelEl.textContent = nuovoStato;
+    
+    // Chiudi dropdown
+    dropdown.classList.remove('open');
+    
+    notificaElegante(`⏳ Aggiornamento stato ordine ${nOrdine}...`, 'info');
+    
+    // Cambia stato su TUTTE le righe dell'ordine in background
+    (async () => {
+        try {
+            const wrapper = document.querySelector(`.ordine-wrapper[data-ordine="${CSS.escape(nOrdine)}"]`);
+            if (!wrapper) return;
+            
+            const righe = Array.from(wrapper.querySelectorAll('[data-id-riga]')).map(el => el.dataset.idRiga);
+            let successi = 0;
+            
+            for (const idRiga of righe) {
+                const ok = await aggiornaDato(null, idRiga, 'stato', nuovoStato);
+                if (ok) successi++;
+            }
+            
+            if (successi === righe.length) {
+                notificaElegante(`✓ Ordine ${nOrdine} aggiornato a ${nuovoStato}`, 'success');
+            } else {
+                notificaElegante(`⚠ ${successi}/${righe.length} righe aggiornate`, 'warning');
+            }
+        } catch (err) {
+            notificaElegante('✗ Errore aggiornamento ordine', 'error');
+            console.error('Errore selezionaStatoOrdine:', err);
+        }
+    })();
+}
 
 function toggleAccordion(elemento) {
     elemento.classList.toggle('open');
@@ -4471,11 +4549,69 @@ async function aggiornaDato(selectEl, idRiga, campo, nuovoValore) {
    senza dover ricaricare manualmente la pagina.
    ══════════════════════════════════════════════════════════════════ */
 
+let _autoArchivioTimer = null;
+const _AUTO_ARCHIVIO_MS = 60000; // Controlla ogni 60s
+
+/** Verifica se ordini sono pronti per auto-archiviazione (tutte righe SPEDITO/CONSEGNATO) */
+async function _controllaAutoArchivio() {
+    if (paginaAttuale !== 'PROGRAMMA PRODUZIONE DEL MESE' || !_attiviProd?.length) return;
+    if (document.visibilityState === 'hidden') return;
+    
+    // Raggruppa per ordine
+    const ordiniMap = new Map();
+    _attiviProd.forEach(r => {
+        const nOrd = String(r.ordine || '').trim();
+        if (!nOrd) return;
+        if (!ordiniMap.has(nOrd)) ordiniMap.set(nOrd, []);
+        ordiniMap.get(nOrd).push(r);
+    });
+    
+    // Controlla ogni ordine
+    for (const [nOrd, righe] of ordiniMap) {
+        const tutteSpedite = righe.every(r => String(r.stato || '').toUpperCase().trim() === 'SPEDITO/CONSEGNATO');
+        
+        if (tutteSpedite) {
+            try {
+                const url = URL_GOOGLE + "?azione=archiviaOrdine&ordine=" + encodeURIComponent(nOrd);
+                const response = await fetch(url);
+                const risultato = await response.json();
+                
+                if (risultato.status === "success") {
+                    // Rimuovi dal DOM
+                    const wrapper = document.querySelector(`.ordine-wrapper[data-ordine="${CSS.escape(nOrd)}"]`);
+                    if (wrapper) {
+                        wrapper.style.transition = 'opacity 0.3s';
+                        wrapper.style.opacity = '0';
+                        setTimeout(() => wrapper.remove(), 300);
+                    }
+                    // Pulisci cache
+                    _attiviProd = _attiviProd.filter(r => String(r.ordine || '').trim() !== nOrd);
+                    delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
+                    console.log(`[Auto-archivio] Ordine ${nOrd} archiviato ✓`);
+                }
+            } catch (err) {
+                console.warn(`[Auto-archivio] Errore per ${nOrd}:`, err);
+            }
+        }
+    }
+}
+
+function _startAutoArchivio() {
+    _stopAutoArchivio();
+    _autoArchivioTimer = setInterval(_controllaAutoArchivio, _AUTO_ARCHIVIO_MS);
+}
+
+function _stopAutoArchivio() {
+    if (_autoArchivioTimer) { clearInterval(_autoArchivioTimer); _autoArchivioTimer = null; }
+}
+
 function _startPollingProduzione() {
     _stopPollingProduzione();
+    _startAutoArchivio();
     _pollProdTimer = setInterval(_pollProdStep, _POLL_PROD_MS);
 }
 function _stopPollingProduzione() {
+    _stopAutoArchivio();
     if (_pollProdTimer) { clearInterval(_pollProdTimer); _pollProdTimer = null; }
 }
 
