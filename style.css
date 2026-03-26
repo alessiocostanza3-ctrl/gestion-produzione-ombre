@@ -1716,7 +1716,7 @@ h1 {
 /* ── Menu azioni mobile (tre puntini) ─────────────────────────────────────── */
 .ord-azioni-menu {
     position: relative;
-    display: none; /* mostrato solo su mobile via @media */
+    display: flex;
     align-items: center;
     flex-shrink: 0;
 }
@@ -1745,7 +1745,7 @@ h1 {
     border: 1px solid #242424;
     border-radius: 12px;
     box-shadow: 0 8px 32px rgba(0,0,0,0.45);
-    z-index: 9000;
+    z-index: 10001;
     min-width: 170px;
     overflow: hidden;
     flex-direction: column;
@@ -4059,7 +4059,7 @@ h1 {
     border: 1px solid #e2e8f0;
     border-radius: 12px;
     box-shadow: 0 8px 30px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
-    z-index: 9998;
+    z-index: 10000;
     padding: 5px;
     display: flex;
     flex-direction: column;

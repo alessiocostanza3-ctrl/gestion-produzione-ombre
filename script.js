@@ -3975,21 +3975,9 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
             ? `<button class="btn-ripristina ${TW.btnWarning} hide-mobile" onclick="event.stopPropagation(); ${_aRiprist}">
                    <i class="fa-solid fa-rotate-left"></i> <span class="btn-txt">Ripristina</span>
                </button>`
-            : `${_opZoneOrd}${_statoZoneOrd}<button class="btn-chiedi-assegna ${TW.btnPrimary} hide-mobile" onclick="event.stopPropagation(); ${_aChiedi}">
-                   <i class="fa-regular fa-envelope"></i> <span class="btn-txt">Chiedi</span>
-               </button>
-               ${_isCommerciale()
-                   ? `<button class="btn-sollecita hide-mobile" onclick="event.stopPropagation(); ${_aSollecit}"><i class="fa-solid fa-calendar-alt"></i> <span class="btn-txt">Scadenza</span></button>`
-                   : _isUtenteEsente()
-                       ? `<button class="btn-archivia-prod ${TW.btnSuccess} hide-mobile" onclick="event.stopPropagation(); ${_aArchivia}">
-                   <i class="fa-solid fa-box-archive"></i> <span class="btn-txt">Archivia</span>
-               </button><button class="btn-sollecita hide-mobile" onclick="event.stopPropagation(); ${_aSollecit}"><i class="fa-solid fa-calendar-alt"></i> <span class="btn-txt">Scadenza</span></button>`
-                       : `<button class="btn-archivia-prod ${TW.btnSuccess} hide-mobile" onclick="event.stopPropagation(); ${_aArchivia}">
-                   <i class="fa-solid fa-box-archive"></i> <span class="btn-txt">Archivia</span>
-               </button>`
-               }`;
+            : `${_opZoneOrd}${_statoZoneOrd}`;
 
-        const _mobileTrigger = `<div class="ord-azioni-menu show-mobile-flex" onclick="event.stopPropagation()">
+        const _mobileTrigger = `<div class="ord-azioni-menu" onclick="event.stopPropagation()">
             <button class="ord-azioni-trigger" onclick="toggleMenuAzioni(this)" title="Azioni">
                 <i class="fas fa-ellipsis-v"></i>
             </button>
