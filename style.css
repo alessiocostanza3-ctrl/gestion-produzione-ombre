@@ -1609,6 +1609,11 @@ h1 {
     border-radius: 20px;
     font-size: 11px;
 }
+/* Popup della variante ordine: ancorato a destra per non uscire dallo schermo */
+.stato-dropdown-ord .stato-popup {
+    left: auto;
+    right: 0;
+}
 /* ── z-index: eleva il wrapper quando qualsiasi dropdown è aperto ────────── */
 .ordine-wrapper:has(.stato-dropdown.open),
 .ordine-wrapper:has(.op-dropdown.open),
