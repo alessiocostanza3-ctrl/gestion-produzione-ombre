@@ -1075,7 +1075,7 @@ function aggiornaListaFiltrabili() {
 let _ordiniAutocompleteCache = [];
 let _attiviProd = [];  // cache per il chart overview nella pagina produzione
 let _pollProdTimer = null; // timer polling produzione
-const _POLL_PROD_MS = 30000; // 30 secondi
+const _POLL_PROD_MS = 10000; // 10 secondi (aumentato da 30s per risposta più rapida)
 let _lastKanbanDragTs = 0; // timestamp ultimo drag kanban (evita revert poll)
 
 async function fetchJson(pagina, signal) {
@@ -4426,16 +4426,42 @@ async function aggiornaDato(selectEl, idRiga, campo, nuovoValore) {
         const r = await res.json();
         if (r && r.status === 'auth_error') {
             _gestisciAuthError_(r.message);
-            return;
+            return false;
         }
-        // Invalida la HTML cache così il prossimo fetch (proprio o altrui) prende dati freschi
+        if (r && r.status !== 'success') {
+            console.warn('Backend response:', r);
+            notificaElegante('⚠️ Cambio non salvato. Riprova.', 'warning');
+            return false;
+        }
+        // ✓ Salvataggio confermato dal backend
+        notificaElegante('✓ ' + (campo === 'stato' ? 'Stato' : 'Modifica') + ' salvato', 'success');
+        
+        // Invalida le cache
         delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
         cacheFetchTime['PROGRAMMA PRODUZIONE DEL MESE'] = 0;
         _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
+        
+        // ═════ FORCE SYNC IMMEDIATO DELLA OVERVIEW ═════
+        // Fetcha subito i dati aggiornati e sincronizza la UI senza aspettare il polling
+        if (paginaAttuale === 'PROGRAMMA PRODUZIONE DEL MESE') {
+            try {
+                const bundle = await fetch(URL_GOOGLE + '?azione=getAllDashboard').then(x => x.json());
+                if (bundle && bundle.produzione) {
+                    const newAttivi = (bundle.produzione || []).filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE');
+                    _patchProduzione(newAttivi, bundle.produzione, bundle.archivio || []);
+                    console.log('[Force sync] Overview aggiornata immediatamente');
+                }
+            } catch (err) {
+                console.warn('[Force sync] Errore nel fetch immediato:', err);
+                // Se il force-sync fallisce, il polling lo farà entro 10s
+            }
+        }
+        return true;
     } catch (e) {
         console.error('aggiornaDato error:', e);
         if (selectEl) selectEl.style.opacity = '1';
-        notificaElegante('Errore nel salvataggio dello stato. Riprova.');
+        notificaElegante('✗ Errore: cambio NON salvato. Riprova.', 'error');
+        return false;
     }
 }
 
@@ -5669,17 +5695,23 @@ function _initKanbanDnd() {
                 if (r) r.stato = newStato;
             }
         });
-        // Salva backend in modo sequenziale (evita contention del lock GAS)
-        // Usa aggiornaDato che ha già session token + error handling testati
+        // Salva backend in modo sequenziale + await per assicurare il salvataggio
+        // Usa aggiornaDato che ha già session token + error handling + force-sync
         _lastKanbanDragTs = Date.now();
         (async () => {
+            let anyFailed = false;
             for (const id of idRighe) {
-                await aggiornaDato(null, id, 'stato', newStato);
+                const ok = await aggiornaDato(null, id, 'stato', newStato);
+                if (!ok) anyFailed = true;
+            }
+            if (anyFailed) {
+                notificaElegante('⚠️ Qualche articolo potrebbe non essere stato salvato. Verifica.', 'warning');
             }
         })();
         // Sincronizza il dropdown stato per TUTTI gli articoli del gruppo nel pannello dettaglio
         idRighe.forEach(id => _syncStatoItemCard(id, newStato, colore));
-        notificaElegante(`Stato → ${newStato}`);
+        notificaElegante(`✓ Stato → ${newStato}`);
+
     }
     grid.addEventListener('pointerup', _onPointerUp);
     window.addEventListener('pointerup', _onPointerUp, { passive: true });
