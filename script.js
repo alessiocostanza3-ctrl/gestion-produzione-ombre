@@ -4410,8 +4410,8 @@ function selezionaStato(optBtn, idRiga, colore) {
     dropdown.classList.remove('open');
     const card = dropdown.closest('.item-card');
     if (card) card.classList.remove('stato-aperto');
-    // salva
-    aggiornaDato(null, idRiga, 'stato', nuovoStato);
+    // salva in background – skipForceSync=true: DOM già aggiornato ottimisticamente
+    aggiornaDato(null, idRiga, 'stato', nuovoStato, true);
     // aggiorna cache _attiviProd
     if (_attiviProd) {
         const r = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
@@ -4455,24 +4455,31 @@ function selezionaStatoOrdine(optBtn, nOrdine, nuovoStato, nuovoColore) {
 
     notificaElegante(`⏳ Aggiornamento stato ordine ${nOrdine}...`, 'info');
 
-    // Cambia stato su TUTTE le righe dell'ordine in background
+    // Cambia stato su TUTTE le righe dell'ordine in parallelo (skipForceSync=true)
     (async () => {
         try {
             const wrapper = document.querySelector(`.ordine-wrapper[data-ordine="${CSS.escape(nOrdine)}"]`);
             if (!wrapper) return;
 
             const righe = Array.from(wrapper.querySelectorAll('[data-id-riga]')).map(el => el.dataset.idRiga);
-            let successi = 0;
 
-            for (const idRiga of righe) {
-                const ok = await aggiornaDato(null, idRiga, 'stato', nuovoStato);
-                if (ok) successi++;
-            }
+            const risultati = await Promise.all(
+                righe.map(idRiga => aggiornaDato(null, idRiga, 'stato', nuovoStato, true))
+            );
+            const successi = risultati.filter(Boolean).length;
 
             if (successi === righe.length) {
                 notificaElegante(`✓ Ordine ${nOrdine} aggiornato a ${nuovoStato}`, 'success');
             } else {
                 notificaElegante(`⚠ ${successi}/${righe.length} righe aggiornate`, 'warning');
+            }
+
+            // Aggiorna cache _attiviProd per tutte le righe dell'ordine
+            if (_attiviProd) {
+                righe.forEach(idRiga => {
+                    const r = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
+                    if (r) r.stato = nuovoStato;
+                });
             }
         } catch (err) {
             notificaElegante('✗ Errore aggiornamento ordine', 'error');
@@ -4486,7 +4493,7 @@ function toggleAccordion(elemento) {
     const container = elemento.nextElementSibling;
     container.style.display = elemento.classList.contains('open') ? 'block' : 'none';
 }
-async function aggiornaDato(selectEl, idRiga, campo, nuovoValore) {
+async function aggiornaDato(selectEl, idRiga, campo, nuovoValore, skipForceSync = false) {
     // Feedback visivo immediato sull'elemento
     if (selectEl) selectEl.style.opacity = '0.5';
     try {
@@ -4520,8 +4527,8 @@ async function aggiornaDato(selectEl, idRiga, campo, nuovoValore) {
         _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
         
         // ═════ FORCE SYNC IMMEDIATO DELLA OVERVIEW ═════
-        // Fetcha subito i dati aggiornati e sincronizza la UI senza aspettare il polling
-        if (paginaAttuale === 'PROGRAMMA PRODUZIONE DEL MESE') {
+        // Saltato se skipForceSync=true (il polling da 30s sincronizzerà)
+        if (!skipForceSync && paginaAttuale === 'PROGRAMMA PRODUZIONE DEL MESE') {
             try {
                 const bundle = await fetch(URL_GOOGLE + '?azione=getAllDashboard').then(x => x.json());
                 if (bundle && bundle.produzione) {
@@ -4531,7 +4538,7 @@ async function aggiornaDato(selectEl, idRiga, campo, nuovoValore) {
                 }
             } catch (err) {
                 console.warn('[Force sync] Errore nel fetch immediato:', err);
-                // Se il force-sync fallisce, il polling lo farà entro 10s
+                // Se il force-sync fallisce, il polling lo farà entro 30s
             }
         }
         return true;
