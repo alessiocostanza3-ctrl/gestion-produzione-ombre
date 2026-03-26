@@ -309,31 +309,44 @@ function _getSessionToken_() {
 function _patchFetchWithSession_() {
     if (_fetchSessionPatchDone || typeof window.fetch !== 'function') return;
     const originalFetch = window.fetch.bind(window);
+
+    // Intercetta auth_error in background su ogni risposta GAS, senza consumare il body originale
+    function _intercettaAuthError_(resp) {
+        resp.clone().text().then(function(txt) {
+            try {
+                const data = JSON.parse(txt);
+                if (data && data.status === 'auth_error') {
+                    _gestisciAuthError_(data.message || data.msg || 'Sessione scaduta.');
+                }
+            } catch (e) {}
+        }).catch(function() {});
+        return resp;
+    }
+
     window.fetch = function(input, init) {
         try {
             const token = _getSessionToken_();
-            if (!token) return originalFetch(input, init);
-
             const rawUrl = (typeof input === 'string') ? input : (input && input.url ? input.url : '');
             if (!rawUrl || rawUrl.indexOf(URL_GOOGLE) !== 0) return originalFetch(input, init);
 
             const method = String((init && init.method) || 'GET').toUpperCase();
             if (method === 'GET') {
-                if (rawUrl.indexOf('sessionToken=') !== -1) return originalFetch(input, init);
-                const sep = rawUrl.indexOf('?') === -1 ? '?' : '&';
-                return originalFetch(rawUrl + sep + 'sessionToken=' + encodeURIComponent(token), init);
+                const urlConToken = (token && rawUrl.indexOf('sessionToken=') === -1)
+                    ? rawUrl + (rawUrl.indexOf('?') === -1 ? '?' : '&') + 'sessionToken=' + encodeURIComponent(token)
+                    : rawUrl;
+                return originalFetch(urlConToken, init).then(_intercettaAuthError_);
             }
-
             if (method === 'POST' && init && typeof init.body === 'string') {
                 try {
                     const payload = JSON.parse(init.body || '{}');
-                    if (!payload.sessionToken) {
+                    if (token && !payload.sessionToken) {
                         payload.sessionToken = token;
                         const nextInit = Object.assign({}, init, { body: JSON.stringify(payload) });
-                        return originalFetch(input, nextInit);
+                        return originalFetch(input, nextInit).then(_intercettaAuthError_);
                     }
                 } catch (e) {}
             }
+            return originalFetch(input, init).then(_intercettaAuthError_);
         } catch (e) {}
         return originalFetch(input, init);
     };
