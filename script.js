@@ -4373,16 +4373,18 @@ document.addEventListener('click', function(e) {
 function toggleStatoDropdown(btn) {
     const dropdown = btn.closest('.stato-dropdown');
     const itemCard = btn.closest('.item-card');
+    const rigaOrd  = btn.closest('.riga-ordine');
     const isOpen = dropdown.classList.contains('open');
     // chiudi tutti gli altri e togli la classe di elevazione
     document.querySelectorAll('.stato-dropdown.open').forEach(d => {
         d.classList.remove('open');
-        const c = d.closest('.item-card');
-        if (c) c.classList.remove('stato-aperto');
+        const c = d.closest('.item-card');   if (c) c.classList.remove('stato-aperto');
+        const r = d.closest('.riga-ordine'); if (r) r.classList.remove('stato-aperto-ord');
     });
     if (!isOpen) {
         dropdown.classList.add('open');
         if (itemCard) itemCard.classList.add('stato-aperto');
+        if (rigaOrd)  rigaOrd.classList.add('stato-aperto-ord');
     }
 }
 function selezionaStato(optBtn, idRiga, colore) {
