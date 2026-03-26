@@ -1300,6 +1300,7 @@ function aggiornaListaFiltrabili() {
 // Cache raw ordini per autocomplete nel modal
 let _ordiniAutocompleteCache = [];
 let _attiviProd = [];  // cache per il chart overview nella pagina produzione
+let _ultimiDatiProduzione = null; // ultimo bundle { produzione, archivio } (stale-while-revalidate)
 let _pollProdTimer = null; // timer polling produzione
 const _POLL_PROD_MS = 10000; // 10 secondi (aumentato da 30s per risposta più rapida)
 let _lastKanbanDragTs = 0; // timestamp ultimo drag kanban (evita revert poll)
@@ -2604,9 +2605,22 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
         case 'IMPOSTAZIONI':
             caricaInterfacciaImpostazioni();
             break;
-        case 'STORICO_RICHIESTE':
-            caricaPaginaRichieste(requestId, navSignal);
+        case 'STORICO_RICHIESTE': {
+            const _rqCont = document.getElementById('contenitore-dati');
+            if (_rqCont) {
+                _rqCont.innerHTML = "<div class='centered-msg' id='_ric-loader'>Caricamento messaggi in corso...</div>";
+            }
+            caricaSezioneConCache('STORICO_RICHIESTE', _fetchDatiRichieste, _renderDatiRichieste)
+                .catch(e => {
+                    if (e && e.name === 'AbortError') return;
+                    const c = document.getElementById('contenitore-dati');
+                    if (c) {
+                        c.innerHTML = "<div class='centered-error-bold'>Errore nel caricamento. <button onclick=\"cambiaPagina('STORICO_RICHIESTE',null)\" style=\"margin-left:8px;padding:4px 12px;background:#242424;color:#fff;border:none;border-radius:6px;cursor:pointer\">Riprova</button></div>";
+                        applicaFade(c);
+                    }
+                });
             break;
+        }
         case 'ARCHIVIO_ORDINI':
             caricaArchivio();
             break;
@@ -2625,8 +2639,25 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
         case 'TEST_HIVES_ANNUALE':
             caricaPaginaHivesTest();
             break;
-        default:
-            caricaDati(nomeFoglio, false, requestId, navSignal);
+        default: {
+            const _cpCont = document.getElementById('contenitore-dati');
+            if (_cpCont) {
+                _cpCont.innerHTML = "<div class='inline-msg' id='_prod-loader'>Caricamento Dashboard...</div>";
+                applicaFade(_cpCont);
+            }
+            caricaSezioneConCache('PROGRAMMA_PRODUZIONE', _fetchDatiProduzione, _renderDatiProduzione)
+                .catch(e => {
+                    if (e && e.name === 'AbortError') return;
+                    const c = document.getElementById('contenitore-dati');
+                    if (c) {
+                        c.innerHTML = `<div class='inline-error'>Errore nel caricamento dati.
+                            <button onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', null)"
+                                style="margin-left:8px;padding:4px 12px;background:#242424;color:#fff;border:none;border-radius:6px;cursor:pointer">
+                                &#x21bb; Riprova</button></div>`;
+                        applicaFade(c);
+                    }
+                });
+        }
     }
 }
 
@@ -3895,74 +3926,76 @@ function _pipReset() {
 
 //PAGINA PRODUZIONE//
 
-async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedRequestId = null, signal = null) {
+/** Fetch del bundle produzione dal GAS (o dal prefetch in volo). */
+async function _fetchDatiProduzione(signal = null) {
+    let _dashBundle = null;
+    if (window._prefetchDashBundle) {
+        _dashBundle = window._prefetchDashBundle;
+        window._prefetchDashBundle = null;
+        window._prefetchDashPromise = null;
+    } else if (window._prefetchDashPromise) {
+        _dashBundle = await window._prefetchDashPromise;
+        window._prefetchDashBundle = null;
+        window._prefetchDashPromise = null;
+    } else {
+        const _dashResp = await fetch(URL_GOOGLE + '?azione=getAllDashboard', signal ? { signal } : {});
+        if (!_dashResp.ok) throw new Error(`HTTP ${_dashResp.status}`);
+        _dashBundle = await _dashResp.json();
+    }
+    if (!_dashBundle) throw new Error('bundle vuoto');
+    return { produzione: _dashBundle.produzione || [], archivio: _dashBundle.archivio || [] };
+}
+
+/**
+ * Renderizza la pagina PRODUZIONE dai dati grezzi e aggiorna tutte le cache
+ * (HTML cacheContenuti, localStorage, IndexedDB ProdCache).
+ *
+ * @param {{ produzione: any[], archivio: any[] }} dati
+ * @param {boolean|null} _isBackground  true = aggiornamento in background (non mostrare loader),
+ *                                      null = auto-detect dal DOM
+ */
+function _renderDatiProduzione(dati, _isBackground = null) {
+    if (paginaAttuale !== 'PROGRAMMA PRODUZIONE DEL MESE') return;
+    _ultimiDatiProduzione = dati;
+
     const contenitore = document.getElementById('contenitore-dati');
-    if (!isBackgroundUpdate) {
-        contenitore.innerHTML = "<div class='inline-msg' id='_prod-loader'>Caricamento Dashboard...</div>";
-        applicaFade(contenitore);
+    if (!contenitore) return;
+
+    const nomeFoglio = 'PROGRAMMA PRODUZIONE DEL MESE';
+    const datiProd = dati.produzione || [];
+    const datiArch = dati.archivio || [];
+
+    // Detect background: da DOM se non specificato (chiamata da caricaSezioneConCache)
+    const isBackgroundUpdate = _isBackground !== null
+        ? _isBackground
+        : !!contenitore.querySelector('.ordine-wrapper');
+
+    // --- OVERVIEW STATI ---
+    const attivi = datiProd.filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE');
+    _attiviProd = attivi;
+    const STATI_OV = _getOvStatiAll();
+    const numInFocus = attivi.filter(r => STATI_OV.includes((r.stato||'').toUpperCase().trim())).length;
+
+    // --- SEZIONE ATTIVA ---
+    let htmlAttivi = generaBloccoOrdiniUnificato(datiProd, false);
+
+    // --- SEZIONE ARCHIVIATA ---
+    let htmlArchiviati = generaBloccoOrdiniUnificato(datiArch, true);
+
+    const isMobileOv = window.innerWidth <= 600;
+    const ovContent = isMobileOv
+        ? '<div class="ov-lazy-placeholder"><i class="fas fa-spinner fa-spin"></i></div>'
+        : _buildOverviewInnerHtml(attivi);
+
+    // Snapshot accordions aperti prima di sostituire il DOM (preserva stato UI)
+    const _openOrdini = new Set();
+    if (isBackgroundUpdate) {
+        contenitore.querySelectorAll('.ordine-wrapper').forEach(w => {
+            if (w.querySelector('.riga-ordine.open')) _openOrdini.add(w.dataset.ordine);
+        });
     }
 
-    // Retry button dopo 12s se ancora in caricamento
-    const retryTimer = isBackgroundUpdate ? null : setTimeout(() => {
-        const el = document.getElementById('_prod-loader');
-        if (el) el.innerHTML = `⚠️ Connessione lenta o server non raggiungibile.<br>
-            <button onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', null)"
-                style="margin-top:12px;padding:8px 20px;background:#242424;color:#fff;
-                       border:none;border-radius:8px;cursor:pointer;font-size:0.9rem">
-                &#x21bb; Riprova
-            </button>`;
-    }, 12000);
-
-    try {
-        // Usa il bundle già fetchato al boot (o attende la Promise in volo)
-        // così GAS viene chiamato UNA SOLA VOLTA invece di due volte in parallelo
-        let _dashBundle = null;
-        if (window._prefetchDashBundle) {
-            _dashBundle = window._prefetchDashBundle;
-            window._prefetchDashBundle = null;
-            window._prefetchDashPromise = null;
-        } else if (window._prefetchDashPromise) {
-            _dashBundle = await window._prefetchDashPromise;
-            window._prefetchDashBundle = null;
-            window._prefetchDashPromise = null;
-        } else {
-            const _dashResp = await fetch(URL_GOOGLE + '?azione=getAllDashboard', signal ? { signal } : {});
-            if (!_dashResp.ok) throw new Error(`HTTP ${_dashResp.status}`);
-            _dashBundle = await _dashResp.json();
-        }
-        if (!_dashBundle) throw new Error('bundle vuoto');
-        const [datiProd, datiArch] = [_dashBundle.produzione || [], _dashBundle.archivio || []];
-        if (retryTimer) clearTimeout(retryTimer);
-
-        if (paginaAttuale !== nomeFoglio) return;
-        if (expectedRequestId !== null && expectedRequestId !== _latestNavRequest) return;
-
-        // --- OVERVIEW STATI ---
-        const attivi = datiProd.filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE');
-        _attiviProd = attivi;
-        const STATI_OV = _getOvStatiAll();
-        const numInFocus = attivi.filter(r => STATI_OV.includes((r.stato||'').toUpperCase().trim())).length;
-
-        // --- SEZIONE ATTIVA ---
-        let htmlAttivi = generaBloccoOrdiniUnificato(datiProd, false);
-
-        // --- SEZIONE ARCHIVIATA ---
-        let htmlArchiviati = generaBloccoOrdiniUnificato(datiArch, true);
-
-        const isMobileOv = window.innerWidth <= 600;
-        const ovContent = isMobileOv
-            ? '<div class="ov-lazy-placeholder"><i class="fas fa-spinner fa-spin"></i></div>'
-            : _buildOverviewInnerHtml(attivi);
-
-        // Snapshot accordions aperti prima di sostituire il DOM (preserva stato UI)
-        const _openOrdini = new Set();
-        if (isBackgroundUpdate) {
-            contenitore.querySelectorAll('.ordine-wrapper').forEach(w => {
-                if (w.querySelector('.riga-ordine.open')) _openOrdini.add(w.dataset.ordine);
-            });
-        }
-
-        contenitore.innerHTML = `
+    contenitore.innerHTML = `
             <details class="ov-accordion" id="ov-accordion"${isMobileOv ? '' : ' open'}>
                 <summary class="ov-accordion-summary" onclick="_ovLoadIfNeeded(this)">
                     <span class="ov-summary-label"><i class="fas fa-layer-group"></i> Stato Avanzamento</span>
@@ -3992,57 +4025,88 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
                 </div>
             </details>
         `;
-        cacheContenuti[nomeFoglio] = contenitore.innerHTML;
-        cacheFetchTime[nomeFoglio] = Date.now();
-        _lsCacheSet('_html_' + nomeFoglio, contenitore.innerHTML); // cache cross-session
+    cacheContenuti[nomeFoglio] = contenitore.innerHTML;
+    cacheFetchTime[nomeFoglio] = Date.now();
+    _lsCacheSet('_html_' + nomeFoglio, contenitore.innerHTML); // cache cross-session
 
-        // Pre-popola la cache ARCHIVIO_ORDINI come side effect (ARCHIVIO è incluso nel bundle)
-        if (!cacheContenuti['ARCHIVIO_ORDINI']) {
-            const _archSideHtml = generaBloccoOrdiniUnificato(datiArch, true) || "<div class='empty-msg'>L'archivio \u00e8 vuoto.</div>";
-            cacheContenuti['ARCHIVIO_ORDINI'] = _archSideHtml;
-            cacheFetchTime['ARCHIVIO_ORDINI'] = Date.now();
-            _lsCacheSet('_html_ARCHIVIO_ORDINI', _archSideHtml);
-        }
+    // Salva in IndexedDB (sopravvive al reload)
+    ProdCache.set('PROGRAMMA_PRODUZIONE', dati).catch(() => {});
 
-        applicaFade(contenitore);
+    // Pre-popola la cache ARCHIVIO_ORDINI come side effect (ARCHIVIO è incluso nel bundle)
+    if (!cacheContenuti['ARCHIVIO_ORDINI']) {
+        const _archSideHtml = generaBloccoOrdiniUnificato(datiArch, true) || "<div class='empty-msg'>L'archivio \u00e8 vuoto.</div>";
+        cacheContenuti['ARCHIVIO_ORDINI'] = _archSideHtml;
+        cacheFetchTime['ARCHIVIO_ORDINI'] = Date.now();
+        _lsCacheSet('_html_ARCHIVIO_ORDINI', _archSideHtml);
+    }
 
-        // Ripristina accordion aperti dopo background update (preserva stato UI)
-        if (isBackgroundUpdate && _openOrdini.size) {
-            contenitore.querySelectorAll('.ordine-wrapper').forEach(w => {
-                if (_openOrdini.has(w.dataset.ordine)) {
-                    const riga = w.querySelector('.riga-ordine');
-                    const det  = w.querySelector('.dettagli-container');
-                    if (riga && det) { riga.classList.add('open'); det.style.display = 'block'; }
+    applicaFade(contenitore);
+
+    // Ripristina accordion aperti dopo background update (preserva stato UI)
+    if (isBackgroundUpdate && _openOrdini.size) {
+        contenitore.querySelectorAll('.ordine-wrapper').forEach(w => {
+            if (_openOrdini.has(w.dataset.ordine)) {
+                const riga = w.querySelector('.riga-ordine');
+                const det  = w.querySelector('.dettagli-container');
+                if (riga && det) { riga.classList.add('open'); det.style.display = 'block'; }
+            }
+        });
+    }
+
+    aggiornaListaFiltrabili();
+    // Observer: apri archivio quando ci si scorre sopra
+    _osservaArchivio('archivio-prod-details');
+    // Attiva drag & drop kanban (solo desktop)
+    requestAnimationFrame(_initKanbanDnd);
+    // Riapri automaticamente il blocco qty_evasa per le righe già valorizzate
+    requestAnimationFrame(() => {
+        if (_attiviProd) {
+            _attiviProd.forEach(r => {
+                if (parseFloat(r.qty_evasa) > 0) {
+                    const block = document.getElementById('qty-evasa-block-' + r.id_riga);
+                    const btn   = block && block.closest('.qty-cell')?.querySelector('.btn-qty-evasa-toggle');
+                    if (block) block.style.display = 'inline-flex';
+                    if (btn)   btn.classList.add('active');
                 }
             });
         }
+    });
+    // Avvia (o riavvia) il polling live degli stati
+    _startPollingProduzione();
 
-        aggiornaListaFiltrabili();
-        // Observer: apri archivio quando ci si scorre sopra
-        _osservaArchivio('archivio-prod-details');
-        // Attiva drag & drop kanban (solo desktop)
-        requestAnimationFrame(_initKanbanDnd);
-        // Riapri automaticamente il blocco qty_evasa per le righe già valorizzate
-        requestAnimationFrame(() => {
-            if (_attiviProd) {
-                _attiviProd.forEach(r => {
-                    if (parseFloat(r.qty_evasa) > 0) {
-                        const block = document.getElementById('qty-evasa-block-' + r.id_riga);
-                        const btn   = block && block.closest('.qty-cell')?.querySelector('.btn-qty-evasa-toggle');
-                        if (block) block.style.display = 'inline-flex';
-                        if (btn)   btn.classList.add('active');
-                    }
-                });
-            }
-        });
-        // Avvia (o riavvia) il polling live degli stati
-        _startPollingProduzione();
+    // Salva raw data per autocomplete del modal
+    _ordiniAutocompleteCache = datiProd.filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE').map(r => ({ ordine: r.ordine || '', cliente: r.cliente || '', riferimento: r.riferimento || '' }));
+    // Deduplication by ordine
+    const seen = new Set();
+    _ordiniAutocompleteCache = _ordiniAutocompleteCache.filter(o => { if (seen.has(o.ordine)) return false; seen.add(o.ordine); return true; });
+}
 
-        // Salva raw data per autocomplete del modal
-        _ordiniAutocompleteCache = datiProd.filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE').map(r => ({ ordine: r.ordine || '', cliente: r.cliente || '', riferimento: r.riferimento || '' }));
-        // Deduplication by ordine
-        const seen = new Set();
-        _ordiniAutocompleteCache = _ordiniAutocompleteCache.filter(o => { if (seen.has(o.ordine)) return false; seen.add(o.ordine); return true; });
+async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedRequestId = null, signal = null) {
+    const contenitore = document.getElementById('contenitore-dati');
+    if (!isBackgroundUpdate) {
+        contenitore.innerHTML = "<div class='inline-msg' id='_prod-loader'>Caricamento Dashboard...</div>";
+        applicaFade(contenitore);
+    }
+
+    // Retry button dopo 12s se ancora in caricamento
+    const retryTimer = isBackgroundUpdate ? null : setTimeout(() => {
+        const el = document.getElementById('_prod-loader');
+        if (el) el.innerHTML = `⚠️ Connessione lenta o server non raggiungibile.<br>
+            <button onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', null)"
+                style="margin-top:12px;padding:8px 20px;background:#242424;color:#fff;
+                       border:none;border-radius:8px;cursor:pointer;font-size:0.9rem">
+                &#x21bb; Riprova
+            </button>`;
+    }, 12000);
+
+    try {
+        const dati = await _fetchDatiProduzione(signal);
+        if (retryTimer) clearTimeout(retryTimer);
+
+        if (paginaAttuale !== nomeFoglio) return;
+        if (expectedRequestId !== null && expectedRequestId !== _latestNavRequest) return;
+
+        _renderDatiProduzione(dati, isBackgroundUpdate);
 
     } catch (e) {
         if (retryTimer) clearTimeout(retryTimer);
@@ -6295,6 +6359,28 @@ async function _loadFabbisognoProduzioneRows_() {
     return _buildFabbisognoProduzioneRows_(produzione);
 }
 
+/** Fetch del bundle richieste (+ fabbisogno produzione) dal GAS o dal prefetch in volo. */
+async function _fetchDatiRichieste(signal = null) {
+    let bundle = null;
+    if (window._prefetchRqBundle) {
+        bundle = window._prefetchRqBundle;
+        window._prefetchRqBundle = null;
+        window._prefetchRqPromise = null;
+    } else if (window._prefetchRqPromise) {
+        bundle = await window._prefetchRqPromise;
+        window._prefetchRqBundle = null;
+        window._prefetchRqPromise = null;
+    } else {
+        const resp = await fetch(URL_GOOGLE + '?azione=getAllRichieste', signal ? { signal } : {});
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        bundle = await resp.json();
+    }
+    if (!bundle) throw new Error('bundle vuoto');
+    let fabbisogno = [];
+    try { fabbisogno = await _loadFabbisognoProduzioneRows_(); } catch (e) { console.warn('Fabbisogno Produzione non disponibile:', e); }
+    return { attive: bundle.attive || [], archivio: bundle.archivio || [], fabbisogno };
+}
+
 async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
     const contenitore = document.getElementById('contenitore-dati');
     if (!contenitore) return;
@@ -6312,42 +6398,40 @@ async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
     }, 12000);
 
     try {
-        let _rqBundle = null;
-        if (window._prefetchRqBundle) {
-            _rqBundle = window._prefetchRqBundle;
-            window._prefetchRqBundle = null;
-            window._prefetchRqPromise = null;
-        } else if (window._prefetchRqPromise) {
-            _rqBundle = await window._prefetchRqPromise;
-            window._prefetchRqBundle = null;
-            window._prefetchRqPromise = null;
-        } else {
-            const _rqResp = await fetch(URL_GOOGLE + '?azione=getAllRichieste', signal ? { signal } : {});
-            if (!_rqResp.ok) throw new Error(`HTTP ${_rqResp.status}`);
-            _rqBundle = await _rqResp.json();
-        }
-        if (!_rqBundle) throw new Error('bundle vuoto');
-        const [messaggiAttivi, messaggiArchivio] = [_rqBundle.attive || [], _rqBundle.archivio || []];
+        const dati = await _fetchDatiRichieste(signal);
         clearTimeout(retryTimer);
 
-        if (expectedRequestId !== null && expectedRequestId !== _latestNavRequest) {
-            aggiornaBadgeSidebar(messaggiAttivi);
-            return;
-        }
+        aggiornaBadgeSidebar(dati.attive);
+        if (expectedRequestId !== null && expectedRequestId !== _latestNavRequest) return;
 
-        aggiornaBadgeSidebar(messaggiAttivi);
-        aggiornaBadgeNotifiche(messaggiAttivi);
+        aggiornaBadgeNotifiche(dati.attive);
+        _renderDatiRichieste(dati);
 
-        let fabbisognoRows = [];
-        try {
-            fabbisognoRows = await _loadFabbisognoProduzioneRows_();
-        } catch (fabbErr) {
-            console.warn('Fabbisogno Produzione non disponibile:', fabbErr);
-        }
+    } catch (e) {
+        clearTimeout(retryTimer);
+        if (e.name === 'AbortError') return;
+        console.error("Errore caricamento richieste:", e);
+        contenitore.innerHTML = "<div class='centered-error-bold'>Errore nel caricamento. <button onclick=\"cambiaPagina('STORICO_RICHIESTE',null)\" style=\"margin-left:8px;padding:4px 12px;background:#242424;color:#fff;border:none;border-radius:6px;cursor:pointer\">Riprova</button></div>";
+        applicaFade(contenitore);
+    }
+}
 
-        if (paginaAttuale !== 'STORICO_RICHIESTE') return;
+/**
+ * Renderizza la pagina STORICO_RICHIESTE dai dati grezzi e aggiorna tutte le cache.
+ *
+ * @param {{ attive: any[], archivio: any[], fabbisogno: any[] }} _dati
+ */
+function _renderDatiRichieste(_dati) {
+    if (paginaAttuale !== 'STORICO_RICHIESTE') return;
 
-        const io = utenteAttuale.nome.toUpperCase().trim();
+    const contenitore = document.getElementById('contenitore-dati');
+    if (!contenitore) return;
+
+    const messaggiAttivi   = _dati.attive     || [];
+    const messaggiArchivio = _dati.archivio   || [];
+    const fabbisognoRows   = _dati.fabbisogno || [];
+
+    const io = utenteAttuale.nome.toUpperCase().trim();
 
         const raggruppa = (dati) => {
             const gruppi = {};
@@ -6532,6 +6616,8 @@ async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
         cacheContenuti['STORICO_RICHIESTE'] = html;
         cacheFetchTime['STORICO_RICHIESTE'] = Date.now();
         _lsCacheSet('_html_STORICO_RICHIESTE', html); // cache cross-session
+        // Salva in IndexedDB (sopravvive al reload)
+        ProdCache.set('STORICO_RICHIESTE', _dati).catch(() => {});
         applicaFade(contenitore);
         aggiornaListaFiltrabili();
         _osservaArchivio('archivio-req-details');
@@ -6540,14 +6626,6 @@ async function caricaPaginaRichieste(expectedRequestId = null, signal = null) {
             const el = document.getElementById(id);
             if (el) el.value = "";
         });
-
-    } catch (e) {
-        clearTimeout(retryTimer);
-        if (e.name === 'AbortError') return;
-        console.error("Errore caricamento richieste:", e);
-        contenitore.innerHTML = "<div class='centered-error-bold'>Errore nel caricamento. <button onclick=\"cambiaPagina('STORICO_RICHIESTE',null)\" style=\"margin-left:8px;padding:4px 12px;background:#242424;color:#fff;border:none;border-radius:6px;cursor:pointer\">Riprova</button></div>";
-        applicaFade(contenitore);
-    }
 }
 function cambiaVistaUtente(valoreSelezionato) {
     // Salviamo la vista simulata
