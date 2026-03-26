@@ -110,11 +110,12 @@ const ProdCache = {
 /**
  * Carica una sezione usando il pattern stale-while-revalidate.
  *
- * @param {string}   chiave   Chiave cache (es. 'PROGRAMMA_PRODUZIONE')
- * @param {Function} fetchFn  async () => dati grezzi da GAS
- * @param {Function} renderFn (dati) => aggiorna la UI
+ * @param {string}   chiave       Chiave cache (es. 'PROGRAMMA_PRODUZIONE')
+ * @param {Function} fetchFn      async () => dati grezzi da GAS
+ * @param {Function} renderFn     (dati) => aggiorna la UI
+ * @param {boolean}  [forceRefresh] Se true, salta la cache e va diretto a GAS
  */
-async function caricaSezioneConCache(chiave, fetchFn, renderFn) {
+async function caricaSezioneConCache(chiave, fetchFn, renderFn, forceRefresh) {
     const ptrEl = document.getElementById('ptr-indicator');
 
     function _mostraSpinner() {
@@ -134,19 +135,24 @@ async function caricaSezioneConCache(chiave, fetchFn, renderFn) {
                d.getMinutes().toString().padStart(2, '0');
     }
 
-    // 1. Leggi la cache
+    // 1. Leggi la cache (skip se forceRefresh)
     let cached = null;
-    try { cached = await ProdCache.get(chiave); } catch (_e) {}
 
     let datiMostrati = null;
 
-    // 2. Se disponibile: mostra subito
-    if (cached) {
-        datiMostrati = cached.dati;
-        try { renderFn(cached.dati); } catch (e) { console.warn('[ProdCache] renderFn (cache):', e); }
-        if (cached.isStale) _mostraSpinner();
+    if (!forceRefresh) {
+        try { cached = await ProdCache.get(chiave); } catch (_e) {}
+
+        // 2. Se disponibile: mostra subito
+        if (cached) {
+            datiMostrati = cached.dati;
+            try { renderFn(cached.dati); } catch (e) { console.warn('[ProdCache] renderFn (cache):', e); }
+            if (cached.isStale) _mostraSpinner();
+        } else {
+            // Nessuna cache: mostra spinner mentre si aspetta GAS
+            _mostraSpinner();
+        }
     } else {
-        // Nessuna cache: mostra spinner mentre si aspetta GAS
         _mostraSpinner();
     }
 
@@ -4885,18 +4891,28 @@ function toggleAccordion(elemento) {
     container.style.display = elemento.classList.contains('open') ? 'block' : 'none';
 }
 async function aggiornaDato(selectEl, idRiga, campo, nuovoValore, skipForceSync = false) {
+    // ─── Optimistic locking: leggi last_modified dalla cache locale ───
+    let clientTimestamp = null;
+    if (_ultimiDatiProduzione && _ultimiDatiProduzione.produzione) {
+        const row = _ultimiDatiProduzione.produzione.find(x => String(x.id_riga) === String(idRiga));
+        if (row && row.last_modified) clientTimestamp = row.last_modified;
+    }
+
     // Feedback visivo immediato sull'elemento
     if (selectEl) selectEl.style.opacity = '0.5';
     try {
+        const bodyObj = {
+            azione:    'aggiorna_produzione',
+            id_riga:   idRiga,
+            colonna:   campo,
+            valore:    nuovoValore,
+            mittente:  (utenteAttuale && utenteAttuale.nome) ? utenteAttuale.nome.toUpperCase() : ''
+        };
+        if (clientTimestamp) bodyObj.clientTimestamp = clientTimestamp;
+
         const res = await fetch(URL_GOOGLE, {
             method: 'POST',
-            body: JSON.stringify({
-                azione:    'aggiorna_produzione',
-                id_riga:   idRiga,
-                colonna:   campo,
-                valore:    nuovoValore,
-                mittente:  (utenteAttuale && utenteAttuale.nome) ? utenteAttuale.nome.toUpperCase() : ''
-            })
+            body: JSON.stringify(bodyObj)
         });
         if (selectEl) selectEl.style.opacity = '1';
         const r = await res.json();
@@ -4904,6 +4920,23 @@ async function aggiornaDato(selectEl, idRiga, campo, nuovoValore, skipForceSync 
             _gestisciAuthError_(r.message);
             return false;
         }
+
+        // ─── Conflict detection (optimistic locking) ───
+        if (r && r.status === 'conflict') {
+            const chi = r.lastModifiedBy
+                ? r.lastModifiedBy.charAt(0).toUpperCase() + r.lastModifiedBy.slice(1).toLowerCase()
+                : 'Un altro utente';
+            notificaElegante('⚠️ ' + chi + ' ha già modificato questo articolo. Ricarico i dati...', 'warning');
+            ProdCache.invalidate('PROGRAMMA_PRODUZIONE').catch(() => {});
+            delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
+            cacheFetchTime['PROGRAMMA PRODUZIONE DEL MESE'] = 0;
+            _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
+            setTimeout(() => {
+                caricaSezioneConCache('PROGRAMMA_PRODUZIONE', _fetchDatiProduzione, _renderDatiProduzione, true);
+            }, 1500);
+            return false;
+        }
+
         if (r && r.status !== 'success') {
             console.warn('Backend response:', r);
             // Toast solo se non è un caller optimistic (skipForceSync=false)
@@ -4911,6 +4944,18 @@ async function aggiornaDato(selectEl, idRiga, campo, nuovoValore, skipForceSync 
             return false;
         }
         // ✓ Salvataggio confermato dal backend
+        // Aggiorna last_modified nella cache locale per evitare conflitti con sé stessi
+        if (r.last_modified) {
+            if (_ultimiDatiProduzione && _ultimiDatiProduzione.produzione) {
+                const row = _ultimiDatiProduzione.produzione.find(x => String(x.id_riga) === String(idRiga));
+                if (row) row.last_modified = r.last_modified;
+            }
+            if (_attiviProd) {
+                const row = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
+                if (row) row.last_modified = r.last_modified;
+            }
+        }
+
         // Toast solo se non è un caller optimistic (skipForceSync=false → il caller gestisce i propri toast)
         if (!skipForceSync) notificaElegante('✓ ' + (campo === 'stato' ? 'Stato' : 'Modifica') + ' salvato', 'success');
         
