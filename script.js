@@ -3943,7 +3943,7 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
             const _configStato = listaStati.find(s => s.nome === _statiBulk[0]) || {colore: "#e2e8f0"};
             const _statoOptsOrd = listaStati.map(st => {
                 const _nOrdS = nOrd.replace(/'/g, "\\'");
-                return `<button type="button" class="stato-option" onclick="selezionaStatoOrdine(this,'${_nOrdS}','${st.nome}')"><span class="stato-opt-dot" style="background:${st.colore}"></span><span>${st.nome}</span></button>`;
+                return `<button type="button" class="stato-option" onclick="event.stopPropagation(); selezionaStatoOrdine(this,'${_nOrdS}','${st.nome}','${st.colore}')"><span class="stato-opt-dot" style="background:${st.colore}"></span><span>${st.nome}</span></button>`;
             }).join('');
             _statoZoneOrd = `<div class="stato-dropdown stato-dropdown-ord" data-nord="${nOrd}"><button type="button" class="stato-trigger" onclick="event.stopPropagation(); toggleStatoDropdown(this)" title="Cambia stato tutte righe"><span class="stato-dot" style="background:${_configStato.colore}"></span><span class="stato-label-txt">${_statoBulkLbl}</span><i class="fas fa-chevron-down stato-chevron"></i></button><div class="stato-popup">${_statoOptsOrd}</div></div>`;
             console.log(`[Stato Dropdown] Ordine ${nOrd}: visibile per ${utenteAttuale?.nome}, stati=${_statiBulk.join(',')}`);
@@ -4435,35 +4435,40 @@ document.addEventListener('click', function(e) {
 /* ---- FINE STATO DROPDOWN CUSTOM ---- */
 
 /** Cambia lo stato di TUTTE le righe di un ordine e sincronizza */
-function selezionaStatoOrdine(optBtn, nOrdine, nuovoStato) {
+function selezionaStatoOrdine(optBtn, nOrdine, nuovoStato, nuovoColore) {
+    event.stopPropagation();
     const dropdown = optBtn.closest('.stato-dropdown-ord');
     if (!dropdown) return;
-    
-    const trigger = dropdown.querySelector('.stato-trigger-ord');
-    const labelEl = trigger.querySelector('.stato-trigger-label');
-    
-    // Aggiorna label del trigger
+
+    const trigger = dropdown.querySelector('.stato-trigger');
+    const labelEl = trigger ? trigger.querySelector('.stato-label-txt') : null;
+    const dot     = trigger ? trigger.querySelector('.stato-dot') : null;
+
+    // Aggiorna label e dot del trigger immediatamente
     if (labelEl) labelEl.textContent = nuovoStato;
-    
+    if (dot && nuovoColore) dot.style.background = nuovoColore;
+
     // Chiudi dropdown
     dropdown.classList.remove('open');
-    
+    const rigaOrd = dropdown.closest('.riga-ordine');
+    if (rigaOrd) rigaOrd.classList.remove('stato-aperto-ord');
+
     notificaElegante(`⏳ Aggiornamento stato ordine ${nOrdine}...`, 'info');
-    
+
     // Cambia stato su TUTTE le righe dell'ordine in background
     (async () => {
         try {
             const wrapper = document.querySelector(`.ordine-wrapper[data-ordine="${CSS.escape(nOrdine)}"]`);
             if (!wrapper) return;
-            
+
             const righe = Array.from(wrapper.querySelectorAll('[data-id-riga]')).map(el => el.dataset.idRiga);
             let successi = 0;
-            
+
             for (const idRiga of righe) {
                 const ok = await aggiornaDato(null, idRiga, 'stato', nuovoStato);
                 if (ok) successi++;
             }
-            
+
             if (successi === righe.length) {
                 notificaElegante(`✓ Ordine ${nOrdine} aggiornato a ${nuovoStato}`, 'success');
             } else {
