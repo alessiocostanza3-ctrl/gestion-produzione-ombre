@@ -5027,43 +5027,47 @@ async function gestisciArchiviazione(nOrd, tipo) {
         'Archivia Ordine',
         `Vuoi spostare l'ordine ${nOrd} nell'archivio?`,
         async () => {
-            // Rimozione ottimistica immediata dal DOM — nessuna attesa del server
-            const wrapper = document.querySelector(`.ordine-wrapper[data-ordine="${CSS.escape(nOrd)}"]`);
-            if (wrapper) {
-                wrapper.style.transition = 'opacity 0.18s, transform 0.18s';
-                wrapper.style.opacity = '0';
-                wrapper.style.transform = 'scale(0.97)';
-                setTimeout(() => wrapper.remove(), 180);
-            }
-            // Aggiorna cache in-memory subito
-            if (_attiviProd) {
-                _attiviProd = _attiviProd.filter(r => String(r.ordine || '').trim() !== String(nOrd).trim());
-            }
-            // Aggiorna anche il kanban se visibile (rimuove card ordine)
-            const kanbanItem = document.querySelector(`.ov-kanban-item[data-codice="${CSS.escape(nOrd)}"], .ov-kanban-item[data-ordine*="${nOrd}"]`);
-            if (kanbanItem) { kanbanItem.remove(); }
+            notificaElegante('⏳ Archiviazione in corso...', 'info');
 
-            notificaElegante('Ordine ' + nOrd + ' archiviato.');
-
-            // Manda al server in background — UI già aggiornata
             try {
                 const url = URL_GOOGLE + "?azione=archiviaOrdine&ordine=" + encodeURIComponent(nOrd);
                 const response = await fetch(url);
                 const risultato = await response.json();
+                
                 if (risultato.status === "success") {
-                    // Invalida cache così il prossimo caricamento è fresco
+                    // ✓ Successo — rimuovi dal DOM
+                    const wrapper = document.querySelector(`.ordine-wrapper[data-ordine="${CSS.escape(nOrd)}"]`);
+                    if (wrapper) {
+                        wrapper.style.transition = 'opacity 0.18s, transform 0.18s';
+                        wrapper.style.opacity = '0';
+                        wrapper.style.transform = 'scale(0.97)';
+                        setTimeout(() => wrapper.remove(), 180);
+                    }
+                    // Aggiorna cache in-memory
+                    if (_attiviProd) {
+                        _attiviProd = _attiviProd.filter(r => String(r.ordine || '').trim() !== String(nOrd).trim());
+                    }
+                    // Rimuovi dal kanban
+                    const kanbanItem = document.querySelector(`.ov-kanban-item[data-codice="${CSS.escape(nOrd)}"], .ov-kanban-item[data-ordine*="${nOrd}"]`);
+                    if (kanbanItem) { kanbanItem.remove(); }
+                    
+                    // Invalida cache
                     delete cacheContenuti['ARCHIVIO_ORDINI'];
                     delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
                     _lsCacheDel('_html_ARCHIVIO_ORDINI');
                     _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
+                    
+                    notificaElegante('✓ Ordine ' + nOrd + ' archiviato con successo', 'success');
                 } else {
-                    // Rollback: il server ha rifiutato — ricarica per ripristinare
-                    notificaElegante('Errore archiviazione: ' + risultato.message + '. Ricarico...', 'error');
-                    setTimeout(() => caricaDati(paginaAttuale), 1500);
+                    // ✗ Errore dal server — mostra messaggio e permetti retry
+                    const msgErr = (risultato.message || risultato.error || 'Errore sconosciuto').toString();
+                    notificaElegante('✗ Errore: ' + msgErr, 'error');
+                    console.error('Archiviazione fallita:', risultato);
                 }
             } catch (errore) {
-                notificaElegante('Errore di connessione. Ricarico...', 'error');
-                setTimeout(() => caricaDati(paginaAttuale), 1500);
+                // ✗ Errore rete/parsing — mostra messaggio
+                console.error('Errore archiviazione:', errore);
+                notificaElegante('✗ Errore di rete: ' + errore.message, 'error');
             }
         },
         'Archivia'
