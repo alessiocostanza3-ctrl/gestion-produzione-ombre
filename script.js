@@ -3948,6 +3948,9 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
                 return `<button type="button" class="stato-option" style="border-left:3px solid ${_col}" onclick="selezionaStatoOrdine(this,'${_nOrdS}','${_lbl}')">${_lbl}</button>`;
             }).join('');
             _statoZoneOrd = `<div class="stato-dropdown stato-dropdown-ord" data-nord="${nOrd}"><button type="button" class="stato-trigger stato-trigger-ord" onclick="event.stopPropagation(); toggleStatoDropdown(this)" title="Cambia stato tutte righe"><span class="stato-trigger-label" style="color:${_configStato.colore}">${_statoBulkLbl}</span><i class="fas fa-chevron-down stato-chevron"></i></button><div class="stato-popup">${_statoOptsOrd}</div></div>`;
+            console.log(`[Stato Dropdown] Ordine ${nOrd}: visibile per ${utenteAttuale?.nome}, stati=${_statiBulk.join(',')}`);
+        } else if (isArchivio || !_isUtenteEsente()) {
+            console.log(`[Stato Dropdown] Ordine ${nOrd}: NASCOSTO (isArchivio=${isArchivio}, esente=${_isUtenteEsente()})`);
         }
 
         // Azioni disponibili per questo ordine (active variant)
@@ -4557,6 +4560,7 @@ async function _controllaAutoArchivio() {
     // Controlla ogni ordine
     for (const [nOrd, righe] of ordiniMap) {
         const tutteSpedite = righe.every(r => String(r.stato || '').toUpperCase().trim() === 'SPEDITO/CONSEGNATO');
+        console.log(`[Auto-archivio check] ${nOrd}: [${righe.map(r => r.stato).join(', ')}] → tutteSpedite=${tutteSpedite}`);
         
         if (tutteSpedite) {
             try {
@@ -4576,6 +4580,8 @@ async function _controllaAutoArchivio() {
                     _attiviProd = _attiviProd.filter(r => String(r.ordine || '').trim() !== nOrd);
                     delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
                     console.log(`[Auto-archivio] Ordine ${nOrd} archiviato ✓`);
+                } else {
+                    console.warn(`[Auto-archivio] Errore per ${nOrd}: ${risultato.message}`);
                 }
             } catch (err) {
                 console.warn(`[Auto-archivio] Errore per ${nOrd}:`, err);
