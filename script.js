@@ -2084,19 +2084,26 @@ async function salvaEApriDashboard() {
     const tastoMenu = document.querySelector(`.menu-item[data-page="${paginaSalvata}"]`);
     cambiaPagina(paginaSalvata, tastoMenu);
 }
-function logout() {
+async function logout() {
     try {
+        // (a) Revoca token lato server — se fallisce, prosegui comunque
         const tokenLogout = _getSessionToken_();
         if (tokenLogout) {
-            fetch(URL_GOOGLE, {
-                method: 'POST',
-                body: JSON.stringify({ azione: 'logout', sessionToken: tokenLogout })
-            }).catch(function() {});
+            try {
+                await fetch(URL_GOOGLE, {
+                    method: 'POST',
+                    body: JSON.stringify({ azione: 'logout', sessionToken: tokenLogout })
+                });
+            } catch (_e) { console.warn('[Logout] Revoca token GAS fallita (offline?)', _e); }
         }
+
         if (_sessionRefreshTimer) {
             clearInterval(_sessionRefreshTimer);
             _sessionRefreshTimer = null;
         }
+
+        // (b) Cancella IndexedDB ProdCache
+        try { await ProdCache.clear(); } catch (_e) {}
 
         // Preserva i dati per-device (non legati alla sessione utente)
         const datiDevice = {};
@@ -2106,19 +2113,17 @@ function logout() {
             if (k && (k.startsWith('avatarColor_') || k.startsWith('avatarColorRecenti_') || k.startsWith('avatarColorHidden_') || keysDevice.includes(k))) datiDevice[k] = localStorage.getItem(k);
         }
 
-        // 1. Pulizia totale della memoria del browser
+        // (c) + (d) Pulizia totale della memoria del browser
         localStorage.clear();
         sessionStorage.clear();
 
         // Ripristina i dati per-device
         Object.entries(datiDevice).forEach(([k, v]) => { try { localStorage.setItem(k, v); } catch {} });
 
-        // 2. Reindirizzamento pulito alla pagina iniziale
-        // Aggiungiamo un parametro casuale per evitare che il browser usi la cache vecchia
+        // (e) Reindirizzamento pulito alla pagina iniziale
         window.location.href = window.location.origin + window.location.pathname + "?logout=" + Date.now();
 
     } catch (error) {
-        // Se c'è un errore imprevisto, forziamo comunque il ricaricamento
         console.error("Errore durante il logout:", error);
         window.location.reload();
     }
@@ -2617,12 +2622,21 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
                 _rqCont.innerHTML = "<div class='centered-msg' id='_ric-loader'>Caricamento messaggi in corso...</div>";
             }
             caricaSezioneConCache('STORICO_RICHIESTE', _fetchDatiRichieste, _renderDatiRichieste)
-                .catch(e => {
+                .catch(async e => {
                     if (e && e.name === 'AbortError') return;
-                    const c = document.getElementById('contenitore-dati');
-                    if (c) {
-                        c.innerHTML = "<div class='centered-error-bold'>Errore nel caricamento. <button onclick=\"cambiaPagina('STORICO_RICHIESTE',null)\" style=\"margin-left:8px;padding:4px 12px;background:#242424;color:#fff;border:none;border-radius:6px;cursor:pointer\">Riprova</button></div>";
-                        applicaFade(c);
+                    let cached = null;
+                    try { cached = await ProdCache.get('STORICO_RICHIESTE'); } catch (_) {}
+                    if (cached) {
+                        const ora = new Date(cached.timestamp);
+                        const hh = String(ora.getHours()).padStart(2, '0');
+                        const mm = String(ora.getMinutes()).padStart(2, '0');
+                        notificaElegante('Connessione assente — mostro dati salvati alle ' + hh + ':' + mm, 'warning');
+                    } else {
+                        const c = document.getElementById('contenitore-dati');
+                        if (c) {
+                            c.innerHTML = "<div class='centered-error-bold'>Errore nel caricamento. <button onclick=\"cambiaPagina('STORICO_RICHIESTE',null)\" style=\"margin-left:8px;padding:4px 12px;background:#242424;color:#fff;border:none;border-radius:6px;cursor:pointer\">Riprova</button></div>";
+                            applicaFade(c);
+                        }
                     }
                 });
             break;
@@ -2652,15 +2666,25 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
                 applicaFade(_cpCont);
             }
             caricaSezioneConCache('PROGRAMMA_PRODUZIONE', _fetchDatiProduzione, _renderDatiProduzione)
-                .catch(e => {
+                .catch(async e => {
                     if (e && e.name === 'AbortError') return;
-                    const c = document.getElementById('contenitore-dati');
-                    if (c) {
-                        c.innerHTML = `<div class='inline-error'>Errore nel caricamento dati.
-                            <button onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', null)"
-                                style="margin-left:8px;padding:4px 12px;background:#242424;color:#fff;border:none;border-radius:6px;cursor:pointer">
-                                &#x21bb; Riprova</button></div>`;
-                        applicaFade(c);
+                    // Mostra messaggio cache-aware
+                    let cached = null;
+                    try { cached = await ProdCache.get('PROGRAMMA_PRODUZIONE'); } catch (_) {}
+                    if (cached) {
+                        const ora = new Date(cached.timestamp);
+                        const hh = String(ora.getHours()).padStart(2, '0');
+                        const mm = String(ora.getMinutes()).padStart(2, '0');
+                        notificaElegante('Connessione assente — mostro dati salvati alle ' + hh + ':' + mm, 'warning');
+                    } else {
+                        const c = document.getElementById('contenitore-dati');
+                        if (c) {
+                            c.innerHTML = `<div class='inline-error'>Errore nel caricamento dati.
+                                <button onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', null)"
+                                    style="margin-left:8px;padding:4px 12px;background:#242424;color:#fff;border:none;border-radius:6px;cursor:pointer">
+                                    &#x21bb; Riprova</button></div>`;
+                            applicaFade(c);
+                        }
                     }
                 });
         }
@@ -9575,6 +9599,11 @@ document.addEventListener('DOMContentLoaded', async function() {
     let hasSession = false;
     try { hasSession = !!(localStorage.getItem('sessioneUtente') || sessionStorage.getItem('sessioneUtente')); } catch (e) {}
     if (!hasSession) return;
+
+    // 🔥 Pre-render dalla cache IndexedDB SUBITO (prima ancora delle impostazioni)
+    // Se c'è cache, l'utente vede i dati istantaneamente all'apertura
+    caricaSezioneConCache('PROGRAMMA_PRODUZIONE', _fetchDatiProduzione, _renderDatiProduzione)
+        .catch(e => { if (e && e.name !== 'AbortError') console.warn('[Boot] pre-render cache:', e); });
 
     // 🔥 Avvia subito warm-up GAS in background (senza await: non blocca la navigazione)
     _prefetchBackground();
