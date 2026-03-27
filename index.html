@@ -1004,5 +1004,33 @@
     </div>
   </div>
 
+  <!-- Modal conflitto di modifica (optimistic locking) -->
+  <div id="modal-conflitto" class="modal-overlay" style="display:none">
+    <div class="modal-content">
+      <h2 style="color:#e11d48">
+        <i class="fas fa-code-merge"></i> Conflitto di modifica
+      </h2>
+      <p id="conflitto-desc" class="modal-label" style="margin-top:12px"></p>
+      <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div style="border:1px solid var(--color-border-tertiary);border-radius:10px;padding:12px">
+          <div style="font-size:11px;font-weight:500;color:var(--color-text-secondary);margin-bottom:6px">LA TUA MODIFICA</div>
+          <div id="conflitto-tua" style="font-size:14px;font-weight:600"></div>
+        </div>
+        <div style="border:1px solid var(--color-border-tertiary);border-radius:10px;padding:12px">
+          <div style="font-size:11px;font-weight:500;color:var(--color-text-secondary);margin-bottom:6px">MODIFICA DI <span id="conflitto-altroUtente"></span></div>
+          <div id="conflitto-server" style="font-size:14px;font-weight:600"></div>
+        </div>
+      </div>
+      <div class="modal-footer" style="margin-top:20px">
+        <button type="button" onclick="_conflittoScegli('server')" class="btn-modal-cancel">
+          Usa la versione di <span id="conflitto-btn-altro"></span>
+        </button>
+        <button type="button" onclick="_conflittoScegli('client')" class="btn-modal-send">
+          <i class="fas fa-check"></i> Mantieni la mia
+        </button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>

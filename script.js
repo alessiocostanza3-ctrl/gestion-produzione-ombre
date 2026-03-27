@@ -2525,17 +2525,42 @@ window.addEventListener('online', function() {
     if (RevisionPoller._timer) RevisionPoller._check();
 });
 
-/* ── Modal di conferma generico ─────────────────────── */
+/* ── Modal conflitto di modifica (optimistic locking) ───────────── */
+let _conflittoCallbackClient = null;
+let _conflittoCallbackServer = null;
+
+function mostraModalConflitto(opzioni) {
+    _conflittoCallbackClient = opzioni.onSceglioClient || null;
+    _conflittoCallbackServer = opzioni.onSceglioServer || null;
+    const altroUtente = opzioni.altroUtente
+        ? String(opzioni.altroUtente).charAt(0).toUpperCase() + String(opzioni.altroUtente).slice(1).toLowerCase()
+        : 'un altro utente';
+    document.getElementById('conflitto-desc').textContent =
+        altroUtente + ' ha salvato questa riga mentre stavi modificando. Cosa vuoi fare?';
+    document.getElementById('conflitto-tua').textContent    = opzioni.tuaModifica    || '—';
+    document.getElementById('conflitto-server').textContent = opzioni.serverModifica  || '—';
+    document.getElementById('conflitto-altroUtente').textContent = altroUtente.toUpperCase();
+    document.getElementById('conflitto-btn-altro').textContent   = altroUtente;
+    const m = document.getElementById('modal-conflitto');
+    m.style.display = 'flex';
+    requestAnimationFrame(() => m.classList.add('active'));
+}
+
+function _conflittoScegli(scelta) {
+    const m = document.getElementById('modal-conflitto');
+    m.classList.remove('active');
+    setTimeout(() => { m.style.display = 'none'; }, 300);
+    if (scelta === 'client' && typeof _conflittoCallbackClient === 'function') {
+        _conflittoCallbackClient();
+    } else if (scelta === 'server' && typeof _conflittoCallbackServer === 'function') {
+        _conflittoCallbackServer();
+    }
+    _conflittoCallbackClient = null;
+    _conflittoCallbackServer = null;
+}
+
+/* ── Modal di conferma generico ——————————————————————— */
 function mostraConferma(titolo, messaggio, onOk, labelOk) {
-    const modal  = document.getElementById('modal-conferma');
-    const btnOk  = document.getElementById('modal-conferma-ok');
-    document.getElementById('modal-conferma-titolo').innerText = titolo;
-    document.getElementById('modal-conferma-msg').innerText    = messaggio;
-    btnOk.innerText = labelOk || 'Conferma';
-    modal.style.display = 'flex';
-    modal.offsetHeight;
-    modal.classList.add('active');
-    btnOk.onclick = () => { _chiudiConferma(); onOk(); };
 }
 function _chiudiConferma() {
     const modal = document.getElementById('modal-conferma');
@@ -5137,17 +5162,56 @@ async function aggiornaDato(selectEl, idRiga, campo, nuovoValore, skipForceSync 
 
         // ─── Conflict detection (optimistic locking) ───
         if (r && r.status === 'conflict') {
-            const chi = r.lastModifiedBy
-                ? r.lastModifiedBy.charAt(0).toUpperCase() + r.lastModifiedBy.slice(1).toLowerCase()
-                : 'Un altro utente';
-            notificaElegante('⚠️ ' + chi + ' ha già modificato questo articolo. Ricarico i dati...', 'warning');
-            ProdCache.invalidate('PROGRAMMA_PRODUZIONE').catch(() => {});
-            delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
-            cacheFetchTime['PROGRAMMA PRODUZIONE DEL MESE'] = 0;
-            _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
-            setTimeout(() => {
-                caricaSezioneConCache('PROGRAMMA_PRODUZIONE', _fetchDatiProduzione, _renderDatiProduzione, true);
-            }, 1500);
+            if (selectEl) selectEl.style.opacity = '1';
+            const serverData = r.serverData || {};
+            mostraModalConflitto({
+                altroUtente:    r.lastModifiedBy || serverData.last_modified_by || '',
+                tuaModifica:    nuovoValore,
+                serverModifica: campo === 'stato' ? (serverData.stato || '') : (serverData[campo] || ''),
+                onSceglioClient: async () => {
+                    const bodyForce = {
+                        azione:   'aggiorna_produzione',
+                        id_riga:  idRiga,
+                        colonna:  campo,
+                        valore:   nuovoValore,
+                        mittente: (utenteAttuale && utenteAttuale.nome) ? utenteAttuale.nome.toUpperCase() : '',
+                        force:    '1'
+                    };
+                    try {
+                        const resForce = await fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify(bodyForce) });
+                        const rf = await resForce.json();
+                        if (rf && rf.status === 'auth_error') { _gestisciAuthError_(rf.message); return; }
+                        if (rf && rf.last_modified) {
+                            if (_ultimiDatiProduzione && _ultimiDatiProduzione.produzione) {
+                                const rowf = _ultimiDatiProduzione.produzione.find(x => String(x.id_riga) === String(idRiga));
+                                if (rowf) { rowf.last_modified = rf.last_modified; rowf[campo] = nuovoValore; }
+                            }
+                            if (_attiviProd) {
+                                const rowf = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
+                                if (rowf) { rowf.last_modified = rf.last_modified; rowf[campo] = nuovoValore; }
+                            }
+                        }
+                        notificaElegante('✓ Modifica forzata salvata');
+                        ProdCache.invalidate('PROGRAMMA_PRODUZIONE').catch(() => {});
+                    } catch(eForce) { notificaElegante('⚠️ Errore durante il salvataggio forzato.', 'error'); }
+                },
+                onSceglioServer: () => {
+                    if (selectEl) { selectEl.value = serverData[campo] || serverData.stato || ''; selectEl.style.opacity = '1'; }
+                    if (_ultimiDatiProduzione && _ultimiDatiProduzione.produzione) {
+                        const rowS = _ultimiDatiProduzione.produzione.find(x => String(x.id_riga) === String(idRiga));
+                        if (rowS) {
+                            if (serverData.stato)             rowS.stato = serverData.stato;
+                            if (serverData.last_modified)     rowS.last_modified = serverData.last_modified;
+                            if (serverData.last_modified_by)  rowS.last_modified_by = serverData.last_modified_by;
+                        }
+                    }
+                    if (_attiviProd) {
+                        const rowS = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
+                        if (rowS && serverData.stato) rowS.stato = serverData.stato;
+                    }
+                    notificaElegante('🔄 Aggiornato con la versione del server');
+                }
+            });
             return false;
         }
 
