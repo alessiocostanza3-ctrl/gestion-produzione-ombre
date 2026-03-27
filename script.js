@@ -2399,10 +2399,13 @@ function aggiornaBadgeSidebar(messaggi) {
     }
 
     const rilevanti = messaggi.filter(m => {
-        const dest      = String(m.A || '').toUpperCase().trim();
         const nonRisolto = String(m.RISOLTO).toLowerCase() !== 'true';
         if (vistaAttiva === 'MASTER') return nonRisolto;
-        return dest === vistaAttiva && nonRisolto;
+        // Il campo A può contenere destinatari multipli separati da virgola
+        var destMatch = String(m.A || '').split(',').some(function(d) {
+            return d.trim().toUpperCase() === vistaAttiva;
+        });
+        return destMatch && nonRisolto;
     });
 
     const conteggio    = rilevanti.length;
@@ -5524,7 +5527,7 @@ async function inviaRisposta(idRiga, nOrdine, destinatario, cliente) {
         tipo: 'RISPOSTA',
         messaggio: testo,
         mittente: utenteAttuale.nome.toUpperCase().trim(),
-        destinatari: [destinatario.toUpperCase().trim()]
+        destinatari: String(destinatario).split(',').map(d => d.trim().toUpperCase()).filter(Boolean)
     };
     fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify(payload) })
         .then(() => { if (paginaAttuale === 'STORICO_RICHIESTE') caricaPaginaRichieste().catch(() => {}); })
@@ -6649,9 +6652,14 @@ function _renderDatiRichieste(_dati) {
         const _coinvolto = (() => {
             if (_isUtenteEsente()) return () => true;          // MASTER / ALESSIO vedono tutto
             const ioN = _normNome(utenteAttuale.nome).toUpperCase();
-            return (msgs) => msgs.some(m =>
-                _normNome(m.DA || '').toUpperCase() === ioN ||
-                _normNome(m.A  || '').toUpperCase() === ioN);
+            return (msgs) => msgs.some(m => {
+                if (_normNome(m.DA || '').toUpperCase() === ioN) return true;
+                // Il campo A può contenere destinatari multipli separati da virgola
+                var destStr = String(m.A || '');
+                return destStr.split(',').some(function(d) {
+                    return _normNome(d.trim()).toUpperCase() === ioN;
+                });
+            });
         })();
         const _filtraGruppi = (g) => {
             const out = {};
@@ -6947,7 +6955,8 @@ function generaCardRichiesta(msgs, io, isArchiviata) {
 
     // Mittente e destinatario presi dal PRIMO messaggio (le risposte non cambiano il mittente originale)
     const mittenteUnico = _normNome(primo.DA) || '—';
-    const destinatariOriginali = [_normNome(primo.A)].filter(Boolean);
+    // Supporta destinatari multipli separati da virgola (es. "RICCARDO, FABIO T.")
+    const destinatariOriginali = String(primo.A || '').split(',').map(d => _normNome(d.trim())).filter(Boolean);
     const destinatariHtml = destinatariOriginali.length > 1
         ? destinatariOriginali.map(d => `<span class="rc-val rc-val-a">${d}</span>`).join('<span style="color:#cbd5e1;margin:0 1px">,</span> ')
         : `<span class="rc-val rc-val-a">${destinatariOriginali[0] || '—'}</span>`;
@@ -7025,8 +7034,8 @@ function generaCardRichiesta(msgs, io, isArchiviata) {
                     <div class="reply-wrapper">
                         <textarea id="input-risposta-${ultimo.id_riga}" class="reply-input" placeholder="Scrivi una risposta..."></textarea>
                         <div class="reply-footer">
-                            <span class="reply-hint"><i class="fa-regular fa-paper-plane"></i> Risposta a <b>${_normNome(ultimo.DA === io ? ultimo.A : ultimo.DA)}</b></span>
-                            <button onclick="inviaRisposta('${ultimo.id_riga}', '${nOrd}', '${ultimo.DA === io ? ultimo.A : ultimo.DA}', '${nomeCliente.replace(/'/g,"\\'")}')" class="btn-reply-send">
+                            <span class="reply-hint"><i class="fa-regular fa-paper-plane"></i> Risposta a <b>${_normNome(primo.DA).toUpperCase() === io ? destinatariOriginali.join(', ') : _normNome(primo.DA)}</b></span>
+                            <button onclick="inviaRisposta('${ultimo.id_riga}', '${nOrd}', '${primo.DA.toUpperCase().trim() === io ? String(primo.A || '').trim() : primo.DA}', '${nomeCliente.replace(/'/g,"\\'")}')" class="btn-reply-send">
                                 <i class="fa-solid fa-paper-plane"></i> Invia
                             </button>
                         </div>
