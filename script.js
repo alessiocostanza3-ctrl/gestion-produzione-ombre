@@ -2089,10 +2089,13 @@ async function salvaEApriDashboard() {
     }
     const tastoMenu = document.querySelector(`.menu-item[data-page="${paginaSalvata}"]`);
     cambiaPagina(paginaSalvata, tastoMenu);
+
+    RevisionPoller.start();
 }
 function logout() {
     if (logout._running) return;   // anti-rientro
     logout._running = true;
+    RevisionPoller.stop();
     try {
         // (a) Revoca token lato server — fire-and-forget (non blocca il redirect)
         const tokenLogout = _getSessionToken_();
@@ -2344,6 +2347,123 @@ document.addEventListener('visibilitychange', function() {
     if (document.visibilityState === 'visible' && paginaAttuale === 'PROGRAMMA PRODUZIONE DEL MESE') {
         _pollProdStep();
     }
+});
+
+/* ── RevisionPoller: polling globale revisione dati ──────────────────────
+   Controlla ogni 15s (8s in focus) se altri utenti hanno scritto dati.
+   Se la revisione è cambiata, ricarica la sezione corrente.
+───────────────────────────────────────────────────────────────────────── */
+const RevisionPoller = {
+    INTERVAL_MS: 15000,
+    INTERVAL_FOCUS_MS: 8000,
+    INTERVAL_BG_MS: 30000,
+    _timer: null,
+    _lastRevision: null,
+    _lastCheck: 0,
+    _paused: false,
+
+    start: function() {
+        this.stop();
+        this._lastRevision = null;
+        this._paused = false;
+        this._schedule(document.hidden ? this.INTERVAL_BG_MS : this.INTERVAL_FOCUS_MS);
+    },
+
+    stop: function() {
+        if (this._timer) { clearTimeout(this._timer); this._timer = null; }
+        this._lastRevision = null;
+        this._paused = false;
+    },
+
+    pauseFor: function(resumeAfterMs) {
+        if (!resumeAfterMs) resumeAfterMs = 5000;
+        this._paused = true;
+        var self = this;
+        setTimeout(function() { self._paused = false; }, resumeAfterMs);
+    },
+
+    _schedule: function(ms) {
+        if (this._timer) clearTimeout(this._timer);
+        var self = this;
+        this._timer = setTimeout(function() { self._tick(); }, ms);
+    },
+
+    _tick: function() {
+        var self = this;
+        this._check().finally(function() {
+            var interval = document.hidden ? self.INTERVAL_BG_MS
+                : (document.hasFocus && document.hasFocus() ? self.INTERVAL_FOCUS_MS : self.INTERVAL_MS);
+            self._schedule(interval);
+        });
+    },
+
+    _check: async function() {
+        if (this._paused) return;
+        var controller = new AbortController();
+        var timeoutId = setTimeout(function() { controller.abort(); }, 5000);
+        try {
+            var resp = await fetch(URL_GOOGLE + '?azione=getRevision', { signal: controller.signal });
+            clearTimeout(timeoutId);
+            var data = await resp.json();
+            if (!data || data.status !== 'ok') return;
+            var rev = Number(data.revision);
+            this._lastCheck = Date.now();
+
+            if (this._lastRevision === null) {
+                this._lastRevision = rev;
+                return;
+            }
+            if (rev === this._lastRevision) return;
+
+            var nomeAttuale = (utenteAttuale && utenteAttuale.nome)
+                ? utenteAttuale.nome.toUpperCase() : '';
+            var utenteRev = data.utente ? String(data.utente).toUpperCase() : '';
+
+            this._lastRevision = rev;
+
+            if (utenteRev === nomeAttuale) return;
+
+            this._reloadSezioneAttuale();
+            var chi = data.utente || 'Qualcuno';
+            notificaElegante('\uD83D\uDD04 ' + chi + ' ha aggiornato i dati');
+        } catch (e) {
+            clearTimeout(timeoutId);
+            if (e && e.name !== 'AbortError') console.warn('[RevisionPoller]', e);
+        }
+    },
+
+    _reloadSezioneAttuale: function() {
+        switch (paginaAttuale) {
+            case 'PROGRAMMA PRODUZIONE DEL MESE':
+                caricaSezioneConCache('PROGRAMMA_PRODUZIONE', _fetchDatiProduzione, _renderDatiProduzione, true);
+                break;
+            case 'STORICO_RICHIESTE':
+                caricaSezioneConCache('STORICO_RICHIESTE', _fetchDatiRichieste, _renderDatiRichieste, true);
+                break;
+            case 'MATERIALE DA ORDINARE':
+                caricaMateriali(true);
+                break;
+            case 'ARCHIVIO_ORDINI':
+                if (typeof caricaArchivio === 'function') caricaArchivio();
+                break;
+        }
+    }
+};
+
+// RevisionPoller: check immediato quando la tab torna visibile
+document.addEventListener('visibilitychange', function() {
+    if (!RevisionPoller._timer) return;
+    if (!document.hidden) {
+        RevisionPoller._check();
+        RevisionPoller._schedule(RevisionPoller.INTERVAL_FOCUS_MS);
+    } else {
+        RevisionPoller._schedule(RevisionPoller.INTERVAL_BG_MS);
+    }
+});
+
+// RevisionPoller: check immediato quando si torna online
+window.addEventListener('online', function() {
+    if (RevisionPoller._timer) RevisionPoller._check();
 });
 
 /* ── Modal di conferma generico ─────────────────────── */
@@ -4453,6 +4573,7 @@ async function confermaInvioSollecito() {
     const note    = document.getElementById('sollecito-note').value.trim();
     if (!data) { notificaElegante('Seleziona una data di scadenza.', 'error'); return; }
     chiudiModalSollecito();
+    RevisionPoller.pauseFor(6000);
     delete cacheContenuti['STORICO_RICHIESTE']; delete cacheFetchTime['STORICO_RICHIESTE'];
     _lsCacheDel('_html_STORICO_RICHIESTE');
     window._prefetchRqBundle = null; window._prefetchRqPromise = null;
@@ -4924,6 +5045,7 @@ function toggleAccordion(elemento) {
     container.style.display = elemento.classList.contains('open') ? 'block' : 'none';
 }
 async function aggiornaDato(selectEl, idRiga, campo, nuovoValore, skipForceSync = false) {
+    RevisionPoller.pauseFor(6000);
     // ─── Optimistic locking: leggi last_modified dalla cache locale ───
     let clientTimestamp = null;
     if (_ultimiDatiProduzione && _ultimiDatiProduzione.produzione) {
@@ -5409,7 +5531,9 @@ function chiudiModal() {
 async function confermaInvioSupporto() {
     const modalElement = document.getElementById('modalAiuto');
     if (!modalElement) return;
+    RevisionPoller.pauseFor(6000);
 
+    try {
     const idRiga = modalElement.dataset.idRiga;
     const ordineRow   = document.getElementById('modal-ordine-row');
     const ordineInput = document.getElementById('modal-ordine-input');
@@ -5465,6 +5589,7 @@ async function confermaInvioSupporto() {
             caricaDati(paginaAttuale).catch(() => {});
         }
     });
+    } catch (e) { notificaElegante('Errore invio richiesta.', 'error'); }
 }
 function toggleAreaRisposta(id) {
     const box = document.getElementById('box-risposta-' + id);
@@ -5505,10 +5630,12 @@ function toggleBoxArchivia(id) {
     }
 }
 async function inviaRisposta(idRiga, nOrdine, destinatario, cliente) {
+    try {
     const input = document.getElementById('input-risposta-' + idRiga);
     const testo = input.value.trim();
     if (!testo) return;
 
+    RevisionPoller.pauseFor(6000);
     // ── Reset UI immediato ──
     input.value = '';
     toggleAreaRisposta(idRiga); // chiude il box risposta subito
@@ -5532,6 +5659,7 @@ async function inviaRisposta(idRiga, nOrdine, destinatario, cliente) {
     fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify(payload) })
         .then(() => { if (paginaAttuale === 'STORICO_RICHIESTE') caricaPaginaRichieste().catch(() => {}); })
         .catch(() => {});
+    } catch (e) { notificaElegante('Errore invio risposta.', 'error'); }
 }
 
 
@@ -8009,6 +8137,7 @@ async function _toggleOrdinato(idRiga, btn) {
     const wasOrdinato = row.classList.contains('is-ordinato');
     const nuovoStato  = wasOrdinato ? 'IN ATTESA' : 'ORDINATO';
     btn.disabled = true;
+    RevisionPoller.pauseFor(6000);
     try {
         const r = await fetch(URL_GOOGLE, {
             method: 'POST',
@@ -8413,6 +8542,7 @@ async function inviaOrdineAcquisti() {
       const conferma = confirm(`Vuoi inviare la lista di ${carrelloLocale.length} articoli all'ufficio acquisti?`);
       if (!conferma) return;
 
+      RevisionPoller.pauseFor(6000);
       const btnInvia = document.getElementById('btn-invia-alessio');
       if (btnInvia) { btnInvia.disabled = true; btnInvia.innerText = 'Invio in corso...'; }
 
@@ -8576,7 +8706,7 @@ document.addEventListener('click', () => {
 
   if (!nome) return alert("Inserisci il nome!");
 
-
+  RevisionPoller.pauseFor(6000);
 
   const payload = {
 
@@ -8634,6 +8764,7 @@ document.addEventListener('click', () => {
   async function duplicaArticolo(idRiga, nome, fornitore, codice) {
     mostraConferma('Duplica Articolo', `Duplicare l'articolo: "${nome}"?`, async () => {
 
+    RevisionPoller.pauseFor(6000);
     const cardOriginale = document.querySelector(`[data-id="${idRiga}"]`).closest('.materiale-card');
 
     // Generiamo un ID temporaneo basato sul tempo per rendere il menu unico
@@ -8757,6 +8888,7 @@ document.addEventListener('click', () => {
       const idRiga = document.getElementById('sposta-id-riga').value;
       const sezione = document.getElementById('sposta-sezione-select').value;
       chiudiModalSpostaSezione();
+      RevisionPoller.pauseFor(6000);
       try {
           await fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify({ azione: 'spostaSezione', id_riga: idRiga, sezione }) });
           delete cacheContenuti['MATERIALE DA ORDINARE'];
@@ -8785,6 +8917,7 @@ document.addEventListener('click', () => {
       if (!nuovoNome || nuovoNome === vecchioNome) { chiudiModalRinominaSezione(); return; }
       if (sezioniMateriali.includes(nuovoNome)) { notificaElegante('Esiste già una sezione con questo nome.', 'error'); return; }
       chiudiModalRinominaSezione();
+      RevisionPoller.pauseFor(6000);
       // Aggiorna array locale
       sezioniMateriali = sezioniMateriali.map(s => s === vecchioNome ? nuovoNome : s);
       localStorage.setItem('sezioniMateriali', JSON.stringify(sezioniMateriali));
@@ -8849,6 +8982,7 @@ document.addEventListener('click', () => {
   }
   async function eliminaArticolo(idRiga) {
     mostraConferma('Elimina Articolo', 'Eliminare definitivamente questo articolo dal catalogo?', async () => {
+        RevisionPoller.pauseFor(6000);
         const card = document.querySelector(`[data-id="${idRiga}"]`).closest('.materiale-card');
         card.style.transition = "all 0.3s ease";
         card.style.transform = "scale(0.8)";
