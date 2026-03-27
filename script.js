@@ -2113,6 +2113,7 @@ function logout() {
     if (logout._running) return;   // anti-rientro
     logout._running = true;
     RevisionPoller.stop();
+    _stopPollingProduzione();
     try {
         // (a) Revoca token lato server — fire-and-forget (non blocca il redirect)
         const tokenLogout = _getSessionToken_();
@@ -5192,6 +5193,7 @@ async function aggiornaDato(selectEl, idRiga, campo, nuovoValore, skipForceSync 
                 tuaModifica:    nuovoValore,
                 serverModifica: campo === 'stato' ? (serverData.stato || '') : (serverData[campo] || ''),
                 onSceglioClient: async () => {
+                    RevisionPoller.pauseFor(6000);
                     const bodyForce = {
                         azione:   'aggiorna_produzione',
                         id_riga:  idRiga,
@@ -7943,7 +7945,7 @@ function caricaInterfacciaImpostazioni() {
 
                 ${utenteAttuale.ruolo === 'MASTER' ? `
                 <!-- ROW: Diagnostica Sync -->
-                <div class="settings-row" onclick="toggleSettingsSection('section-diag-sync', this); _aggiornaDiagnosticaSync()">
+                <div class="settings-row" onclick="toggleSettingsSection('section-diag-sync', this); if(document.getElementById('section-diag-sync').style.display==='block') _aggiornaDiagnosticaSync()">
                     <div class="settings-row-left">
                         <div class="settings-row-icon"><i class="fas fa-stethoscope"></i></div>
                         <div>
