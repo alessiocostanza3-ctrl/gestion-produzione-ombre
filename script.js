@@ -646,7 +646,13 @@ document.addEventListener('visibilitychange', function() {
  * Gestisce risposte auth_error dal server GAS.
  * Mostra un messaggio e forza il re-login dopo 2 secondi.
  */
+let _authErrorLogoutScheduled_ = false;
 function _gestisciAuthError_(messaggio) {
+    // Se il logout è già schedulato o siamo sulla pagina di login, non ripetere
+    if (_authErrorLogoutScheduled_) return;
+    var ov = document.getElementById('login-overlay');
+    if (ov && ov.style.display !== 'none') return;
+    _authErrorLogoutScheduled_ = true;
     notificaElegante(
         messaggio || 'Sessione scaduta. Effettua nuovamente il login.',
         'error'
@@ -2084,17 +2090,17 @@ async function salvaEApriDashboard() {
     const tastoMenu = document.querySelector(`.menu-item[data-page="${paginaSalvata}"]`);
     cambiaPagina(paginaSalvata, tastoMenu);
 }
-async function logout() {
+function logout() {
+    if (logout._running) return;   // anti-rientro
+    logout._running = true;
     try {
-        // (a) Revoca token lato server — se fallisce, prosegui comunque
+        // (a) Revoca token lato server — fire-and-forget (non blocca il redirect)
         const tokenLogout = _getSessionToken_();
         if (tokenLogout) {
-            try {
-                await fetch(URL_GOOGLE, {
-                    method: 'POST',
-                    body: JSON.stringify({ azione: 'logout', sessionToken: tokenLogout })
-                });
-            } catch (_e) { console.warn('[Logout] Revoca token GAS fallita (offline?)', _e); }
+            fetch(URL_GOOGLE, {
+                method: 'POST',
+                body: JSON.stringify({ azione: 'logout', sessionToken: tokenLogout })
+            }).catch(function() {});
         }
 
         if (_sessionRefreshTimer) {
@@ -2102,8 +2108,8 @@ async function logout() {
             _sessionRefreshTimer = null;
         }
 
-        // (b) Cancella IndexedDB ProdCache
-        try { await ProdCache.clear(); } catch (_e) {}
+        // (b) Cancella IndexedDB ProdCache (fire-and-forget, non blocca)
+        try { ProdCache.clear(); } catch (_e) {}
 
         // Preserva i dati per-device (non legati alla sessione utente)
         const datiDevice = {};
@@ -9597,13 +9603,26 @@ document.addEventListener('DOMContentLoaded', async function() {
     _pageInitDone = true;
 
     let hasSession = false;
-    try { hasSession = !!(localStorage.getItem('sessioneUtente') || sessionStorage.getItem('sessioneUtente')); } catch (e) {}
-    if (!hasSession) return;
+    let sessionToken = '';
+    try {
+        var _rawBoot = localStorage.getItem('sessioneUtente') || sessionStorage.getItem('sessioneUtente');
+        if (_rawBoot) {
+            hasSession = true;
+            var _pBoot = JSON.parse(_rawBoot);
+            sessionToken = (_pBoot && _pBoot.sessionToken) ? _pBoot.sessionToken : '';
+        }
+    } catch (e) {}
+    if (!hasSession || !sessionToken) return;
 
-    // 🔥 Pre-render dalla cache IndexedDB SUBITO (prima ancora delle impostazioni)
-    // Se c'è cache, l'utente vede i dati istantaneamente all'apertura
-    caricaSezioneConCache('PROGRAMMA_PRODUZIONE', _fetchDatiProduzione, _renderDatiProduzione)
-        .catch(e => { if (e && e.name !== 'AbortError') console.warn('[Boot] pre-render cache:', e); });
+    // 🔥 Pre-render dalla cache IndexedDB SUBITO (solo cache locale, no fetch GAS)
+    // Mostra dati salvati istantaneamente; il fetch GAS parte dopo da caricaDatiIniziali
+    try {
+        ProdCache.get('PROGRAMMA_PRODUZIONE').then(function(cached) {
+            if (cached && cached.dati) {
+                try { _renderDatiProduzione(cached.dati); } catch(_e) {}
+            }
+        }).catch(function() {});
+    } catch (_e) {}
 
     // 🔥 Avvia subito warm-up GAS in background (senza await: non blocca la navigazione)
     _prefetchBackground();
