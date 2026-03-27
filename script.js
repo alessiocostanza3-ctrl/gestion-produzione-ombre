@@ -2357,7 +2357,9 @@ const RevisionPoller = {
     INTERVAL_MS: 15000,
     INTERVAL_FOCUS_MS: 8000,
     INTERVAL_BG_MS: 30000,
+    PING_INTERVAL_MS: 60000,
     _timer: null,
+    _pingTimer: null,
     _lastRevision: null,
     _lastCheck: 0,
     _paused: false,
@@ -2367,12 +2369,20 @@ const RevisionPoller = {
         this._lastRevision = null;
         this._paused = false;
         this._schedule(document.hidden ? this.INTERVAL_BG_MS : this.INTERVAL_FOCUS_MS);
+        // Primo ping dopo 5s, poi ogni 60s
+        this._schedulePing(5000);
     },
 
     stop: function() {
         if (this._timer) { clearTimeout(this._timer); this._timer = null; }
+        if (this._pingTimer) { clearTimeout(this._pingTimer); this._pingTimer = null; }
         this._lastRevision = null;
         this._paused = false;
+        // Rimuovi indicatore online dal DOM
+        var _oi = document.getElementById('online-indicator');
+        if (_oi) _oi.remove();
+        var _oim = document.getElementById('online-indicator-mob');
+        if (_oim) _oim.remove();
     },
 
     pauseFor: function(resumeAfterMs) {
@@ -2432,6 +2442,28 @@ const RevisionPoller = {
         }
     },
 
+    _schedulePing: function(ms) {
+        if (this._pingTimer) clearTimeout(this._pingTimer);
+        var self = this;
+        this._pingTimer = setTimeout(function() {
+            self._pingServer().finally(function() { self._schedulePing(self.PING_INTERVAL_MS); });
+        }, ms);
+    },
+
+    _pingServer: async function() {
+        if (!utenteAttuale || !utenteAttuale.nome) return;
+        var url = URL_GOOGLE + '?azione=ping'
+            + '&username=' + encodeURIComponent(utenteAttuale.nome)
+            + '&pagina='   + encodeURIComponent(paginaAttuale || '');
+        try {
+            var resp = await fetch(url);
+            var data = await resp.json();
+            if (data && data.status === 'ok' && Array.isArray(data.online)) {
+                _aggiornaIndicatoreOnline(data.online);
+            }
+        } catch (e) { /* rete offline o GAS non risponde */ }
+    },
+
     _reloadSezioneAttuale: function() {
         switch (paginaAttuale) {
             case 'PROGRAMMA PRODUZIONE DEL MESE':
@@ -2449,6 +2481,33 @@ const RevisionPoller = {
         }
     }
 };
+
+function _aggiornaIndicatoreOnline(lista) {
+    var nomeAttuale = (utenteAttuale && utenteAttuale.nome) ? utenteAttuale.nome.toUpperCase() : '';
+    var altriOnline = lista.filter(function(u) { return u.nome.toUpperCase() !== nomeAttuale; });
+    var avatarDesktop = document.getElementById('user-avatar-btn');
+    var avatarMobile  = document.getElementById('user-avatar-btn-mobile');
+    if (altriOnline.length === 0) {
+        var _oi = document.getElementById('online-indicator');
+        if (_oi) _oi.remove();
+        var _oim = document.getElementById('online-indicator-mob');
+        if (_oim) _oim.remove();
+        return;
+    }
+    var titolo = 'Online ora: ' + altriOnline.map(function(u) {
+        return u.nome + (u.pagina ? ' (' + u.pagina + ')' : '');
+    }).join(', ');
+    [{ parent: avatarDesktop, id: 'online-indicator' }, { parent: avatarMobile, id: 'online-indicator-mob' }].forEach(function(pair) {
+        if (!pair.parent) return;
+        var dot = document.getElementById(pair.id);
+        if (!dot) {
+            dot = document.createElement('span');
+            dot.id = pair.id;
+            pair.parent.appendChild(dot);
+        }
+        dot.title = titolo;
+    });
+}
 
 // RevisionPoller: check immediato quando la tab torna visibile
 document.addEventListener('visibilitychange', function() {

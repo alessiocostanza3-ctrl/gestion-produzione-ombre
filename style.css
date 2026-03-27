@@ -645,6 +645,7 @@ body.sidebar-collapsed .main-content {
 
 /* ---- FINE SIDEBAR COLLASSABILE ---- */
 .user-avatar-btn {
+    position: relative !important;
     width: 40px !important;
     height: 40px !important;
     border-radius: 50% !important;
@@ -672,7 +673,22 @@ body.sidebar-collapsed .main-content {
     transform: scale(0.97) !important;
 }
 
-/* ---- ACCOUNT DROPDOWN ---- */
+/* Indicatore presenza utenti online */
+#online-indicator,
+#online-indicator-mob {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 8px;
+    height: 8px;
+    background: #22c55e;
+    border-radius: 50%;
+    border: 1.5px solid var(--color-background-primary, #1a2030);
+    pointer-events: none;
+    z-index: 10;
+}
+
+/* ---- ACCOUNT DROPDOWN ----  */
 .sidebar-user-section {
     position: relative !important;
 }
