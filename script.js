@@ -104,6 +104,23 @@ const ProdCache = {
         } catch (e) {
             console.warn('[ProdCache] clear error:', e);
         }
+    },
+
+    /** Elenca tutte le entry con chiave e timestamp (per diagnostica). */
+    async listEntries() {
+        try {
+            const db = await this.open();
+            return new Promise((resolve, reject) => {
+                const tx    = db.transaction(this.STORE, 'readonly');
+                const store = tx.objectStore(this.STORE);
+                const req   = store.getAll();
+                req.onsuccess = (ev) => resolve(ev.target.result || []);
+                req.onerror   = (ev) => reject(ev.target.error);
+            });
+        } catch (e) {
+            console.warn('[ProdCache] listEntries error:', e);
+            return [];
+        }
     }
 };
 
@@ -2363,6 +2380,9 @@ const RevisionPoller = {
     _lastRevision: null,
     _lastCheck: 0,
     _paused: false,
+    lastRevisionValue: null,
+    lastOnlineList: [],
+    lastCheckTs: 0,
 
     start: function() {
         this.stop();
@@ -2418,6 +2438,8 @@ const RevisionPoller = {
             if (!data || data.status !== 'ok') return;
             var rev = Number(data.revision);
             this._lastCheck = Date.now();
+            this.lastRevisionValue = rev;
+            this.lastCheckTs = Date.now();
 
             if (this._lastRevision === null) {
                 this._lastRevision = rev;
@@ -2460,6 +2482,7 @@ const RevisionPoller = {
             var data = await resp.json();
             if (data && data.status === 'ok' && Array.isArray(data.online)) {
                 _aggiornaIndicatoreOnline(data.online);
+                RevisionPoller.lastOnlineList = data.online;
             }
         } catch (e) { /* rete offline o GAS non risponde */ }
     },
@@ -7918,6 +7941,45 @@ function caricaInterfacciaImpostazioni() {
                     </div>
                 </div>
 
+                ${utenteAttuale.ruolo === 'MASTER' ? `
+                <!-- ROW: Diagnostica Sync -->
+                <div class="settings-row" onclick="toggleSettingsSection('section-diag-sync', this); _aggiornaDiagnosticaSync()">
+                    <div class="settings-row-left">
+                        <div class="settings-row-icon"><i class="fas fa-stethoscope"></i></div>
+                        <div>
+                            <div class="settings-row-title">Diagnostica Sync</div>
+                            <div class="settings-row-sub">Revisione, polling e cache in tempo reale</div>
+                        </div>
+                    </div>
+                    <i class="fas fa-chevron-down settings-row-arrow"></i>
+                </div>
+                <div id="section-diag-sync" class="settings-section-body" style="display:none">
+                    <div class="card-settings">
+                        <div style="display:grid;grid-template-columns:max-content 1fr;gap:6px 12px;font-size:0.86rem;align-items:baseline">
+                            <span style="font-weight:600;color:#64748b">Revision attuale:</span>
+                            <span id="diag-revision" style="font-family:monospace;color:#1e293b">—</span>
+                            <span style="font-weight:600;color:#64748b">Ultimo check:</span>
+                            <span id="diag-lastcheck" style="font-family:monospace;color:#1e293b">—</span>
+                            <span style="font-weight:600;color:#64748b">Utenti online:</span>
+                            <span id="diag-online" style="color:#1e293b">—</span>
+                            <span style="font-weight:600;color:#64748b">Cache IndexedDB:</span>
+                            <div id="diag-cache" style="color:#1e293b">—</div>
+                        </div>
+                        <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+                            <button onclick="_aggiornaDiagnosticaSync()" style="padding:8px 14px;font-size:0.83rem;font-weight:600;border-radius:9px;border:1px solid #e2e8f0;background:#fff;color:#1e293b;cursor:pointer">
+                                <i class="fas fa-sync-alt"></i> Aggiorna
+                            </button>
+                            <button onclick="_forceRevisionBump()" style="padding:8px 14px;font-size:0.83rem;font-weight:600;border-radius:9px;border:1px solid #fcd34d;background:#fefce8;color:#92400e;cursor:pointer">
+                                <i class="fas fa-broadcast-tower"></i> Forza refresh globale
+                            </button>
+                            <button onclick="_svuotaCacheLocale()" style="padding:8px 14px;font-size:0.83rem;font-weight:600;border-radius:9px;border:1px solid #fca5a5;background:#fff5f5;color:#b91c1c;cursor:pointer">
+                                <i class="fas fa-trash-alt"></i> Svuota cache locale
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+
             </div>
 
             <div class="centered-fullwidth my-30">
@@ -7938,6 +8000,73 @@ function caricaInterfacciaImpostazioni() {
             segnaModifica();
         });
 }
+
+/* ── Diagnostica Sync (solo MASTER) ─────────────────────────────────── */
+async function _aggiornaDiagnosticaSync() {
+    const elRev   = document.getElementById('diag-revision');
+    const elCheck = document.getElementById('diag-lastcheck');
+    const elOnl   = document.getElementById('diag-online');
+    const elCache = document.getElementById('diag-cache');
+    if (!elRev) return;
+
+    elRev.textContent = RevisionPoller.lastRevisionValue !== null
+        ? String(RevisionPoller.lastRevisionValue) : '—';
+
+    if (RevisionPoller.lastCheckTs) {
+        const d = new Date(RevisionPoller.lastCheckTs);
+        elCheck.textContent = d.toLocaleTimeString('it-IT');
+    } else {
+        elCheck.textContent = '—';
+    }
+
+    const ol = RevisionPoller.lastOnlineList;
+    if (ol && ol.length > 0) {
+        elOnl.textContent = ol.map(u => u.nome + (u.pagina ? ' (' + u.pagina + ')' : '')).join(', ');
+    } else {
+        elOnl.textContent = 'Nessuno';
+    }
+
+    try {
+        const entries = await ProdCache.listEntries();
+        if (!entries.length) {
+            elCache.textContent = 'Vuota';
+        } else {
+            elCache.innerHTML = entries.map(entry => {
+                const age = Math.round((Date.now() - entry.timestamp) / 1000);
+                const stale = (Date.now() - entry.timestamp) > ProdCache.TTL;
+                return `<span style="display:block;font-family:monospace;font-size:0.78rem;color:${stale ? '#ef4444' : '#16a34a'}">${entry.chiave} <em style="color:#94a3b8">(${age}s fa${stale ? ' · stale' : ''})</em></span>`;
+            }).join('');
+        }
+    } catch (_) {
+        elCache.textContent = 'Errore lettura cache';
+    }
+}
+
+async function _forceRevisionBump() {
+    try {
+        const resp = await fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify({ azione: 'forceRevisionBump', sessionToken: _getSessionToken_() })
+        });
+        const r = await resp.json();
+        if (r && r.status === 'ok') {
+            notificaElegante('✓ Revision bumped a ' + r.nuovaRevision + ' — tutti i client aggiorneranno entro 15s');
+        } else if (r && r.status === 'auth_error') {
+            _gestisciAuthError_(r.message);
+        } else {
+            notificaElegante('⚠️ ' + (r && r.message ? r.message : 'Errore'), 'error');
+        }
+    } catch (e) {
+        notificaElegante('⚠️ Errore di rete', 'error');
+    }
+}
+
+async function _svuotaCacheLocale() {
+    if (!confirm('Svuota la cache IndexedDB e ricarica la pagina?')) return;
+    try { await ProdCache.clear(); } catch (_) {}
+    location.reload();
+}
+
 function azioneEliminaStato(i) {
          if(confirm("Sei sicuro di voler eliminare questo stato?")) {
              listaStati.splice(i, 1);
