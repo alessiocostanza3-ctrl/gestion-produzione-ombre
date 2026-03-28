@@ -2344,6 +2344,7 @@ export function registerGlobals() {
     window._qrStampaSingola        = _qrStampaSingola;
     window._qrStampaSingolaIdx     = _qrStampaSingolaIdx;
     window._qrStampaTutte          = _qrStampaTutte;
+    window._qrAggiornaPrevQR       = _qrAggiornaPrevQR;
 }
 
 export function init() {

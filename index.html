@@ -144,6 +144,26 @@
             100% { transform: rotate(0deg);  }
         }
     </style>
+    <!-- CRITICAL CSS: login gate visuale prima di qualsiasi script -->
+    <style id="critical-init">
+        #login-overlay {
+            display: flex !important;
+            opacity: 1;
+        }
+        html.has-session #login-overlay {
+            display: none !important;
+        }
+    </style>
+    <script>
+        // Gate visuale immediato: has-session nasconde login senza attendere il bundle
+        try {
+            var s = localStorage.getItem('sessioneUtente')
+                    || sessionStorage.getItem('sessioneUtente');
+            if (s && JSON.parse(s).sessionToken) {
+                document.documentElement.classList.add('has-session');
+            }
+        } catch(e) {}
+    </script>
     <script>
         // Tailwind via CDN (no build step). Disable preflight to avoid breaking existing styles.
         tailwind = window.tailwind || {};
@@ -271,18 +291,8 @@
             }
         });
     </script>
-    <link rel="modulepreload" href="modules/core/config.js">
-    <link rel="modulepreload" href="modules/core/session.js">
-    <link rel="modulepreload" href="modules/core/api.js">
-    <link rel="modulepreload" href="modules/core/cache.js">
-    <link rel="modulepreload" href="modules/core/ui.js">
-    <link rel="modulepreload" href="modules/core/revision-poller.js">
-    <link rel="modulepreload" href="modules/auth/login.js">
-    <link rel="modulepreload" href="modules/features/acquisti.js">
-    <link rel="modulepreload" href="modules/features/richieste.js">
-    <link rel="modulepreload" href="modules/features/impostazioni.js">
-    <link rel="modulepreload" href="modules/features/produzione.js">
-    <script type="module" src="script.js?v=20260328a"></script>
+    <link rel="preload" href="dist/script.bundle.js?v=20260401c" as="script">
+    <script type="module" src="dist/script.bundle.js?v=20260401c"></script>
 </head>
 
 <body>
