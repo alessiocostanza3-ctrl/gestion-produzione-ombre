@@ -206,7 +206,7 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
         if (e.name === 'AbortError') return;
         console.error("Errore Dashboard:", e);
         if (isBackgroundUpdate) {
-            notificaElegante('Aggiornamento dati fallito — riprovo al prossimo ciclo', 'warning');
+            console.warn('Background refresh fallito, il polling riproverà:', e.message);
         } else {
             contenitore.innerHTML = `<div class='inline-error'>Errore nel caricamento dati.
                 <button onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', null)"
