@@ -4086,6 +4086,25 @@ h1 {
 .btn-assegnami-ord:hover { background: #1d4ed8; }
 /* ---- FINE OPERATORE DROPDOWN ---- */
 
+/* Pulsante lazy-render "Carica altri N ordini" */
+.btn-carica-altri-prod {
+    display: block;
+    width: 100%;
+    margin: 16px 0 8px;
+    padding: 10px 0;
+    background: #f1f5f9;
+    color: #334155;
+    border: 1.5px dashed #cbd5e1;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    transition: background 0.15s, border-color 0.15s;
+}
+.btn-carica-altri-prod:hover { background: #e2e8f0; border-color: #94a3b8; }
+.btn-carica-altri-prod i { margin-right: 6px; }
+
 .badge-operatore {
     background: #242424;
     color: #ffffff;

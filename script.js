@@ -6,6 +6,7 @@ import {
   utenteAttuale, setUtenteAttuale,
   getSessionToken, refreshSessionExpiry
 } from './modules/core/session.js';
+import { lsCacheGet as _lsCacheGet, lsCacheSet as _lsCacheSet, lsCacheDel as _lsCacheDel } from './modules/core/ls-cache.js';
 // api.js is imported by revision-poller.js and pipistrelli.js
 import RevisionPoller, { configurePoller } from './modules/core/revision-poller.js';
 import { caricaPipistrelli, resetPipFetch, registerGlobals as registerPipGlobals } from './modules/features/pipistrelli.js';
@@ -384,27 +385,6 @@ function aggiornaListaFiltrabili() {
 // helper per richieste REST
 // Chiavi: '_html_<nomeFoglio>' contengono { ts, data: <htmlString> }
 // TTL default 5 minuti. Usata come fallback istantaneo prima del fetch GAS.
-function _lsCacheGet(key, ttlMs) {
-    try {
-        const raw = localStorage.getItem(key);
-        if (!raw) return null;
-        const parsed = JSON.parse(raw);
-        if (Date.now() - parsed.ts < ttlMs) return parsed.data;
-        return null; // scaduta
-    } catch(e) { return null; }
-}
-function _lsCacheSet(key, data) {
-    try {
-        // Evita di salvare stringhe enormi (> 1.5 MB) per non riempire la quota
-        const str = (typeof data === 'string') ? data : JSON.stringify(data);
-        if (str.length > 1500000) return;
-        localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data: str }));
-    } catch(e) {} // quota exceeded: ignora silenziosamente
-}
-function _lsCacheDel(key) {
-    try { localStorage.removeItem(key); } catch(e) {}
-}
-
 // applicaFade → modules/core/ui.js
 
 /**

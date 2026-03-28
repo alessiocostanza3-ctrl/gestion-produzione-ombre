@@ -5,29 +5,11 @@
 import { URL_GOOGLE, POSTAZIONI } from '../core/config.js';
 import ProdCache from '../core/cache.js';
 import { utenteAttuale } from '../core/session.js';
-import { notificaElegante, applicaFade, mostraConferma } from '../core/ui.js';
+import { notificaElegante, applicaFade, mostraConferma, _esc } from '../core/ui.js';
 import RevisionPoller from '../core/revision-poller.js';
+import { lsCacheGet as _lsCacheGet, lsCacheSet as _lsCacheSet, lsCacheDel as _lsCacheDel } from '../core/ls-cache.js';
 
-// ─── localStorage helpers ────────────────────────────────────────────────────
-function _lsCacheGet(key, ttlMs) {
-    try {
-        const raw = localStorage.getItem(key);
-        if (!raw) return null;
-        const parsed = JSON.parse(raw);
-        if (Date.now() - parsed.ts < ttlMs) return parsed.data;
-        return null;
-    } catch { return null; }
-}
-function _lsCacheSet(key, data) {
-    try {
-        const str = (typeof data === 'string') ? data : JSON.stringify(data);
-        if (str.length > 1500000) return;
-        localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data: str }));
-    } catch {}
-}
-function _lsCacheDel(key) {
-    try { localStorage.removeItem(key); } catch {}
-}
+// ─── localStorage helpers (→ modules/core/ls-cache.js) ──────────────────────
 
 // ─── Helper: hashSHA256 (definita in script.js) ─────────────────────────────
 function _hashSHA256(text) { return window.hashSHA256(text); }
@@ -866,8 +848,8 @@ async function caricaListaUtenti() {
             <div class="config-row-modern utente-row" data-id="${id}">
                 <div class="settings-actions-row" style="gap:12px">
                     <div class="settings-options-row" style="gap:10px">
-                        <div class="avatar-circle">${(username.charAt(0) || '?').toUpperCase()}</div>
-                        <input type="text" class="input-flat" id="ut-username-${id}" value="${username.replace(/"/g, '&quot;')}" onchange="" placeholder="Username">
+                        <div class="avatar-circle">${(_esc(username.charAt(0)) || '?').toUpperCase()}</div>
+                        <input type="text" class="input-flat" id="ut-username-${id}" value="${_esc(username).replace(/"/g, '&quot;')}" onchange="" placeholder="Username">
                     </div>
                     <div class="settings-options-row" style="gap:8px">
                         <button type="button" class="btn-modal-send" onclick="salvaModificheUtente(${id})" title="Salva modifiche">
@@ -1852,8 +1834,8 @@ function _qrFiltroOrdini(q) {
         <div class="autocomplete-item"
              onmousedown="event.preventDefault(); _qrSelezionaOrdine('${o.ordine.replace(/'/g,"\\'")}','${o.cliente.replace(/'/g,"\\'")}')"
              ontouchend="event.preventDefault(); _qrSelezionaOrdine('${o.ordine.replace(/'/g,"\\'")}','${o.cliente.replace(/'/g,"\\'")}')">
-            <span class="ac-ordine">ORD. ${o.ordine}</span>
-            <span class="ac-cliente">${o.cliente}${o.riferimento ? ' <em style="color:#94a3b8;font-size:11px">('+o.riferimento+')</em>' : ''}</span>
+            <span class="ac-ordine">ORD. ${_esc(o.ordine)}</span>
+            <span class="ac-cliente">${_esc(o.cliente)}${o.riferimento ? ' <em style="color:#94a3b8;font-size:11px">('+_esc(o.riferimento)+')</em>' : ''}</span>
         </div>`).join('');
     dropdown.style.display = 'block';
 }
@@ -1870,7 +1852,7 @@ async function _qrSelezionaOrdine(nOrd, cliente) {
     const articoliWrap = document.getElementById('qr-articoli-wrap');
     const articoliList = document.getElementById('qr-articoli-list');
     const ordHdr       = document.getElementById('qr-ordine-header');
-    if (ordHdr) ordHdr.innerHTML = `<span class="qr-ord-lbl"><b>ORD. ${nOrd}</b></span><span class="qr-cli-lbl">${cliente}</span>`;
+    if (ordHdr) ordHdr.innerHTML = `<span class="qr-ord-lbl"><b>ORD. ${_esc(nOrd)}</b></span><span class="qr-cli-lbl">${_esc(cliente)}</span>`;
     if (articoliList) articoliList.innerHTML = '<div class="qr-loading"><i class="fas fa-spinner fa-spin"></i> Caricamento articoli...</div>';
     articoliWrap.style.display = 'block';
 

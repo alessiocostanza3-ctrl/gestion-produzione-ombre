@@ -4,8 +4,9 @@
 
 import { URL_GOOGLE, CACHE_TTL_MS } from '../core/config.js';
 import { utenteAttuale } from '../core/session.js';
-import { notificaElegante, applicaFade, mostraConferma } from '../core/ui.js';
+import { notificaElegante, applicaFade, mostraConferma, _esc } from '../core/ui.js';
 import RevisionPoller from '../core/revision-poller.js';
+import { lsCacheGet as _lsCacheGet, lsCacheSet as _lsCacheSet, lsCacheDel as _lsCacheDel } from '../core/ls-cache.js';
 
 // ─── Stato interno ────────────────────────────────────────────────────────────
 let carrelloLocale = [];
@@ -32,26 +33,6 @@ const TW = {
 };
 
 // ─── localStorage helpers (saranno consolidati in cache.js in futuro) ─────────
-function _lsCacheGet(key, ttlMs) {
-    try {
-        const raw = localStorage.getItem(key);
-        if (!raw) return null;
-        const parsed = JSON.parse(raw);
-        if (Date.now() - parsed.ts < ttlMs) return parsed.data;
-        return null;
-    } catch(e) { return null; }
-}
-function _lsCacheSet(key, data) {
-    try {
-        const str = (typeof data === 'string') ? data : JSON.stringify(data);
-        if (str.length > 1500000) return;
-        localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data: str }));
-    } catch(e) {}
-}
-function _lsCacheDel(key) {
-    try { localStorage.removeItem(key); } catch(e) {}
-}
-
 // ─── Tiny fetch wrapper per GET JSON ─────────────────────────────────────────
 function fetchJson(pagina, signal) {
     const url = URL_GOOGLE + '?pagina=' + encodeURIComponent(pagina);
@@ -160,7 +141,7 @@ async function caricaOrdiniAcquisti(expectedRequestId = null, signal = null) {
             <details class="ordine-group ${allDone ? 'all-done' : ''}" ${!allDone ? 'open' : ''}>
                 <summary class="ordine-group-summary">
                     <span class="og-left">
-                        ${isAlessio ? `<span class="og-operatore">${g.operatore}</span>` : ''}
+                        ${isAlessio ? `<span class="og-operatore">${_esc(g.operatore)}</span>` : ''}
                         <span class="og-data">${_fmtDataOrdine(g.data)}</span>
                         <span class="og-progress">${ord}/${tot}</span>
                         ${allDone ? '<span class="og-done-badge"><i class="fas fa-check-circle"></i> Completato</span>' : ''}
@@ -224,8 +205,8 @@ function _renderOrdineItem(item, isAlessio) {
         }
         ${item.foto ? `<img src="${item.foto}" class="oi-thumb" alt="" loading="lazy">` : ''}
         <div class="oi-info">
-            <span class="oi-nome">${item.articolo}</span>
-            <span class="oi-details">Qt. ${item.quantita}${item.fornitore ? ' · ' + item.fornitore : ''}</span>
+            <span class="oi-nome">${_esc(item.articolo)}</span>
+            <span class="oi-details">Qt. ${_esc(String(item.quantita))}${item.fornitore ? ' · ' + _esc(item.fornitore) : ''}</span>
         </div>
         <span class="oi-stato-badge ${ok ? 'badge-ordinato-sm' : 'badge-attesa-sm'}">${ok ? '<i class="fas fa-circle-check"></i> ORDINATO' : 'IN ATTESA'}</span>
     </div>`;

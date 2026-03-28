@@ -2,6 +2,13 @@
 // Estratto da script.js — 27 marzo 2026
 // Dipendenze: nessuna (DOM only)
 
+// ─── Escape HTML (XSS prevention) ────────────────────────────────────────────
+const _ESC_MAP = { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' };
+export function _esc(str) {
+    if (str == null) return '';
+    return String(str).replace(/[&<>"']/g, c => _ESC_MAP[c]);
+}
+
 // ─── Toast notifica ───────────────────────────────────────────────────────────
 
 /**

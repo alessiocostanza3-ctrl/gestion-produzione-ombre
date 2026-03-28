@@ -3,21 +3,13 @@
 
 import { URL_GOOGLE } from '../core/config.js';
 import ProdCache, { caricaSezioneConCache } from '../core/cache.js';
-import { notificaElegante, applicaFade, mostraModalConflitto, mostraConferma } from '../core/ui.js';
+import { notificaElegante, applicaFade, mostraModalConflitto, mostraConferma, _esc } from '../core/ui.js';
 import { utenteAttuale } from '../core/session.js';
 import RevisionPoller from '../core/revision-poller.js';
+import { lsCacheSet as _lsCacheSet, lsCacheDel as _lsCacheDel } from '../core/ls-cache.js';
 
-// ── Cache localStorage helpers (copie locali) ──────────────────────────
-function _lsCacheSet(key, data) {
-    try {
-        const str = (typeof data === 'string') ? data : JSON.stringify(data);
-        if (str.length > 1500000) return;
-        localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data: str }));
-    } catch(e) {}
-}
-function _lsCacheDel(key) {
-    try { localStorage.removeItem(key); } catch(e) {}
-}
+// Numero massimo di righe ordine attive renderizzate nella prima passata.
+const PROD_PAGE_SIZE = 50;
 
 // ── Stato interno del modulo ────────────────────────────────────────────
 let _ultimiDatiProduzione = null;
@@ -28,6 +20,7 @@ let _attiviProd = [];
 let _ordiniAutocompleteCache = [];
 let _ovStatiArt = ['PREPARARE','PREPARARE PER LAVORAZIONE','IN LAVORAZIONE','TORNATO DALLA LAVORAZIONE'];
 let _ovStatiOrd = ['IN PRODUZIONE','IMBALLATO'];
+let _prodRimanenti = [];  // righe non ancora renderizzate (lazy-render)
 
 function _getOvStatiAll() { return [..._ovStatiArt, ..._ovStatiOrd]; }
 
@@ -77,8 +70,17 @@ function _renderDatiProduzione(dati, _isBackground = null) {
     const STATI_OV = _getOvStatiAll();
     const numInFocus = attivi.filter(r => STATI_OV.includes((r.stato||'').toUpperCase().trim())).length;
 
-    // --- SEZIONE ATTIVA ---
-    let htmlAttivi = generaBloccoOrdiniUnificato(datiProd, false);
+    // --- SEZIONE ATTIVA --- (lazy-render: prime PROD_PAGE_SIZE unique ordini) ---
+    const _attProdFull  = datiProd.filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE');
+    const _ordKeys1pg   = [...new Map(_attProdFull.map(r => [r.ordine, r.ordine])).keys()];
+    const _paginaOrdini = new Set(_ordKeys1pg.slice(0, PROD_PAGE_SIZE));
+    _prodRimanenti      = _attProdFull.filter(r => !_paginaOrdini.has(r.ordine));
+    const _primaPaginaRows = _attProdFull.filter(r => _paginaOrdini.has(r.ordine));
+    let htmlAttivi = generaBloccoOrdiniUnificato(_primaPaginaRows, false);
+    const _nRimanenti = new Set(_prodRimanenti.map(r => r.ordine)).size;
+    const _btnCaricaAltri = _nRimanenti > 0
+        ? '<button class="btn-carica-altri-prod" onclick="_caricaAltriOrdini()"><i class="fas fa-chevron-down"></i> Carica altri ' + _nRimanenti + ' ordini</button>'
+        : '';
 
     // --- SEZIONE ARCHIVIATA ---
     let htmlArchiviati = generaBloccoOrdiniUnificato(datiArch, true);
@@ -114,6 +116,7 @@ function _renderDatiProduzione(dati, _isBackground = null) {
             </div>
             <div class="sezione-attiva">
                 ${htmlAttivi || "<div class='empty-msg'>Nessun ordine in produzione.</div>"}
+                ${_btnCaricaAltri}
             </div>
 
             <details id="archivio-prod-details" class="archivio-details">
@@ -176,6 +179,19 @@ function _renderDatiProduzione(dati, _isBackground = null) {
     _ordiniAutocompleteCache = _ordiniAutocompleteCache.filter(o => { if (seen.has(o.ordine)) return false; seen.add(o.ordine); return true; });
     window._ordiniAutocompleteCache = _ordiniAutocompleteCache;
 }
+
+// ─── Lazy-render: carica gli ordini rimasti ────────────────────────────────
+function _caricaAltriOrdini() {
+    if (!_prodRimanenti.length) return;
+    const _sez = document.querySelector('.sezione-attiva');
+    const _btn = _sez && _sez.querySelector('.btn-carica-altri-prod');
+    if (_btn) _btn.remove();
+    const _html = generaBloccoOrdiniUnificato(_prodRimanenti, false);
+    if (_sez) _sez.insertAdjacentHTML('beforeend', _html);
+    _prodRimanenti = [];
+    requestAnimationFrame(_initKanbanDnd);
+}
+window._caricaAltriOrdini = _caricaAltriOrdini;
 
 async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedRequestId = null, signal = null) {
     const contenitore = document.getElementById('contenitore-dati');
@@ -286,7 +302,7 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
         const righe = gruppi[nOrd];
         const cliente = righe[0].cliente;
         const riferimento = righe[0].riferimento || "";
-        const htmlRiferimento = riferimento ? `<span class="riferimento-label">(${riferimento})</span>` : '';
+        const htmlRiferimento = riferimento ? `<span class="riferimento-label">(${_esc(riferimento)})</span>` : '';;
 
         const classWrapper = isArchivio ? 'archivio-wrapper' : '';
         const classHeader = isArchivio ? 'archivio-header' : '';
@@ -383,7 +399,7 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
         <div class="ordine-wrapper ${classWrapper}" data-ordine="${nOrd}" data-cliente="${(cliente || '').toLowerCase().replace(/"/g, '')}" data-riferimento="${(riferimento || '').toLowerCase().replace(/"/g, '')}" data-codici="${righe.map(a => (a.codice && a.codice !== 'false' ? a.codice : '')).join('|').toLowerCase()}">
             <div class="riga-ordine ${classHeader}" onclick="toggleAccordion(this)">
                 <div class="flex-grow">
-                    <span class="order-title" style="--order-color:${colorCliente}" title="${cliente}">${cliente} ${htmlRiferimento}</span>
+                    <span class="order-title" style="--order-color:${colorCliente}" title="${_esc(cliente)}">${_esc(cliente)} ${htmlRiferimento}</span>
                 </div>
                 <div class="order-info">
                     <div class="badge-count ${TW.pill}" title="ORD.${nOrd}"><span class="badge-ord-num">ORD.${nOrdBadge}</span><span class="badge-sep">\u00b7</span>${righe.length} ART.</div>
@@ -509,7 +525,7 @@ function generaCardArchivio(art, nOrd) {
 
         <div>
             <span class="label-sm ${TW.label}">Operatore</span>
-            <span class="archivio-operatore ${TW.value}">${operatoreValore}</span>
+            <span class="archivio-operatore ${TW.value}">${_esc(operatoreValore)}</span>
         </div>
 
         <div class="item-actions">
@@ -548,7 +564,7 @@ async function rimuoviOperatore(idRiga, nOrd, nomeOperatore) {
             const col  = window._getOpColor(nome);
             const nomeSafe = nome.replace(/'/g, "\\'");
             const xBtn = nome.toUpperCase() === _mioR ? `<button class="btn-rimuovi-op" onclick="rimuoviOperatore('${idRiga}','${nOrd}','${nomeSafe}')" title="Rimuovi assegnazione">&times;</button>` : '';
-            return `<span class="badge-operatore" data-nome="${nome}" style="background:${col};border-color:${col}">${nome}${xBtn}</span>`;
+            return `<span class="badge-operatore" data-nome="${_esc(nome)}" style="background:${col};border-color:${col}">${_esc(nome)}${xBtn}</span>`;
         }).join('');
     }
 
@@ -693,7 +709,7 @@ function autoAssegnami(idRiga, nOrd, btnEl) {
     container.innerHTML = correnti.map(n => {
         const col = window._getOpColor(n); const ns = n.replace(/'/g, "\\'");
         const xBtn = n.toUpperCase() === _mioUp ? `<button class="btn-rimuovi-op" onclick="rimuoviOperatore('${idRiga}','${nOrd}','${ns}')" title="Rimuovi assegnazione">&times;</button>` : '';
-        return `<span class="badge-operatore" data-nome="${n}" style="background:${col};border-color:${col}">${n}${xBtn}</span>`;
+        return `<span class="badge-operatore" data-nome="${_esc(n)}" style="background:${col};border-color:${col}">${_esc(n)}${xBtn}</span>`;
     }).join('');
     if (btnEl && btnEl.parentNode) btnEl.remove();
     const mitt = mio.toUpperCase().trim();
@@ -715,7 +731,7 @@ function autoAssegnamiOrdine(nOrd) {
             cont.innerHTML = curr.map(n => {
                 const col = window._getOpColor(n); const idR = cont.dataset.idRiga; const ns = n.replace(/'/g,"\\'");
                 const xBtn = n.toUpperCase() === _mioUp ? `<button class="btn-rimuovi-op" onclick="rimuoviOperatore('${idR}','${nOrd}','${ns}')" title="Rimuovi assegnazione">&times;</button>` : '';
-                return `<span class="badge-operatore" data-nome="${n}" style="background:${col};border-color:${col}">${n}${xBtn}</span>`;
+                return `<span class="badge-operatore" data-nome="${_esc(n)}" style="background:${col};border-color:${col}">${_esc(n)}${xBtn}</span>`;
             }).join('');
         });
         const btnOrd = wrapper.querySelector('.btn-assegnami-ord');
