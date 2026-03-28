@@ -6,7 +6,7 @@ import { URL_GOOGLE } from '../core/config.js';
 import { utenteAttuale } from '../core/session.js';
 import { gasRequest } from '../core/api.js';
 import ProdCache from '../core/cache.js';
-import { notificaElegante, applicaFade } from '../core/ui.js';
+import { notificaElegante, applicaFade, _esc } from '../core/ui.js';
 
 // ─── Flag fetch (sostituisce caricaPaginaPipistrello._fetched) ───────────────
 let _fetched = false;
@@ -698,7 +698,7 @@ function _pipModificaMovimento(id) {
     const matEl  = document.getElementById('pip-edit-mov-mat');
     const qtyEl  = document.getElementById('pip-edit-mov-qty');
     const notaEl = document.getElementById('pip-edit-mov-nota');
-    if (matEl)  matEl.innerHTML  = `<span class="pip-mov-badge ${mov.tipo}" style="font-size:0.75rem">${mov.tipo === 'carico' ? 'CARICO' : 'SCARICO'}</span> <strong>${mov.mat}</strong>`;
+    if (matEl)  matEl.innerHTML  = `<span class="pip-mov-badge ${_esc(mov.tipo)}" style="font-size:0.75rem">${mov.tipo === 'carico' ? 'CARICO' : 'SCARICO'}</span> <strong>${_esc(mov.mat)}</strong>`;
     if (qtyEl)  { qtyEl.value   = mov.qty; }
     if (notaEl) { notaEl.value  = mov.nota || ''; }
     modal.dataset.movId = id;

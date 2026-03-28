@@ -2241,9 +2241,11 @@ ${items.map(p => `
 </body>
 </html>`;
 
-    const win = window.open('', '_blank', 'width=900,height=700');
-    if (win) { win.document.write(html); win.document.close(); }
-    else { notificaElegante('⚠️ Abilita i popup per la stampa.', 'error'); }
+    const _blob    = new Blob([html], { type: 'text/html; charset=utf-8' });
+    const _blobUrl = URL.createObjectURL(_blob);
+    const win = window.open(_blobUrl, '_blank', 'width=900,height=700');
+    if (win) { setTimeout(() => URL.revokeObjectURL(_blobUrl), 30000); }
+    else { URL.revokeObjectURL(_blobUrl); notificaElegante('⚠️ Abilita i popup per la stampa.', 'error'); }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

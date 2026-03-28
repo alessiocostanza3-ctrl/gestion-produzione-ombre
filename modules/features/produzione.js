@@ -21,6 +21,8 @@ let _ordiniAutocompleteCache = [];
 let _ovStatiArt = ['PREPARARE','PREPARARE PER LAVORAZIONE','IN LAVORAZIONE','TORNATO DALLA LAVORAZIONE'];
 let _ovStatiOrd = ['IN PRODUZIONE','IMBALLATO'];
 let _prodRimanenti = [];  // righe non ancora renderizzate (lazy-render)
+let _prodServerTotal = 0; // prodTotal restituito da GAS (totale righe attive)
+let _prodFirstPageCount = 0; // righe attive ricevute nella prima risposta GAS
 
 function _getOvStatiAll() { return [..._ovStatiArt, ..._ovStatiOrd]; }
 
@@ -39,12 +41,12 @@ async function _fetchDatiProduzione(signal = null) {
         window._prefetchDashBundle = null;
         window._prefetchDashPromise = null;
     } else {
-        const _dashResp = await fetch(URL_GOOGLE + '?azione=getAllDashboard', signal ? { signal } : {});
+        const _dashResp = await fetch(URL_GOOGLE + '?azione=getAllDashboard&limit=100', signal ? { signal } : {});
         if (!_dashResp.ok) throw new Error(`HTTP ${_dashResp.status}`);
         _dashBundle = await _dashResp.json();
     }
     if (!_dashBundle) throw new Error('bundle vuoto');
-    return { produzione: _dashBundle.produzione || [], archivio: _dashBundle.archivio || [], avatarColors: _dashBundle.avatarColors || null };
+    return { produzione: _dashBundle.produzione || [], archivio: _dashBundle.archivio || [], avatarColors: _dashBundle.avatarColors || null, prodTotal: _dashBundle.prodTotal || 0 };
 }
 
 function _renderDatiProduzione(dati, _isBackground = null) {
@@ -72,14 +74,17 @@ function _renderDatiProduzione(dati, _isBackground = null) {
 
     // --- SEZIONE ATTIVA --- (lazy-render: prime PROD_PAGE_SIZE unique ordini) ---
     const _attProdFull  = datiProd.filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE');
+    _prodServerTotal    = dati.prodTotal || 0;
+    _prodFirstPageCount = _attProdFull.length;
     const _ordKeys1pg   = [...new Map(_attProdFull.map(r => [r.ordine, r.ordine])).keys()];
     const _paginaOrdini = new Set(_ordKeys1pg.slice(0, PROD_PAGE_SIZE));
     _prodRimanenti      = _attProdFull.filter(r => !_paginaOrdini.has(r.ordine));
     const _primaPaginaRows = _attProdFull.filter(r => _paginaOrdini.has(r.ordine));
     let htmlAttivi = generaBloccoOrdiniUnificato(_primaPaginaRows, false);
     const _nRimanenti = new Set(_prodRimanenti.map(r => r.ordine)).size;
-    const _btnCaricaAltri = _nRimanenti > 0
-        ? '<button class="btn-carica-altri-prod" onclick="_caricaAltriOrdini()"><i class="fas fa-chevron-down"></i> Carica altri ' + _nRimanenti + ' ordini</button>'
+    const _hasMore = _nRimanenti > 0 || _prodServerTotal > _prodFirstPageCount;
+    const _btnCaricaAltri = _hasMore
+        ? '<button class="btn-carica-altri-prod" onclick="_caricaAltriOrdini()"><i class="fas fa-chevron-down"></i> Carica altri ' + (_nRimanenti > 0 ? _nRimanenti + ' ordini' : 'ordini') + '</button>'
         : '';
 
     // --- SEZIONE ARCHIVIATA ---
@@ -180,15 +185,38 @@ function _renderDatiProduzione(dati, _isBackground = null) {
     window._ordiniAutocompleteCache = _ordiniAutocompleteCache;
 }
 
-// ─── Lazy-render: carica gli ordini rimasti ────────────────────────────────
-function _caricaAltriOrdini() {
-    if (!_prodRimanenti.length) return;
+// ─── Lazy-render: carica gli ordini rimasti (da buffer locale o da GAS) ───
+async function _caricaAltriOrdini() {
     const _sez = document.querySelector('.sezione-attiva');
     const _btn = _sez && _sez.querySelector('.btn-carica-altri-prod');
     if (_btn) _btn.remove();
-    const _html = generaBloccoOrdiniUnificato(_prodRimanenti, false);
-    if (_sez) _sez.insertAdjacentHTML('beforeend', _html);
-    _prodRimanenti = [];
+
+    if (_prodRimanenti.length) {
+        // Usa il buffer locale scaricato nella prima risposta
+        const _html = generaBloccoOrdiniUnificato(_prodRimanenti, false);
+        if (_sez) _sez.insertAdjacentHTML('beforeend', _html);
+        _prodRimanenti = [];
+    } else if (_prodServerTotal > _prodFirstPageCount) {
+        // Il server ha più righe: recuperale con offset
+        const _loadEl = document.createElement('div');
+        _loadEl.className = 'inline-msg';
+        _loadEl.innerHTML = "<i class='fas fa-spinner fa-spin'></i> Caricamento ordini...";
+        if (_sez) _sez.appendChild(_loadEl);
+        try {
+            const resp  = await fetch(URL_GOOGLE + '?azione=getAllDashboard&offset=' + _prodFirstPageCount);
+            const extra = await resp.json();
+            _loadEl.remove();
+            const extraRows = (extra.produzione || []).filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE');
+            const _sez2 = document.querySelector('.sezione-attiva');
+            if (extraRows.length && _sez2) {
+                _sez2.insertAdjacentHTML('beforeend', generaBloccoOrdiniUnificato(extraRows, false));
+            }
+            _prodFirstPageCount = _prodServerTotal; // tutto caricato
+        } catch (_err) {
+            _loadEl.remove();
+            notificaElegante('Errore caricamento ordini aggiuntivi.', 'error');
+        }
+    }
     requestAnimationFrame(_initKanbanDnd);
 }
 window._caricaAltriOrdini = _caricaAltriOrdini;

@@ -686,7 +686,10 @@ function resetFoto(nomeProdotto) {
 function apriImmagineIntera(src) {
     const overlay = document.createElement('div');
     overlay.style = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:200000;display:flex;justify-content:center;align-items:center;cursor:zoom-out;";
-    overlay.innerHTML = `<img src="${src}" class="overlay-img">`;
+    const _oImg = document.createElement('img');
+    _oImg.src = src;
+    _oImg.className = 'overlay-img';
+    overlay.appendChild(_oImg);
     overlay.onclick = () => document.body.removeChild(overlay);
     document.body.appendChild(overlay);
 }

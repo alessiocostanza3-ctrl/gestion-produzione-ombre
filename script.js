@@ -262,13 +262,11 @@ const _VAPID_PUBLIC_KEY = 'BAHqp3uv56mQSAeTv_66-f4GYkzaESwuJNOP5DJCVMi197n-EKl9T
  */
 async function _initPush() {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-        console.log('[Push] Non supportato da questo browser');
         return;
     }
     try {
         const reg = await navigator.serviceWorker.register('sw.js', { scope: './' });
         await navigator.serviceWorker.ready;
-        console.log('[Push] SW pronto');
         // Salva username nel Cache API: accessibile dal Service Worker
         if ('caches' in window) {
             const c = await caches.open('prod-auth');
@@ -276,7 +274,6 @@ async function _initPush() {
         }
         let sub = await reg.pushManager.getSubscription();
         const perm = Notification.permission;
-        console.log('[Push] permesso=' + perm + ' sub=' + (sub ? sub.endpoint.substring(0,50) : 'null'));
 
         // Se il permesso Ã¨ giÃ  stato concesso ma non c'Ã¨ subscription â†’ sottoscrivi automaticamente
         if (!sub && perm === 'granted') {
@@ -285,7 +282,6 @@ async function _initPush() {
                     userVisibleOnly: true,
                     applicationServerKey: window._vapidB64ToUint8_ ? window._vapidB64ToUint8_(_VAPID_PUBLIC_KEY) : null
                 });
-                console.log('[Push] Auto-subscribed:', sub.endpoint.substring(0, 60));
             } catch (subErr) {
                 console.warn('[Push] Auto-subscribe failed:', subErr);
                 try { localStorage.setItem('_pushStato', 'errore-subscribe'); } catch {}
@@ -293,7 +289,6 @@ async function _initPush() {
             }
         }
         if (!sub) {
-            console.log('[Push] Nessuna subscription e permesso non concesso');
             try { localStorage.setItem('_pushStato', 'no-permesso'); } catch {}
             return;
         }
@@ -301,7 +296,6 @@ async function _initPush() {
         // Salva/aggiorna la subscription nel backend
         const j = sub.toJSON();
         const result = await _salvaSubVAPID_({ endpoint: j.endpoint, p256dh: j.keys?.p256dh, auth: j.keys?.auth });
-        console.log('[Push] Subscription saved:', result);
         if (result && (result.status === 'saved' || result.status === 'updated')) {
             try { localStorage.setItem('_pushStato', 'ok'); } catch {}
         } else if (result && result.status === 'errore-verifica') {
@@ -332,7 +326,6 @@ async function _salvaSubVAPID_(sub) {
             })
         });
         const json = await res.json().catch(() => ({}));
-        console.log('[Push] salvaSottoscrizione:', json);
         // Verifica server-side: conferma che l'endpoint Ã¨ davvero nel foglio
         if (json && (json.status === 'saved' || json.status === 'updated')) {
             try {
@@ -342,8 +335,6 @@ async function _salvaSubVAPID_(sub) {
                 if (!verJson.found) {
                     console.warn('[Push] verificaIscrizione: endpoint NON trovato nel foglio dopo il salvataggio!');
                     json.status = 'errore-verifica';
-                } else {
-                    console.log('[Push] verificaIscrizione: âœ“ endpoint confermato nel foglio');
                 }
             } catch (verErr) {
                 console.warn('[Push] verificaIscrizione error:', verErr);
@@ -398,7 +389,7 @@ function _prefetchBackground() {
     // Rimuovi eventuale cache LS degli ordini salvata da versioni precedenti (dati real-time: non vanno in LS)
     _lsCacheDel('_html__acq_ordini');
     // Avvia subito senza delay per massimizzare il tempo disponibile prima del click
-    window._prefetchDashPromise = fetch(URL_GOOGLE + '?azione=getAllDashboard')
+    window._prefetchDashPromise = fetch(URL_GOOGLE + '?azione=getAllDashboard&limit=100')
         .then(function(r) { return r.ok ? r.json() : null; })
         .catch(function() { return null; });
     window._prefetchRqPromise   = fetch(URL_GOOGLE + '?azione=getAllRichieste')
@@ -426,7 +417,6 @@ function _prefetchBackground() {
 window.onload = async function() {
     if (_bootCompleted) return;
     _bootCompleted = true;
-    console.log("Inizializzazione sistema...");
 
     // 1. Gestione immediata dell'interfaccia per evitare "lampi"
     const overlay = document.getElementById('login-overlay');
@@ -479,7 +469,6 @@ window.onload = async function() {
         // Mostra blocco schermo sopra l'app se fuori orario (non fa logout, sessione preservata)
         if (_fuoriOrario) _bloccaSchermo_();
 
-        console.log("Sessione trovata per:", utenteAttuale.nome);
     } else {
         // Se non c'Ã¨ sessione, forziamo il login
         document.documentElement.classList.remove("has-session");
@@ -918,8 +907,6 @@ async function cambiaPagina(nomeFoglio, elementoMenu) {
         aggiornaListaFiltrabili();
         // Riattiva DnD kanban dopo restore da cache
         requestAnimationFrame(_initKanbanDnd);
-        console.log("Rendering da cache:", nomeFoglio);
-
         // Avvia polling live se si torna su Produzione
         if (nomeFoglio === 'PROGRAMMA PRODUZIONE DEL MESE') _startPollingProduzione();
 
@@ -936,7 +923,6 @@ async function cambiaPagina(nomeFoglio, elementoMenu) {
     }
 
     // 7. Smistamento Caricamento (Router)
-    console.log("Caricamento dal server:", nomeFoglio);
 
     switch (nomeFoglio) {
         case 'IMPOSTAZIONI':
