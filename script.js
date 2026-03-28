@@ -455,6 +455,9 @@ window.onload = async function() {
         // Blocco orario: se fuori orario e non esente â†’ blocca schermo (senza return, carica l'app sotto)
         const _fuoriOrario = !_isUtenteEsente() && !_isOrarioConsentito();
 
+        // Avvia subito le 3 fetch GAS in parallelo (risparmio 200-500ms warm-up su ogni reload)
+        _prefetchBackground();
+
         // AGGIORNAMENTO IMMEDIATO: Prima ancora di scaricare i dati da Sheets
         aggiornaProfiloSidebar();
         _initPush();           // Registra / aggiorna subscription push VAPID

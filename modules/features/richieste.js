@@ -27,7 +27,7 @@ function _lsCacheGet(key, ttlMs) {
 function _lsCacheSet(key, data) {
     try {
         const str = (typeof data === 'string') ? data : JSON.stringify(data);
-        if (str.length > 1500000) return;
+        if (str.length > 2500000) return;
         localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data: str }));
     } catch(e) {}
 }

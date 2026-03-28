@@ -1,4 +1,4 @@
-// PROD — Features / Produzione
+﻿// PROD — Features / Produzione
 // Estratto da script.js — 28 marzo 2026
 
 import { URL_GOOGLE } from '../core/config.js';
@@ -23,6 +23,7 @@ let _ovStatiOrd = ['IN PRODUZIONE','IMBALLATO'];
 let _prodRimanenti = [];  // righe non ancora renderizzate (lazy-render)
 let _prodServerTotal = 0; // prodTotal restituito da GAS (totale righe attive)
 let _prodFirstPageCount = 0; // righe attive ricevute nella prima risposta GAS
+let _datiArchLazy = null;  // dati archivio: renderizzati lazy solo all'apertura della sezione
 
 function _getOvStatiAll() { return [..._ovStatiArt, ..._ovStatiOrd]; }
 
@@ -87,8 +88,9 @@ function _renderDatiProduzione(dati, _isBackground = null) {
         ? '<button class="btn-carica-altri-prod" onclick="_caricaAltriOrdini()"><i class="fas fa-chevron-down"></i> Carica altri ' + (_nRimanenti > 0 ? _nRimanenti + ' ordini' : 'ordini') + '</button>'
         : '';
 
-    // --- SEZIONE ARCHIVIATA ---
-    let htmlArchiviati = generaBloccoOrdiniUnificato(datiArch, true);
+    // --- SEZIONE ARCHIVIATA --- lazy: render solo all'apertura (+100-500ms risparmio)
+    _datiArchLazy = datiArch;
+    const htmlArchiviati = ''; // sezione chiusa: render on-demand in _apriArchivio()
 
     const isMobileOv = window.innerWidth <= 600;
     const ovContent = isMobileOv
@@ -140,13 +142,7 @@ function _renderDatiProduzione(dati, _isBackground = null) {
 
     ProdCache.set('PROGRAMMA_PRODUZIONE', dati).catch(() => {});
 
-    // Pre-popola la cache ARCHIVIO_ORDINI come side effect
-    if (!window.cacheContenuti['ARCHIVIO_ORDINI']) {
-        const _archSideHtml = generaBloccoOrdiniUnificato(datiArch, true) || "<div class='empty-msg'>L'archivio \u00e8 vuoto.</div>";
-        window.cacheContenuti['ARCHIVIO_ORDINI'] = _archSideHtml;
-        window.cacheFetchTime['ARCHIVIO_ORDINI'] = Date.now();
-        _lsCacheSet('_html_ARCHIVIO_ORDINI', _archSideHtml);
-    }
+        // ARCHIVIO_ORDINI: cache popolata lazy in _apriArchivio() al primo click
 
     applicaFade(contenitore);
 
@@ -1450,9 +1446,26 @@ function _ovLoadIfNeeded(summary) {
 function _apriArchivio(id) {
     const det = document.getElementById(id);
     if (!det) return;
+
+    // Lazy render: alla prima apertura inserisce il contenuto archivio nel DOM
+    const sezArch = det.querySelector('.sezione-archiviata');
+    const archData = _datiArchLazy || (_ultimiDatiProduzione && _ultimiDatiProduzione.archivio);
+    if (sezArch && archData && (_datiArchLazy || !sezArch.children.length)) {
+        const htmlArch = generaBloccoOrdiniUnificato(archData, true);
+        const archHtml = htmlArch || "<div class='empty-msg'>L'archivio \u00e8 vuoto.</div>"
+        sezArch.innerHTML = archHtml;
+        window.aggiornaListaFiltrabili?.();
+        if (!window.cacheContenuti['ARCHIVIO_ORDINI']) {
+            window.cacheContenuti['ARCHIVIO_ORDINI'] = archHtml;
+            window.cacheFetchTime['ARCHIVIO_ORDINI'] = Date.now();
+            _lsCacheSet('_html_ARCHIVIO_ORDINI', archHtml);
+        }
+        _datiArchLazy = null;
+    }
+
     det.open = true;
     requestAnimationFrame(() => {
-        det.querySelector('summary').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        det.querySelector('summary')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
 }
 
