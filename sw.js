@@ -9,13 +9,24 @@
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbyVMV9MkGiqphN0AKXJdHXF0Arp1vxTYrCYi1SGv_4MKLRJkx--5HoGq7mmQX-p0ZTZ/exec';
 var APP_URL = 'https://alessiocostanza3-ctrl.github.io/gestion-produzione-ombre/';
 
-var SHELL_CACHE = 'prod-shell-v98';
+var SHELL_CACHE = 'prod-shell-v102';
 var SHELL_ASSETS = [
     APP_URL,
     APP_URL + 'index.html',
     APP_URL + 'style.css?v=20260325a',
-    APP_URL + 'script.js?v=20260325e',
-    APP_URL + 'manifest.json'
+    APP_URL + 'script.js?v=20260401f',
+    APP_URL + 'manifest.json',
+    APP_URL + 'modules/core/config.js',
+    APP_URL + 'modules/core/cache.js',
+    APP_URL + 'modules/core/session.js',
+    APP_URL + 'modules/core/api.js',
+    APP_URL + 'modules/core/ui.js',
+    APP_URL + 'modules/core/revision-poller.js',
+    APP_URL + 'modules/features/pipistrelli.js',
+    APP_URL + 'modules/features/acquisti.js',
+    APP_URL + 'modules/features/richieste.js',
+    APP_URL + 'modules/features/impostazioni.js',
+    APP_URL + 'modules/features/produzione.js'
 ];
 
 /* ---- ciclo di vita ---- */

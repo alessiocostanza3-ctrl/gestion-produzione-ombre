@@ -271,7 +271,14 @@
             }
         });
     </script>
-    <script src="script.js?v=20260325e" defer></script>
+    <link rel="modulepreload" href="modules/core/config.js">
+    <link rel="modulepreload" href="modules/core/session.js">
+    <link rel="modulepreload" href="modules/core/api.js">
+    <link rel="modulepreload" href="modules/features/acquisti.js">
+    <link rel="modulepreload" href="modules/features/richieste.js">
+    <link rel="modulepreload" href="modules/features/impostazioni.js">
+    <link rel="modulepreload" href="modules/features/produzione.js">
+    <script type="module" src="script.js?v=20260401f"></script>
 </head>
 
 <body>
