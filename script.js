@@ -19,6 +19,7 @@ import {
   _aggiornaVisibilitaFiltroArticoli,
   registerGlobals as registerProduzioneGlobals, init as initProduzione
 } from './modules/features/produzione.js';
+import { registerGlobals as registerLoginGlobals } from './modules/auth/login.js';
 
 // === NOTIFICHE UI ===
 function apriPopupNotifiche(e) {
@@ -793,146 +794,8 @@ window.onload = async function() {
 
 
 
-//ACCESSO E INIZIALIZZAZIONE//
-function setLoginMode(mode) {
-    const isAdmin = mode === 'admin';
-    document.getElementById('login-view-utente').style.display = isAdmin ? 'none' : '';
-    document.getElementById('login-view-admin').style.display  = isAdmin ? ''     : 'none';
-    document.getElementById('login-error').innerText = '';
-    if (isAdmin) setTimeout(() => document.getElementById('login-codice')?.focus(), 50);
-}
-function togglePasswordVisibility() {
-    const pwd  = document.getElementById('login-password');
-    const icon = document.getElementById('eye-icon');
-    const isHidden = pwd.type === 'password';
-    pwd.type = isHidden ? 'text' : 'password';
-    icon.className = isHidden ? 'fas fa-eye-slash' : 'fas fa-eye';
-}
-async function hashSHA256(text) {
-    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
-}
-async function _verificaAccessoUtente() {
-    const errorDiv = document.getElementById('login-error');
-    errorDiv.innerText = "";
-    errorDiv.style.color = "";
-
-    const isAdmin = document.getElementById('login-view-admin')?.style.display !== 'none';
-
-    // â€” ModalitÃ  ADMIN â€”
-    if (isAdmin) {
-        const codice = (document.getElementById('login-codice')?.value || '').trim();
-        if (codice === '0000') {
-            setUtenteAttuale({ nome: "MASTER", ruolo: "MASTER", vistaSimulata: "MASTER" });
-            salvaEApriDashboard();
-        } else {
-            errorDiv.innerText = "Codice non valido.";
-        }
-        return;
-    }
-
-    // â€” ModalitÃ  UTENTE â€”
-    const email    = (document.getElementById('login-email')?.value    || '').trim().toLowerCase();
-    const username = (document.getElementById('login-username')?.value || '').trim();
-    const password = (document.getElementById('login-password')?.value || '');
-    if (!email || !username || !password) {
-        errorDiv.innerText = "Compila tutti i campi: email, nome utente e password.";
-        return;
-    }
-    const btn = document.getElementById('btn-login');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifica...';
-    try {
-        const hash = await hashSHA256(password);
-        const res  = await fetch(URL_GOOGLE, {
-            method: 'POST',
-            body: JSON.stringify({
-                azione: 'verificaLogin',
-                email,
-                username,
-                hash
-            })
-        });
-        const r    = await res.json();
-        if (r.status === "success") {
-            setUtenteAttuale({
-                nome: r.nome,
-                ruolo: r.ruolo,
-                email: r.email,
-                vistaSimulata: r.nome,
-                sessionToken: r.sessionToken || '',
-                sessionExpiresAt: r.sessionExpiresAt || ''
-            });
-            salvaEApriDashboard();
-        } else {
-            errorDiv.innerText = r.message || "Credenziali non valide.";
-        }
-    } catch (e) {
-        errorDiv.innerText = "Errore di connessione. Riprova.";
-    }
-    btn.disabled = false;
-    btn.innerHTML = 'Entra nel Sistema <i class="fas fa-arrow-right"></i>';
-}
-async function _creaAccountUtente() {
-    const errorDiv = document.getElementById('login-error');
-    if (errorDiv) errorDiv.innerText = "";
-    if (errorDiv) errorDiv.style.color = "";
-
-    const email    = (document.getElementById('login-email')?.value    || '').trim().toLowerCase();
-    const username = (document.getElementById('login-username')?.value || '').trim();
-    const password = (document.getElementById('login-password')?.value || '');
-
-    if (!email || !username || !password) {
-        if (errorDiv) errorDiv.innerText = "Per creare l'account compila email, nome utente e password.";
-        return;
-    }
-
-    const btnLogin = document.getElementById('btn-login');
-    const btnSignup = document.getElementById('btn-signup');
-    const oldLogin = btnLogin ? btnLogin.innerHTML : '';
-    const oldSignup = btnSignup ? btnSignup.innerHTML : '';
-
-    if (btnLogin) btnLogin.disabled = true;
-    if (btnSignup) {
-        btnSignup.disabled = true;
-        btnSignup.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creazione...';
-    }
-
-    try {
-        const hash = await hashSHA256(password);
-        const res = await fetch(URL_GOOGLE, {
-            method: 'POST',
-            body: JSON.stringify({
-                azione: 'creaUtentePubblico',
-                email,
-                username,
-                hash
-            })
-        });
-        const r = await res.json();
-
-        if (r.status === 'success') {
-            if (errorDiv) errorDiv.style.color = '#22c55e';
-            if (errorDiv) errorDiv.innerText = 'Account creato. Accesso in corso...';
-            await _verificaAccessoUtente();
-        } else {
-            if (errorDiv) errorDiv.style.color = '';
-            if (errorDiv) errorDiv.innerText = r.message || 'Impossibile creare l\'account.';
-        }
-    } catch (e) {
-        if (errorDiv) errorDiv.style.color = '';
-        if (errorDiv) errorDiv.innerText = 'Errore di connessione. Riprova.';
-    } finally {
-        if (btnLogin) {
-            btnLogin.disabled = false;
-            btnLogin.innerHTML = oldLogin || 'Entra nel Sistema <i class="fas fa-arrow-right"></i>';
-        }
-        if (btnSignup) {
-            btnSignup.disabled = false;
-            btnSignup.innerHTML = oldSignup || '<i class="fas fa-user-plus"></i> Nuovo utente? Crea account';
-        }
-    }
-}
+// setLoginMode, togglePasswordVisibility → definite in index.html (inline script)
+// hashSHA256, _verificaAccessoUtente, _creaAccountUtente → modules/auth/login.js
 function aggiornaProfiloSidebar() {
     const nomeDisplay = document.getElementById('user-name-display');
     const avatarIcon = document.getElementById('user-avatar-icon');
@@ -1469,6 +1332,7 @@ function cambiaPagina(nomeFoglio, elementoMenu) {
     }
     localStorage.setItem('ultimaPaginaProduzione', nomeFoglio);
     paginaAttuale = nomeFoglio;
+    window.paginaAttuale = nomeFoglio; // sync per i moduli che leggono window.paginaAttuale
     // Gestisce visibilitÃ  pulsante filtro articoli (solo su pagina Produzione)
     _aggiornaVisibilitaFiltroArticoli(nomeFoglio);
     // Classe sul body per eccezioni CSS by-page (es. landscape su PIPISTRELLI)
@@ -1748,3 +1612,41 @@ function caricaPaginaHivesTest() {
     cont.innerHTML = '<div class="centered-msg">Pagina di test momentaneamente non disponibile.</div>';
     applicaFade(cont);
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+//  REGISTRAZIONE GLOBALS — espone su window tutto ciò che è chiamato
+//  da index.html onclick/oninput e dai moduli via window.*
+//  Chiamata subito (top-level) così è disponibile prima del login.
+// ═══════════════════════════════════════════════════════════════════════
+
+// — auth/login.js (hashSHA256, _verificaAccessoUtente, _creaAccountUtente)
+registerLoginGlobals();
+
+// — funzioni definite in questo file chiamate da HTML onclick/oninput
+window.cambiaPagina                = cambiaPagina;
+window.aggiornaListaFiltrabili     = aggiornaListaFiltrabili;
+window.apriPopupNotifiche          = apriPopupNotifiche;
+window.chiudiPopupNotifiche        = chiudiPopupNotifiche;
+window.eliminaNotificaApp          = eliminaNotificaApp;
+window.rispondiAccessoApp          = rispondiAccessoApp;
+window.filtraUniversale            = filtraUniversale;
+window.toggleSidebar               = toggleSidebar;
+window.logout                      = logout;
+window._richiestaAccessoFuoriOrario_ = _richiestaAccessoFuoriOrario_;
+window.salvaEApriDashboard         = salvaEApriDashboard;
+
+// — variabili/oggetti condivisi letti e scritti dai moduli via window.*
+window.cacheContenuti              = cacheContenuti;   // oggetto: le mutation sono condivise
+window.TW                          = TW;               // oggetto stili Tailwind
+window.listaStati                  = listaStati;       // array: impostazioni.js lo sostituisce
+window.listaOperatori              = listaOperatori;   // array: impostazioni.js lo sostituisce
+
+// — funzioni di script.js usate dai moduli via window.*
+window._VAPID_PUBLIC_KEY           = _VAPID_PUBLIC_KEY;
+window._salvaSubVAPID_             = _salvaSubVAPID_;
+window._gestisciAuthError_         = _gestisciAuthError_;
+window._getSessionToken_           = _getSessionToken_;
+window._defaultListaStati_         = _defaultListaStati_;
+window._normNome                   = _normNome;
+window._PREDEFINED_AVATAR_COLORS   = _PREDEFINED_AVATAR_COLORS;
+window._avatarColorsCache          = _avatarColorsCache;

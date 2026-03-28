@@ -2066,6 +2066,7 @@ function registerGlobals() {
     window._pollProdStep = _pollProdStep;
     window.caricaDati = caricaDati;
     window.caricaArchivio = caricaArchivio;
+    window._syncKanbanFromStato = _syncKanbanFromStato;
 }
 
 function init() {

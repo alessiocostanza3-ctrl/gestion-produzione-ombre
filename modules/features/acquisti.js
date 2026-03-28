@@ -1117,6 +1117,7 @@ export function registerGlobals() {
     window.aggiornaConteggioSelezionati = aggiornaConteggioSelezionati;
     window.eliminaArticolo              = eliminaArticolo;
     window.eliminaSelezionati           = eliminaSelezionati;
+    window.fetchJson                    = fetchJson;
 }
 
 export default caricaAcquisti;
