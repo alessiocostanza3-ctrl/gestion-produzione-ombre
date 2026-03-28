@@ -333,7 +333,6 @@ async function _salvaSezioniSuBackend() {
 async function caricaMateriali(silenzioso = false, expectedRequestId = null, signal = null) {
     const isInSelectionMode = document.getElementById('btn-delete-selected')?.classList.contains('visible');
     if (silenzioso && isInSelectionMode) {
-        console.log("Aggiornamento silenzioso ignorato: modalità selezione attiva.");
         return;
     }
 

@@ -346,9 +346,7 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
                 return `<button type="button" class="stato-option" onclick="event.stopPropagation(); selezionaStatoOrdine(this,'${_nOrdS}','${st.nome}','${st.colore}')"><span class="stato-opt-dot" style="background:${st.colore}"></span><span>${st.nome}</span></button>`;
             }).join('');
             _statoZoneOrd = `<div class="stato-dropdown stato-dropdown-ord" data-nord="${nOrd}"><button type="button" class="stato-trigger" onclick="event.stopPropagation(); toggleStatoDropdown(this)" title="Cambia stato tutte righe"><span class="stato-dot" style="background:${_configStato.colore}"></span><span class="stato-label-txt">${_statoBulkLbl}</span><i class="fas fa-chevron-down stato-chevron"></i></button><div class="stato-popup">${_statoOptsOrd}</div></div>`;
-            console.log(`[Stato Dropdown] Ordine ${nOrd}: visibile per ${utenteAttuale?.nome}, stati=${_statiBulk.join(',')}`);
         } else if (isArchivio || !window._isUtenteEsente()) {
-            console.log(`[Stato Dropdown] Ordine ${nOrd}: NASCOSTO (isArchivio=${isArchivio}, esente=${window._isUtenteEsente()})`);
         }
 
         // Azioni disponibili per questo ordine
@@ -1012,7 +1010,6 @@ async function aggiornaDato(selectEl, idRiga, campo, nuovoValore, skipForceSync 
                 if (bundle && bundle.produzione) {
                     const newAttivi = (bundle.produzione || []).filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE');
                     _patchProduzione(newAttivi, bundle.produzione, bundle.archivio || []);
-                    console.log('[Force sync] Overview aggiornata immediatamente');
                 }
             } catch (err) {
                 console.warn('[Force sync] Errore nel fetch immediato:', err);

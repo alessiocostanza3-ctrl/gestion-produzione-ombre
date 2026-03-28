@@ -401,7 +401,6 @@ async function _testPushNotifica() {
         const url = URL_GOOGLE + '?azione=testPush&username=' + encodeURIComponent(utenteAttuale.nome.toUpperCase());
         const res = await fetch(url);
         const json = await res.json().catch(() => ({}));
-        console.log('[Push] testPush:', JSON.stringify(json));
         if (json.sent > 0) {
             const logInfo = (json.log || []).map(r => 'HTTP ' + r.status + (r.body ? ' (' + String(r.body).substring(0,80) + ')' : '')).join(' | ');
             notificaElegante('\uD83D\uDCE4 Test inviato (' + json.sent + ' disp.) — ' + (logInfo || '—'));

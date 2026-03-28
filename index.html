@@ -8,6 +8,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Prod">
     <meta name="theme-color" content="#f8fafc">
+    <!-- Security headers (meta equivalents — GitHub Pages non supporta header HTTP custom) -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+    <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), payment=()">
     <link rel="apple-touch-icon" href="logo.png">
     <link rel="icon" type="image/png" href="logo.png">
     <link rel="manifest" href="manifest.json">
@@ -70,6 +74,8 @@
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha384-3B6NwesSXE7YJlcLI9RpRqGf2p/EgVH8BgoKTaUrmKNDkHPStTQ3EyoYjCGXaOTS" crossorigin="anonymous">
     <!-- CRITICAL CSS inline: architettura flex-column applicata prima del primo paint.
@@ -355,8 +361,8 @@
             }
         });
     </script>
-    <link rel="preload" href="dist/script.bundle.js?v=20260328g" as="script">
-    <script type="module" src="dist/script.bundle.js?v=20260328g"></script>
+    <link rel="preload" href="dist/script.bundle.js?v=20260328h" as="script">
+    <script type="module" src="dist/script.bundle.js?v=20260328h"></script>
 </head>
 
 <body>
@@ -369,19 +375,19 @@
     <div id="login-overlay">
         <div class="login-card">
             <div class="login-logo-container">
-                <img src="logo.png" alt="Logo Prod" class="login-logo-img">
+                <img src="logo.png" alt="Logo Prod" class="login-logo-img" loading="lazy">
             </div>
 
             <!-- Vista utente normale (default) -->
             <div id="login-view-utente">
                 <p>Inserisci le tue credenziali per continuare</p>
                 <div class="login-form">
-                    <input type="email" id="login-email" placeholder="Email aziendale" class="input-field-modern" autocomplete="email" onkeydown="if(event.key==='Enter') verificaAccesso()">
-                    <input type="text" id="login-username" placeholder="Nome utente" class="input-field-modern" autocomplete="username" onkeydown="if(event.key==='Enter') verificaAccesso()">
+                    <input type="email" id="login-email" placeholder="Email aziendale" class="input-field-modern" autocomplete="email" aria-label="Email aziendale" onkeydown="if(event.key==='Enter') verificaAccesso()">
+                    <input type="text" id="login-username" placeholder="Nome utente" class="input-field-modern" autocomplete="username" aria-label="Nome utente" onkeydown="if(event.key==='Enter') verificaAccesso()">
                     <div class="login-password-row">
-                        <input type="password" id="login-password" placeholder="Password" class="input-field-modern" autocomplete="current-password" onkeydown="if(event.key==='Enter') verificaAccesso()">
-                        <button type="button" class="btn-toggle-pwd" onclick="togglePasswordVisibility()">
-                            <i class="fas fa-eye" id="eye-icon"></i>
+                        <input type="password" id="login-password" placeholder="Password" class="input-field-modern" autocomplete="current-password" aria-label="Password" onkeydown="if(event.key==='Enter') verificaAccesso()">
+                        <button type="button" class="btn-toggle-pwd" onclick="togglePasswordVisibility()" aria-label="Mostra/nascondi password" aria-controls="login-password">
+                            <i class="fas fa-eye" id="eye-icon" aria-hidden="true"></i>
                         </button>
                     </div>
                     <button id="btn-login" class="btn-login" onclick="verificaAccesso()">
@@ -418,8 +424,8 @@
     <!-- TOP BAR FLOTTANTE: brand card + search card -->
     <div class="top-float-bar" id="top-float-bar">
         <div class="top-brand-card" id="top-brand-card">
-            <button class="top-hamburger-btn" id="top-hamburger-btn" onclick="toggleSidebar()" title="Espandi/Chiudi menu">
-                <i class="fas fa-bars"></i>
+            <button class="top-hamburger-btn" id="top-hamburger-btn" onclick="toggleSidebar()" title="Espandi/Chiudi menu" aria-label="Apri/chiudi menu laterale" aria-expanded="false" aria-controls="main-sidebar">
+                <i class="fas fa-bars" aria-hidden="true"></i>
             </button>
             <button class="top-brand-home-btn" onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', null)" title="Home">
                 <div class="sidebar-brand-icon">
@@ -430,15 +436,15 @@
                 </div>
             </button>
             <!-- Campanellina notifiche desktop -->
-            <button id="btn-notifiche-desktop" class="notifiche-bell-btn" onclick="apriPopupNotifiche(event)" title="Notifiche">
-                <i class="far fa-bell"></i>
-                <span id="badge-notifiche-desktop" class="notifiche-badge" style="display:none">0</span>
+            <button id="btn-notifiche-desktop" class="notifiche-bell-btn" onclick="apriPopupNotifiche(event)" title="Notifiche" aria-label="Notifiche">
+                <i class="far fa-bell" aria-hidden="true"></i>
+                <span id="badge-notifiche-desktop" class="notifiche-badge" style="display:none" aria-label="notifiche non lette">0</span>
             </button>
         </div>
         <div class="top-search-card">
-            <i class="fas fa-search top-search-icon"></i>
-            <input type="text" id="universal-search" class="top-search-input" placeholder="Cerca in tutte le pagine..." oninput="filtraUniversale()" onkeyup="filtraUniversale()">
-            <button type="button" id="btn-filtro-articoli-desk" class="btn-filtro-articoli" onclick="toggleFiltroArticoli()" title="Filtra solo per codice articolo" style="display:none">
+            <i class="fas fa-search top-search-icon" aria-hidden="true"></i>
+            <input type="text" id="universal-search" class="top-search-input" placeholder="Cerca in tutte le pagine..." aria-label="Ricerca globale" role="searchbox" oninput="filtraUniversale()" onkeyup="filtraUniversale()">
+            <button type="button" id="btn-filtro-articoli-desk" class="btn-filtro-articoli" onclick="toggleFiltroArticoli()" title="Filtra solo per codice articolo" aria-label="Filtra per codice articolo" style="display:none">
                 <i class="fas fa-barcode"></i>
             </button>
         </div>
@@ -476,8 +482,8 @@
         <!-- BOTTOM: Account section -->
         <div class="sidebar-footer">
             <div class="sidebar-user-section">
-                <button id="user-avatar-btn" class="user-avatar-btn" onclick="toggleAccountMenu(event)" title="Account">
-                    <span id="user-avatar-icon">-</span>
+                <button id="user-avatar-btn" class="user-avatar-btn" onclick="toggleAccountMenu(event)" title="Account" aria-label="Menu account" aria-haspopup="true" aria-expanded="false" aria-controls="account-dropdown">
+                    <span id="user-avatar-icon" aria-hidden="true">-</span>
                 </button>
                 <div class="user-info-top" id="user-info-top">
                     <span id="user-name-display">Caricamento...</span>
