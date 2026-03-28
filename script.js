@@ -997,7 +997,11 @@ async function cambiaPagina(nomeFoglio, elementoMenu) {
             _pipModule.caricaPipistrelli();
             break;
         case 'TEST_HIVES_ANNUALE':
-            caricaPaginaHivesTest();
+            if (!_hivesModule) {
+                _hivesModule = await import('./modules/features/hives.js');
+                _hivesModule.registerGlobals();
+            }
+            _hivesModule.caricaPaginaHivesTest();
             break;
         default: {
             const _cpCont = document.getElementById('contenitore-dati');
