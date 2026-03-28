@@ -205,11 +205,15 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
         if (retryTimer) clearTimeout(retryTimer);
         if (e.name === 'AbortError') return;
         console.error("Errore Dashboard:", e);
-        contenitore.innerHTML = `<div class='inline-error'>Errore nel caricamento dati.
-            <button onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', null)"
-                style="margin-left:8px;padding:4px 12px;background:#242424;color:#fff;border:none;border-radius:6px;cursor:pointer">
-                &#x21bb; Riprova</button></div>`;
-        applicaFade(contenitore);
+        if (isBackgroundUpdate) {
+            notificaElegante('Aggiornamento dati fallito — riprovo al prossimo ciclo', 'warning');
+        } else {
+            contenitore.innerHTML = `<div class='inline-error'>Errore nel caricamento dati.
+                <button onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', null)"
+                    style="margin-left:8px;padding:4px 12px;background:#242424;color:#fff;border:none;border-radius:6px;cursor:pointer">
+                    &#x21bb; Riprova</button></div>`;
+            applicaFade(contenitore);
+        }
     }
 }
 

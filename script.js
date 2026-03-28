@@ -535,7 +535,8 @@ window.onload = async function() {
                     notificaElegante('🔄 ' + nomeUtente + ' ha aggiornato i dati');
                     switch (paginaAttuale) {
                         case 'PROGRAMMA PRODUZIONE DEL MESE':
-                            caricaSezioneConCache('PROGRAMMA_PRODUZIONE', _fetchDatiProduzione, _renderDatiProduzione, true);
+                            caricaSezioneConCache('PROGRAMMA_PRODUZIONE', _fetchDatiProduzione, _renderDatiProduzione, true)
+                                .catch(e => console.warn('[RevisionPoller] refresh failed:', e));
                             break;
                         case 'STORICO_RICHIESTE':
                             caricaRichieste();

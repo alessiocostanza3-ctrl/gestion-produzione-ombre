@@ -160,6 +160,9 @@ export async function caricaSezioneConCache(chiave, fetchFn, renderFn, forceRefr
             datiMostrati = cached.dati;
             try { renderFn(cached.dati); } catch (e) { console.warn('[ProdCache] renderFn (cache):', e); }
         }
+    } else {
+        // forceRefresh: leggi la cache come fallback ma non renderizzarla
+        try { cached = await ProdCache.get(chiave); } catch (_e) {}
     }
 
     // 3. Esegui sempre fetchFn in parallelo
