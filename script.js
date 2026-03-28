@@ -240,6 +240,8 @@ let _navRequestSerial = 0;
 let _latestNavRequest = 0;
 let _navAbortController = null; // annulla fetch in-volo a ogni cambio pagina
 let _lastNavClickTime = 0;     // debounce click rapidissimi (<80ms)
+let _pipModule = null;   // lazy-loaded: modules/features/pipistrelli.js
+let _hivesModule = null; // lazy-loaded: modules/features/hives.js
 
 /*******************************************************************************
 * NOTIFICHE PUSH  â€“  VAPID native (nessun servizio di terze parti)
