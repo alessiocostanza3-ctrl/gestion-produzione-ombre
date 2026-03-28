@@ -649,7 +649,7 @@ body.sidebar-collapsed .main-content {
     width: 40px !important;
     height: 40px !important;
     border-radius: 50% !important;
-    background: #8fe45e !important;
+    background: var(--avatar-user-color, #8fe45e) !important;
     border: 2.5px solid rgba(255,255,255,0.25) !important;
     color: #ffffff !important;
     font-size: 16px !important;
@@ -662,11 +662,11 @@ body.sidebar-collapsed .main-content {
     transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s !important;
     padding: 0 !important;
     outline: none !important;
-    box-shadow: 0 2px 8px rgba(143,228,94,0.45) !important;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--avatar-user-color, #8fe45e) 40%, transparent) !important;
 }
 .user-avatar-btn:hover {
     border-color: rgba(255,255,255,0.55) !important;
-    box-shadow: 0 4px 16px rgba(143,228,94,0.65) !important;
+    box-shadow: 0 4px 16px color-mix(in srgb, var(--avatar-user-color, #8fe45e) 65%, transparent) !important;
     transform: scale(1.06) !important;
 }
 .user-avatar-btn:active {
@@ -967,7 +967,7 @@ body.sidebar-collapsed .main-content {
     height: 35px;
     border-radius: 8px;
     object-fit: cover;
-    border: 2px solid #8fe45e;
+    border: 2px solid var(--avatar-user-color, #8fe45e);
 }
 
 .user-info-top, #user-info-top {

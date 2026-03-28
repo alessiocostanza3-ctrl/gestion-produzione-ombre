@@ -223,6 +223,8 @@ function _avatarDeleteEditMob(e) {
 }
 
 function _applyAvatarColorUI(color) {
+    // Aggiorna la CSS variable globale usata dal CSS statico
+    document.documentElement.style.setProperty('--avatar-user-color', color);
     const btn = document.getElementById('user-avatar-btn');
     const ddp = document.getElementById('account-ddrop-avatar');
     const btnMob = document.getElementById('user-avatar-btn-mobile');
