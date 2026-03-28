@@ -799,6 +799,7 @@ async function cambiaPagina(nomeFoglio, elementoMenu) {
 
     const requestId = ++_navRequestSerial;
     _latestNavRequest = requestId;
+    window._latestNavRequest = requestId;
 
     // reset possible filter cache when switching pages
     elementiDaFiltrareCache = null;

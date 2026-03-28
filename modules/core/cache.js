@@ -199,6 +199,9 @@ export async function caricaSezioneConCache(chiave, fetchFn, renderFn, forceRefr
     } catch (errFetch) {
         _nascondiSpinner();
 
+        // AbortError = cambio pagina, non serve fare nulla
+        if (errFetch && errFetch.name === 'AbortError') return;
+
         if (cached) {
             // 5. Fallback: dati in cache disponibili → mostra toast con orario
             const ora = _oraFormattata(cached.timestamp);
