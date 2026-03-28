@@ -24,6 +24,50 @@
             }
         } catch(e) {}
     </script>
+    <script>
+        // ─── Global error handler ────────────────────────────────────────────
+        // Installato il prima possibile (prima di qualsiasi script esterno)
+        // per catturare errori di caricamento, runtime e promise non gestite.
+        (function() {
+            var NOISE = ['ResizeObserver loop', 'Script error', 'AbortError',
+                         'NetworkError', 'Load failed', 'Failed to fetch'];
+            function isNoise(msg) {
+                var s = msg ? String(msg) : '';
+                return NOISE.some(function(p) { return s.indexOf(p) !== -1; });
+            }
+            function showCriticalToast() {
+                function _show() {
+                    var el = document.getElementById('toast-notifica');
+                    if (!el) {
+                        el = document.createElement('div');
+                        el.id = 'toast-notifica';
+                        document.body.appendChild(el);
+                    }
+                    el.className = 'toast-notifica toast-error';
+                    el.innerText = '\u26a0 Errore imprevisto. Ricarica se l\u2019app non risponde.';
+                    void el.offsetWidth;
+                    el.classList.add('visible');
+                    clearTimeout(el._hideTimer);
+                    el._hideTimer = setTimeout(function() { el.classList.remove('visible'); }, 5000);
+                }
+                if (document.body) { _show(); }
+                else { document.addEventListener('DOMContentLoaded', _show, { once: true }); }
+            }
+            window.onerror = function(msg, src, line, col, err) {
+                if (isNoise(msg)) return false;
+                console.error('[APP ERROR]', { message: msg, source: src, line: line, col: col, error: err });
+                showCriticalToast();
+                return false;
+            };
+            window.onunhandledrejection = function(evt) {
+                var r = evt && evt.reason;
+                var msg = r && r.message ? r.message : String(r);
+                if (isNoise(msg) || (r && r.name === 'AbortError')) return;
+                console.error('[UNHANDLED PROMISE]', r);
+                showCriticalToast();
+            };
+        })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
