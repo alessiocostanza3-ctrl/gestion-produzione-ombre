@@ -291,8 +291,8 @@
             }
         });
     </script>
-    <link rel="preload" href="dist/script.bundle.js?v=20260328b" as="script">
-    <script type="module" src="dist/script.bundle.js?v=20260328b"></script>
+    <link rel="preload" href="dist/script.bundle.js?v=20260328c" as="script">
+    <script type="module" src="dist/script.bundle.js?v=20260328c"></script>
 </head>
 
 <body>
@@ -535,12 +535,8 @@
         </div>
         <div id="contenitore-dati"></div>
 
-        <!-- Pull to refresh indicator -->
-        <div id="ptr-indicator">
-            <i class="fas fa-arrow-down ptr-arrow"></i>
-            <span class="ptr-spinner"></span>
-            <span class="ptr-label">Tira per aggiornare</span>
-        </div>
+        <!-- Pull to refresh indicator (disabilitato) -->
+        <div id="ptr-indicator" style="display:none!important"></div>
 
         <div class="mobile-tab-bar" id="mobile-tab-bar">
             <button type="button" class="tab-item active" data-page="PROGRAMMA PRODUZIONE DEL MESE" onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', this)">

@@ -140,18 +140,6 @@ const ProdCache = {
  * @param {boolean}  [forceRefresh] Se true, salta la cache e va diretto a GAS
  */
 export async function caricaSezioneConCache(chiave, fetchFn, renderFn, forceRefresh) {
-    const ptrEl = document.getElementById('ptr-indicator');
-
-    function _mostraSpinner() {
-        if (!ptrEl) return;
-        ptrEl.textContent   = 'Aggiornamento...';
-        ptrEl.style.display = 'block';
-    }
-    function _nascondiSpinner() {
-        if (!ptrEl) return;
-        ptrEl.style.display = 'none';
-        ptrEl.textContent   = '';
-    }
     function _oraFormattata(ts) {
         if (!ts) return '';
         const d = new Date(ts);
@@ -171,13 +159,7 @@ export async function caricaSezioneConCache(chiave, fetchFn, renderFn, forceRefr
         if (cached) {
             datiMostrati = cached.dati;
             try { renderFn(cached.dati); } catch (e) { console.warn('[ProdCache] renderFn (cache):', e); }
-            if (cached.isStale) _mostraSpinner();
-        } else {
-            // Nessuna cache: mostra spinner mentre si aspetta GAS
-            _mostraSpinner();
         }
-    } else {
-        _mostraSpinner();
     }
 
     // 3. Esegui sempre fetchFn in parallelo
@@ -194,11 +176,7 @@ export async function caricaSezioneConCache(chiave, fetchFn, renderFn, forceRefr
             try { renderFn(nuoviDati); } catch (e) { console.warn('[ProdCache] renderFn (fetch):', e); }
         }
 
-        _nascondiSpinner();
-
     } catch (errFetch) {
-        _nascondiSpinner();
-
         // AbortError = cambio pagina, non serve fare nulla
         if (errFetch && errFetch.name === 'AbortError') return;
 

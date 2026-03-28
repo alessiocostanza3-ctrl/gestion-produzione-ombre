@@ -300,6 +300,8 @@ export function registerGlobals() {
     window._PREDEFINED_AVATAR_COLORS   = _PREDEFINED_AVATAR_COLORS;
     window._avatarColorsCache          = _avatarColorsCache;
     window._getOpColor                 = _getOpColor;
+    window._isUtenteEsente             = _isUtenteEsente;
+    window._isCommerciale              = _isCommerciale;
 }
 
 export {
