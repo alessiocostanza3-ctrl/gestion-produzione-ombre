@@ -61,7 +61,7 @@ function _patchFetchWithSession_() {
     if (_fetchSessionPatchDone || typeof window.fetch !== 'function') return;
     const originalFetch = window.fetch.bind(window);
 
-    // Intercetta auth_error in background su ogni risposta GAS, senza consumare il body originale
+    // Intercetta auth_error e fuori_orario in background su ogni risposta GAS, senza consumare il body originale
     function _intercettaAuthError_(resp) {
         _refreshSessionExpiry_(); // rinnova expiresAt ad ogni chiamata verso GAS
         resp.clone().text().then(function(txt) {
@@ -69,6 +69,9 @@ function _patchFetchWithSession_() {
                 const data = JSON.parse(txt);
                 if (data && data.status === 'auth_error') {
                     _gestisciAuthError_(data.message || data.msg || 'Sessione scaduta.');
+                }
+                if (data && data.status === 'fuori_orario') {
+                    if (typeof _bloccaSchermo_ === 'function') _bloccaSchermo_();
                 }
             } catch (e) {}
         }).catch(function() {});
