@@ -763,12 +763,54 @@ window.onload = async function() {
         }
 
         if (sessione) {
-            // Verifica integritÃ  sessione
+            // Verifica integrità  sessione
             if (utenteAttuale.ruolo !== "MASTER" && !utenteAttuale.nome) {
                 throw new Error("Sessione corrotta");
             }
-            // Il caricamento della pagina Ã¨ giÃ  gestito da DOMContentLoaded â†’ cambiaPagina()
-            // Non chiamare caricaPaginaRichieste() qui per evitare doppio caricamento
+            // Inizializzazione completa per sessioni ritornanti (stesso path del login fresco)
+            _patchFetchWithSession_();
+            registerPipGlobals();
+            registerUIGlobals();
+            registerAcquistiGlobals();
+            registerRichiesteGlobals();
+            initRichieste();
+            registerImpostazioniGlobals();
+            initImpostazioni();
+            registerProduzioneGlobals();
+            initProduzione();
+            window.cambiaPagina = cambiaPagina;
+            window.aggiornaListaFiltrabili = aggiornaListaFiltrabili;
+            configurePoller({
+                onRemoteChange: function(nomeUtente) {
+                    notificaElegante('🔄 ' + nomeUtente + ' ha aggiornato i dati');
+                    switch (paginaAttuale) {
+                        case 'PROGRAMMA PRODUZIONE DEL MESE':
+                            caricaSezioneConCache('PROGRAMMA_PRODUZIONE', _fetchDatiProduzione, _renderDatiProduzione, true);
+                            break;
+                        case 'STORICO_RICHIESTE':
+                            caricaRichieste();
+                            break;
+                        case 'MATERIALE DA ORDINARE':
+                            caricaAcquisti(null);
+                            break;
+                        case 'ARCHIVIO_ORDINI':
+                            if (typeof caricaArchivio === 'function') caricaArchivio();
+                            break;
+                    }
+                },
+                onUsersOnline: function(lista) { _aggiornaIndicatoreOnline(lista); },
+                getUtenteAttuale: function() { return utenteAttuale; },
+                getPaginaCorrente: function() { return paginaAttuale; }
+            });
+            RevisionPoller.start();
+            // Naviga all'ultima pagina salvata
+            let paginaSalvata = null;
+            try { paginaSalvata = localStorage.getItem('ultimaPaginaProduzione'); } catch (_e) {}
+            if (!paginaSalvata || paginaSalvata === 'undefined' || paginaSalvata === 'null') {
+                paginaSalvata = 'PROGRAMMA PRODUZIONE DEL MESE';
+            }
+            const _tastoMenu = document.querySelector(`.menu-item[data-page="${paginaSalvata}"]`);
+            cambiaPagina(paginaSalvata, _tastoMenu);
         }
 
     } catch (e) {
