@@ -773,19 +773,25 @@ async function caricaImpostazioni() {
 async function caricaDatiIniziali() {
     const LS_KEY = '_impostazioni_cache';
     const TTL_MS = 5 * 60 * 1000;
-    const cached = _lsCacheGet(LS_KEY, TTL_MS);
-    if (cached) {
+    // Stale-while-revalidate: leggi cache ignorando la scadenza → listaStati sempre pronto
+    const cachedAny = _lsCacheGet(LS_KEY, Infinity);
+    if (cachedAny) {
         try {
-            const parsed = (typeof cached === 'string') ? JSON.parse(cached) : cached;
+            const parsed = (typeof cachedAny === 'string') ? JSON.parse(cachedAny) : cachedAny;
             if (parsed.stati && parsed.stati.length) {
                 window.listaStati     = parsed.stati;
                 window.listaOperatori = parsed.operatori || [];
                 _applicaOverviewConfig(parsed.overviewStati);
-                return;
+                // Se i dati sono scaduti: aggiorna in background senza bloccare la UI
+                if (!_lsCacheGet(LS_KEY, TTL_MS)) {
+                    _fetchImpostazioniDaServer().catch(e => console.warn('[impostazioni] bg refresh:', e));
+                }
+                return; // non blocca mai se c'è almeno un valore in cache
             }
-            _lsCacheDel(LS_KEY);
         } catch(e) { console.warn('[impostazioni] cache JSON corrotta, ricarico dal server:', e); }
+        _lsCacheDel(LS_KEY);
     }
+    // Nessun dato in cache (prima apertura assoluta): fetch bloccante necessario
     await _fetchImpostazioniDaServer();
 }
 

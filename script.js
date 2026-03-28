@@ -477,11 +477,11 @@ window.onload = async function() {
         }
     }
 
-    // 2. Avvia caricaDatiIniziali SENZA await.
-    // - Cache LS hit (5 min TTL): path sincrono → listaStati pronto prima di cambiaPagina.
-    // - Cache miss: GAS fetch in parallelo con il primo render → nessun blocco UI.
+    // 2. caricaDatiIniziali: stale-while-revalidate (impl. in impostazioni.js).
+    // - Cache disponibile (anche scaduta): ritorna subito con listaStati pronto, aggiorna GAS in background.
+    // - Nessun dato: await bloccante solo alla prima apertura assoluta.
     if (typeof caricaDatiIniziali === 'function') {
-        caricaDatiIniziali().catch(e => console.warn('[Boot] caricaDatiIniziali:', e));
+        await caricaDatiIniziali().catch(e => console.warn('[Boot] caricaDatiIniziali:', e));
     }
 
     if (sessione) {
