@@ -12,24 +12,42 @@ async function hashSHA256(text) {
     return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
 }
 
+// ── Rate limiting: blocco temporaneo dopo troppi tentativi falliti ────────────
+let _loginFailCount = 0;
+let _loginLockUntil = 0;
+const _LOGIN_MAX_FAILS = 5;
+const _LOGIN_LOCKOUT_MS = 30_000;
+
+function _loginIsLocked() {
+    return Date.now() < _loginLockUntil;
+}
+function _loginRecordFail(errorDiv) {
+    _loginFailCount++;
+    if (_loginFailCount >= _LOGIN_MAX_FAILS) {
+        _loginLockUntil = Date.now() + _LOGIN_LOCKOUT_MS;
+        _loginFailCount = 0;
+        if (errorDiv) errorDiv.innerText = 'Troppi tentativi. Riprova tra 30 secondi.';
+    }
+}
+function _loginRecordSuccess() {
+    _loginFailCount = 0;
+    _loginLockUntil = 0;
+}
+
 // ── Login / Registrazione ─────────────────────────────────────────────────────
 
 async function _verificaAccessoUtente() {
     const errorDiv = document.getElementById('login-error');
-    errorDiv.innerText = "";
-    errorDiv.style.color = "";
+    if (errorDiv) { errorDiv.innerText = ''; errorDiv.style.color = ''; }
 
+    // La modalità ADMIN è gestita da verificaAccesso() in index.html via GAS server-side.
+    // _verificaAccessoUtente gestisce solo il login utente normale.
     const isAdmin = document.getElementById('login-view-admin')?.style.display !== 'none';
+    if (isAdmin) return; // delega a verificaAccesso() in index.html
 
-    // — Modalità ADMIN —
-    if (isAdmin) {
-        const codice = (document.getElementById('login-codice')?.value || '').trim();
-        if (codice === '0000') {
-            setUtenteAttuale({ nome: "MASTER", ruolo: "MASTER", vistaSimulata: "MASTER" });
-            window.salvaEApriDashboard();
-        } else {
-            errorDiv.innerText = "Codice non valido.";
-        }
+    if (_loginIsLocked()) {
+        const secsLeft = Math.ceil((_loginLockUntil - Date.now()) / 1000);
+        if (errorDiv) errorDiv.innerText = `Troppi tentativi. Riprova tra ${secsLeft} secondi.`;
         return;
     }
 
@@ -38,25 +56,20 @@ async function _verificaAccessoUtente() {
     const username = (document.getElementById('login-username')?.value || '').trim();
     const password = (document.getElementById('login-password')?.value || '');
     if (!email || !username || !password) {
-        errorDiv.innerText = "Compila tutti i campi: email, nome utente e password.";
+        if (errorDiv) errorDiv.innerText = 'Compila tutti i campi: email, nome utente e password.';
         return;
     }
     const btn = document.getElementById('btn-login');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifica...';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifica...'; }
     try {
         const hash = await hashSHA256(password);
         const res  = await fetch(URL_GOOGLE, {
             method: 'POST',
-            body: JSON.stringify({
-                azione: 'verificaLogin',
-                email,
-                username,
-                hash
-            })
+            body: JSON.stringify({ azione: 'verificaLogin', email, username, hash })
         });
-        const r    = await res.json();
-        if (r.status === "success") {
+        const r = await res.json();
+        if (r.status === 'success') {
+            _loginRecordSuccess();
             setUtenteAttuale({
                 nome: r.nome,
                 ruolo: r.ruolo,
@@ -67,13 +80,13 @@ async function _verificaAccessoUtente() {
             });
             window.salvaEApriDashboard();
         } else {
-            errorDiv.innerText = r.message || "Credenziali non valide.";
+            _loginRecordFail(errorDiv);
+            if (errorDiv && !_loginIsLocked()) errorDiv.innerText = r.message || 'Credenziali non valide.';
         }
     } catch (e) {
-        errorDiv.innerText = "Errore di connessione. Riprova.";
+        if (errorDiv) errorDiv.innerText = 'Errore di connessione. Riprova.';
     }
-    btn.disabled = false;
-    btn.innerHTML = 'Entra nel Sistema <i class="fas fa-arrow-right"></i>';
+    if (btn) { btn.disabled = false; btn.innerHTML = 'Entra nel Sistema <i class="fas fa-arrow-right"></i>'; }
 }
 
 async function _creaAccountUtente() {

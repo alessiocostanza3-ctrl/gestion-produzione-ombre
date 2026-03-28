@@ -62,7 +62,9 @@ const server = http.createServer((req, res) => {
     const contentType = MIME[ext] || 'application/octet-stream';
     const cache       = cacheHeader(ext, hasVersion);
     const acceptEnc   = req.headers['accept-encoding'] || '';
-    const canGzip     = /gzip/.test(acceptEnc) && ['html','css','js','json','svg'].includes(ext);
+    const compressExt = ['html','css','js','json','svg'];
+    const canBrotli   = /br/.test(acceptEnc) && compressExt.includes(ext);
+    const canGzip     = !canBrotli && /gzip/.test(acceptEnc) && compressExt.includes(ext);
 
     const headers = {
       ...SEC_HEADERS,
@@ -70,14 +72,24 @@ const server = http.createServer((req, res) => {
       'Cache-Control': cache,
     };
 
-    if (canGzip) {
+    function sendRaw() {
+      headers['Content-Length'] = data.length;
+      res.writeHead(200, headers);
+      res.end(data);
+    }
+
+    if (canBrotli) {
+      zlib.brotliCompress(data, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 4 } }, (brErr, compressed) => {
+        if (brErr) { console.warn('[server] brotli fallito:', brErr.message); return sendRaw(); }
+        headers['Content-Encoding'] = 'br';
+        headers['Vary']             = 'Accept-Encoding';
+        headers['Content-Length']   = compressed.length;
+        res.writeHead(200, headers);
+        res.end(compressed);
+      });
+    } else if (canGzip) {
       zlib.gzip(data, (gzErr, compressed) => {
-        if (gzErr) {
-          console.warn('[server] gzip fallito:', gzErr.message);
-          headers['Content-Length'] = data.length;
-          res.writeHead(200, headers);
-          return res.end(data);
-        }
+        if (gzErr) { console.warn('[server] gzip fallito:', gzErr.message); return sendRaw(); }
         headers['Content-Encoding'] = 'gzip';
         headers['Vary']             = 'Accept-Encoding';
         headers['Content-Length']   = compressed.length;
@@ -85,9 +97,7 @@ const server = http.createServer((req, res) => {
         res.end(compressed);
       });
     } else {
-      headers['Content-Length'] = data.length;
-      res.writeHead(200, headers);
-      res.end(data);
+      sendRaw();
     }
   });
 });

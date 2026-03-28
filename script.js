@@ -9,7 +9,7 @@ import {
 import { lsCacheGet as _lsCacheGet, lsCacheSet as _lsCacheSet, lsCacheDel as _lsCacheDel } from './modules/core/ls-cache.js';
 // api.js is imported by revision-poller.js and pipistrelli.js
 import RevisionPoller, { configurePoller } from './modules/core/revision-poller.js';
-import { caricaPipistrelli, resetPipFetch, registerGlobals as registerPipGlobals } from './modules/features/pipistrelli.js';
+// pipistrelli.js: lazy-loaded dinamicamente in cambiaPagina → NON importare staticamente
 import { notificaElegante, applicaFade, mostraModalConflitto, mostraConferma, registerUIGlobals } from './modules/core/ui.js';
 import { caricaAcquisti, registerGlobals as registerAcquistiGlobals } from './modules/features/acquisti.js';
 import { caricaRichieste, _fetchDatiRichieste, _renderDatiRichieste, init as initRichieste, registerGlobals as registerRichiesteGlobals } from './modules/features/richieste.js';
@@ -165,7 +165,6 @@ function _startSessionRefreshTicker_() {
     _sessionRefreshTimer = setInterval(_refreshSessionSilenzioso_, 5 * 60 * 1000);
 }
 
-_startSessionRefreshTicker_();
 window.addEventListener('storage', function(ev) {
     if (ev.key !== 'sessioneUtente' || !ev.newValue) return;
     try {
@@ -478,81 +477,67 @@ window.onload = async function() {
         }
     }
 
-    try {
-        // 2. CARICAMENTO DATI DAL SERVER (OPERATORI, ECC)
-        if (typeof caricaDatiIniziali === "function") {
-            await caricaDatiIniziali();
-        }
+    // 2. Avvia caricaDatiIniziali SENZA await.
+    // - Cache LS hit (5 min TTL): path sincrono → listaStati pronto prima di cambiaPagina.
+    // - Cache miss: GAS fetch in parallelo con il primo render → nessun blocco UI.
+    if (typeof caricaDatiIniziali === 'function') {
+        caricaDatiIniziali().catch(e => console.warn('[Boot] caricaDatiIniziali:', e));
+    }
 
-        if (sessione) {
-            // Verifica integrità  sessione
-            if (utenteAttuale.ruolo !== "MASTER" && !utenteAttuale.nome) {
-                throw new Error("Sessione corrotta");
-            }
-            // Inizializzazione completa per sessioni ritornanti (stesso path del login fresco)
-            _patchFetchWithSession_();
-            if (_pipModule) _pipModule.registerGlobals();
-            registerUIGlobals();
-            registerAcquistiGlobals();
-            registerRichiesteGlobals();
-            initRichieste();
-            registerImpostazioniGlobals();
-            initImpostazioni();
-            registerProduzioneGlobals();
-            initProduzione();
-            window.cambiaPagina = cambiaPagina;
-            window.aggiornaListaFiltrabili = aggiornaListaFiltrabili;
-            configurePoller({
-                onRemoteChange: function(nomeUtente) {
-                    notificaElegante('🔄 ' + nomeUtente + ' ha aggiornato i dati');
-                    switch (paginaAttuale) {
-                        case 'PROGRAMMA PRODUZIONE DEL MESE':
-                            caricaSezioneConCache('PROGRAMMA_PRODUZIONE', _fetchDatiProduzione, _renderDatiProduzione, true)
-                                .catch(e => console.warn('[RevisionPoller] refresh failed:', e));
-                            break;
-                        case 'STORICO_RICHIESTE':
-                            caricaRichieste();
-                            break;
-                        case 'MATERIALE DA ORDINARE':
-                            caricaAcquisti(null);
-                            break;
-                        case 'ARCHIVIO_ORDINI':
-                            if (typeof caricaArchivio === 'function') caricaArchivio();
-                            break;
-                    }
-                },
-                onUsersOnline: function(lista) { _aggiornaIndicatoreOnline(lista); },
-                getUtenteAttuale: function() { return utenteAttuale; },
-                getPaginaCorrente: function() { return paginaAttuale; }
-            });
-            RevisionPoller.start();
-            // Naviga all'ultima pagina salvata
-            let paginaSalvata = null;
-            try { paginaSalvata = localStorage.getItem('ultimaPaginaProduzione'); } catch (_e) {}
-            if (!paginaSalvata || paginaSalvata === 'undefined' || paginaSalvata === 'null') {
-                paginaSalvata = 'PROGRAMMA PRODUZIONE DEL MESE';
-            }
-            const _tastoMenu = document.querySelector(`.menu-item[data-page="${paginaSalvata}"]`);
-            cambiaPagina(paginaSalvata, _tastoMenu);
-        }
-
-    } catch (e) {
-        console.warn("Errore caricamento dati iniziali:", e);
-        let sessioneEsistente = null;
-        try { sessioneEsistente = localStorage.getItem('sessioneUtente') || sessionStorage.getItem('sessioneUtente'); } catch (e) {}
-        // Cancella sessione e mostra login SOLO se Ã¨ esplicitamente corrotta
-        // mai per errori di rete, timeout GAS o altri errori non critici
-        if (e && e.message === "Sessione corrotta") {
-            document.documentElement.classList.remove("has-session");
-            try { localStorage.removeItem('sessioneUtente'); } catch (e) {}
-            try { sessionStorage.removeItem('sessioneUtente'); } catch (e) {}
-            if (overlay) { overlay.style.display = 'flex'; overlay.style.opacity = '1'; }
-        } else if (!sessioneEsistente) {
-            // Nessuna sessione in localStorage â†’ mostra login
+    if (sessione) {
+        // Verifica integrità sessione
+        if (utenteAttuale.ruolo !== 'MASTER' && !utenteAttuale.nome) {
             document.documentElement.classList.remove('has-session');
+            try { localStorage.removeItem('sessioneUtente'); sessionStorage.removeItem('sessioneUtente'); } catch (_e) {}
             if (overlay) { overlay.style.display = 'flex'; overlay.style.opacity = '1'; }
+            return;
         }
-        // Se c'Ã¨ una sessione valida, l'utente resta dentro â€” l'errore Ã¨ solo di rete
+        // Inizializzazione completa per sessioni ritornanti
+        _patchFetchWithSession_();
+        _startSessionRefreshTicker_(); // avvia solo se c'è sessione
+        if (_pipModule) _pipModule.registerGlobals();
+        registerUIGlobals();
+        registerAcquistiGlobals();
+        registerRichiesteGlobals();
+        initRichieste();
+        registerImpostazioniGlobals();
+        initImpostazioni();
+        registerProduzioneGlobals();
+        initProduzione();
+        window.cambiaPagina = cambiaPagina;
+        window.aggiornaListaFiltrabili = aggiornaListaFiltrabili;
+        configurePoller({
+            onRemoteChange: function(nomeUtente) {
+                notificaElegante('🔄 ' + nomeUtente + ' ha aggiornato i dati');
+                switch (paginaAttuale) {
+                    case 'PROGRAMMA PRODUZIONE DEL MESE':
+                        caricaSezioneConCache('PROGRAMMA_PRODUZIONE', _fetchDatiProduzione, _renderDatiProduzione, true)
+                            .catch(e => console.warn('[RevisionPoller] refresh failed:', e));
+                        break;
+                    case 'STORICO_RICHIESTE':
+                        caricaRichieste();
+                        break;
+                    case 'MATERIALE DA ORDINARE':
+                        caricaAcquisti(null);
+                        break;
+                    case 'ARCHIVIO_ORDINI':
+                        if (typeof caricaArchivio === 'function') caricaArchivio();
+                        break;
+                }
+            },
+            onUsersOnline: function(lista) { _aggiornaIndicatoreOnline(lista); },
+            getUtenteAttuale: function() { return utenteAttuale; },
+            getPaginaCorrente: function() { return paginaAttuale; }
+        });
+        RevisionPoller.start();
+        // Naviga all'ultima pagina salvata
+        let paginaSalvata = null;
+        try { paginaSalvata = localStorage.getItem('ultimaPaginaProduzione'); } catch (_e) {}
+        if (!paginaSalvata || paginaSalvata === 'undefined' || paginaSalvata === 'null') {
+            paginaSalvata = 'PROGRAMMA PRODUZIONE DEL MESE';
+        }
+        const _tastoMenu = document.querySelector(`.menu-item[data-page="${paginaSalvata}"]`);
+        cambiaPagina(paginaSalvata, _tastoMenu);
     }
 };
 
