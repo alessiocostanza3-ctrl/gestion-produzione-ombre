@@ -51,11 +51,13 @@ async function _fetchDatiProduzione(signal = null) {
         _dashBundle = await _dashResp.json();
     }
     if (!_dashBundle) throw new Error('bundle vuoto');
-    return { produzione: _dashBundle.produzione || [], archivio: _dashBundle.archivio || [] };
+    return { produzione: _dashBundle.produzione || [], archivio: _dashBundle.archivio || [], avatarColors: _dashBundle.avatarColors || null };
 }
 
 function _renderDatiProduzione(dati, _isBackground = null) {
     if (window.paginaAttuale !== 'PROGRAMMA PRODUZIONE DEL MESE') return;
+    // Sincronizza colori avatar degli operatori PRIMA di renderizzare
+    if (dati.avatarColors) _syncAvatarColors(dati.avatarColors);
     _ultimiDatiProduzione = dati;
 
     const contenitore = document.getElementById('contenitore-dati');
@@ -2068,6 +2070,7 @@ function registerGlobals() {
     window._startPollingProduzione = _startPollingProduzione;
     window._stopPollingProduzione = _stopPollingProduzione;
     window._pollProdStep = _pollProdStep;
+    window._repaintOpColors = _repaintOpColors;
     window.caricaDati = caricaDati;
     window.caricaArchivio = caricaArchivio;
     window._syncKanbanFromStato = _syncKanbanFromStato;
