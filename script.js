@@ -396,10 +396,17 @@ function _prefetchBackground() {
     prefetch.matPromise  = fetch(URL_GOOGLE + '?pagina=MATERIALE+DA+ORDINARE')
         .then(function(r) { return r.ok ? r.json() : null; })
         .catch(function() { return null; });
+    // Prefetch ordini: user-specific (dopo login utenteAttuale è già noto)
+    const _isAlessio = utenteAttuale?.nome?.toUpperCase().trim() === 'ALESSIO';
+    const _opParam   = _isAlessio ? '' : encodeURIComponent(utenteAttuale?.nome || '');
+    prefetch.ordiniPromise = fetch(URL_GOOGLE + '?azione=getOrdiniAcquisti&operatore=' + _opParam)
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .catch(function() { return null; });
     // Salva il risultato anche nelle var bundle per accesso rapido successivo
-    prefetch.dashPromise.then(function(b) { if (b) prefetch.dashBundle = b; });
-    prefetch.rqPromise.then(function(b)   { if (b) prefetch.rqBundle   = b; });
-    prefetch.matPromise.then(function(b)  { if (b) prefetch.matBundle  = b; });
+    prefetch.dashPromise.then(function(b)   { if (b) prefetch.dashBundle   = b; });
+    prefetch.rqPromise.then(function(b)     { if (b) prefetch.rqBundle     = b; });
+    prefetch.matPromise.then(function(b)    { if (b) prefetch.matBundle    = b; });
+    prefetch.ordiniPromise.then(function(b) { if (b) prefetch.ordiniBundle = b; });
 }
 
 
@@ -862,8 +869,8 @@ async function cambiaPagina(nomeFoglio, elementoMenu) {
         const ultimoFetch = cacheFetchTime[nomeFoglio] || 0;
         if (ora - ultimoFetch > CACHE_TTL_MS) {
             if (nomeFoglio === 'PROGRAMMA PRODUZIONE DEL MESE') caricaDati(nomeFoglio, true, requestId, navSignal);
-            else if (nomeFoglio === 'MATERIALE DA ORDINARE')    caricaAcquisti(null, requestId, navSignal);
-            else if (nomeFoglio === 'STORICO_RICHIESTE')        caricaRichieste(requestId, navSignal);
+            else if (nomeFoglio === 'MATERIALE DA ORDINARE')    caricaAcquisti(null, requestId, navSignal, true);
+            else if (nomeFoglio === 'STORICO_RICHIESTE')        caricaSezioneConCache('STORICO_RICHIESTE', () => _fetchDatiRichieste(navSignal), _renderDatiRichieste, true).catch(() => {});
             else if (nomeFoglio === 'ARCHIVIO_ORDINI')          caricaArchivio();
         }
         return;

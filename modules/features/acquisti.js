@@ -99,9 +99,20 @@ async function caricaOrdiniAcquisti(expectedRequestId = null, signal = null) {
     const opParam   = isAlessio ? '' : (utenteAttuale?.nome || '');
 
     try {
-        const res  = await fetch(`${URL_GOOGLE}?azione=getOrdiniAcquisti&operatore=${encodeURIComponent(opParam)}`);
+        let rows;
+        if (prefetch.ordiniBundle) {
+            rows = prefetch.ordiniBundle;
+            prefetch.ordiniBundle  = null;
+            prefetch.ordiniPromise = null;
+        } else if (prefetch.ordiniPromise) {
+            rows = await prefetch.ordiniPromise;
+            prefetch.ordiniBundle  = null;
+            prefetch.ordiniPromise = null;
+        } else {
+            const res = await fetch(`${URL_GOOGLE}?azione=getOrdiniAcquisti&operatore=${encodeURIComponent(opParam)}`, signal ? { signal } : {});
+            rows = await res.json();
+        }
         if (signal?.aborted) return;
-        const rows = await res.json();
 
         if (!Array.isArray(rows) || rows.length === 0) {
             contenitore.innerHTML = `<div class='empty-msg'>${isAlessio ? 'Nessun ordine ricevuto.' : 'Non hai ancora inviato ordini.'}</div>`;
@@ -1053,13 +1064,13 @@ async function eliminaSelezionati() {
  * @param {number|null}  expectedRequestId  Guard anti-stale da cambiaPagina
  * @param {AbortSignal|null} signal         AbortSignal dal navController di cambiaPagina
  */
-export async function caricaAcquisti(tab = null, expectedRequestId = null, signal = null) {
+export async function caricaAcquisti(tab = null, expectedRequestId = null, signal = null, silenzioso = false) {
     if (tab !== null) _acquistTabAttivo = tab;
     _aggiornaTabAcquisti();
     if (_acquistTabAttivo === 'ordini') {
         await caricaOrdiniAcquisti(expectedRequestId, signal);
     } else {
-        await caricaMateriali(false, expectedRequestId, signal);
+        await caricaMateriali(silenzioso, expectedRequestId, signal);
     }
 }
 

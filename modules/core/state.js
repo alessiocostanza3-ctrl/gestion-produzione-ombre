@@ -21,12 +21,14 @@ export const cacheFetchTime = {};
  * Letti da produzione.js (_fetchDatiProduzione) e richieste.js.
  */
 export const prefetch = {
-    dashBundle:  null,
-    dashPromise: null,
-    rqBundle:    null,
-    rqPromise:   null,
-    matBundle:   null,
-    matPromise:  null,
+    dashBundle:   null,
+    dashPromise:  null,
+    rqBundle:     null,
+    rqPromise:    null,
+    matBundle:    null,
+    matPromise:   null,
+    ordiniBundle: null,
+    ordiniPromise: null,
 };
 
 /**
