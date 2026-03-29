@@ -543,7 +543,9 @@ async function rimuoviOperatore(idRiga, nOrd, nomeOperatore) {
 
     const mittente = (utenteAttuale && utenteAttuale.nome) ? utenteAttuale.nome.toUpperCase().trim() : '';
     const url = `${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(restanti)}&id_riga=${idRiga}&mittente=${encodeURIComponent(mittente)}`;
-    fetch(url).catch(e => console.error('Errore rimozione operatore', e));
+    delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
+    _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
+    fetch(url).catch(e => { console.error('Errore rimozione operatore', e); notificaElegante('\u26a0\ufe0f Rimozione non salvata \u2013 riprova', 'error'); });
 }
 
 function toggleOpDropdown(btn) {
@@ -620,7 +622,10 @@ function selezionaOpAssegna(optBtn, idRiga, nOrd, nomeOp) {
     }
 
     const mitt = (utenteAttuale?.nome || '').toUpperCase().trim();
-    fetch(`${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(nuovaAssegna)}&id_riga=${idRiga}&mittente=${encodeURIComponent(mitt)}`).catch(() => {});
+    delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
+    _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
+    fetch(`${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(nuovaAssegna)}&id_riga=${idRiga}&mittente=${encodeURIComponent(mitt)}`)
+        .catch(() => notificaElegante('\u26a0\ufe0f Assegnazione non salvata \u2013 riprova', 'error'));
 }
 
 function selezionaOpAssegnaOrdine(optBtn, nOrd, nomeOp) {
@@ -665,7 +670,10 @@ function selezionaOpAssegnaOrdine(optBtn, nOrd, nomeOp) {
     }
 
     const mitt = (utenteAttuale?.nome || '').toUpperCase().trim();
-    fetch(`${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(nuovaAssegna)}&mittente=${encodeURIComponent(mitt)}`).catch(() => {});
+    delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
+    _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
+    fetch(`${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(nuovaAssegna)}&mittente=${encodeURIComponent(mitt)}`)
+        .catch(() => notificaElegante('\u26a0\ufe0f Assegnazione non salvata \u2013 riprova', 'error'));
 }
 
 function autoAssegnami(idRiga, nOrd, btnEl) {
@@ -686,7 +694,10 @@ function autoAssegnami(idRiga, nOrd, btnEl) {
     }).join('');
     if (btnEl && btnEl.parentNode) btnEl.remove();
     const mitt = mio.toUpperCase().trim();
-    fetch(`${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(nuova)}&id_riga=${idRiga}&mittente=${encodeURIComponent(mitt)}`).catch(() => {});
+    delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
+    _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
+    fetch(`${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(nuova)}&id_riga=${idRiga}&mittente=${encodeURIComponent(mitt)}`)
+        .catch(() => notificaElegante('\u26a0\ufe0f Assegnazione non salvata \u2013 riprova', 'error'));
 }
 
 function autoAssegnamiOrdine(nOrd) {
@@ -710,7 +721,10 @@ function autoAssegnamiOrdine(nOrd) {
         const btnOrd = wrapper.querySelector('.btn-assegnami-ord');
         if (btnOrd) btnOrd.remove();
     }
-    fetch(`${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(mio)}&mittente=${encodeURIComponent(mitt)}`).catch(() => {});
+    delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
+    _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
+    fetch(`${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(mio)}&mittente=${encodeURIComponent(mitt)}`)
+        .catch(() => notificaElegante('\u26a0\ufe0f Assegnazione non salvata \u2013 riprova', 'error'));
 }
 
 function selezionaStato(optBtn, idRiga, colore) {
