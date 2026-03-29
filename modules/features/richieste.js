@@ -364,7 +364,7 @@ async function confermaInvioSupporto() {
     };
 
     Promise.all([
-        fetch(urlAssegnazione).catch(() => {}),
+        tipoAzione === 'ASSEGNAZIONE' ? fetch(urlAssegnazione).catch(() => {}) : Promise.resolve(),
         fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify(payload) }).catch(() => {})
     ]).then(() => {
         // Aggiorna dati in background dopo che il server ha risposto
