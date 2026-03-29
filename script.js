@@ -1018,9 +1018,15 @@ function filtraUniversale() {
             if (isArticoloMode) {
                 match = codice ? codice.indexOf(input) !== -1 : text.indexOf(input) !== -1;
             } else {
-                const starts = _matchFirstWord(text, input);
-                const contains = matcher ? matcher.test(text) : false;
-                match = starts || (input.length >= 3 && contains);
+                const cliente  = (el.getAttribute('data-cliente') || '').toLowerCase();
+                const ordine   = (el.getAttribute('data-ordine') || el.getAttribute('data-codice') || '').toLowerCase();
+                const rifAttr  = (el.getAttribute('data-riferimento') || '').toLowerCase();
+                const codiciAttr = (el.getAttribute('data-codici') || '').toLowerCase();
+                const searchable = text + ' ' + cliente + ' ' + ordine + ' ' + rifAttr + ' ' + codiciAttr;
+                const starts = _matchFirstWord(searchable, input);
+                const contains = matcher ? matcher.test(searchable) : false;
+                // Per ricerche >= 2 char usa contains (prima era >= 3, troppo restrittivo per numeri ordine)
+                match = starts || (input.length >= 2 && contains);
             }
 
             el.classList.toggle('hidden-search', !match);
