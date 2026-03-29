@@ -35,7 +35,6 @@ function aggiornaProfiloSidebar() {
         if (ddropRoleMob) ddropRoleMob.innerText = (utenteAttuale.ruolo || 'Utente').toUpperCase();
     }
     _initAvatarColor();
-    _syncHivesTestVisibility();
 }
 
 // ── Avatar Colors ──────────────────────────────────────────────────────────
@@ -111,25 +110,6 @@ function _isUtenteEsente() {
     return nome === 'ALESSIO' || nome === '0000' || utenteAttuale.ruolo === 'MASTER';
 }
 
-const _ENABLE_HIVES_TEST_PAGE = true;
-const _HIVES_TEST_PAGE_ID = 'TEST_HIVES_ANNUALE';
-
-function _isAlessioOnly() {
-    const nome = String((utenteAttuale && utenteAttuale.nome) || '').toUpperCase().trim();
-    const email = String((utenteAttuale && utenteAttuale.email) || '').toLowerCase().trim();
-    return nome === 'ALESSIO' || email === 'alessio@ombre-1.com';
-}
-function _canOpenHivesTestPage() {
-    return _ENABLE_HIVES_TEST_PAGE && _isAlessioOnly();
-}
-function _syncHivesTestVisibility() {
-    const show = _canOpenHivesTestPage();
-    const menuBtn = document.getElementById('menu-item-hives-test');
-    if (menuBtn) menuBtn.style.display = show ? '' : 'none';
-    if (!show && window.paginaAttuale === _HIVES_TEST_PAGE_ID) {
-        if (typeof window.cambiaPagina === 'function') window.cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', null);
-    }
-}
 function _isCommerciale() {
     if (!utenteAttuale) return false;
     return String(utenteAttuale.ruolo || '').toUpperCase() === 'COMMERCIALE';
@@ -310,8 +290,6 @@ export {
     _checkOrarioAccesso,
     _isUtenteEsente,
     _bloccaSchermo_,
-    _HIVES_TEST_PAGE_ID,
-    _canOpenHivesTestPage,
     _normNome,
     _PREDEFINED_AVATAR_COLORS,
     _avatarColorsCache,

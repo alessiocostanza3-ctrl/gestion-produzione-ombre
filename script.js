@@ -25,7 +25,7 @@ import { registerGlobals as registerLoginGlobals } from './modules/auth/login.js
 import { aggiornaBadgeNotifiche, _initBadgeNotifiche, _salvaNotificheInLocale_, registerGlobals as registerNotificheGlobals } from './modules/features/notifiche.js';
 import {
   aggiornaProfiloSidebar, _caricaColoriAvatarDaServer, _checkOrarioAccesso,
-  _isUtenteEsente, _bloccaSchermo_, _HIVES_TEST_PAGE_ID, _canOpenHivesTestPage,
+  _isUtenteEsente, _bloccaSchermo_,
   _normNome, _PREDEFINED_AVATAR_COLORS, _avatarColorsCache, _isOrarioConsentito,
   registerGlobals as registerSessionUIGlobals
 } from './modules/auth/session-ui.js';
@@ -244,7 +244,6 @@ let _latestNavRequest = 0;
 let _navAbortController = null; // annulla fetch in-volo a ogni cambio pagina
 let _lastNavClickTime = 0;     // debounce click rapidissimi (<80ms)
 let _pipModule = null;   // lazy-loaded: modules/features/pipistrelli.js
-let _hivesModule = null; // lazy-loaded: modules/features/hives.js
 
 /*******************************************************************************
 * NOTIFICHE PUSH  â€“  VAPID native (nessun servizio di terze parti)
@@ -742,9 +741,6 @@ async function cambiaPagina(nomeFoglio, elementoMenu) {
     if (!nomeFoglio || nomeFoglio === "undefined" || nomeFoglio === "null") {
         nomeFoglio = "PROGRAMMA PRODUZIONE DEL MESE";
     }
-    if (nomeFoglio === _HIVES_TEST_PAGE_ID && !_canOpenHivesTestPage()) {
-        nomeFoglio = 'PROGRAMMA PRODUZIONE DEL MESE';
-    }
     localStorage.setItem('ultimaPaginaProduzione', nomeFoglio);
     paginaAttuale = nomeFoglio;
     window.paginaAttuale = nomeFoglio; // sync per i moduli che leggono window.paginaAttuale
@@ -752,7 +748,6 @@ async function cambiaPagina(nomeFoglio, elementoMenu) {
     _aggiornaVisibilitaFiltroArticoli(nomeFoglio);
     // Classe sul body per eccezioni CSS by-page (es. landscape su PIPISTRELLI)
     document.body.classList.toggle('page-pip', nomeFoglio === 'PIPISTRELLI');
-    document.body.classList.toggle('page-hives-test', nomeFoglio === _HIVES_TEST_PAGE_ID);
     // Reset flag fetch pip quando si lascia la pagina (cosÃ¬ al prossimo accesso rilegge dal server)
     if (nomeFoglio !== 'PIPISTRELLI' && _pipModule) _pipModule.resetPipFetch();
 
@@ -782,8 +777,7 @@ async function cambiaPagina(nomeFoglio, elementoMenu) {
         'MATERIALE DA ORDINARE': "Gestione Acquisti",
 
         'PROGRAMMA PRODUZIONE DEL MESE': "Dashboard Produzione",
-        'PIPISTRELLI': "ðŸ¦‡ Pipistrelli",
-        'TEST_HIVES_ANNUALE': "ðŸ§ª Test Hives Annuale"
+        'PIPISTRELLI': "ðŸ¦‡ Pipistrelli"
     };
     const titolo = document.getElementById('titolo-pagina');
     if (titolo) titolo.innerText = titoli[nomeFoglio] || nomeFoglio;
@@ -922,13 +916,6 @@ async function cambiaPagina(nomeFoglio, elementoMenu) {
             }
             _pipModule.caricaPipistrelli();
             break;
-        case 'TEST_HIVES_ANNUALE':
-            if (!_hivesModule) {
-                _hivesModule = await import('./modules/features/hives.js');
-                _hivesModule.registerGlobals();
-            }
-            _hivesModule.caricaPaginaHivesTest();
-            break;
         default: {
             const _cpCont = document.getElementById('contenitore-dati');
             if (_cpCont) {
@@ -1022,15 +1009,6 @@ function filtraUniversale() {
         const sezioneArchivio = document.getElementById('sezione-archivio');
         if (sezioneArchivio) sezioneArchivio.style.display = input === '' ? 'block' : 'none';
     }, 120);
-}
-
-// Fallback minimo: evita errori runtime se la pagina test viene aperta mentre il modulo
-// sperimentale non è presente in script.js.
-function caricaPaginaHivesTest() {
-    const cont = document.getElementById('contenitore-dati');
-    if (!cont) return;
-    cont.innerHTML = '<div class="centered-msg">Pagina di test momentaneamente non disponibile.</div>';
-    applicaFade(cont);
 }
 
 // ═══════════════════════════════════════════════════════════════════════

@@ -1,4 +1,4 @@
-/* Campanellina notifiche (desktop e mobile) */
+﻿/* Campanellina notifiche (desktop e mobile) */
 .notifiche-bell-btn {
     display: flex;
     align-items: center;
@@ -354,7 +354,7 @@ body {
     color: #1e293b;
 }
 
-/* Global smooth scrolling for internal anchors */
+/*Â Global smooth scrolling for internal anchors */
 html {
     scroll-behavior: smooth;
 }
@@ -369,7 +369,7 @@ html {
     to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ── Animazioni moderne 3D ── */
+/* â”€â”€ Animazioni moderne 3D â”€â”€ */
 @keyframes pageEnter {
     from { opacity: 0; transform: translateX(16px) scale(0.99); filter: blur(1px); }
     to   { opacity: 1; transform: translateX(0) scale(1);   filter: blur(0); }
@@ -454,10 +454,10 @@ button, .menu-item, .btn-sos, .btn-login, .btn-modal-send {
     width: 90%;
     max-width: 420px;
     text-align: center;
-    border: 1px solid rgba(255, 255, 255, 0.1); /* Bordino sottile per dare profondità */
+    border: 1px solid rgba(255, 255, 255, 0.1); /* Bordino sottile per dare profonditÃ  */
 }
 
-/* LOGO NEL LOGIN - PIÙ GRANDE */
+/* LOGO NEL LOGIN - PIÃ™ GRANDE */
 .login-logo-container {
     margin-bottom: 30px;
 }
@@ -472,7 +472,7 @@ button, .menu-item, .btn-sos, .btn-login, .btn-modal-send {
     filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3)) !important;
 }
 
-/* TESTI BIANCHI PER LEGGIBILITÀ */
+/* TESTI BIANCHI PER LEGGIBILITÃ€ */
 .login-card h2 {
     color: #ffffff !important; /* Forza il bianco */
     font-size: 26px;
@@ -528,7 +528,7 @@ button, .menu-item, .btn-sos, .btn-login, .btn-modal-send {
 }
 
 .login-error-msg {
-    color: #fb7185; /* Rosso pastello più leggibile */
+    color: #fb7185; /* Rosso pastello piÃ¹ leggibile */
     font-size: 13px;
     font-weight: 600;
     margin-top: 20px;
@@ -621,7 +621,7 @@ button, .menu-item, .btn-sos, .btn-login, .btn-modal-send {
     display: none !important;
 }
 
-/* Emoji nelle voci menu: 5px più grandi del testo */
+/* Emoji nelle voci menu: 5px piÃ¹ grandi del testo */
 .menu-content > span:first-child {
     font-size: 18px !important;
     line-height: 1 !important;
@@ -1094,7 +1094,7 @@ button.menu-item {
     overflow: visible;
 }
 
-/* FOOTER SIDEBAR — brand block stile Linear/Notion */
+/* FOOTER SIDEBAR â€” brand block stile Linear/Notion */
 .sidebar-footer {
     margin-top: auto !important;
     width: 100% !important;
@@ -1206,7 +1206,7 @@ button.menu-item {
     box-shadow: 0 2px 5px rgba(0,0,0,0.02);
     transition: all 0.3s ease;
 }
-/* Pulsante filtro articoli mobile — posizionato a destra nell'input */
+/* Pulsante filtro articoli mobile â€” posizionato a destra nell'input */
 .btn-filtro-articoli-mobile {
     position: absolute;
     right: 8px;
@@ -1353,7 +1353,7 @@ h1 {
     z-index: 0;         /* stacking context esplicito e neutro */
 }
 
-/* Quando un dropdown è aperto, porta la card in primo piano sopra le sorelle */
+/* Quando un dropdown Ã¨ aperto, porta la card in primo piano sopra le sorelle */
 .item-card.stato-aperto, .item-card.op-aperto {
     z-index: 50 !important;
 }
@@ -1450,7 +1450,7 @@ h1 {
    SELECT STATO CUSTOM DROPDOWN
    ============================================================ */
 
-/* Manteniamo select-interattivo per retrocompatibilità mobile */
+/* Manteniamo select-interattivo per retrocompatibilitÃ  mobile */
 .select-interattivo {
     -webkit-appearance: none;
     -moz-appearance: none;
@@ -1478,7 +1478,7 @@ h1 {
     width: 100%;
 }
 
-/* Pill trigger — nessun color-mix, colori statici stabili */
+/* Pill trigger â€” nessun color-mix, colori statici stabili */
 .stato-trigger {
     display: inline-flex;
     align-items: center;
@@ -1508,12 +1508,12 @@ h1 {
     border-color: #94a3b8;
 }
 
-/* Dot colorato — il colore viene impostato via style inline JS */
+/* Dot colorato â€” il colore viene impostato via style inline JS */
 .stato-dot {
     width: 10px;
     height: 10px;
     border-radius: 50%;
-    background: #94a3b8; /* sovrascritta da style="background:…" inline */
+    background: #94a3b8; /* sovrascritta da style="background:â€¦" inline */
     flex-shrink: 0;
     border: 2px solid rgba(255,255,255,0.9);
     box-sizing: content-box;
@@ -1568,7 +1568,7 @@ h1 {
     pointer-events: auto;
 }
 
-/* Singola opzione — hover semplice senza color-mix */
+/* Singola opzione â€” hover semplice senza color-mix */
 .stato-option {
     display: flex;
     align-items: center;
@@ -1596,7 +1596,7 @@ h1 {
     font-weight: 700;
 }
 
-/* Dot opzione — colore da style inline */
+/* Dot opzione â€” colore da style inline */
 .stato-opt-dot {
     width: 10px;
     height: 10px;
@@ -1614,7 +1614,7 @@ h1 {
     color: #0369a1;
 }
 
-/* ── Variante header-ordine del dropdown stato ─────────────────────────────── */
+/* â”€â”€ Variante header-ordine del dropdown stato â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .stato-dropdown-ord {
     width: 160px;
     flex-shrink: 0;
@@ -1630,7 +1630,7 @@ h1 {
     left: auto;
     right: 0;
 }
-/* ── z-index: eleva il wrapper quando qualsiasi dropdown è aperto ────────── */
+/* â”€â”€ z-index: eleva il wrapper quando qualsiasi dropdown Ã¨ aperto â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .ordine-wrapper:has(.stato-dropdown.open),
 .ordine-wrapper:has(.op-dropdown.open),
 .ordine-wrapper:has(.ord-azioni-menu.open) {
@@ -1676,7 +1676,7 @@ h1 {
     box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important;
 }
 
-/* ── Quantità evasa / parziale ────────────────────────────────── */
+/* â”€â”€ QuantitÃ  evasa / parziale â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .qty-cell { display: flex; flex-direction: column; gap: 3px; }
 .qty-row  { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .btn-qty-evasa-toggle {
@@ -1757,11 +1757,11 @@ h1 {
     box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important;
 }
 
-/* ── Helper visibilità desktop/mobile ──────────────────────────────────────── */
-.hide-mobile  { /* visibile di default, nascosto da @media ≤600 */ }
-.show-mobile-flex { display: none; } /* mostrato da @media ≤600 */
+/* â”€â”€ Helper visibilitÃ  desktop/mobile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.hide-mobile  { /* visibile di default, nascosto da @media â‰¤600 */ }
+.show-mobile-flex { display: none; } /* mostrato da @media â‰¤600 */
 
-/* ── Menu azioni (tre puntini) – visibile sempre ──────────────────────────── */
+/* â”€â”€ Menu azioni (tre puntini) â€“ visibile sempre â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .ord-azioni-menu {
     position: relative;
     display: flex;
@@ -2201,7 +2201,7 @@ h1 {
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     border: 1px solid #f1f5f9;
 }
-/* ──────────────── TAB BAR ACQUISTI ────────────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ TAB BAR ACQUISTI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 #acq-tab-bar {
     display: none;
     gap: 4px;
@@ -2242,7 +2242,7 @@ h1 {
     line-height: 1.4;
 }
 
-/* ──────────────── PAGINA ORDINI ACQUISTI ───────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ PAGINA ORDINI ACQUISTI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .ordini-acq-page { padding-bottom: 40px; }
 .ordini-groups { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
 
@@ -2345,9 +2345,9 @@ h1 {
 .badge-ordinato-sm { background: #dcfce7; color: #15803d; }
 .badge-attesa-sm   { background: #f1f5f9; color: #64748b; }
 .badge-ordinato-sm i { margin-right: 3px; }
-/* ───────────── fine ordini acquisti ─────────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ fine ordini acquisti â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
-/* ─── GRUPPI RICHIESTE ──────────────────────────────── */
+/* â”€â”€â”€ GRUPPI RICHIESTE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .req-groups {
     display: flex;
     flex-direction: column;
@@ -2506,7 +2506,7 @@ h1 {
     .fabprod-card { cursor: pointer; }
 }
 
-/* ─── FABBISOGNO MODALS ──────────────────────────────────────────────────── */
+/* â”€â”€â”€ FABBISOGNO MODALS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .fabprod-modal-overlay {
     position: fixed;
     inset: 0;
@@ -2626,7 +2626,7 @@ h1 {
     gap: 6px;
 }
 
-/* ─── CARD QUADRATE RICHIESTE ───────────────────────── */
+/* â”€â”€â”€ CARD QUADRATE RICHIESTE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .req-card {
     background: #ffffff;
     border: 1.5px solid #e2e8f0;
@@ -2873,7 +2873,7 @@ h1 {
     .req-card { width: calc(25% - 8px); }
 }
 
-/* ─── Reply / conferma DENTRO req-card (layout compatto) ──── */
+/* â”€â”€â”€ Reply / conferma DENTRO req-card (layout compatto) â”€â”€â”€â”€ */
 /* Il box risposta non ha padding desktop pesante dentro la card stretta */
 .req-card .box-risposta {
     padding: 10px 8px 12px;
@@ -2881,7 +2881,7 @@ h1 {
     border-top: 1.5px solid #e2e8f0;
     background: #f8fafc;
 }
-/* Footer risposta: stack verticale così hint e pulsante non traboccano */
+/* Footer risposta: stack verticale cosÃ¬ hint e pulsante non traboccano */
 .req-card .reply-footer {
     flex-direction: column;
     align-items: stretch;
@@ -2891,7 +2891,7 @@ h1 {
     justify-content: center;
     width: 100%;
 }
-/* Textarea più compatta */
+/* Textarea piÃ¹ compatta */
 .req-card .reply-input {
     min-height: 64px;
     font-size: 13px;
@@ -2948,8 +2948,8 @@ h1 {
     to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ─── fine card richieste ───────────────────────────── */
-/* ─── fine gruppi ────────────────────────────────────── */
+/* â”€â”€â”€ fine card richieste â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* â”€â”€â”€ fine gruppi â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .chat-card.archiviata { opacity: 0.8; }
 .chat-card.archiviata.sollecitata { animation: none !important; border-color: #f1f5f9 !important; }
@@ -3772,7 +3772,7 @@ h1 {
     transition: all 0.2s;
     letter-spacing: 0.3px;
 }
-.img-reset-btn::before { content: '×'; font-size: 14px; font-weight: 400; line-height: 1; }
+.img-reset-btn::before { content: 'Ã—'; font-size: 14px; font-weight: 400; line-height: 1; }
 .img-reset-btn::after { content: 'Rimuovi'; }
 .img-reset-btn
 .img-reset-btn::after { content: 'Rimuovi'; }
@@ -3790,8 +3790,8 @@ h1 {
 .btn-inline-trash { background:none; border:none; color:#ef4444; cursor:pointer; }
 .empty-cart-msg { text-align:center; padding:20px; color:#64748b; }
 
-/* === Modalità selezione multipla: toggle via classe sul grid === */
-/* Nasconde bottone ⋮, mostra checkbox */
+/* === ModalitÃ  selezione multipla: toggle via classe sul grid === */
+/* Nasconde bottone â‹®, mostra checkbox */
 .grid-sel-mode .btn-opt-trigger { display: none !important; }
 .grid-sel-mode .mat-sel-chk {
     display: block !important;
@@ -4269,7 +4269,7 @@ h1 {
     box-shadow: 0 2px 10px rgba(0,0,0,0.15);
     border-color: #242424;
 }
-/* === MODAL CARRELLO — fade overlay + slide-up box === */
+/* === MODAL CARRELLO â€” fade overlay + slide-up box === */
 #modal-carrello {
     display: none;
     position: fixed;
@@ -4461,7 +4461,7 @@ h1 {
 
 /* Card Materiale - Layout Principale */
 /* ============================================================
-   ACQUISTI – Card e-commerce verticale (desktop)
+   ACQUISTI â€“ Card e-commerce verticale (desktop)
    ============================================================ */
 .materiale-card {
     display: flex;
@@ -4492,7 +4492,7 @@ h1 {
     border-color: #242424;
 }
 
-/* DnD handle – appare solo su hover */
+/* DnD handle â€“ appare solo su hover */
 .dnd-handle {
     position: absolute;
     top: 10px;
@@ -4565,7 +4565,7 @@ h1 {
     opacity: 1;
     transform: translateY(0);
 }
-/* Badge fornitore – overlay top-left sull'immagine */
+/* Badge fornitore â€“ overlay top-left sull'immagine */
 .mat-badge-fornitore {
     position: absolute;
     top: 10px; left: 10px;
@@ -4710,7 +4710,7 @@ h1 {
 }
 
 
-/* === MENU OPZIONI ⋮ === */
+/* === MENU OPZIONI â‹® === */
 .mat-card-opts {
     position: absolute;
     top: 8px;
@@ -4735,9 +4735,9 @@ h1 {
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
-/* Popup menu — fade + scale */
+/* Popup menu â€” fade + scale */
 .menu-popup-opzioni {
-    display: block !important; /* sempre nel DOM, visibilità via opacity */
+    display: block !important; /* sempre nel DOM, visibilitÃ  via opacity */
     position: absolute;
     right: 0;
     top: 36px;
@@ -4795,7 +4795,7 @@ button.menu-item-opt {
     position: fixed !important;
     top: 0; left: 0;
     width: 100vw; height: 100vh;
-    background: rgba(15, 23, 42, 0.7) !important; /* Più scuro ed elegante */
+    background: rgba(15, 23, 42, 0.7) !important; /* PiÃ¹ scuro ed elegante */
     display: none;
     justify-content: center;
     align-items: center;
@@ -4829,7 +4829,7 @@ button.menu-item-opt {
 
 
 /* ============================================================
-   ACQUISTI — Sezioni
+   ACQUISTI â€” Sezioni
    ============================================================ */
 .sezione-materiali-wrapper { margin-bottom: 18px; }
 
@@ -4884,7 +4884,7 @@ button.menu-item-opt {
 .sezione-arrow { color: #94a3b8; font-size: 12px; transition: transform 0.25s ease; }
 .sezione-grid  { margin-bottom: 6px; }
 
-/* === MODALITÀ RICERCA ATTIVA: appiattisce sezioni ========= */
+/* === MODALITÃ€ RICERCA ATTIVA: appiattisce sezioni ========= */
 #lista-materiali-grid.search-active .sezione-header { display: none !important; }
 #lista-materiali-grid.search-active .sezione-materiali-wrapper { display: contents; margin: 0; }
 #lista-materiali-grid.search-active .sezione-materiali-wrapper.sez-no-results { display: none !important; }
@@ -5572,7 +5572,7 @@ button.menu-item-opt {
         z-index: 200 !important;
     }
 
-    /* Card brand — larghezza FISSA, non si muove mai */
+    /* Card brand â€” larghezza FISSA, non si muove mai */
     .top-brand-card {
         width: 248px !important;
         flex-shrink: 0 !important;
@@ -5663,7 +5663,7 @@ button.menu-item-opt {
     }
     .top-search-input::placeholder { color: #94a3b8 !important; }
 
-    /* ── Pulsante filtro articoli (desktop) ── */
+    /* â”€â”€ Pulsante filtro articoli (desktop) â”€â”€ */
     .btn-filtro-articoli {
         flex-shrink: 0 !important;
         align-items: center !important;
@@ -5690,12 +5690,12 @@ button.menu-item-opt {
         box-shadow: 0 2px 8px rgba(37,99,235,0.25) !important;
     }
 
-    /* Sfondo leggermente più scuro per far risaltare i pannelli */
+    /* Sfondo leggermente piÃ¹ scuro per far risaltare i pannelli */
     body {
         background: #e5eaf0 !important;
     }
 
-    /* Sidebar flottante stondato — parte sotto la top bar */
+    /* Sidebar flottante stondato â€” parte sotto la top bar */
     .sidebar {
         position: fixed !important;
         left: 10px !important;
@@ -5732,7 +5732,7 @@ button.menu-item-opt {
         transition: margin-left 0.28s cubic-bezier(0.4,0,0.2,1), width 0.28s cubic-bezier(0.4,0,0.2,1) !important;
     }
 
-    /* Main content quando sidebar è collapsed su desktop */
+    /* Main content quando sidebar Ã¨ collapsed su desktop */
     body.sidebar-collapsed .main-content {
         margin: 76px 10px 10px 86px !important;
         width: calc(100% - 96px) !important;
@@ -5808,7 +5808,7 @@ body.sidebar-is-open::before {
     z-index: 9998;
     animation: fadeIn 0.2s ease;
 }
-/* Blocca scroll del body quando la sidebar è aperta su mobile */
+/* Blocca scroll del body quando la sidebar Ã¨ aperta su mobile */
 @media (max-width: 768px) {
     body.sidebar-is-open {
         overflow: hidden !important;
@@ -5825,7 +5825,7 @@ button:active {
 }
 
 /* ============================================================
-   15. FIX Z-INDEX — modals sopra sidebar e bottom-nav
+   15. FIX Z-INDEX â€” modals sopra sidebar e bottom-nav
    ============================================================ */
 .modal-overlay {
     z-index: 10200 !important;
@@ -5948,7 +5948,7 @@ button:active {
 }
 
 /* ============================================================
-   16. LOGIN — nuovi elementi (modalità tabs + password toggle)
+   16. LOGIN â€” nuovi elementi (modalitÃ  tabs + password toggle)
    ============================================================ */
 .login-mode-tabs {
     display: flex;
@@ -6003,7 +6003,7 @@ button:active {
 .btn-toggle-pwd:hover { color: #fff; }
 
 /* ============================================================
-   17. GESTIONE UTENTI — sezione impostazioni
+   17. GESTIONE UTENTI â€” sezione impostazioni
    ============================================================ */
 .utente-row {
     display: flex !important;
@@ -6075,7 +6075,7 @@ button:active {
     .form-utente-grid { grid-template-columns: 1fr !important; }
 }
 
-/* ── Card espandibili (click per aprire dettaglio) ── */
+/* â”€â”€ Card espandibili (click per aprire dettaglio) â”€â”€ */
 .riepilogo-card {
     cursor: pointer;
     user-select: none;
@@ -6102,7 +6102,7 @@ button:active {
     transform: rotate(180deg);
 }
 
-/* ── Archivio collassabile ── */
+/* â”€â”€ Archivio collassabile â”€â”€ */
 .archivio-details { display: block; }
 .archivio-details > summary { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .archivio-details > summary::-webkit-details-marker { display: none; }
@@ -6121,7 +6121,7 @@ button:active {
 }
 .archivio-details[open] .archivio-chevron { transform: rotate(180deg); }
 
-/* ── Placeholder caricamento lazy overview ── */
+/* â”€â”€ Placeholder caricamento lazy overview â”€â”€ */
 .ov-lazy-placeholder {
     display: flex;
     justify-content: center;
@@ -6130,7 +6130,7 @@ button:active {
     font-size: 1rem;
 }
 
-/* ── Accordion overview nella pagina produzione ── */
+/* â”€â”€ Accordion overview nella pagina produzione â”€â”€ */
 .ov-accordion {
     background: #242424;
     border-radius: 14px;
@@ -6451,7 +6451,7 @@ button:active {
     font-style: italic;
 }
 
-/* ── Mobile: sub-card collassabili ── */
+/* â”€â”€ Mobile: sub-card collassabili â”€â”€ */
 @media (max-width: 600px) {
     .ov-board-wrapper {
         grid-template-columns: 1fr;
@@ -6470,7 +6470,7 @@ button:active {
     /* nascondi drag handle su mobile */
     .ov-drag-handle { display: none; }
     .ov-row-main { flex: 1; min-width: 0; }
-    /* migliora affidabilità drag touch: evita che lo scroll rubi il puntatore */
+    /* migliora affidabilitÃ  drag touch: evita che lo scroll rubi il puntatore */
     .ov-kanban-item {
         touch-action: pan-y;
         user-select: none;
@@ -6483,7 +6483,7 @@ button:active {
     .ov-kanban-item.ov-drag-active { touch-action: none; }
 }
 
-/* ── Kanban drag & drop dinamico (pointer events, solo desktop ≥ 601px) ── */
+/* â”€â”€ Kanban drag & drop dinamico (pointer events, solo desktop â‰¥ 601px) â”€â”€ */
 @media (min-width: 601px) {
     /* Header colonna non cliccabile su desktop */
     .ov-stato-header { cursor: default; }
@@ -6533,7 +6533,7 @@ button:active {
         overflow: hidden;
         text-overflow: ellipsis;
     }
-    /* Cliente in corsivo, colore leggermente più chiaro */
+    /* Cliente in corsivo, colore leggermente piÃ¹ chiaro */
     .ov-row-sub em {
         font-style: italic;
         color: #7c8fa8;
@@ -6554,7 +6554,7 @@ button:active {
     }
 }
 
-/* ── Override leggibilità: solo pannello Stato Avanzamento ── */
+/* â”€â”€ Override leggibilitÃ : solo pannello Stato Avanzamento â”€â”€ */
 .ov-accordion-summary,
 .ov-summary-label i,
 .ov-summary-meta,
@@ -6586,7 +6586,7 @@ button:active {
     margin: 0 auto;
 }
 
-/* ── Chart section ── */
+/* â”€â”€ Chart section â”€â”€ */
 .riepilogo-chart-section {
     background: #1e293b;
     border-radius: 16px;
@@ -6657,7 +6657,7 @@ button:active {
     font-size: 0.78rem;
 }
 
-/* ── Section title ── */
+/* â”€â”€ Section title â”€â”€ */
 .riepilogo-section-title {
     font-size: 0.80rem;
     font-weight: 700;
@@ -6671,14 +6671,14 @@ button:active {
 }
 .riepilogo-section-title i { color: #64748b; }
 
-/* ── Cards grid ── */
+/* â”€â”€ Cards grid â”€â”€ */
 .riepilogo-cards-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: 14px;
 }
 
-/* ── Operator card ── */
+/* â”€â”€ Operator card â”€â”€ */
 .riepilogo-card {
     background: #1e293b;
     border-radius: 14px;
@@ -6761,7 +6761,7 @@ button:active {
     margin-left: 3px;
 }
 
-/* ── Mobile tweaks ── */
+/* â”€â”€ Mobile tweaks â”€â”€ */
 @media (max-width: 480px) {
     .riepilogo-page { padding: 12px 10px 100px; }
     .riepilogo-cards-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -6772,10 +6772,10 @@ button:active {
     .riepilogo-op-nome { font-size: 0.78rem; }
 }
 
-/* ══════════════════════════════════════════════════════
-   SKELETON DI NAVIGAZIONE  –  feedback istantaneo
-   (appare mentre il fetch è in corso, poi viene sostituito)
-   ══════════════════════════════════════════════════════ */
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   SKELETON DI NAVIGAZIONE  â€“  feedback istantaneo
+   (appare mentre il fetch Ã¨ in corso, poi viene sostituito)
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .nav-skeleton {
     padding: 24px 16px;
     display: flex;
@@ -6799,11 +6799,11 @@ button:active {
     100% { background-position: -200% 0; }
 }
 
-/* ══════════════════════════════════════════════════════
-   SKELETON DI PAGINA  –  produzione / richieste / acquisti
-   Sostituisce il contenuto mentre il fetch GAS è in corso.
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   SKELETON DI PAGINA  â€“  produzione / richieste / acquisti
+   Sostituisce il contenuto mentre il fetch GAS Ã¨ in corso.
    Uso: <div class="page-skeleton"> in caricaSezioneConCache
-   ══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .page-skeleton {
     display: flex;
     flex-direction: column;
@@ -6861,7 +6861,7 @@ button:active {
 }
 
 
-   ══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .settings-action-btn {
     display: inline-flex;
     align-items: center;
@@ -6955,7 +6955,7 @@ button:active {
 .pip-save-btn.pip-save-ok      { background: #16a34a; border-color: #15803d; }
 .pip-save-btn.pip-save-err     { background: #dc2626; border-color: #b91c1c; }
 
-/* --- CARD QTÀ --- */
+/* --- CARD QTÃ€ --- */
 .pip-qty-card {
     background: #ffffff;
     border: 1.5px solid #e2e8f0;
@@ -7033,7 +7033,7 @@ button:active {
 .pip-table tbody tr:nth-child(odd)  { background: #ffffff; }
 .pip-row-sez-start td { border-top: 2px solid #e2e8f0; }
 
-/* Su mobile (portrait) nascondi le colonne xP / xM / xG — già calcolate nel FABBISOGNO */
+/* Su mobile (portrait) nascondi le colonne xP / xM / xG â€” giÃ  calcolate nel FABBISOGNO */
 @media (max-width: 768px) {
     .pip-col-coeff,
     .pip-coeff { display: none !important; }
@@ -7068,11 +7068,11 @@ body.page-pip #rotate-overlay { display: none !important; }
 .pip-coeff-on  { font-weight: 700; color: #1e293b; }
 .pip-coeff-off { color: #cbd5e1; font-size: 0.85rem; }
 
-/* FABBISOGNO — azzurro (funzionale: ok) */
+/* FABBISOGNO â€” azzurro (funzionale: ok) */
 .pip-fab      { text-align: center; padding: 8px 10px; font-weight: 700; color: #374151; background: #f1f5f9; white-space: nowrap; }
 .pip-fab-zero { color: #9ca3af !important; background: #f1f5f9 !important; font-weight: 400 !important; }
 
-/* CARICATO — verde (funzionale: ok) */
+/* CARICATO â€” verde (funzionale: ok) */
 .pip-car-cell {
     text-align: center; padding: 5px 8px; background: #e8f5e9;
     display: flex; flex-direction: column; align-items: center; gap: 2px;
@@ -7096,7 +7096,7 @@ body.page-pip #rotate-overlay { display: none !important; }
     white-space: nowrap;
 }
 
-/* DA ORDINARE — rosso/verde (funzionale) */
+/* DA ORDINARE â€” rosso/verde (funzionale) */
 .pip-ord-manca { text-align: center; padding: 8px 10px; font-weight: 800; font-size: 0.95rem; background: #ffcdd2; color: #b71c1c; }
 .pip-ord-ok    { text-align: center; padding: 8px 10px; font-weight: 700; font-size: 0.9rem;  background: #c8e6c9; color: #2e7d32; }
 .pip-ord-zero  { text-align: center; padding: 8px 10px; color: #9ca3af; font-size: 0.85rem; background: #f1f5f9; }
@@ -7120,7 +7120,7 @@ body.page-pip #rotate-overlay { display: none !important; }
     margin-bottom: 20px;
 }
 
-/* ── Scarico assemblati ── */
+/* â”€â”€ Scarico assemblati â”€â”€ */
 .pip-assemb-card {
     background: #fff;
     border: 1.5px solid #e2e8f0;
@@ -7180,7 +7180,7 @@ body.page-pip #rotate-overlay { display: none !important; }
 }
 .pip-assemb-btn:hover { background: #334155; }
 
-/* ── Card PRONTI DA SPEDIRE ── */
+/* â”€â”€ Card PRONTI DA SPEDIRE â”€â”€ */
 .pip-pronti-hint {
     font-size: 0.68rem; color: #9ca3af; font-weight: 400;
     text-transform: none; letter-spacing: 0;
@@ -7240,7 +7240,7 @@ body.page-pip #rotate-overlay { display: none !important; }
 .pip-pronti-input:focus { border-color: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,.12); }
 .pip-pronti-val-on { color: #f59e0b !important; border-color: #fde68a !important; background: #fffbeb !important; }
 
-/* ── Footer card Pronti da Spedire ── */
+/* â”€â”€ Footer card Pronti da Spedire â”€â”€ */
 .pip-pronti-footer {
     padding: 12px 16px 0;
     display: flex;
@@ -7263,13 +7263,13 @@ body.page-pip #rotate-overlay { display: none !important; }
 }
 .pip-spedisci-btn:hover { background: #166534 !important; }
 
-/* ── Modal conferma spedizione ── */
+/* â”€â”€ Modal conferma spedizione â”€â”€ */
 .pip-sped-modal-box {
     max-width: 440px;
     width: 95%;
     padding: 0 0 0;
 }
-/* ── Modal modifica movimento ── */
+/* â”€â”€ Modal modifica movimento â”€â”€ */
 .pip-edit-mov-box, .pip-del-mov-box {
     max-width: 400px;
     width: 95%;
@@ -7380,7 +7380,7 @@ body.page-pip #rotate-overlay { display: none !important; }
     white-space: nowrap;
 }
 
-/* ── Badge spedizione nel log ── */
+/* â”€â”€ Badge spedizione nel log â”€â”€ */
 .pip-mov-badge.spedizione {
     background: #dcfce7; color: #15803d;
     border: 1px solid #bbf7d0;
@@ -7502,7 +7502,7 @@ body.page-pip #rotate-overlay { display: none !important; }
 }
 .pip-mov-edit:hover { color: #3b82f6; }
 
-/* ── Riga assemb espandibile ── */
+/* â”€â”€ Riga assemb espandibile â”€â”€ */
 .pip-mov-assemb-group {
     border: 1.5px solid #e2e8f0;
     border-left: 4px solid #f59e0b;
@@ -7540,7 +7540,7 @@ body.page-pip #rotate-overlay { display: none !important; }
 }
 .pip-assemb-sub-mat { flex: 1; }
 
-/* ── Badge + riga reso ── */
+/* â”€â”€ Badge + riga reso â”€â”€ */
 .pip-mov-badge.reso {
     background: #fef3c7; color: #b45309;
     border: 1px solid #fde68a;
@@ -7548,7 +7548,7 @@ body.page-pip #rotate-overlay { display: none !important; }
 .pip-mov-reso-group { border-left-color: #f59e0b; }
 .pip-mov-reso-group .pip-mov-assemb-summary:hover { background: #fefce8; }
 
-/* ── Bottone Reso nell'header movimenti ── */
+/* â”€â”€ Bottone Reso nell'header movimenti â”€â”€ */
 .pip-reso-open-btn {
     background: rgba(255,255,255,0.08);
     border: 1px solid rgba(255,255,255,0.20);
@@ -7561,7 +7561,7 @@ body.page-pip #rotate-overlay { display: none !important; }
 .pip-reso-open-btn:hover { background: rgba(245,158,11,0.22); color: #fbbf24; }
 .pip-mov-header-actions { display: flex; align-items: center; gap: 8px; }
 
-/* ── Modal Reso ── */
+/* â”€â”€ Modal Reso â”€â”€ */
 .pip-reso-modal-box { max-width: 440px; width: 95%; padding: 0; }
 .pip-reso-items-list {
     display: flex; flex-direction: column;
@@ -7661,10 +7661,10 @@ body.page-pip #rotate-overlay { display: none !important; }
 
 
 /* ============================================================
-   GESTIONE POSTAZIONI QR — sezione impostazioni + modal edit
+   GESTIONE POSTAZIONI QR â€” sezione impostazioni + modal edit
    ============================================================ */
 
-/* ── Lista postazioni in impostazioni ── */
+/* â”€â”€ Lista postazioni in impostazioni â”€â”€ */
 .qr-post-row {
     display: flex;
     align-items: center;
@@ -7768,7 +7768,7 @@ body.page-pip #rotate-overlay { display: none !important; }
 }
 .qr-post-btn-print-all:hover { background: #e2e8f0; }
 
-/* ── Modal crea/modifica postazione ── */
+/* â”€â”€ Modal crea/modifica postazione â”€â”€ */
 .qr-edit-content {
     max-width: 600px;
     max-height: 92dvh;
@@ -7820,7 +7820,7 @@ body.page-pip #rotate-overlay { display: none !important; }
 }
 .qr-edit-reset-code:hover { background: #e2e8f0; color: #0f172a; }
 
-/* ── Preview QR nel modal ── */
+/* â”€â”€ Preview QR nel modal â”€â”€ */
 .qr-edit-preview {
     display: flex;
     flex-direction: column;
@@ -7880,10 +7880,10 @@ body.page-pip #rotate-overlay { display: none !important; }
 
 
 /* ============================================================
-   QR CODE SCANNER — bottone topbar + modali
+   QR CODE SCANNER â€” bottone topbar + modali
    ============================================================ */
 
-/* ── Avatar account nella top-bar mobile ── */
+/* â”€â”€ Avatar account nella top-bar mobile â”€â”€ */
 .mobile-account-wrap {
     position: relative;
     flex-shrink: 0;
@@ -7927,7 +7927,7 @@ body.page-pip #rotate-overlay { display: none !important; }
     padding: 0 5px;
 }
 
-/* ── Pulsante QR nella top-bar mobile ── */
+/* â”€â”€ Pulsante QR nella top-bar mobile â”€â”€ */
 .top-bar {
     display: flex;
     align-items: center;
@@ -7962,7 +7962,7 @@ body.page-pip #rotate-overlay { display: none !important; }
     .btn-qr-scan { display: flex; }
 }
 
-/* ── Modale scanner QR ── */
+/* â”€â”€ Modale scanner QR â”€â”€ */
 .qr-scanner-overlay {
     background: rgba(0,0,0,0.88) !important;
     align-items: flex-end !important;
@@ -8003,7 +8003,7 @@ body.page-pip #rotate-overlay { display: none !important; }
     display: flex; align-items: center; justify-content: center;
 }
 
-/* ── Area video scanner ── */
+/* â”€â”€ Area video scanner â”€â”€ */
 .qr-video-wrap {
     position: relative;
     width: 100%;
@@ -8096,7 +8096,7 @@ body.page-pip #rotate-overlay { display: none !important; }
     border-color: rgba(255,255,255,0.15);
 }
 
-/* ── Modale azione postazione ── */
+/* â”€â”€ Modale azione postazione â”€â”€ */
 .qr-azione-content {
     max-height: 88dvh;
     overflow-y: auto;
@@ -8250,200 +8250,3 @@ body.page-pip #rotate-overlay { display: none !important; }
     font-size: 13px;
 }
 
-/* ─────────────────────────────────────────────────────────────
-   TEST HIVES ANNUALE (solo Alessio)
-   ───────────────────────────────────────────────────────────── */
-.hives-wrap {
-    padding: 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-}
-.hives-accordion > summary::-webkit-details-marker { display: none; }
-.hives-accordion-summary {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 14px;
-    background: linear-gradient(120deg, #111827 0%, #1f2937 100%);
-    color: #fff;
-    border-radius: 14px;
-    padding: 14px 16px;
-    cursor: pointer;
-    user-select: none;
-    list-style: none;
-}
-.hives-accordion-summary::-webkit-details-marker { display: none; }
-.hives-head-left { flex: 1 1 auto; }
-.hives-head-title { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
-.hives-head-sub { color: #cbd5e1; font-size: 0.82rem; }
-.hives-head-actions { display: flex; gap: 8px; align-items: center; }
-.hives-chevron { transition: transform .25s ease; }
-.hives-accordion[open] .hives-chevron { transform: rotate(180deg); }
-.hives-accordion-body { display: flex; flex-direction: column; gap: 14px; margin-top: 14px; }
-
-.hives-btn {
-    border: none;
-    background: #242424;
-    color: #fff;
-    border-radius: 10px;
-    padding: 8px 12px;
-    font-size: 12px;
-    font-weight: 700;
-    cursor: pointer;
-}
-.hives-btn-soft {
-    background: #f1f5f9;
-    color: #0f172a;
-    border: 1px solid #e2e8f0;
-}
-
-.hives-kpi-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 10px;
-}
-.hives-kpi {
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    background: #fff;
-    padding: 10px 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-}
-.hives-kpi span { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; }
-.hives-kpi strong { font-size: 0.9rem; color: #0f172a; }
-.hives-kpi-btn {
-    border: 1px solid #e5e7eb;
-    background: #fff;
-    border-radius: 12px;
-    padding: 10px 12px;
-    text-align: left;
-    cursor: pointer;
-    transition: box-shadow .15s, border-color .15s;
-}
-.hives-kpi-btn:hover { border-color: #94a3b8; box-shadow: 0 2px 8px rgba(0,0,0,.07); }
-.hives-kpi-row { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
-.hives-kpi-multi .hives-kpi-row:not(:last-child) { border-bottom: 1px solid #f1f5f9; padding-bottom: 5px; margin-bottom: 5px; }
-.hives-kpi-comp-lbl { font-size: 10px; font-weight: 800; color: #334155; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 5px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
-
-.hives-section-title {
-    font-size: 0.82rem;
-    font-weight: 800;
-    color: #334155;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin-top: 6px;
-}
-
-.hives-month-grid,
-.hives-comp-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-    gap: 10px;
-}
-.hives-card {
-    border: 1px solid #e2e8f0;
-    background: #fff;
-    border-radius: 12px;
-    padding: 10px 12px;
-    text-align: left;
-    cursor: pointer;
-}
-.hives-card-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 6px;
-    color: #0f172a;
-}
-.hives-card-sub { font-size: 12px; color: #64748b; margin-bottom: 6px; }
-.hives-pay-row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 12px;
-    color: #334155;
-    margin-bottom: 4px;
-}
-.hives-pay-row .ok { color: #16a34a; font-weight: 700; }
-
-.hives-modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(2, 6, 23, 0.72);
-    z-index: 100050;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 14px;
-}
-.hives-modal-box {
-    width: min(760px, 100%);
-    background: #fff;
-    border-radius: 14px;
-    padding: 14px;
-    max-height: 88dvh;
-    overflow: auto;
-}
-.hives-modal-box-lg { width: min(980px, 100%); }
-.hives-modal-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-}
-.hives-modal-head h3 { margin: 0; color: #0f172a; }
-.hives-btn-x {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    border: 1px solid #e2e8f0;
-    background: #f8fafc;
-    cursor: pointer;
-}
-.hives-form-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 10px;
-}
-.hives-form-grid label {
-    font-size: 12px;
-    color: #475569;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-.hives-form-grid input {
-    border: 1px solid #d1d5db;
-    border-radius: 10px;
-    padding: 8px 10px;
-    font-size: 13px;
-}
-.hives-inline-note { font-size: 12px; color: #64748b; margin: 10px 0; }
-.hives-actions-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
-.hives-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 12px;
-}
-.hives-table th,
-.hives-table td {
-    border-bottom: 1px solid #e2e8f0;
-    padding: 7px 8px;
-    text-align: left;
-}
-.hives-table th { color: #334155; background: #f8fafc; }
-.hives-table input {
-    width: 110px;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    padding: 6px 8px;
-}
-
-@media (max-width: 768px) {
-    .hives-wrap { padding: 10px; }
-    .hives-month-grid,
-    .hives-comp-grid { grid-template-columns: 1fr; }
-}

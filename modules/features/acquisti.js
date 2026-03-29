@@ -7,6 +7,7 @@ import { utenteAttuale } from '../core/session.js';
 import { notificaElegante, applicaFade, mostraConferma, _esc } from '../core/ui.js';
 import RevisionPoller from '../core/revision-poller.js';
 import { lsCacheGet as _lsCacheGet, lsCacheSet as _lsCacheSet, lsCacheDel as _lsCacheDel } from '../core/ls-cache.js';
+import { prefetch } from '../core/state.js';
 
 // ─── Stato interno ────────────────────────────────────────────────────────────
 let carrelloLocale = [];
@@ -331,14 +332,14 @@ async function caricaMateriali(silenzioso = false, expectedRequestId = null, sig
 
     try {
         let materiali = null;
-        if (window._prefetchMatBundle) {
-            materiali = window._prefetchMatBundle;
-            window._prefetchMatBundle = null;
-            window._prefetchMatPromise = null;
-        } else if (window._prefetchMatPromise) {
-            materiali = await window._prefetchMatPromise;
-            window._prefetchMatBundle = null;
-            window._prefetchMatPromise = null;
+        if (prefetch.matBundle) {
+            materiali = prefetch.matBundle;
+            prefetch.matBundle = null;
+            prefetch.matPromise = null;
+        } else if (prefetch.matPromise) {
+            materiali = await prefetch.matPromise;
+            prefetch.matBundle = null;
+            prefetch.matPromise = null;
         } else {
             materiali = await fetchJson('MATERIALE DA ORDINARE', signal);
         }

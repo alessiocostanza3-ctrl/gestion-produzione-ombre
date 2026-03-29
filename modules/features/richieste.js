@@ -7,6 +7,7 @@ import ProdCache from '../core/cache.js';
 import { utenteAttuale } from '../core/session.js';
 import { notificaElegante, applicaFade, mostraConferma } from '../core/ui.js';
 import RevisionPoller from '../core/revision-poller.js';
+import { prefetch } from '../core/state.js';
 
 // ─── Stato interno ────────────────────────────────────────────────────────────
 let _ordiniAutocompleteCache = [];
@@ -598,10 +599,14 @@ async function _loadFabbisognoProduzioneRows_() {
     }
 
     let dashBundle = null;
-    if (window._prefetchDashBundle) {
-        dashBundle = window._prefetchDashBundle;
-    } else if (window._prefetchDashPromise) {
-        dashBundle = await window._prefetchDashPromise;
+    if (prefetch.dashBundle) {
+        dashBundle = prefetch.dashBundle;
+        prefetch.dashBundle = null;
+        prefetch.dashPromise = null;
+    } else if (prefetch.dashPromise) {
+        dashBundle = await prefetch.dashPromise;
+        prefetch.dashBundle = null;
+        prefetch.dashPromise = null;
     } else {
         const dashResp = await fetch(URL_GOOGLE + '?azione=getAllDashboard');
         if (!dashResp.ok) throw new Error(`HTTP ${dashResp.status}`);
@@ -614,23 +619,28 @@ async function _loadFabbisognoProduzioneRows_() {
 
 /** Fetch del bundle richieste (+ fabbisogno produzione) dal GAS o dal prefetch in volo. */
 export async function _fetchDatiRichieste(signal = null) {
-    let bundle = null;
-    if (window._prefetchRqBundle) {
-        bundle = window._prefetchRqBundle;
-        window._prefetchRqBundle = null;
-        window._prefetchRqPromise = null;
-    } else if (window._prefetchRqPromise) {
-        bundle = await window._prefetchRqPromise;
-        window._prefetchRqBundle = null;
-        window._prefetchRqPromise = null;
-    } else {
+    async function _fetchRqBundle_() {
+        if (prefetch.rqBundle) {
+            const b = prefetch.rqBundle;
+            prefetch.rqBundle = null;
+            prefetch.rqPromise = null;
+            return b;
+        }
+        if (prefetch.rqPromise) {
+            const b = await prefetch.rqPromise;
+            prefetch.rqBundle = null;
+            prefetch.rqPromise = null;
+            return b;
+        }
         const resp = await fetch(URL_GOOGLE + '?azione=getAllRichieste', signal ? { signal } : {});
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        bundle = await resp.json();
+        return resp.json();
     }
+    const [bundle, fabbisogno] = await Promise.all([
+        _fetchRqBundle_(),
+        _loadFabbisognoProduzioneRows_().catch(e => { console.warn('Fabbisogno Produzione non disponibile:', e); return []; })
+    ]);
     if (!bundle) throw new Error('bundle vuoto');
-    let fabbisogno = [];
-    try { fabbisogno = await _loadFabbisognoProduzioneRows_(); } catch (e) { console.warn('Fabbisogno Produzione non disponibile:', e); }
     return { attive: bundle.attive || [], archivio: bundle.archivio || [], fabbisogno };
 }
 
