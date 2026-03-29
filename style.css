@@ -6800,7 +6800,67 @@ button:active {
 }
 
 /* ══════════════════════════════════════════════════════
-   NOTIFICHE PUSH – sezione Impostazioni
+   SKELETON DI PAGINA  –  produzione / richieste / acquisti
+   Sostituisce il contenuto mentre il fetch GAS è in corso.
+   Uso: <div class="page-skeleton"> in caricaSezioneConCache
+   ══════════════════════════════════════════════════════ */
+.page-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    animation: page-skel-fade-in .22s ease;
+}
+@keyframes page-skel-fade-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.skel-card {
+    background: var(--bg-secondary, #1e293b);
+    border-radius: 14px;
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.skel-line {
+    border-radius: 6px;
+    background: linear-gradient(
+        90deg,
+        var(--bg-secondary, #1e293b) 25%,
+        var(--bg-hover,    #334155) 50%,
+        var(--bg-secondary, #1e293b) 75%
+    );
+    background-size: 200% 100%;
+    animation: nav-skel-shimmer 1.3s infinite linear;
+}
+.skel-line.skel-title  { height: 14px; width: 55%; }
+.skel-line.skel-badge  { height: 10px; width: 28%; border-radius: 20px; }
+.skel-line.skel-body   { height: 10px; width: 88%; }
+.skel-line.skel-body-sm{ height: 10px; width: 65%; }
+/* Offset animazione per ogni card */
+.page-skeleton .skel-card:nth-child(2) .skel-line { animation-delay: .12s; }
+.page-skeleton .skel-card:nth-child(3) .skel-line { animation-delay: .24s; }
+.page-skeleton .skel-card:nth-child(4) .skel-line { animation-delay: .36s; }
+.page-skeleton .skel-card:nth-child(5) .skel-line { animation-delay: .48s; }
+
+/* Header skeleton (titolo sezione) */
+.skel-header {
+    height: 18px;
+    width: 40%;
+    border-radius: 8px;
+    margin-bottom: 4px;
+    background: linear-gradient(
+        90deg,
+        var(--bg-secondary, #1e293b) 25%,
+        var(--bg-hover,    #334155) 50%,
+        var(--bg-secondary, #1e293b) 75%
+    );
+    background-size: 200% 100%;
+    animation: nav-skel-shimmer 1.3s infinite linear;
+}
+
+
    ══════════════════════════════════════════════════════ */
 .settings-action-btn {
     display: inline-flex;

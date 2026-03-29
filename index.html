@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-title" content="Prod">
     <meta name="theme-color" content="#f8fafc">
     <!-- Security headers (meta equivalents — GitHub Pages non supporta header HTTP custom) -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://script.google.com https://script.googleusercontent.com; worker-src 'self'; manifest-src 'self';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://script.google.com https://script.googleusercontent.com; worker-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self';">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
     <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), payment=()">
@@ -29,50 +29,6 @@
             }
         } catch(e) {}
     </script>
-    <script>
-        // ─── Global error handler ────────────────────────────────────────────
-        // Installato il prima possibile (prima di qualsiasi script esterno)
-        // per catturare errori di caricamento, runtime e promise non gestite.
-        (function() {
-            var NOISE = ['ResizeObserver loop', 'Script error', 'AbortError',
-                         'NetworkError', 'Load failed', 'Failed to fetch'];
-            function isNoise(msg) {
-                var s = msg ? String(msg) : '';
-                return NOISE.some(function(p) { return s.indexOf(p) !== -1; });
-            }
-            function showCriticalToast() {
-                function _show() {
-                    var el = document.getElementById('toast-notifica');
-                    if (!el) {
-                        el = document.createElement('div');
-                        el.id = 'toast-notifica';
-                        document.body.appendChild(el);
-                    }
-                    el.className = 'toast-notifica toast-error';
-                    el.innerText = '\u26a0 Errore imprevisto. Ricarica se l\u2019app non risponde.';
-                    void el.offsetWidth;
-                    el.classList.add('visible');
-                    clearTimeout(el._hideTimer);
-                    el._hideTimer = setTimeout(function() { el.classList.remove('visible'); }, 5000);
-                }
-                if (document.body) { _show(); }
-                else { document.addEventListener('DOMContentLoaded', _show, { once: true }); }
-            }
-            window.onerror = function(msg, src, line, col, err) {
-                if (isNoise(msg)) return false;
-                console.error('[APP ERROR]', { message: msg, source: src, line: line, col: col, error: err });
-                showCriticalToast();
-                return false;
-            };
-            window.onunhandledrejection = function(evt) {
-                var r = evt && evt.reason;
-                var msg = r && r.message ? r.message : String(r);
-                if (isNoise(msg) || (r && r.name === 'AbortError')) return;
-                console.error('[UNHANDLED PROMISE]', r);
-                showCriticalToast();
-            };
-        })();
-    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
@@ -80,7 +36,9 @@
     <!-- Preconnect GAS: apre TCP/TLS prima del primo click → riduce cold-start di ~300ms -->
     <link rel="preconnect" href="https://script.google.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha384-3B6NwesSXE7YJlcLI9RpRqGf2p/EgVH8BgoKTaUrmKNDkHPStTQ3EyoYjCGXaOTS" crossorigin="anonymous">
+    <!-- Font Awesome: preload non-blocking (head-init.js lo converte in stylesheet a DOMContentLoaded) -->
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" as="style" integrity="sha384-3B6NwesSXE7YJlcLI9RpRqGf2p/EgVH8BgoKTaUrmKNDkHPStTQ3EyoYjCGXaOTS" crossorigin="anonymous" data-fa-nonblock>
+    <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" crossorigin="anonymous"></noscript>
     <!-- CRITICAL CSS inline: architettura flex-column applicata prima del primo paint.
          body=colonna 100dvh | topbar=altezza automatica | contenuto=flex:1 scroll | nav=60px.
          Nessun position:fixed per topbar/nav → nessun reflow/rimbalzo su iOS. -->
@@ -238,134 +196,15 @@
         };
     </script>
     <script src="https://cdn.tailwindcss.com" defer></script>
-    <link rel="stylesheet" href="style.css?v=20260329b">
+    <link rel="stylesheet" href="style.css?v=20260329c">
     <!-- jsQR: libreria client-side per decodifica QR via fotocamera -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" integrity="sha384-b5Ya4Bq3qCyz39m2ISh+4DxjAIljdeFwK/BsXLuj9gugaNwAcj/ia15fxNZL9Nlx" crossorigin="anonymous" defer></script>
     <!-- QRCode.js: libreria per GENERARE QR code (usata nelle impostazioni) -->
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js" integrity="sha384-0RsG1yo/crf/1Qc14sho26SXXOTngNCjgJw7fuvXBt9W/OChF/Ijx+aUuBDqQwEk" crossorigin="anonymous" defer></script>
-    <script>
-        // Gate visuale del login: non dipendere dal caricamento di script.js
-        // - se NON c'è sessione → mostra overlay (classe needs-login)
-        // - se c'è sessione → overlay resta nascosto
-        (function () {
-            try {
-                const hasSession = !!(localStorage.getItem('sessioneUtente') || sessionStorage.getItem('sessioneUtente'));
-                if (!hasSession) document.documentElement.classList.add('needs-login');
-            } catch (e) {
-                // se localStorage non è accessibile, richiedi comunque login
-                document.documentElement.classList.add('needs-login');
-            }
-        })();
-    </script>
-    <script>
-        // Funzioni login disponibili immediatamente, indipendentemente dal caricamento di script.js
-        function setLoginMode(mode) {
-            const isAdmin = mode === 'admin';
-            const vu = document.getElementById('login-view-utente');
-            const va = document.getElementById('login-view-admin');
-            const err = document.getElementById('login-error');
-            if (vu) vu.style.display = isAdmin ? 'none' : '';
-            if (va) va.style.display  = isAdmin ? ''     : 'none';
-            if (err) err.innerText = '';
-            if (isAdmin) setTimeout(() => { const c = document.getElementById('login-codice'); if(c) c.focus(); }, 80);
-        }
-        function togglePasswordVisibility() {
-            const pwd  = document.getElementById('login-password');
-            const icon = document.getElementById('eye-icon');
-            if (!pwd) return;
-            const isHidden = pwd.type === 'password';
-            pwd.type = isHidden ? 'text' : 'password';
-            if (icon) icon.className = isHidden ? 'fas fa-eye-slash' : 'fas fa-eye';
-        }
-        function verificaAccesso() {
-            const errorDiv = document.getElementById('login-error');
-            if (errorDiv) errorDiv.innerText = '';
-
-            const adminView = document.getElementById('login-view-admin');
-            const isAdmin = adminView && adminView.style.display !== 'none';
-
-            if (isAdmin) {
-                const codice = (document.getElementById('login-codice')?.value || '').trim();
-                if (!codice) {
-                    if (errorDiv) errorDiv.innerText = 'Inserisci il PIN.';
-                    return;
-                }
-                const btnAdmin = document.querySelector('#login-view-admin .btn-login');
-                if (btnAdmin) btnAdmin.disabled = true;
-                if (errorDiv) errorDiv.innerText = 'Verifica in corso...';
-                const GAS_URL = 'https://script.google.com/macros/s/AKfycbyVMV9MkGiqphN0AKXJdHXF0Arp1vxTYrCYi1SGv_4MKLRJkx--5HoGq7mmQX-p0ZTZ/exec';
-                fetch(GAS_URL + '?azione=verificaPinAdmin&pin=' + encodeURIComponent(codice) + '&json=1')
-                    .then(r => r.json())
-                    .then(data => {
-                        if (data && data.status === 'ok') {
-                            try { localStorage.setItem('sessioneUtente', JSON.stringify(data.sessione)); } catch(e) {}
-                            try { sessionStorage.setItem('sessioneUtente', JSON.stringify(data.sessione)); } catch(e) {}
-                            try { document.documentElement.classList.remove('needs-login'); } catch(e) {}
-                            window.location.reload();
-                        } else {
-                            if (errorDiv) errorDiv.innerText = (data && data.msg) ? data.msg : 'PIN non valido.';
-                            const input = document.getElementById('login-codice');
-                            if (input) { input.value = ''; input.focus(); }
-                            if (btnAdmin) btnAdmin.disabled = false;
-                        }
-                    })
-                    .catch(() => {
-                        if (errorDiv) errorDiv.innerText = 'Errore di connessione. Riprova.';
-                        if (btnAdmin) btnAdmin.disabled = false;
-                    });
-                return;
-            }
-
-            // ── LOGIN UTENTE ── delega a script.js
-            if (typeof _verificaAccessoUtente === 'function') {
-                _verificaAccessoUtente();
-            } else if (errorDiv) {
-                errorDiv.innerText = 'Caricamento in corso, riprova tra un secondo.';
-            }
-        }
-
-        function creaAccount() {
-            const errorDiv = document.getElementById('login-error');
-            if (errorDiv) errorDiv.innerText = '';
-            if (typeof _creaAccountUtente === 'function') {
-                _creaAccountUtente();
-            } else if (errorDiv) {
-                errorDiv.innerText = 'Caricamento in corso, riprova tra un secondo.';
-            }
-        }
-
-        // Fallback: se esiste già una sessione salvata, non bloccare l'app dietro al login
-        // anche nel caso in cui script.js sia lento o non venga caricato.
-        document.addEventListener('DOMContentLoaded', function () {
-            let sessione = null;
-            try { sessione = localStorage.getItem('sessioneUtente') || sessionStorage.getItem('sessioneUtente'); } catch (e) {}
-            if (!sessione) return;
-            let utente = null;
-            try { utente = JSON.parse(sessione); } catch (e) { return; }
-
-            const overlay = document.getElementById('login-overlay');
-            if (overlay) overlay.style.display = 'none';
-
-            const nameEl = document.getElementById('user-name-display');
-            const avatarEl = document.getElementById('user-avatar-icon');
-            const avatarElMob = document.getElementById('user-avatar-icon-mobile');
-            if (utente && utente.nome) {
-                if (nameEl) nameEl.innerText = String(utente.nome).toUpperCase();
-                if (avatarEl) avatarEl.innerText = String(utente.nome).charAt(0).toUpperCase();
-                if (avatarElMob) avatarElMob.innerText = String(utente.nome).charAt(0).toUpperCase();
-                // Applica subito il colore avatar salvato in localStorage
-                try {
-                    var k = String(utente.nome).toUpperCase().trim();
-                    var savedColor = localStorage.getItem('avatarColor_' + k);
-                    if (savedColor) {
-                        document.documentElement.style.setProperty('--avatar-user-color', savedColor);
-                    }
-                } catch (e) {}
-            }
-        });
-    </script>
-    <link rel="preload" href="dist/script.bundle.js?v=20260329b" as="script">
-    <script type="module" src="dist/script.bundle.js?v=20260329b"></script>
+    <!-- head-init.js: error handler, FA loader, login functions (estratti dagli inline scripts) -->
+    <script src="head-init.js?v=20260329c" defer></script>
+    <link rel="preload" href="dist/script.bundle.js?v=20260329c" as="script">
+    <script type="module" src="dist/script.bundle.js?v=20260329c"></script>
 </head>
 
 <body>

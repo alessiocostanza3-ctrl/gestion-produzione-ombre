@@ -865,7 +865,7 @@ function toggleSezione(gridId) {
 function apriModalSpostaSezione(idRiga) {
     document.querySelectorAll('.menu-popup-opzioni.open').forEach(m => m.classList.remove('open'));
     const sel = document.getElementById('sposta-sezione-select');
-    sel.innerHTML = sezioniMateriali.map(s => `<option value="${s}">${s}</option>`).join('');
+    sel.innerHTML = sezioniMateriali.map(s => `<option value="${_esc(s)}">${_esc(s)}</option>`).join('');
     document.getElementById('sposta-id-riga').value = idRiga;
     const modal = document.getElementById('modal-sposta-sezione');
     modal.style.display = 'flex';

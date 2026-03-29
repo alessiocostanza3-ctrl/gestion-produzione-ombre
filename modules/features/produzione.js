@@ -33,14 +33,14 @@ function _getOvStatiAll() { return [..._ovStatiArt, ..._ovStatiOrd]; }
 
 async function _fetchDatiProduzione(signal = null) {
     let _dashBundle = null;
-    if (window._prefetchDashBundle) {
-        _dashBundle = window._prefetchDashBundle;
-        window._prefetchDashBundle = null;
-        window._prefetchDashPromise = null;
-    } else if (window._prefetchDashPromise) {
-        _dashBundle = await window._prefetchDashPromise;
-        window._prefetchDashBundle = null;
-        window._prefetchDashPromise = null;
+    if (prefetch.dashBundle) {
+        _dashBundle = prefetch.dashBundle;
+        prefetch.dashBundle = null;
+        prefetch.dashPromise = null;
+    } else if (prefetch.dashPromise) {
+        _dashBundle = await prefetch.dashPromise;
+        prefetch.dashBundle = null;
+        prefetch.dashPromise = null;
     } else {
         const _dashResp = await fetch(URL_GOOGLE + '?azione=getAllDashboard&limit=100', signal ? { signal } : {});
         if (!_dashResp.ok) throw new Error(`HTTP ${_dashResp.status}`);
@@ -136,8 +136,8 @@ function _renderDatiProduzione(dati, _isBackground = null) {
                 </div>
             </details>
         `;
-    window.cacheContenuti[nomeFoglio] = contenitore.innerHTML;
-    window.cacheFetchTime[nomeFoglio] = Date.now();
+    cacheContenuti[nomeFoglio] = contenitore.innerHTML;
+    cacheFetchTime[nomeFoglio] = Date.now();
     _lsCacheSet('_html_' + nomeFoglio, contenitore.innerHTML);
 
     ProdCache.set('PROGRAMMA_PRODUZIONE', dati).catch(() => {});
@@ -265,14 +265,14 @@ async function caricaArchivio() {
     contenitore.innerHTML = "<div class='centered-msg'><i class='fas fa-spinner fa-spin'></i> Caricamento archivio...</div>";
     try {
         let _aBundle = null;
-        if (window._prefetchDashBundle) {
-            _aBundle = window._prefetchDashBundle;
-            window._prefetchDashBundle = null;
-            window._prefetchDashPromise = null;
-        } else if (window._prefetchDashPromise) {
-            _aBundle = await window._prefetchDashPromise;
-            window._prefetchDashBundle = null;
-            window._prefetchDashPromise = null;
+        if (prefetch.dashBundle) {
+            _aBundle = prefetch.dashBundle;
+            prefetch.dashBundle = null;
+            prefetch.dashPromise = null;
+        } else if (prefetch.dashPromise) {
+            _aBundle = await prefetch.dashPromise;
+            prefetch.dashBundle = null;
+            prefetch.dashPromise = null;
         } else {
             const _aResp = await fetch(URL_GOOGLE + '?azione=getAllDashboard');
             if (!_aResp.ok) throw new Error(`HTTP ${_aResp.status}`);
@@ -283,8 +283,8 @@ async function caricaArchivio() {
         const htmlArch = generaBloccoOrdiniUnificato(datiArch, true);
         const _archHtml = htmlArch || "<div class='empty-msg'>L'archivio \u00e8 vuoto.</div>";
         contenitore.innerHTML = _archHtml;
-        window.cacheContenuti['ARCHIVIO_ORDINI'] = _archHtml;
-        window.cacheFetchTime['ARCHIVIO_ORDINI'] = Date.now();
+        cacheContenuti['ARCHIVIO_ORDINI'] = _archHtml;
+        cacheFetchTime['ARCHIVIO_ORDINI'] = Date.now();
         _lsCacheSet('_html_ARCHIVIO_ORDINI', _archHtml);
         applicaFade(contenitore);
         window.aggiornaListaFiltrabili();
@@ -1040,8 +1040,8 @@ async function aggiornaDato(selectEl, idRiga, campo, nuovoValore, skipForceSync 
 
         if (!skipForceSync) notificaElegante('\u2714 ' + (campo === 'stato' ? 'Stato' : 'Modifica') + ' salvato', 'success');
         
-        delete window.cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
-        window.cacheFetchTime['PROGRAMMA PRODUZIONE DEL MESE'] = 0;
+        delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
+        cacheFetchTime['PROGRAMMA PRODUZIONE DEL MESE'] = 0;
         _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
         
         if (!skipForceSync && window.paginaAttuale === 'PROGRAMMA PRODUZIONE DEL MESE') {
@@ -1106,8 +1106,8 @@ async function gestisciArchiviazione(nOrd, tipo) {
                     catch { await new Promise(r => setTimeout(r, 2000)); risultato = await _eseguiArchivia(); }
 
                     if (risultato.status === "success") {
-                        delete window.cacheContenuti['ARCHIVIO_ORDINI'];
-                        delete window.cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
+                        delete cacheContenuti['ARCHIVIO_ORDINI'];
+                        delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
                         _lsCacheDel('_html_ARCHIVIO_ORDINI');
                         _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
                         notificaElegante('\u2714 Ordine ' + nOrd + ' archiviato', 'success');
@@ -1187,8 +1187,8 @@ async function gestisciRipristino(id_o_numero, tipo) {
             const response = await fetch(url);
             const risultato = await response.json();
             if (risultato.status === "success") {
-                    delete window.cacheContenuti['ARCHIVIO_ORDINI'];
-                    delete window.cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
+                    delete cacheContenuti['ARCHIVIO_ORDINI'];
+                    delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
                     _lsCacheDel('_html_ARCHIVIO_ORDINI');
                     _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
                     caricaDati(window.paginaAttuale);
@@ -1335,8 +1335,8 @@ function _patchProduzione(newAttivi, allProd, allArch) {
 
     if (anyChange) {
         _attiviProd = newAttivi;
-        delete window.cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
-        window.cacheFetchTime['PROGRAMMA PRODUZIONE DEL MESE'] = Date.now();
+        delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
+        cacheFetchTime['PROGRAMMA PRODUZIONE DEL MESE'] = Date.now();
     }
 }
 
@@ -1392,8 +1392,8 @@ function _backgroundRefreshProduzione(allProd, allArch) {
         });
     }
 
-    window.cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'] = contenitore.innerHTML;
-    window.cacheFetchTime['PROGRAMMA PRODUZIONE DEL MESE'] = Date.now();
+    cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'] = contenitore.innerHTML;
+    cacheFetchTime['PROGRAMMA PRODUZIONE DEL MESE'] = Date.now();
     window.aggiornaListaFiltrabili();
     requestAnimationFrame(_initKanbanDnd);
 }
@@ -1455,9 +1455,9 @@ function _apriArchivio(id) {
         const archHtml = htmlArch || "<div class='empty-msg'>L'archivio \u00e8 vuoto.</div>"
         sezArch.innerHTML = archHtml;
         window.aggiornaListaFiltrabili?.();
-        if (!window.cacheContenuti['ARCHIVIO_ORDINI']) {
-            window.cacheContenuti['ARCHIVIO_ORDINI'] = archHtml;
-            window.cacheFetchTime['ARCHIVIO_ORDINI'] = Date.now();
+        if (!cacheContenuti['ARCHIVIO_ORDINI']) {
+            cacheContenuti['ARCHIVIO_ORDINI'] = archHtml;
+            cacheFetchTime['ARCHIVIO_ORDINI'] = Date.now();
             _lsCacheSet('_html_ARCHIVIO_ORDINI', archHtml);
         }
         _datiArchLazy = null;

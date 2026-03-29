@@ -7,8 +7,7 @@ export const URL_GOOGLE =
     'https://script.google.com/macros/s/AKfycbyVMV9MkGiqphN0AKXJdHXF0Arp1vxTYrCYi1SGv_4MKLRJkx--5HoGq7mmQX-p0ZTZ/exec';
 
 // ── PWA / Service Worker ──────────────────────────────────────────────────────
-export const APP_URL         = 'https://alessiocostanza3-ctrl.github.io/gestion-produzione-ombre/';
-export const SHELL_CACHE_KEY = 'prod-shell-v98';
+export const APP_URL = 'https://alessiocostanza3-ctrl.github.io/gestion-produzione-ombre/';
 
 // ── Sessione ──────────────────────────────────────────────────────────────────
 export const SESSION_DURATION_MS = 8 * 60 * 60 * 1000;   // 8 ore

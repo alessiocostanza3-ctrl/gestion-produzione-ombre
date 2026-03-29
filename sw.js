@@ -9,13 +9,14 @@
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbyVMV9MkGiqphN0AKXJdHXF0Arp1vxTYrCYi1SGv_4MKLRJkx--5HoGq7mmQX-p0ZTZ/exec';
 var APP_URL = 'https://alessiocostanza3-ctrl.github.io/gestion-produzione-ombre/';
 
-var SHELL_CACHE = 'prod-shell-v216';
+var SHELL_CACHE = 'prod-shell-v217';
 var SHELL_ASSETS = [
     APP_URL,
     APP_URL + 'index.html',
-    APP_URL + 'style.css?v=20260329b',
-    APP_URL + 'dist/script.bundle.js?v=20260329b',
-    APP_URL + 'manifest.json'
+    APP_URL + 'style.css?v=20260329c',
+    APP_URL + 'dist/script.bundle.js?v=20260329c',
+    APP_URL + 'manifest.json',
+    APP_URL + 'offline.html'
 ];
 
 /* ---- ciclo di vita ---- */
@@ -55,7 +56,17 @@ self.addEventListener('fetch', function(e) {
     if (e.request.method !== 'GET') return;
     // Solo gli asset della shell usano la strategia cache-first
     var isShell = SHELL_ASSETS.some(function(a) { return url === a || url.replace(/\?.*$/, '') === a; });
-    if (!isShell) return;
+    // Navigazione HTML: serve offline.html se la rete fallisce
+        var isNavigate = e.request.mode === 'navigate';
+        if (!isShell && !isNavigate) return;
+        if (isNavigate && !isShell) {
+            e.respondWith(
+                fetch(e.request).catch(function() {
+                    return caches.match(APP_URL + 'offline.html');
+                })
+            );
+            return;
+        }
 
     e.respondWith(
         caches.open(SHELL_CACHE).then(function(cache) {

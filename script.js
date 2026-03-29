@@ -7,6 +7,7 @@ import {
   getSessionToken, refreshSessionExpiry
 } from './modules/core/session.js';
 import { lsCacheGet as _lsCacheGet, lsCacheSet as _lsCacheSet, lsCacheDel as _lsCacheDel } from './modules/core/ls-cache.js';
+import { cacheContenuti, cacheFetchTime, prefetch, navState } from './modules/core/state.js';
 // api.js is imported by revision-poller.js and pipistrelli.js
 import RevisionPoller, { configurePoller } from './modules/core/revision-poller.js';
 // pipistrelli.js: lazy-loaded dinamicamente in cambiaPagina → NON importare staticamente
@@ -231,8 +232,7 @@ function _defaultListaStati_() {
 }
 let listaStati = [];
 let tipoTrascinamento = "";
-const cacheContenuti = {};
-const cacheFetchTime = {}; // timestamp dell'ultimo fetch per pagina
+// cacheContenuti e cacheFetchTime importati da modules/core/state.js
 // CACHE_TTL_MS importato da modules/core/config.js
 
 // ---- runtime guards (anti doppio init / race rendering) ----
@@ -380,7 +380,7 @@ function aggiornaListaFiltrabili() {
 /**
  * Avvia in background appena l'app si apre:
  * 1. riscalda il runtime GAS (elimina il cold start sul primo click)
- * 2. espone window._prefetchDashPromise / window._prefetchRqPromise
+ * 2. espone prefetch.dashPromise / prefetch.rqPromise
  * 3. caricaDati e caricaPaginaRichieste le attendono invece di fare una seconda fetch
  */
 function _prefetchBackground() {
@@ -388,19 +388,19 @@ function _prefetchBackground() {
     // Rimuovi eventuale cache LS degli ordini salvata da versioni precedenti (dati real-time: non vanno in LS)
     _lsCacheDel('_html__acq_ordini');
     // Avvia subito senza delay per massimizzare il tempo disponibile prima del click
-    window._prefetchDashPromise = fetch(URL_GOOGLE + '?azione=getAllDashboard&limit=100')
+    prefetch.dashPromise = fetch(URL_GOOGLE + '?azione=getAllDashboard&limit=100')
         .then(function(r) { return r.ok ? r.json() : null; })
         .catch(function() { return null; });
-    window._prefetchRqPromise   = fetch(URL_GOOGLE + '?azione=getAllRichieste')
+    prefetch.rqPromise   = fetch(URL_GOOGLE + '?azione=getAllRichieste')
         .then(function(r) { return r.ok ? r.json() : null; })
         .catch(function() { return null; });
-    window._prefetchMatPromise  = fetch(URL_GOOGLE + '?pagina=MATERIALE+DA+ORDINARE')
+    prefetch.matPromise  = fetch(URL_GOOGLE + '?pagina=MATERIALE+DA+ORDINARE')
         .then(function(r) { return r.ok ? r.json() : null; })
         .catch(function() { return null; });
     // Salva il risultato anche nelle var bundle per accesso rapido successivo
-    window._prefetchDashPromise.then(function(b) { if (b) window._prefetchDashBundle = b; });
-    window._prefetchRqPromise.then(function(b)   { if (b) window._prefetchRqBundle   = b; });
-    window._prefetchMatPromise.then(function(b)  { if (b) window._prefetchMatBundle  = b; });
+    prefetch.dashPromise.then(function(b) { if (b) prefetch.dashBundle = b; });
+    prefetch.rqPromise.then(function(b)   { if (b) prefetch.rqBundle   = b; });
+    prefetch.matPromise.then(function(b)  { if (b) prefetch.matBundle  = b; });
 }
 
 
@@ -412,6 +412,60 @@ function _prefetchBackground() {
  * Se non lo Ã¨, mostra una notifica e restituisce false.
  * Usata come guard per azioni riservate (elimina, sposta righe).
  */
+
+/**
+ * Inizializza tutti i moduli, registra globals e naviga all'ultima pagina salvata.
+ * Condivisa tra window.onload (return visit) e salvaEApriDashboard (post-login).
+ */
+function _initModuliENaviga_() {
+    _patchFetchWithSession_();
+    _startSessionRefreshTicker_();
+    if (_pipModule) _pipModule.registerGlobals();
+    registerUIGlobals();
+    registerAcquistiGlobals();
+    registerRichiesteGlobals();
+    initRichieste();
+    registerImpostazioniGlobals();
+    initImpostazioni();
+    registerProduzioneGlobals();
+    initProduzione();
+    window.cambiaPagina = cambiaPagina;
+    window.aggiornaListaFiltrabili = aggiornaListaFiltrabili;
+
+    const _pollerConf = {
+        onRemoteChange: function(nomeUtente) {
+            notificaElegante('\uD83D\uDD04 ' + nomeUtente + ' ha aggiornato i dati');
+            switch (paginaAttuale) {
+                case 'PROGRAMMA PRODUZIONE DEL MESE':
+                    caricaSezioneConCache('PROGRAMMA_PRODUZIONE', _fetchDatiProduzione, _renderDatiProduzione, true)
+                        .catch(e => console.warn('[RevisionPoller] refresh failed:', e));
+                    break;
+                case 'STORICO_RICHIESTE':
+                    caricaRichieste();
+                    break;
+                case 'MATERIALE DA ORDINARE':
+                    caricaAcquisti(null);
+                    break;
+                case 'ARCHIVIO_ORDINI':
+                    if (typeof caricaArchivio === 'function') caricaArchivio();
+                    break;
+            }
+        },
+        onUsersOnline: function(lista) { _aggiornaIndicatoreOnline(lista); },
+        getUtenteAttuale: function() { return utenteAttuale; },
+        getPaginaCorrente: function() { return paginaAttuale; }
+    };
+    configurePoller(_pollerConf);
+    RevisionPoller.start();
+
+    let paginaSalvata = null;
+    try { paginaSalvata = localStorage.getItem('ultimaPaginaProduzione'); } catch (_e) {}
+    if (!paginaSalvata || paginaSalvata === 'undefined' || paginaSalvata === 'null') {
+        paginaSalvata = 'PROGRAMMA PRODUZIONE DEL MESE';
+    }
+    const _tastoMenu = document.querySelector(`.menu-item[data-page="${paginaSalvata}"]`);
+    cambiaPagina(paginaSalvata, _tastoMenu);
+}
 
 window.onload = async function() {
     if (_bootCompleted) return;
@@ -462,9 +516,8 @@ window.onload = async function() {
         aggiornaProfiloSidebar();
         _initPush();           // Registra / aggiorna subscription push VAPID
         _initBadgeNotifiche(); // Mostra badge se ci sono notifiche non lette
-        // Colori avatar: prima lettura rapida (500ms), poi aggiornamento completo dopo cold-start GAS
-        setTimeout(function() { _caricaColoriAvatarDaServer(); }, 500);
-        setTimeout(function() { _caricaColoriAvatarDaServer(); }, 5000);
+        // Colori avatar: aggiornamento dopo che il browser è idle (non compete con fetch dati)
+        (window.requestIdleCallback || function(cb) { setTimeout(cb, 3000); })(function() { _caricaColoriAvatarDaServer(); });
 
         if (overlay) overlay.style.display = 'none';
 
@@ -496,51 +549,7 @@ window.onload = async function() {
             return;
         }
         // Inizializzazione completa per sessioni ritornanti
-        _patchFetchWithSession_();
-        _startSessionRefreshTicker_(); // avvia solo se c'è sessione
-        if (_pipModule) _pipModule.registerGlobals();
-        registerUIGlobals();
-        registerAcquistiGlobals();
-        registerRichiesteGlobals();
-        initRichieste();
-        registerImpostazioniGlobals();
-        initImpostazioni();
-        registerProduzioneGlobals();
-        initProduzione();
-        window.cambiaPagina = cambiaPagina;
-        window.aggiornaListaFiltrabili = aggiornaListaFiltrabili;
-        configurePoller({
-            onRemoteChange: function(nomeUtente) {
-                notificaElegante('🔄 ' + nomeUtente + ' ha aggiornato i dati');
-                switch (paginaAttuale) {
-                    case 'PROGRAMMA PRODUZIONE DEL MESE':
-                        caricaSezioneConCache('PROGRAMMA_PRODUZIONE', _fetchDatiProduzione, _renderDatiProduzione, true)
-                            .catch(e => console.warn('[RevisionPoller] refresh failed:', e));
-                        break;
-                    case 'STORICO_RICHIESTE':
-                        caricaRichieste();
-                        break;
-                    case 'MATERIALE DA ORDINARE':
-                        caricaAcquisti(null);
-                        break;
-                    case 'ARCHIVIO_ORDINI':
-                        if (typeof caricaArchivio === 'function') caricaArchivio();
-                        break;
-                }
-            },
-            onUsersOnline: function(lista) { _aggiornaIndicatoreOnline(lista); },
-            getUtenteAttuale: function() { return utenteAttuale; },
-            getPaginaCorrente: function() { return paginaAttuale; }
-        });
-        RevisionPoller.start();
-        // Naviga all'ultima pagina salvata
-        let paginaSalvata = null;
-        try { paginaSalvata = localStorage.getItem('ultimaPaginaProduzione'); } catch (_e) {}
-        if (!paginaSalvata || paginaSalvata === 'undefined' || paginaSalvata === 'null') {
-            paginaSalvata = 'PROGRAMMA PRODUZIONE DEL MESE';
-        }
-        const _tastoMenu = document.querySelector(`.menu-item[data-page="${paginaSalvata}"]`);
-        cambiaPagina(paginaSalvata, _tastoMenu);
+        _initModuliENaviga_();
     }
 };
 
@@ -597,55 +606,11 @@ async function salvaEApriDashboard() {
     if (typeof aggiornaProfiloSidebar === 'function') aggiornaProfiloSidebar();
     _initPush();           // Registra / aggiorna subscription push VAPID
     _initBadgeNotifiche(); // Mostra badge se ci sono notifiche non lette
-    // Colori avatar: prima lettura rapida (500ms), poi aggiornamento completo dopo cold-start GAS
-    setTimeout(function() { _caricaColoriAvatarDaServer(); }, 500);
-    setTimeout(function() { _caricaColoriAvatarDaServer(); }, 5000);
+    // Colori avatar: idle callback (non compete con fetch dati)
+    (window.requestIdleCallback || function(cb) { setTimeout(cb, 3000); })(function() { _caricaColoriAvatarDaServer(); });
 
-    // Naviga alla pagina salvata (stessa logica del DOMContentLoaded normale)
-    let paginaSalvata = null;
-    try { paginaSalvata = localStorage.getItem('ultimaPaginaProduzione'); } catch (e) {}
-    if (!paginaSalvata || paginaSalvata === "undefined" || paginaSalvata === "null") {
-        paginaSalvata = "PROGRAMMA PRODUZIONE DEL MESE";
-    }
-    const tastoMenu = document.querySelector(`.menu-item[data-page="${paginaSalvata}"]`);
-    cambiaPagina(paginaSalvata, tastoMenu);
-
-    configurePoller({
-        onRemoteChange: function(nomeUtente) {
-            notificaElegante('\uD83D\uDD04 ' + nomeUtente + ' ha aggiornato i dati');
-            switch (paginaAttuale) {
-                case 'PROGRAMMA PRODUZIONE DEL MESE':
-                    caricaSezioneConCache('PROGRAMMA_PRODUZIONE', _fetchDatiProduzione, _renderDatiProduzione, true);
-                    break;
-                case 'STORICO_RICHIESTE':
-                    caricaRichieste();
-                    break;
-                case 'MATERIALE DA ORDINARE':
-                    caricaAcquisti(null);
-                    break;
-                case 'ARCHIVIO_ORDINI':
-                    if (typeof caricaArchivio === 'function') caricaArchivio();
-                    break;
-            }
-        },
-        onUsersOnline: function(lista) {
-            _aggiornaIndicatoreOnline(lista);
-        },
-        getUtenteAttuale: function() { return utenteAttuale; },
-        getPaginaCorrente: function() { return paginaAttuale; }
-    });
-    RevisionPoller.start();
-    if (_pipModule) _pipModule.registerGlobals();
-    registerUIGlobals();
-    registerAcquistiGlobals();
-    registerRichiesteGlobals();
-    initRichieste();
-    registerImpostazioniGlobals();
-    initImpostazioni();
-    registerProduzioneGlobals();
-    initProduzione();
-    window.cambiaPagina = cambiaPagina;
-    window.aggiornaListaFiltrabili = aggiornaListaFiltrabili;
+    // Inizializza moduli, configura poller, naviga all'ultima pagina
+    _initModuliENaviga_();
 }
 function logout() {
     if (logout._running) return;   // anti-rientro
