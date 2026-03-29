@@ -5158,55 +5158,60 @@ button.menu-item-opt {
         min-width: 0;
         overflow: hidden !important;
     }
+    /* Badge, dropdown operatore e dropdown stato: stessa larghezza (1/3 dello spazio) */
     .riga-ordine > .order-info > .badge-count {
-        flex: 0 1 auto !important;
+        flex: 1 1 0 !important;
         min-width: 0 !important;
         overflow: hidden !important;
         max-width: none !important;
         white-space: nowrap !important;
+        justify-content: center !important;
     }
     .badge-count .badge-ord-num {
-        max-width: 60px;
+        max-width: 55px;
     }
-    /* Dropdown operatore e stato: flessibili su mobile */
     .riga-ordine > .order-info > .op-dropdown.op-dropdown-ord {
+        flex: 1 1 0 !important;
         width: auto !important;
         min-width: 0 !important;
-        max-width: 110px !important;
-        flex: 0 1 auto !important;
+        max-width: none !important;
     }
     .riga-ordine > .order-info > .stato-dropdown-ord {
+        flex: 1 1 0 !important;
         width: auto !important;
         min-width: 0 !important;
-        max-width: 130px !important;
-        flex: 0 1 auto !important;
+        max-width: none !important;
     }
     .op-trigger-ord {
         padding: 5px 8px !important;
         font-size: 9px !important;
         gap: 4px !important;
+        width: 100% !important;
+        justify-content: center !important;
     }
     .stato-dropdown-ord .stato-trigger {
         padding: 5px 8px !important;
         font-size: 9px !important;
         gap: 4px !important;
+        width: 100% !important;
+        justify-content: center !important;
     }
     .op-trigger-label {
         overflow: hidden !important;
         text-overflow: ellipsis !important;
         white-space: nowrap !important;
-        max-width: 55px !important;
+        flex: 0 1 auto !important;
     }
     .stato-label-txt {
         overflow: hidden !important;
         text-overflow: ellipsis !important;
         white-space: nowrap !important;
-        max-width: 65px !important;
+        flex: 0 1 auto !important;
     }
-    /* Menu tre puntini: sempre visibile, mai fuori dalla card */
+    /* Menu tre puntini: fisso a destra, non cresce */
     .riga-ordine > .order-info > .ord-azioni-menu {
-        flex-shrink: 0 !important;
-        margin-left: auto !important;
+        flex: 0 0 32px !important;
+        margin-left: 0 !important;
     }
     .btn-txt { display: none !important; }
 

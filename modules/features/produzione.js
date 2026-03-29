@@ -9,8 +9,7 @@ import RevisionPoller from '../core/revision-poller.js';
 import { lsCacheSet as _lsCacheSet, lsCacheDel as _lsCacheDel } from '../core/ls-cache.js';
 import { cacheContenuti, cacheFetchTime, prefetch } from '../core/state.js';
 
-// Numero massimo di righe ordine attive renderizzate nella prima passata.
-const PROD_PAGE_SIZE = 50;
+// (Paginazione rimossa: tutti gli ordini caricati in un colpo)
 
 // ── Stato interno del modulo ────────────────────────────────────────────
 let _ultimiDatiProduzione = null;
@@ -21,9 +20,6 @@ let _attiviProd = [];
 let _ordiniAutocompleteCache = [];
 let _ovStatiArt = ['PREPARARE','PREPARARE PER LAVORAZIONE','IN LAVORAZIONE','TORNATO DALLA LAVORAZIONE'];
 let _ovStatiOrd = ['IN PRODUZIONE','IMBALLATO'];
-let _prodRimanenti = [];  // righe non ancora renderizzate (lazy-render)
-let _prodServerTotal = 0; // prodTotal restituito da GAS (totale righe attive)
-let _prodFirstPageCount = 0; // righe attive ricevute nella prima risposta GAS
 let _datiArchLazy = null;  // dati archivio: renderizzati lazy solo all'apertura della sezione
 
 function _getOvStatiAll() { return [..._ovStatiArt, ..._ovStatiOrd]; }
@@ -43,7 +39,7 @@ async function _fetchDatiProduzione(signal = null) {
         prefetch.dashBundle = null;
         prefetch.dashPromise = null;
     } else {
-        const _dashResp = await fetch(URL_GOOGLE + '?azione=getAllDashboard&limit=100', signal ? { signal } : {});
+        const _dashResp = await fetch(URL_GOOGLE + '?azione=getAllDashboard', signal ? { signal } : {});
         if (!_dashResp.ok) throw new Error(`HTTP ${_dashResp.status}`);
         _dashBundle = await _dashResp.json();
     }
@@ -74,20 +70,9 @@ function _renderDatiProduzione(dati, _isBackground = null) {
     const STATI_OV = _getOvStatiAll();
     const numInFocus = attivi.filter(r => STATI_OV.includes((r.stato||'').toUpperCase().trim())).length;
 
-    // --- SEZIONE ATTIVA --- (lazy-render: prime PROD_PAGE_SIZE unique ordini) ---
+    // --- SEZIONE ATTIVA --- (tutti gli ordini)
     const _attProdFull  = datiProd.filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE');
-    _prodServerTotal    = dati.prodTotal || 0;
-    _prodFirstPageCount = _attProdFull.length;
-    const _ordKeys1pg   = [...new Map(_attProdFull.map(r => [r.ordine, r.ordine])).keys()];
-    const _paginaOrdini = new Set(_ordKeys1pg.slice(0, PROD_PAGE_SIZE));
-    _prodRimanenti      = _attProdFull.filter(r => !_paginaOrdini.has(r.ordine));
-    const _primaPaginaRows = _attProdFull.filter(r => _paginaOrdini.has(r.ordine));
-    let htmlAttivi = generaBloccoOrdiniUnificato(_primaPaginaRows, false);
-    const _nRimanenti = new Set(_prodRimanenti.map(r => r.ordine)).size;
-    const _hasMore = _nRimanenti > 0 || _prodServerTotal > _prodFirstPageCount;
-    const _btnCaricaAltri = _hasMore
-        ? '<button class="btn-carica-altri-prod" onclick="_caricaAltriOrdini()"><i class="fas fa-chevron-down"></i> Carica altri ' + (_nRimanenti > 0 ? _nRimanenti + ' ordini' : 'ordini') + '</button>'
-        : '';
+    let htmlAttivi = generaBloccoOrdiniUnificato(_attProdFull, false);
 
     // --- SEZIONE ARCHIVIATA --- lazy: render solo all'apertura (+100-500ms risparmio)
     _datiArchLazy = datiArch;
@@ -124,7 +109,6 @@ function _renderDatiProduzione(dati, _isBackground = null) {
             </div>
             <div class="sezione-attiva">
                 ${htmlAttivi || "<div class='empty-msg'>Nessun ordine in produzione.</div>"}
-                ${_btnCaricaAltri}
             </div>
 
             <details id="archivio-prod-details" class="archivio-details">
@@ -181,42 +165,6 @@ function _renderDatiProduzione(dati, _isBackground = null) {
     _ordiniAutocompleteCache = _ordiniAutocompleteCache.filter(o => { if (seen.has(o.ordine)) return false; seen.add(o.ordine); return true; });
     window._ordiniAutocompleteCache = _ordiniAutocompleteCache;
 }
-
-// ─── Lazy-render: carica gli ordini rimasti (da buffer locale o da GAS) ───
-async function _caricaAltriOrdini() {
-    const _sez = document.querySelector('.sezione-attiva');
-    const _btn = _sez && _sez.querySelector('.btn-carica-altri-prod');
-    if (_btn) _btn.remove();
-
-    if (_prodRimanenti.length) {
-        // Usa il buffer locale scaricato nella prima risposta
-        const _html = generaBloccoOrdiniUnificato(_prodRimanenti, false);
-        if (_sez) _sez.insertAdjacentHTML('beforeend', _html);
-        _prodRimanenti = [];
-    } else if (_prodServerTotal > _prodFirstPageCount) {
-        // Il server ha più righe: recuperale con offset
-        const _loadEl = document.createElement('div');
-        _loadEl.className = 'inline-msg';
-        _loadEl.innerHTML = "<i class='fas fa-spinner fa-spin'></i> Caricamento ordini...";
-        if (_sez) _sez.appendChild(_loadEl);
-        try {
-            const resp  = await fetch(URL_GOOGLE + '?azione=getAllDashboard&offset=' + _prodFirstPageCount);
-            const extra = await resp.json();
-            _loadEl.remove();
-            const extraRows = (extra.produzione || []).filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE');
-            const _sez2 = document.querySelector('.sezione-attiva');
-            if (extraRows.length && _sez2) {
-                _sez2.insertAdjacentHTML('beforeend', generaBloccoOrdiniUnificato(extraRows, false));
-            }
-            _prodFirstPageCount = _prodServerTotal; // tutto caricato
-        } catch (_err) {
-            _loadEl.remove();
-            notificaElegante('Errore caricamento ordini aggiuntivi.', 'error');
-        }
-    }
-    requestAnimationFrame(_initKanbanDnd);
-}
-window._caricaAltriOrdini = _caricaAltriOrdini;
 
 async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedRequestId = null, signal = null) {
     const contenitore = document.getElementById('contenitore-dati');

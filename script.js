@@ -387,7 +387,7 @@ function _prefetchBackground() {
     // Rimuovi eventuale cache LS degli ordini salvata da versioni precedenti (dati real-time: non vanno in LS)
     _lsCacheDel('_html__acq_ordini');
     // Avvia subito senza delay per massimizzare il tempo disponibile prima del click
-    prefetch.dashPromise = fetch(URL_GOOGLE + '?azione=getAllDashboard&limit=100')
+    prefetch.dashPromise = fetch(URL_GOOGLE + '?azione=getAllDashboard')
         .then(function(r) { return r.ok ? r.json() : null; })
         .catch(function() { return null; });
     prefetch.rqPromise   = fetch(URL_GOOGLE + '?azione=getAllRichieste')
