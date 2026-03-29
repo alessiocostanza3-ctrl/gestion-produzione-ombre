@@ -220,7 +220,7 @@ window._caricaAltriOrdini = _caricaAltriOrdini;
 
 async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedRequestId = null, signal = null) {
     const contenitore = document.getElementById('contenitore-dati');
-    if (!isBackgroundUpdate) {
+    if (!isBackgroundUpdate && contenitore) {
         contenitore.innerHTML = "<div class='inline-msg' id='_prod-loader'>Caricamento Dashboard...</div>";
         applicaFade(contenitore);
     }

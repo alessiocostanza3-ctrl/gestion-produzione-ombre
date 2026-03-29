@@ -694,7 +694,7 @@ export function _renderDatiRichieste(_dati) {
     const messaggiArchivio = _dati.archivio   || [];
     const fabbisognoRows   = _dati.fabbisogno || [];
 
-    const io = utenteAttuale.nome.toUpperCase().trim();
+    const io = (utenteAttuale?.nome || '').toUpperCase().trim();
 
         const raggruppa = (dati) => {
             const gruppi = {};
@@ -711,7 +711,7 @@ export function _renderDatiRichieste(_dati) {
         /* ── Filtro: ogni operatore vede solo thread in cui è coinvolto ── */
         const _coinvolto = (() => {
             if (_isUtenteEsente()) return () => true;          // MASTER / ALESSIO vedono tutto
-            const ioN = _normNome(utenteAttuale.nome).toUpperCase();
+            const ioN = _normNome(utenteAttuale?.nome || '').toUpperCase();
             return (msgs) => msgs.some(m => {
                 if (_normNome(m.DA || '').toUpperCase() === ioN) return true;
                 // Il campo A può contenere destinatari multipli separati da virgola

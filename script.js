@@ -470,7 +470,9 @@ function _initModuliENaviga_() {
         paginaSalvata = 'PROGRAMMA PRODUZIONE DEL MESE';
     }
     const _tastoMenu = document.querySelector(`.menu-item[data-page="${paginaSalvata}"]`);
-    cambiaPagina(paginaSalvata, _tastoMenu);
+    cambiaPagina(paginaSalvata, _tastoMenu).catch(e => {
+        if (e && e.name !== 'AbortError') console.warn('[init] cambiaPagina:', e);
+    });
 }
 
 window.onload = async function() {
@@ -917,11 +919,22 @@ async function cambiaPagina(nomeFoglio, elementoMenu) {
             caricaAcquisti('ordini', requestId, navSignal);
             return;
         case 'PIPISTRELLI':
-            if (!_pipModule) {
-                _pipModule = await import('./modules/features/pipistrelli.js');
-                _pipModule.registerGlobals();
+            try {
+                if (!_pipModule) {
+                    _pipModule = await import('./modules/features/pipistrelli.js');
+                    _pipModule.registerGlobals();
+                }
+                _pipModule.caricaPipistrelli();
+            } catch (e) {
+                if (e && e.name === 'AbortError') return;
+                console.warn('[PIPISTRELLI] Errore caricamento modulo:', e);
+                const _pipCont = document.getElementById('contenitore-dati');
+                if (_pipCont) {
+                    _pipCont.innerHTML = "<div class='centered-error-bold'>Errore nel caricamento. <button onclick=\"cambiaPagina('PIPISTRELLI',null)\" style=\"margin-left:8px;padding:4px 12px;background:#242424;color:#fff;border:none;border-radius:6px;cursor:pointer\">Riprova</button></div>";
+                    applicaFade(_pipCont);
+                }
+                _pipModule = null;
             }
-            _pipModule.caricaPipistrelli();
             break;
         default: {
             const _cpCont = document.getElementById('contenitore-dati');
