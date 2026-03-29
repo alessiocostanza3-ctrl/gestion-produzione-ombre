@@ -7,6 +7,7 @@ import { notificaElegante, applicaFade, mostraModalConflitto, mostraConferma, _e
 import { utenteAttuale } from '../core/session.js';
 import RevisionPoller from '../core/revision-poller.js';
 import { lsCacheSet as _lsCacheSet, lsCacheDel as _lsCacheDel } from '../core/ls-cache.js';
+import { cacheContenuti, cacheFetchTime, prefetch } from '../core/state.js';
 
 // Numero massimo di righe ordine attive renderizzate nella prima passata.
 const PROD_PAGE_SIZE = 50;
