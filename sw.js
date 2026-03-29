@@ -9,11 +9,12 @@
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbyVMV9MkGiqphN0AKXJdHXF0Arp1vxTYrCYi1SGv_4MKLRJkx--5HoGq7mmQX-p0ZTZ/exec';
 var APP_URL = 'https://alessiocostanza3-ctrl.github.io/gestion-produzione-ombre/';
 
-var SHELL_CACHE = 'prod-shell-v221';
+var SHELL_CACHE = 'prod-shell-v222';
 var SHELL_ASSETS = [
     APP_URL,
     APP_URL + 'index.html',
     APP_URL + 'style.css',
+    APP_URL + 'head-init.js',
     APP_URL + 'dist/script.bundle.js',
     APP_URL + 'manifest.json',
     APP_URL + 'offline.html'
@@ -60,6 +61,8 @@ self.addEventListener('fetch', function(e) {
         var cleanA   = a.replace(/\?.*$/, '');
         return url === a || cleanUrl === cleanA;
     });
+    // Tratta anche i chunk esbuild (dist/chunk-*.js) come shell assets
+    if (!isShell && url.indexOf(APP_URL + 'dist/chunk-') === 0) isShell = true;
     // Navigazione HTML: serve offline.html se la rete fallisce
         var isNavigate = e.request.mode === 'navigate';
         if (!isShell && !isNavigate) return;

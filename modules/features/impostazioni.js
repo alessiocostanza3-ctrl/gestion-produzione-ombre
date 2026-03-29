@@ -2283,6 +2283,7 @@ export function registerGlobals() {
     window.toggleAccountMenuMobile = toggleAccountMenuMobile;
     window.chiudiAccountMenuMobile = chiudiAccountMenuMobile;
     // Push / Notifiche
+    window._vapidB64ToUint8_       = _vapidB64ToUint8_;
     window._mostraDiagnosticaPush  = _mostraDiagnosticaPush;
     window._forzaRiregistraPush    = _forzaRiregistraPush;
     window._testPushNotifica       = _testPushNotifica;

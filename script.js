@@ -1033,6 +1033,14 @@ registerNotificheGlobals();
 // — auth/session-ui.js (profilo, avatar, blocco orario)
 registerSessionUIGlobals();
 
+// — moduli che prima erano registrati solo in _initModuliENaviga_ (dopo await)
+//   Ora esposti subito così gli onclick inline funzionano durante il boot.
+registerUIGlobals();
+registerAcquistiGlobals();
+registerRichiesteGlobals();
+registerImpostazioniGlobals();
+registerProduzioneGlobals();
+
 // — funzioni definite in questo file chiamate da HTML onclick/oninput
 window.cambiaPagina                = cambiaPagina;
 window.aggiornaListaFiltrabili     = aggiornaListaFiltrabili;
