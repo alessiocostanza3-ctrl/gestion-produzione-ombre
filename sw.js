@@ -13,8 +13,8 @@ var SHELL_CACHE = 'prod-shell-v216';
 var SHELL_ASSETS = [
     APP_URL,
     APP_URL + 'index.html',
-    APP_URL + 'style.css?v=20260329a',
-    APP_URL + 'dist/script.bundle.js?v=20260329a',
+    APP_URL + 'style.css?v=20260329b',
+    APP_URL + 'dist/script.bundle.js?v=20260329b',
     APP_URL + 'manifest.json'
 ];
 
