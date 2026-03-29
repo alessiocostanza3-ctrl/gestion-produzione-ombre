@@ -8,6 +8,7 @@ import { notificaElegante, applicaFade, mostraConferma, _esc } from '../core/ui.
 import RevisionPoller from '../core/revision-poller.js';
 import { lsCacheGet as _lsCacheGet, lsCacheSet as _lsCacheSet, lsCacheDel as _lsCacheDel } from '../core/ls-cache.js';
 import { prefetch } from '../core/state.js';
+import ProdCache from '../core/cache.js';
 
 // ─── Stato interno ────────────────────────────────────────────────────────────
 let carrelloLocale = [];
@@ -93,10 +94,25 @@ export function _switchAcquistiTab(tab) {
 async function caricaOrdiniAcquisti(expectedRequestId = null, signal = null) {
     const contenitore = document.getElementById('contenitore-dati');
     if (!contenitore) return;
-    contenitore.innerHTML = "<div class='centered-msg'><i class='fas fa-spinner fa-spin'></i> Caricamento ordini...</div>";
 
     const isAlessio = utenteAttuale?.nome?.toUpperCase().trim() === 'ALESSIO';
     const opParam   = isAlessio ? '' : (utenteAttuale?.nome || '');
+    const _ordCacheKey = 'ORDINI_ACQUISTI_' + (utenteAttuale?.nome?.toUpperCase() || '_');
+
+    // Stale-while-revalidate: mostra subito la cache IndexedDB se disponibile
+    let _hasCached = false;
+    try {
+        const _idbOrd = await ProdCache.get(_ordCacheKey);
+        if (_idbOrd && _idbOrd.dati) {
+            contenitore.innerHTML  = _idbOrd.dati;
+            _acqCache['_acq_ordini']   = _idbOrd.dati;
+            _acqCacheTs['_acq_ordini'] = Date.now();
+            applicaFade(contenitore);
+            window.aggiornaListaFiltrabili?.();
+            _hasCached = true;
+        }
+    } catch (_) {}
+    if (!_hasCached) contenitore.innerHTML = "<div class='centered-msg'><i class='fas fa-spinner fa-spin'></i> Caricamento ordini...</div>";
 
     try {
         let rows;
@@ -167,6 +183,7 @@ async function caricaOrdiniAcquisti(expectedRequestId = null, signal = null) {
         });
 
         html += `</div></div>`;
+        ProdCache.set(_ordCacheKey, html).catch(() => {});
         _acqCache['_acq_ordini']   = html;
         _acqCacheTs['_acq_ordini'] = Date.now();
         contenitore.innerHTML = html;
@@ -336,6 +353,20 @@ async function caricaMateriali(silenzioso = false, expectedRequestId = null, sig
     const contenitore = document.getElementById('contenitore-dati');
     if (!contenitore) return;
 
+    // Stale-while-revalidate: mostra subito la cache IndexedDB se disponibile
+    if (!silenzioso) {
+        try {
+            const _idbMat = await ProdCache.get('MATERIALE_DA_ORDINARE');
+            if (_idbMat && _idbMat.dati) {
+                contenitore.innerHTML = _idbMat.dati;
+                _acqCache['MATERIALE DA ORDINARE']   = _idbMat.dati;
+                _acqCacheTs['MATERIALE DA ORDINARE'] = Date.now();
+                applicaFade(contenitore);
+                window.aggiornaListaFiltrabili?.();
+                silenzioso = true;
+            }
+        } catch (_) {}
+    }
     if (!silenzioso) {
         contenitore.innerHTML = "<div class='centered-msg'><i class='fas fa-spinner fa-spin'></i> Caricamento catalogo materiali...</div>";
         applicaFade(contenitore);
@@ -502,6 +533,7 @@ async function caricaMateriali(silenzioso = false, expectedRequestId = null, sig
         });
 
         html += `</div>`;
+        ProdCache.set('MATERIALE_DA_ORDINARE', html).catch(() => {});
         _acqCache['MATERIALE DA ORDINARE']   = html;
         _acqCacheTs['MATERIALE DA ORDINARE'] = Date.now();
         _lsCacheSet('_html_MATERIALE DA ORDINARE', html);
