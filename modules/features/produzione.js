@@ -24,6 +24,22 @@ let _datiArchLazy = null;  // dati archivio: renderizzati lazy solo all'apertura
 
 function _getOvStatiAll() { return [..._ovStatiArt, ..._ovStatiOrd]; }
 
+// Aggiorna last_modified in-memory dopo assegnazione operatori
+// (evita falsi positivi di conflitto su modifiche stato successive)
+function _syncAssegnaTimestamp(nOrd, idRiga, lastModified) {
+    if (!lastModified) return;
+    const sources = [_ultimiDatiProduzione?.produzione, _attiviProd];
+    for (const arr of sources) {
+        if (!arr) continue;
+        for (const row of arr) {
+            const match = idRiga
+                ? String(row.id_riga) === String(idRiga)
+                : String(row.ordine || row.nOrd || '').trim() === String(nOrd).trim();
+            if (match) row.last_modified = lastModified;
+        }
+    }
+}
+
 // ═══════════════════════════════════════════════════════════════════
 //  A) FETCH & RENDER
 // ═══════════════════════════════════════════════════════════════════
@@ -545,7 +561,8 @@ async function rimuoviOperatore(idRiga, nOrd, nomeOperatore) {
     const url = `${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(restanti)}&id_riga=${idRiga}&mittente=${encodeURIComponent(mittente)}`;
     delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
     _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
-    fetch(url).catch(e => { console.error('Errore rimozione operatore', e); notificaElegante('\u26a0\ufe0f Rimozione non salvata \u2013 riprova', 'error'); });
+    fetch(url).then(r => r.json()).then(j => _syncAssegnaTimestamp(nOrd, idRiga, j.last_modified))
+        .catch(e => { console.error('Errore rimozione operatore', e); notificaElegante('\u26a0\ufe0f Rimozione non salvata \u2013 riprova', 'error'); });
 }
 
 function toggleOpDropdown(btn) {
@@ -625,6 +642,7 @@ function selezionaOpAssegna(optBtn, idRiga, nOrd, nomeOp) {
     delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
     _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
     fetch(`${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(nuovaAssegna)}&id_riga=${idRiga}&mittente=${encodeURIComponent(mitt)}`)
+        .then(r => r.json()).then(j => _syncAssegnaTimestamp(nOrd, idRiga, j.last_modified))
         .catch(() => notificaElegante('\u26a0\ufe0f Assegnazione non salvata \u2013 riprova', 'error'));
 }
 
@@ -673,6 +691,7 @@ function selezionaOpAssegnaOrdine(optBtn, nOrd, nomeOp) {
     delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
     _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
     fetch(`${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(nuovaAssegna)}&mittente=${encodeURIComponent(mitt)}`)
+        .then(r => r.json()).then(j => _syncAssegnaTimestamp(nOrd, null, j.last_modified))
         .catch(() => notificaElegante('\u26a0\ufe0f Assegnazione non salvata \u2013 riprova', 'error'));
 }
 
@@ -697,6 +716,7 @@ function autoAssegnami(idRiga, nOrd, btnEl) {
     delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
     _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
     fetch(`${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(nuova)}&id_riga=${idRiga}&mittente=${encodeURIComponent(mitt)}`)
+        .then(r => r.json()).then(j => _syncAssegnaTimestamp(nOrd, idRiga, j.last_modified))
         .catch(() => notificaElegante('\u26a0\ufe0f Assegnazione non salvata \u2013 riprova', 'error'));
 }
 
@@ -724,6 +744,7 @@ function autoAssegnamiOrdine(nOrd) {
     delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
     _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
     fetch(`${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(mio)}&mittente=${encodeURIComponent(mitt)}`)
+        .then(r => r.json()).then(j => _syncAssegnaTimestamp(nOrd, null, j.last_modified))
         .catch(() => notificaElegante('\u26a0\ufe0f Assegnazione non salvata \u2013 riprova', 'error'));
 }
 
