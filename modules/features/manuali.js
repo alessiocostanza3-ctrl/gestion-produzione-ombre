@@ -42,8 +42,13 @@ function _normalizeSteps(steps) {
 
 function _buildManualeCard(m) {
     const stepsCount = Array.isArray(m.steps) ? m.steps.length : 0;
+    const cover = String(m.copertina || '').trim();
+    const coverHtml = cover
+        ? `<img src="${cover}" alt="copertina" class="w-full h-40 object-cover rounded-t-xl">`
+        : `<div class="w-full h-40 bg-slate-100 rounded-t-xl flex items-center justify-center text-slate-400 text-3xl"><i class="fas fa-book-open"></i></div>`;
     return `
-    <article class="manuale-card materiale-card ${window.TW?.card || ''}" data-codice="${_esc((m.titolo || '') + ' ' + (m.categoria || ''))}">
+    <article class="manuale-card materiale-card ${window.TW?.card || ''} !p-0 overflow-hidden" data-codice="${_esc((m.titolo || '') + ' ' + (m.categoria || ''))}">
+        ${coverHtml}
         <div class="p-4">
             <div class="flex items-start justify-between gap-2">
                 <div>
@@ -83,7 +88,7 @@ function _renderLista() {
             </button>
         </div>
 
-        <div class="grid gap-3 mt-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
             ${cards || '<div class="empty-msg">Nessun manuale disponibile.</div>'}
         </div>
     </section>
@@ -125,8 +130,14 @@ function _renderModalForm(mode, data) {
         id: '',
         titolo: '',
         categoria: '',
+        copertina: '',
         steps: [ { titolo: '', descrizione: '', foto: '' } ]
     };
+
+    const coverImg = String(current.copertina || '').trim();
+    const coverPreview = coverImg
+        ? `<img id="manuali-copertina-preview" src="${coverImg}" alt="copertina" style="max-width:100%;max-height:200px;border-radius:10px;border:1px solid #e2e8f0">`
+        : `<div id="manuali-copertina-preview" class="text-xs text-slate-400">Nessuna copertina</div>`;
 
     const stepHtml = (current.steps || []).map(_makeStepEditor).join('');
     host.innerHTML = `
@@ -138,6 +149,12 @@ function _renderModalForm(mode, data) {
             <input id="manuali-titolo" class="input-field-modern" type="text" value="${_esc(current.titolo || '')}" placeholder="Es. Installazione Testa LED 500mA">
             <label class="modal-label">Categoria</label>
             <input id="manuali-categoria" class="input-field-modern" type="text" value="${_esc(current.categoria || '')}" placeholder="Es. Assemblaggio">
+
+            <label class="modal-label">Immagine di copertina</label>
+            <div id="manuali-copertina-wrap" class="grid gap-2">
+                ${coverPreview}
+                <input type="file" accept="image/*" onchange="cambiaCopertina(this)">
+            </div>
         </div>
 
         <div class="mt-3 mb-2 flex items-center justify-between">
@@ -198,6 +215,40 @@ async function _resizeFotoBase64(base64, maxPx = 900) {
     });
 }
 
+async function cambiaCopertina(inputEl) {
+    try {
+        const file = inputEl?.files && inputEl.files[0];
+        if (!file) return;
+        const b64 = await _toBase64(file);
+        const resized = await _resizeFotoBase64(b64, 900);
+        if (!resized || resized.length > MAX_IMG_DATA_LEN) {
+            notificaElegante('Immagine di copertina troppo grande, riduci la risoluzione.', 'warning');
+            return;
+        }
+        const wrap = document.getElementById('manuali-copertina-wrap');
+        if (!wrap) return;
+        wrap.setAttribute('data-copertina', resized);
+        let img = wrap.querySelector('img');
+        if (img) {
+            img.src = resized;
+        } else {
+            const oldPreview = wrap.querySelector('#manuali-copertina-preview');
+            if (oldPreview) oldPreview.remove();
+            const newImg = document.createElement('img');
+            newImg.id = 'manuali-copertina-preview';
+            newImg.src = resized;
+            newImg.alt = 'copertina';
+            newImg.style.maxWidth = '100%';
+            newImg.style.maxHeight = '200px';
+            newImg.style.borderRadius = '10px';
+            newImg.style.border = '1px solid #e2e8f0';
+            wrap.insertBefore(newImg, wrap.firstChild);
+        }
+    } catch (_) {
+        notificaElegante('Errore nel caricamento immagine di copertina.', 'error');
+    }
+}
+
 async function cambiaFotoStepManuale(inputEl, idx) {
     try {
         const file = inputEl?.files && inputEl.files[0];
@@ -245,10 +296,15 @@ function apriFormManuale(id) {
         id: m.id,
         titolo: m.titolo,
         categoria: m.categoria,
+        copertina: m.copertina || '',
         steps: (m.steps || []).map(function(s) {
             return { titolo: s.titolo || '', descrizione: s.descrizione || '', foto: s.foto || '' };
         })
     });
+
+    // Salva copertina nel data-attribute del wrapper
+    const coverWrap = document.getElementById('manuali-copertina-wrap');
+    if (coverWrap && m.copertina) coverWrap.setAttribute('data-copertina', m.copertina);
 
     const boxes = Array.from(document.querySelectorAll('.manuale-step-edit'));
     boxes.forEach(function(box, idx) {
@@ -296,6 +352,7 @@ function rimuoviStepManuale(idx) {
 async function salvaManualeCorrente() {
     const titolo = String(document.getElementById('manuali-titolo')?.value || '').trim();
     const categoria = String(document.getElementById('manuali-categoria')?.value || '').trim();
+    const copertina = String(document.getElementById('manuali-copertina-wrap')?.getAttribute('data-copertina') || '').trim();
     const steps = _normalizeSteps(_collectStepsFromDom());
 
     if (!titolo) {
@@ -311,9 +368,9 @@ async function salvaManualeCorrente() {
         notificaElegante('Salvataggio manuale in corso...', 'info');
         let res;
         if (_activeModalId) {
-            res = await updateManuale({ id: _activeModalId, titolo: titolo, categoria: categoria, steps: steps });
+            res = await updateManuale({ id: _activeModalId, titolo: titolo, categoria: categoria, copertina: copertina, steps: steps });
         } else {
-            res = await createManuale({ titolo: titolo, categoria: categoria, steps: steps });
+            res = await createManuale({ titolo: titolo, categoria: categoria, copertina: copertina, steps: steps });
         }
 
         if (!res || res.status !== 'ok') {
@@ -349,6 +406,11 @@ function apriManuale(id) {
         </details>`;
     }).join('');
 
+    const coverDetail = String(m.copertina || '').trim();
+    const coverDetailHtml = coverDetail
+        ? `<img src="${coverDetail}" alt="copertina" style="max-width:100%;max-height:260px;border-radius:10px;border:1px solid #e2e8f0;margin-bottom:12px">`
+        : '';
+
     const host = document.getElementById('manuali-modal-host');
     if (!host) return;
     host.innerHTML = `
@@ -356,6 +418,7 @@ function apriManuale(id) {
       <div class="modal-content" style="max-width:920px;max-height:90vh;overflow:auto;">
         <h2>${_esc(m.titolo || '(Senza titolo)')}</h2>
         <p class="text-xs text-slate-500 mb-3">${_esc(m.categoria || 'Generale')} · v${Number(m.version || 1)} · aggiornato ${_esc(_formatTs(m.updatedAt))}</p>
+        ${coverDetailHtml}
         <div class="grid gap-2">${stepsHtml || '<div class="empty-msg">Nessuno step disponibile.</div>'}</div>
         <div class="modal-actions" style="margin-top:14px;display:flex;gap:10px;justify-content:flex-end;">
             <button type="button" class="btn-modal-cancel" onclick="chiudiFormManuale()">Chiudi</button>
@@ -480,6 +543,7 @@ export function registerGlobals() {
     window.aggiungiStepManuale = aggiungiStepManuale;
     window.rimuoviStepManuale = rimuoviStepManuale;
     window.cambiaFotoStepManuale = cambiaFotoStepManuale;
+    window.cambiaCopertina = cambiaCopertina;
     window.salvaManualeCorrente = salvaManualeCorrente;
     window.apriStoricoManuale = apriStoricoManuale;
     window.chiudiStoricoManuale = chiudiStoricoManuale;
