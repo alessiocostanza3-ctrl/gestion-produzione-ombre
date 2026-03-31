@@ -38,6 +38,15 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('message', function(event) {
         if (event.data && event.data.type === 'NUOVE_NOTIFICHE') {
             _salvaNotificheInLocale_(event.data.notifiche || []);
+            return;
+        }
+        if (event.data && event.data.type === 'OPEN_NOTIFICATION_TARGET') {
+            try {
+                var target = String(event.data.target || '').trim();
+                if (target && typeof window.apriDettaglioNotifica === 'function') {
+                    window.apriDettaglioNotifica(-1, target);
+                }
+            } catch (_) {}
         }
     });
 }
