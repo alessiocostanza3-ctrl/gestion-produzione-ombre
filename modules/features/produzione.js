@@ -24,6 +24,11 @@ let _datiArchLazy = null;  // dati archivio: renderizzati lazy solo all'apertura
 
 function _getOvStatiAll() { return [..._ovStatiArt, ..._ovStatiOrd]; }
 
+function _isStatoFinale_(stato) {
+    const s = String(stato || '').toUpperCase().trim();
+    return s === 'IMBALLATO' || s === 'SPEDITO/CONSEGNATO' || s === 'SPEDITO' || s === 'CONSEGNATO';
+}
+
 // Aggiorna last_modified in-memory dopo assegnazione operatori
 // (evita falsi positivi di conflitto su modifiche stato successive)
 function _syncAssegnaTimestamp(nOrd, idRiga, lastModified) {
@@ -313,7 +318,7 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
         if (!isArchivio) {
             if (window._isUtenteEsente()) {
                 const _allAss = [...new Set(
-                    righe.flatMap(r => (r.assegna && r.assegna !== '' && r.assegna !== 'undefined')
+                    righe.flatMap(r => (!_isStatoFinale_(r.stato) && r.assegna && r.assegna !== '' && r.assegna !== 'undefined')
                         ? r.assegna.split(',').map(n => window._normNome(n.trim())).filter(Boolean) : [])
                 )];
                 const _lblOrd = _allAss.length ? _allAss.map(window._normNome).join(', ') : 'Libero';
@@ -327,7 +332,7 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
                 _opZoneOrd = `<div class="op-dropdown op-dropdown-ord" data-nord="${nOrd}" data-assegna-ord="${_allAss.join(',').replace(/"/g,'&quot;')}"><button type="button" class="op-trigger op-trigger-ord" onclick="event.stopPropagation(); toggleOpDropdown(this)"><i class="fas fa-user-tag op-icon"></i><span class="op-trigger-label">${_lblOrd}</span><i class="fas fa-chevron-down op-chevron"></i></button><div class="op-popup">${_opOptsOrd}</div></div>`;
             } else {
                 const _mioN = (utenteAttuale?.nome || '').toUpperCase().trim();
-                const _giaSonoOrd = righe.some(r => r.assegna && r.assegna.split(',').some(n => n.trim().toUpperCase() === _mioN));
+                const _giaSonoOrd = righe.some(r => !_isStatoFinale_(r.stato) && r.assegna && r.assegna.split(',').some(n => n.trim().toUpperCase() === _mioN));
                 if (!_giaSonoOrd) {
                     const _nOrdS = nOrd.replace(/'/g, "\\'");
                     _opZoneOrd = `<button class="btn-assegnami btn-assegnami-ord" onclick="event.stopPropagation(); autoAssegnamiOrdine('${_nOrdS}')" title="Assegnami a tutto l'ordine"><i class="fas fa-user-plus"></i></button>`;
@@ -1014,11 +1019,19 @@ async function aggiornaDato(selectEl, idRiga, campo, nuovoValore, skipForceSync 
         if (r.last_modified) {
             if (_ultimiDatiProduzione && _ultimiDatiProduzione.produzione) {
                 const row = _ultimiDatiProduzione.produzione.find(x => String(x.id_riga) === String(idRiga));
-                if (row) row.last_modified = r.last_modified;
+                if (row) {
+                    row.last_modified = r.last_modified;
+                    row[campo] = nuovoValore;
+                    if (campo === 'stato' && _isStatoFinale_(nuovoValore)) row.assegna = '';
+                }
             }
             if (_attiviProd) {
                 const row = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
-                if (row) row.last_modified = r.last_modified;
+                if (row) {
+                    row.last_modified = r.last_modified;
+                    row[campo] = nuovoValore;
+                    if (campo === 'stato' && _isStatoFinale_(nuovoValore)) row.assegna = '';
+                }
             }
         }
 
@@ -1456,7 +1469,7 @@ function _apriArchivio(id) {
 function _osservaArchivio(id) { /* disabilitato: apri solo col tasto */ }
 
 function _buildCaricoOperatoriHtml(attivi) {
-    const attiviOp = attivi;
+    const attiviOp = (attivi || []).filter(r => !_isStatoFinale_(r.stato));
     const OPS_PROD = ['Riccardo', 'Fabio T.', 'Niccol\u00f2', 'Alessio'];
     const map = new Map();
     OPS_PROD.forEach(op => map.set(op, []));
