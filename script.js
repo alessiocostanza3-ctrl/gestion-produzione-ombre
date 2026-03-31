@@ -14,6 +14,7 @@ import RevisionPoller, { configurePoller } from './modules/core/revision-poller.
 import { notificaElegante, applicaFade, mostraModalConflitto, mostraConferma, registerUIGlobals } from './modules/core/ui.js';
 import { caricaAcquisti, registerGlobals as registerAcquistiGlobals } from './modules/features/acquisti.js';
 import { caricaRichieste, _fetchDatiRichieste, _renderDatiRichieste, init as initRichieste, registerGlobals as registerRichiesteGlobals } from './modules/features/richieste.js';
+import { caricaManuali, init as initManuali, registerGlobals as registerManualiGlobals } from './modules/features/manuali.js';
 import { caricaInterfacciaImpostazioni, caricaDatiIniziali, registerGlobals as registerImpostazioniGlobals, init as initImpostazioni } from './modules/features/impostazioni.js';
 import {
   _fetchDatiProduzione, _renderDatiProduzione, caricaDati, caricaArchivio,
@@ -377,7 +378,7 @@ const TW = {
 };
 
 function aggiornaListaFiltrabili() {
-    elementiDaFiltrareCache = document.querySelectorAll('.ordine-wrapper, .chat-card, .materiale-card');
+    elementiDaFiltrareCache = document.querySelectorAll('.ordine-wrapper, .chat-card, .materiale-card, .manuale-card');
 }
 
 // helper per richieste REST
@@ -439,7 +440,9 @@ function _initModuliENaviga_() {
     registerUIGlobals();
     registerAcquistiGlobals();
     registerRichiesteGlobals();
+    registerManualiGlobals();
     initRichieste();
+    initManuali();
     registerImpostazioniGlobals();
     initImpostazioni();
     registerProduzioneGlobals();
@@ -460,6 +463,9 @@ function _initModuliENaviga_() {
                     break;
                 case 'MATERIALE DA ORDINARE':
                     caricaAcquisti(null);
+                    break;
+                case 'MANUALI_PRODOTTI':
+                    caricaManuali(null, null, true);
                     break;
                 case 'ARCHIVIO_ORDINI':
                     if (typeof caricaArchivio === 'function') caricaArchivio();
@@ -793,6 +799,7 @@ async function cambiaPagina(nomeFoglio, elementoMenu) {
         'STORICO_RICHIESTE': "La mia Casella",
         'ARCHIVIO_ORDINI': "Archivio Ordini",
         'MATERIALE DA ORDINARE': "Gestione Acquisti",
+        'MANUALI_PRODOTTI': "Manuali Prodotti",
 
         'PROGRAMMA PRODUZIONE DEL MESE': "Dashboard Produzione",
         'PIPISTRELLI': "ðŸ¦‡ Pipistrelli"
@@ -882,6 +889,7 @@ async function cambiaPagina(nomeFoglio, elementoMenu) {
             if (nomeFoglio === 'PROGRAMMA PRODUZIONE DEL MESE') caricaDati(nomeFoglio, true, requestId, navSignal);
             else if (nomeFoglio === 'MATERIALE DA ORDINARE')    caricaAcquisti(null, requestId, navSignal, true);
             else if (nomeFoglio === 'STORICO_RICHIESTE')        caricaSezioneConCache('STORICO_RICHIESTE', () => _fetchDatiRichieste(navSignal), _renderDatiRichieste, true).catch(() => {});
+            else if (nomeFoglio === 'MANUALI_PRODOTTI')         caricaManuali(requestId, navSignal, true).catch(() => {});
             else if (nomeFoglio === 'ARCHIVIO_ORDINI')          caricaArchivio();
         }
         return;
@@ -923,6 +931,9 @@ async function cambiaPagina(nomeFoglio, elementoMenu) {
             break;
         case 'MATERIALE DA ORDINARE':
             caricaAcquisti(elementoMenu ? 'catalogo' : null, requestId, navSignal);
+            break;
+        case 'MANUALI_PRODOTTI':
+            caricaManuali(requestId, navSignal, false);
             break;
         case 'ORDINI_ACQUISTI':
             caricaAcquisti('ordini', requestId, navSignal);
@@ -1066,6 +1077,7 @@ registerSessionUIGlobals();
 registerUIGlobals();
 registerAcquistiGlobals();
 registerRichiesteGlobals();
+registerManualiGlobals();
 registerImpostazioniGlobals();
 registerProduzioneGlobals();
 

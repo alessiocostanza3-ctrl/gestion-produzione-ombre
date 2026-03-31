@@ -124,3 +124,38 @@ export async function addMateriale(articolo) {
 export async function inviaOrdine(items) {
     return gasRequest({ azione: 'inviaOrdine', items });
 }
+
+/**
+ * Recupera l'elenco dei manuali prodotto correnti.
+ * @returns {Promise<{status:string, manuali: object[]}>}
+ */
+export async function fetchManuali() {
+    return gasRequestWithTimeout({ azione: 'getManuali' }, 10000);
+}
+
+/**
+ * Crea un nuovo manuale prodotto.
+ * @param {{ titolo: string, categoria?: string, steps: Array<{titolo?:string, descrizione?:string, foto?:string}> }} payload
+ * @returns {Promise<{status:string, manuale?:object}>}
+ */
+export async function createManuale(payload) {
+    return gasRequestWithTimeout({ azione: 'salvaManualeNuovo', ...payload }, 15000);
+}
+
+/**
+ * Aggiorna un manuale esistente con nuova versione.
+ * @param {{ id: string, titolo: string, categoria?: string, steps: Array<{titolo?:string, descrizione?:string, foto?:string}> }} payload
+ * @returns {Promise<{status:string, manuale?:object}>}
+ */
+export async function updateManuale(payload) {
+    return gasRequestWithTimeout({ azione: 'aggiornaManuale', ...payload }, 15000);
+}
+
+/**
+ * Legge lo storico versioni di un manuale.
+ * @param {string} idManuale
+ * @returns {Promise<{status:string, storico: object[]}>}
+ */
+export async function fetchStoricoManuale(idManuale) {
+    return gasRequestWithTimeout({ azione: 'getStoricoManuale', id: idManuale }, 10000);
+}
