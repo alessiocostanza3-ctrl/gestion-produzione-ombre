@@ -7156,6 +7156,72 @@ body.page-pip #rotate-overlay { display: none !important; }
 .pip-leg-item { display: flex; align-items: center; gap: 4px; }
 
 /* ================================================================
+   CAPACITÀ DI SPEDIZIONE (widget real-time)
+   ================================================================ */
+.pip-sped-calc-card { margin-bottom: 20px; }
+
+.pip-sped-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    border-bottom: 1.5px solid #e2e8f0;
+}
+.pip-sped-item {
+    padding: 13px 14px;
+    border-right: 1.5px solid #e2e8f0;
+    display: flex; flex-direction: column; gap: 7px;
+}
+.pip-sped-item:last-child { border-right: none; }
+.pip-sped-item-label {
+    font-size: 0.78rem; font-weight: 800; color: #1e293b;
+    display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+    margin-bottom: 2px;
+}
+.pip-sped-comp {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 0.74rem; color: #475569; padding: 1px 0;
+}
+.pip-sped-comp--bottleneck { color: #ef4444; font-weight: 700; }
+.pip-sped-comp-num { font-weight: 800; font-family: monospace; font-size: 0.85rem; }
+.pip-sped-result {
+    margin-top: 4px; border-radius: 8px;
+    padding: 7px 10px;
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+}
+.pip-sped-result--ok   { background: #dcfce7; color: #15803d; border: 1.5px solid #bbf7d0; }
+.pip-sped-result--zero { background: #f1f5f9; color: #94a3b8; border: 1.5px solid #e2e8f0; }
+.pip-sped-result-num { font-size: 1.4rem; font-weight: 900; font-family: monospace; line-height: 1; }
+.pip-sped-result-lbl { font-size: 0.72rem; font-weight: 600; }
+
+.pip-sped-alim {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 10px 16px; font-size: 0.82rem;
+    border-bottom: 1.5px solid #f1f5f9;
+}
+.pip-sped-alim--ok   { background: #f0fdf4; color: #15803d; }
+.pip-sped-alim--warn { background: #fffbeb; color: #92400e; }
+.pip-sped-alim-ico   { font-size: 1rem; flex-shrink: 0; }
+.pip-sped-alim-label { font-weight: 600; color: #1e293b; }
+.pip-sped-alim-status { font-size: 0.78rem; margin-left: auto; display: flex; align-items: center; gap: 5px; }
+
+.pip-sped-total {
+    padding: 10px 16px; font-size: 0.84rem; color: #475569; text-align: center;
+}
+.pip-sped-total-num { color: #1e293b; font-size: 1.05rem; font-weight: 900; }
+.pip-sped-total-sub { color: #d97706; font-size: 0.75rem; }
+.pip-sped-empty {
+    padding: 14px 16px; text-align: center;
+    font-size: 0.82rem; color: #94a3b8;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+
+@media (max-width: 540px) {
+    .pip-sped-grid { grid-template-columns: 1fr; }
+    .pip-sped-item { border-right: none; border-bottom: 1.5px solid #e2e8f0; }
+    .pip-sped-item:last-child { border-bottom: none; }
+    .pip-sped-alim-status { margin-left: 0; width: 100%; }
+}
+
+/* ================================================================
    SEZIONE MOVIMENTI  (carico / scarico magazzino)
    ================================================================ */
 .pip-mov-section {

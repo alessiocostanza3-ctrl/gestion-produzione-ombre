@@ -230,6 +230,100 @@ function _pipCalcImpegnati() {
     return imp;
 }
 
+// ─── Calcolo capacità di spedizione ──────────────────────────────────────────
+
+/**
+ * Calcola quanti pipistrelli completi (testa + cordone + alimentatore)
+ * è possibile assemblare partendo dalle giacenze libere.
+ * L'alimentatore (idx 21) è universale (comune a tutti e 3 i formati).
+ */
+function _pipCalcSpedizionabili() {
+    const caric = _pipLoadCaric();
+    const imp   = _pipCalcImpegnati();
+
+    // Stock libero = caricato - già impegnato nei pronti assemblati
+    function lib(idx) {
+        return Math.max(0, Number(caric[idx] || 0) - (imp[idx] || 0));
+    }
+
+    // Quante unità assemblabili dato un array BOM [[idx, coeff], ...]
+    function maxDaBom(bom) {
+        if (!bom || !bom.length) return 0;
+        let min = Infinity;
+        for (const [idx, coeff] of bom) {
+            const q = Math.floor(lib(idx) / coeff);
+            if (q < min) min = q;
+        }
+        return min === Infinity ? 0 : min;
+    }
+
+    const alimLib = lib(21); // idx 21 = Alimentatore (universale)
+
+    const formati = ['p', 'm', 'g'].map(fmt => {
+        const maxTesta   = maxDaBom(_PIP_ASSEMB.TESTA[fmt]);
+        const maxCordone = maxDaBom(_PIP_ASSEMB.CORDONE[fmt]);
+        const max        = Math.min(maxTesta, maxCordone);
+        return { fmt, maxTesta, maxCordone, max };
+    });
+
+    const totSenzaAlim    = formati.reduce((s, f) => s + f.max, 0);
+    const alimSufficienti = alimLib >= totSenzaAlim;
+    const totConAlim      = Math.min(totSenzaAlim, alimLib);
+
+    return { formati, alimLib, totSenzaAlim, alimSufficienti, totConAlim };
+}
+
+/** Aggiorna il widget capacità di spedizione in real-time */
+function _pipRenderSpedizionabili() {
+    const el = document.getElementById('pip-sped-calc-inner');
+    if (!el) return;
+
+    const { formati, alimLib, totSenzaAlim, alimSufficienti, totConAlim } = _pipCalcSpedizionabili();
+    const MA_LABEL  = { p: '500mA', m: '600mA', g: '700mA' };
+    const FMT_LABEL = {
+        p: { label: 'Piccolo', emoji: '🔵' },
+        m: { label: 'Medio',   emoji: '🟣' },
+        g: { label: 'Grande',  emoji: '🔴' }
+    };
+
+    const cardsHtml = formati.map(({ fmt, maxTesta, maxCordone, max }) => {
+        const { label, emoji } = FMT_LABEL[fmt];
+        const testaCls   = (maxTesta   < maxCordone && maxTesta   < Infinity) ? 'pip-sped-comp--bottleneck' : '';
+        const cordoneCls = (maxCordone < maxTesta   && maxCordone < Infinity) ? 'pip-sped-comp--bottleneck' : '';
+        const resultCls  = max > 0 ? 'pip-sped-result--ok' : 'pip-sped-result--zero';
+        return `<div class="pip-sped-item">
+      <div class="pip-sped-item-label">${emoji} ${label} <span class="pip-pronti-ma">${MA_LABEL[fmt]}</span></div>
+      <div class="pip-sped-comp ${testaCls}"><span>🔩 Teste</span><span class="pip-sped-comp-num">${maxTesta}</span></div>
+      <div class="pip-sped-comp ${cordoneCls}"><span>🔌 Cordoni</span><span class="pip-sped-comp-num">${maxCordone}</span></div>
+      <div class="pip-sped-result ${resultCls}">
+        <span class="pip-sped-result-num">${max}</span>
+        <span class="pip-sped-result-lbl">complet${max === 1 ? 'o' : 'i'}</span>
+      </div>
+    </div>`;
+    }).join('');
+
+    const alimCls  = alimSufficienti ? 'pip-sped-alim--ok' : 'pip-sped-alim--warn';
+    const alimIcon = alimSufficienti
+        ? '<i class="fas fa-check-circle" style="color:#16a34a"></i>'
+        : '<i class="fas fa-exclamation-triangle" style="color:#d97706"></i>';
+    const alimMsg  = alimSufficienti
+        ? 'Sufficienti per tutti i formati'
+        : `Ne servirebbero <strong>${totSenzaAlim}</strong> per spedire tutti`;
+
+    const footerHtml = totConAlim > 0
+        ? `<div class="pip-sped-total">Totale spedizionabili: <strong class="pip-sped-total-num">${totConAlim}</strong> pipistrelli${!alimSufficienti ? ' <span class="pip-sped-total-sub">(limitato dagli alimentatori)</span>' : ''}</div>`
+        : `<div class="pip-sped-empty"><i class="fas fa-box-open"></i> Componenti insufficienti per completare un pipistrello</div>`;
+
+    el.innerHTML = `
+    <div class="pip-sped-grid">${cardsHtml}</div>
+    <div class="pip-sped-alim ${alimCls}">
+      <span class="pip-sped-alim-ico">🔋</span>
+      <span class="pip-sped-alim-label">Alimentatori disponibili: <strong>${alimLib}</strong></span>
+      <span class="pip-sped-alim-status">${alimIcon} ${alimMsg}</span>
+    </div>
+    ${footerHtml}`;
+}
+
 /** Ricalcola e aggiorna il badge "liberi" in ogni riga della tabella BOM */
 function _pipAggiornaLiberi() {
     const imp   = _pipCalcImpegnati();
@@ -247,6 +341,7 @@ function _pipAggiornaLiberi() {
             span.style.display = 'none';
         }
     });
+    _pipRenderSpedizionabili();
 }
 
 /** Aggiorna contatore pronti (+1/-1) e ricalcola i liberi */
@@ -387,6 +482,7 @@ function _pipAggiornaCar(input) {
         if (impI > 0) { span.textContent = Math.max(0, car - impI) + ' lib.'; span.style.display = ''; }
         else span.style.display = 'none';
     }
+    _pipRenderSpedizionabili();
 }
 
 /** Salva manualmente tutti i dati sul server con feedback visivo */
@@ -1164,6 +1260,12 @@ export function caricaPipistrelli() {
         <span class="pip-leg-item" style="color:#9ca3af">— = non necessario</span>
       </div>
 
+      <!-- CAPACITÀ DI SPEDIZIONE -->
+      <div class="pip-assemb-card pip-sped-calc-card">
+        <div class="pip-assemb-title"><i class="fas fa-truck-fast"></i> CAPACITÀ DI SPEDIZIONE <span class="pip-pronti-hint">— aggiornato in tempo reale dalle giacenze</span></div>
+        <div id="pip-sped-calc-inner"></div>
+      </div>
+
       <!-- PRONTI DA SPEDIRE + SCARICO -->
       <div class="pip-assemb-card pip-pronti-card-wrap">
         <div class="pip-assemb-title"><i class="fas fa-truck"></i> PRONTI DA SPEDIRE <span class="pip-pronti-hint">— imposta le quantità e premi Registra Spedizione per scaricare i componenti</span></div>
@@ -1221,6 +1323,7 @@ export function caricaPipistrelli() {
 
     _pipRenderMovimenti();
     _pipRenderPronti();
+    _pipRenderSpedizionabili();
     applicaFade(contenitore);
 }
 
