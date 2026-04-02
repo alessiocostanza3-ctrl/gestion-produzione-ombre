@@ -983,11 +983,12 @@ function selezionaStatoOrdine(optBtn, nOrdine, nuovoStato, nuovoColore) {
     wrapper.classList.add('optimistic-pending');
     wrapper.style.transition = 'opacity 0.3s';
 
+    notificaElegante(`\u2714 Ordine ${nOrdine} → ${nuovoStato}`, 'success');
+
     // UNA sola POST bulk per tutte le righe
     _aggiornaDatoBulk(righe, 'stato', nuovoStato).then(ok => {
         wrapper.classList.remove('optimistic-pending'); wrapper.style.opacity = '';
         if (ok) {
-            notificaElegante(`\u2714 Ordine ${nOrdine} aggiornato a ${nuovoStato}`, 'success');
             _invalidateProduzioneCache();
         } else {
             // Rollback
@@ -1582,6 +1583,7 @@ function _backgroundRefreshProduzione(allProd, allArch) {
 function _syncKanbanFromStato(idRiga, newStato) {
     const grid = document.getElementById('ov-kanban-grid');
     if (!grid) return;
+    const newStatoUpper = (newStato || '').toUpperCase().trim();
     let item = grid.querySelector(`.ov-kanban-item[data-id-riga="${idRiga}"]`);
     if (!item) {
         grid.querySelectorAll('.ov-kanban-item').forEach(el => {
@@ -1589,11 +1591,11 @@ function _syncKanbanFromStato(idRiga, newStato) {
         });
     }
     if (!item) return;
-    if (item.dataset.statoCorrente === newStato) return;
-    const destBody = grid.querySelector(`.ov-stato-body[data-stato-drop="${newStato}"]`);
+    if ((item.dataset.statoCorrente || '').toUpperCase().trim() === newStatoUpper) return;
+    const destBody = grid.querySelector(`.ov-stato-body[data-stato-drop="${newStatoUpper}"]`);
     if (!destBody) return;
     destBody.querySelectorAll('.ov-empty-lbl').forEach(el => el.remove());
-    item.dataset.statoCorrente = newStato;
+    item.dataset.statoCorrente = newStatoUpper;
     item.style.transition = 'opacity 0.18s, transform 0.18s';
     item.style.opacity    = '0';
     item.style.transform  = 'scale(0.92)';
