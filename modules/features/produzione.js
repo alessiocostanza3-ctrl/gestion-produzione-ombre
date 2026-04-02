@@ -16,6 +16,8 @@ let _ultimiDatiProduzione = null;
 let _pollProdTimer = null;
 const _POLL_PROD_MS = 10000;
 let _lastKanbanDragTs = 0;
+let _mutationInFlight = 0;          // contatore di salvataggi in corso
+let _mutationLastDone = 0;          // timestamp ultimo salvataggio completato
 let _attiviProd = [];
 let _ordiniAutocompleteCache = [];
 let _ovStatiArt = ['PREPARARE','MANDA IN LAVORAZIONE','IN LAVORAZIONE','TORNATO DALLA LAVORAZIONE'];
@@ -850,6 +852,7 @@ function selezionaStatoOrdine(optBtn, nOrdine, nuovoStato, nuovoColore) {
         statiPrecRighe[idRiga] = r ? r.stato : null;
     });
 
+    // Optimistic UI: aggiorna subito tutto
     righe.forEach(idRiga => {
         if (_attiviProd) {
             const r = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
@@ -862,57 +865,50 @@ function selezionaStatoOrdine(optBtn, nOrdine, nuovoStato, nuovoColore) {
     wrapper.classList.add('optimistic-pending');
     wrapper.style.opacity = '0.7'; wrapper.style.transition = 'opacity 0.3s';
 
-    (async () => {
-        try {
-            const risultati = await Promise.all(
-                righe.map(idRiga => aggiornaDato(null, idRiga, 'stato', nuovoStato, true))
-            );
-            wrapper.classList.remove('optimistic-pending'); wrapper.style.opacity = '';
-
-            const successi = risultati.filter(Boolean).length;
-            if (successi === righe.length) {
-                notificaElegante(`\u2714 Ordine ${nOrdine} aggiornato a ${nuovoStato}`, 'success');
-                ProdCache.invalidate('PROGRAMMA_PRODUZIONE').catch(() => {});
-            } else {
-                righe.forEach((idRiga, i) => {
-                    if (!risultati[i] && statiPrecRighe[idRiga]) {
-                        const prev = statiPrecRighe[idRiga];
-                        if (_attiviProd) {
-                            const r = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
-                            if (r) r.stato = prev;
-                        }
-                        const prevColore = (window.listaStati.find(s => s.nome === prev) || {}).colore || '#e2e8f0';
-                        _syncKanbanFromStato(idRiga, prev);
-                        _syncStatoItemCard(idRiga, prev, prevColore);
-                    }
-                });
-                const statiAttuali = righe.map(id => {
-                    const r = _attiviProd ? _attiviProd.find(x => String(x.id_riga) === String(id)) : null;
-                    return r ? r.stato : '';
-                }).filter((s, i, a) => a.indexOf(s) === i);
-                if (labelEl) labelEl.textContent = statiAttuali.length === 1 ? statiAttuali[0] : `${statiAttuali.length} Stati`;
-                notificaElegante(`\u26a0 ${successi}/${righe.length} righe aggiornate \u2013 riprova`, 'warning');
-            }
-        } catch (err) {
-            wrapper.classList.remove('optimistic-pending'); wrapper.style.opacity = '';
-            if (labelEl) labelEl.textContent = statoPrec.testo;
-            if (dot) dot.style.background = statoPrec.colore;
+    // UNA sola POST bulk per tutte le righe
+    _aggiornaDatoBulk(righe, 'stato', nuovoStato).then(ok => {
+        wrapper.classList.remove('optimistic-pending'); wrapper.style.opacity = '';
+        if (ok) {
+            notificaElegante(`\u2714 Ordine ${nOrdine} aggiornato a ${nuovoStato}`, 'success');
+            ProdCache.invalidate('PROGRAMMA_PRODUZIONE').catch(() => {});
+        } else {
+            // Rollback
             righe.forEach(idRiga => {
                 const prev = statiPrecRighe[idRiga];
-                if (prev && _attiviProd) {
-                    const r = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
-                    if (r) r.stato = prev;
-                }
                 if (prev) {
+                    if (_attiviProd) {
+                        const r = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
+                        if (r) r.stato = prev;
+                    }
                     const prevColore = (window.listaStati.find(s => s.nome === prev) || {}).colore || '#e2e8f0';
                     _syncKanbanFromStato(idRiga, prev);
                     _syncStatoItemCard(idRiga, prev, prevColore);
                 }
             });
+            if (labelEl) labelEl.textContent = statoPrec.testo;
+            if (dot) dot.style.background = statoPrec.colore;
             notificaElegante('\u26a0\ufe0f Modifica non salvata \u2013 riprova', 'error');
-            console.error('[selezionaStatoOrdine] Rollback', err, { nOrdine, nuovoStato });
+            console.error('[selezionaStatoOrdine] Rollback — bulk save failed', { nOrdine, nuovoStato });
         }
-    })();
+    }).catch(err => {
+        wrapper.classList.remove('optimistic-pending'); wrapper.style.opacity = '';
+        if (labelEl) labelEl.textContent = statoPrec.testo;
+        if (dot) dot.style.background = statoPrec.colore;
+        righe.forEach(idRiga => {
+            const prev = statiPrecRighe[idRiga];
+            if (prev && _attiviProd) {
+                const r = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
+                if (r) r.stato = prev;
+            }
+            if (prev) {
+                const prevColore = (window.listaStati.find(s => s.nome === prev) || {}).colore || '#e2e8f0';
+                _syncKanbanFromStato(idRiga, prev);
+                _syncStatoItemCard(idRiga, prev, prevColore);
+            }
+        });
+        notificaElegante('\u26a0\ufe0f Modifica non salvata \u2013 riprova', 'error');
+        console.error('[selezionaStatoOrdine] Rollback', err, { nOrdine, nuovoStato });
+    });
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -926,7 +922,8 @@ function toggleAccordion(elemento) {
 }
 
 async function aggiornaDato(selectEl, idRiga, campo, nuovoValore, skipForceSync = false) {
-    RevisionPoller.pauseFor(6000);
+    RevisionPoller.pauseFor(15000);
+    _mutationInFlight++;
     let clientTimestamp = null;
     if (_ultimiDatiProduzione && _ultimiDatiProduzione.produzione) {
         const row = _ultimiDatiProduzione.produzione.find(x => String(x.id_riga) === String(idRiga));
@@ -1041,29 +1038,79 @@ async function aggiornaDato(selectEl, idRiga, campo, nuovoValore, skipForceSync 
         cacheFetchTime['PROGRAMMA PRODUZIONE DEL MESE'] = 0;
         _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
         
-        if (!skipForceSync && window.paginaAttuale === 'PROGRAMMA PRODUZIONE DEL MESE') {
-            try {
-                const bundle = await fetch(URL_GOOGLE + '?azione=getAllDashboard').then(x => x.json());
-                if (bundle && bundle.produzione) {
-                    const newAttivi = (bundle.produzione || []).filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE');
-                    _patchProduzione(newAttivi, bundle.produzione, bundle.archivio || []);
-                }
-            } catch (err) {
-                console.warn('[Force sync] Errore nel fetch immediato:', err);
-            }
-        }
         return true;
     } catch (e) {
         console.error('aggiornaDato error:', e);
         if (selectEl) selectEl.style.opacity = '1';
         if (!skipForceSync) notificaElegante('\u2717 Errore: cambio NON salvato. Riprova.', 'error');
         return false;
+    } finally {
+        _mutationInFlight = Math.max(0, _mutationInFlight - 1);
+        _mutationLastDone = Date.now();
     }
 }
 
-// ═══════════════════════════════════════════════════════════════════
-//  E) ARCHIVIAZIONE & QUANTITÀ
-// ═══════════════════════════════════════════════════════════════════
+/**
+ * Aggiornamento bulk: una sola POST per N righe (backend supporta id_righe[]).
+ * Restituisce true se tutto ok, false altrimenti.
+ */
+async function _aggiornaDatoBulk(idRighe, campo, nuovoValore) {
+    RevisionPoller.pauseFor(15000);
+    _mutationInFlight++;
+    try {
+        const bodyObj = {
+            azione:    'aggiorna_produzione',
+            id_righe:  idRighe,
+            colonna:   campo,
+            valore:    nuovoValore,
+            mittente:  (utenteAttuale && utenteAttuale.nome) ? utenteAttuale.nome.toUpperCase() : ''
+        };
+        const res = await fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify(bodyObj)
+        });
+        const r = await res.json();
+        if (r && r.status === 'auth_error') {
+            window._gestisciAuthError_(r.message);
+            return false;
+        }
+        if (r && r.status !== 'success') {
+            console.warn('[_aggiornaDatoBulk] Backend response:', r);
+            return false;
+        }
+        // Aggiorna in-memory data per tutte le righe
+        if (r.last_modified) {
+            idRighe.forEach(idRiga => {
+                if (_ultimiDatiProduzione && _ultimiDatiProduzione.produzione) {
+                    const row = _ultimiDatiProduzione.produzione.find(x => String(x.id_riga) === String(idRiga));
+                    if (row) {
+                        row.last_modified = r.last_modified;
+                        row[campo] = nuovoValore;
+                        if (campo === 'stato' && _isStatoFinale_(nuovoValore)) row.assegna = '';
+                    }
+                }
+                if (_attiviProd) {
+                    const row = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
+                    if (row) {
+                        row.last_modified = r.last_modified;
+                        row[campo] = nuovoValore;
+                        if (campo === 'stato' && _isStatoFinale_(nuovoValore)) row.assegna = '';
+                    }
+                }
+            });
+        }
+        delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
+        cacheFetchTime['PROGRAMMA PRODUZIONE DEL MESE'] = 0;
+        _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
+        return true;
+    } catch (e) {
+        console.error('[_aggiornaDatoBulk] error:', e);
+        return false;
+    } finally {
+        _mutationInFlight = Math.max(0, _mutationInFlight - 1);
+        _mutationLastDone = Date.now();
+    }
+}
 
 async function gestisciArchiviazione(nOrd, tipo) {
     mostraConferma(
@@ -1215,6 +1262,9 @@ async function _pollProdStep() {
     if (document.visibilityState === 'hidden') return;
     if (document.querySelector('.stato-dropdown.open, .op-dropdown.open')) return;
     if (Date.now() - _lastKanbanDragTs < 5000) return;
+    // Skip polling while saves are in-flight or just completed (< 12s)
+    if (_mutationInFlight > 0) return;
+    if (Date.now() - _mutationLastDone < 12000) return;
     try {
         const resp = await fetch(URL_GOOGLE + '?azione=getAllDashboard');
         if (!resp.ok) return;
@@ -1296,6 +1346,12 @@ function _patchProduzione(newAttivi, allProd, allArch) {
         const idStr = String(newRow.id_riga);
         const oldRow = _attiviProd.find(r => String(r.id_riga) === idStr);
         if (!oldRow) return;
+
+        // Skip rows with optimistic-pending (save in-flight)
+        const pendingCard = contenitore.querySelector(
+            `.item-card.optimistic-pending[data-id-riga="${idStr}"], .ordine-wrapper.optimistic-pending`
+        );
+        if (pendingCard) return;
 
         const newStato = (newRow.stato || 'IN ATTESA').toUpperCase().trim();
         const oldStato = (oldRow.stato || 'IN ATTESA').toUpperCase().trim();
