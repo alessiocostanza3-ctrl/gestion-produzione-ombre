@@ -1620,8 +1620,23 @@ function _syncKanbanFromStato(idRiga, newStato) {
  * Usata dopo ogni cambio di stato per aggiornare il kanban con creazione/rimozione di card.
  */
 function _refreshOverview() {
+    // Aggiorna sempre il contatore nel summary (visibile anche con accordion chiuso)
+    const STATI_OV = _getOvStatiAll();
+    const numInFocus = (_attiviProd || []).filter(r => STATI_OV.includes((r.stato || '').toUpperCase().trim())).length;
+    const summaryMeta = document.querySelector('#ov-accordion .ov-summary-meta');
+    if (summaryMeta) summaryMeta.textContent = `${numInFocus} art. in lavorazione`;
+
     const ovContent = document.getElementById('ov-content');
-    if (!ovContent || ovContent.querySelector('.ov-lazy-placeholder')) return;
+    if (!ovContent) return;
+    // Su mobile il contenuto è lazy: rimuovi placeholder e costruisci subito
+    if (ovContent.querySelector('.ov-lazy-placeholder')) {
+        // Solo se l'accordion è aperto ricostruiamo subito; altrimenti lascia fare a _ovLoadIfNeeded
+        const accordion = document.getElementById('ov-accordion');
+        if (!accordion || !accordion.open) return;
+        ovContent.innerHTML = _buildOverviewInnerHtml(_attiviProd);
+        requestAnimationFrame(_initKanbanDnd);
+        return;
+    }
     ovContent.innerHTML = _buildOverviewInnerHtml(_attiviProd);
     requestAnimationFrame(_initKanbanDnd);
 }

@@ -2,14 +2,14 @@
    Service Worker PROD — notifiche push VAPID native
    Nessun servizio di terze parti richiesto.
    Aggiornato: 2026-03-18
-   v17: bump cache v212 - FASE4: XSS esc, CSP, pagination, cleanup
+   v18: bump cache v233 - fix: overview aggiornamento stato istantaneo
    ============================================================ */
 'use strict';
 
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbyVMV9MkGiqphN0AKXJdHXF0Arp1vxTYrCYi1SGv_4MKLRJkx--5HoGq7mmQX-p0ZTZ/exec';
 var APP_URL = 'https://alessiocostanza3-ctrl.github.io/gestion-produzione-ombre/';
 
-var SHELL_CACHE = 'prod-shell-v232';
+var SHELL_CACHE = 'prod-shell-v233';
 var SHELL_ASSETS = [
     APP_URL,
     APP_URL + 'index.html',
