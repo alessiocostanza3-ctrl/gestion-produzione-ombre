@@ -18,7 +18,7 @@ const _POLL_PROD_MS = 10000;
 let _lastKanbanDragTs = 0;
 let _attiviProd = [];
 let _ordiniAutocompleteCache = [];
-let _ovStatiArt = ['PREPARARE','PREPARARE PER LAVORAZIONE','IN LAVORAZIONE','TORNATO DALLA LAVORAZIONE'];
+let _ovStatiArt = ['PREPARARE','MANDA IN LAVORAZIONE','IN LAVORAZIONE','TORNATO DALLA LAVORAZIONE'];
 let _ovStatiOrd = ['IN PRODUZIONE','IMBALLATO'];
 let _datiArchLazy = null;  // dati archivio: renderizzati lazy solo all'apertura della sezione
 
