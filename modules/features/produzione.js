@@ -1155,8 +1155,10 @@ async function gestisciArchiviazione(nOrd, tipo) {
             if (kanbanItem) kanbanItem.remove();
 
             const _eseguiArchivia = async () => {
-                const url = URL_GOOGLE + "?azione=archiviaOrdine&ordine=" + encodeURIComponent(nOrd);
-                const response = await fetch(url);
+                const response = await fetch(URL_GOOGLE, {
+                    method: 'POST',
+                    body: JSON.stringify({ azione: 'archiviaOrdine', ordine: nOrd })
+                });
                 const text = await response.text();
                 let risultato;
                 try { risultato = JSON.parse(text); }
@@ -1247,8 +1249,10 @@ async function gestisciRipristino(id_o_numero, tipo) {
 
     mostraConferma('Ripristina', msgConferma, async () => {
         try {
-            const url = URL_GOOGLE + "?azione=ripristinaOrdine&ordine=" + encodeURIComponent(id_o_numero) + "&tipo=" + tipo;
-            const response = await fetch(url);
+            const response = await fetch(URL_GOOGLE, {
+                method: 'POST',
+                body: JSON.stringify({ azione: 'ripristinaOrdine', ordine: id_o_numero, tipo })
+            });
             const risultato = await response.json();
             if (risultato.status === "success") {
                     delete cacheContenuti['ARCHIVIO_ORDINI'];

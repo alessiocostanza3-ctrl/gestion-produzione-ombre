@@ -449,8 +449,14 @@ async function _salvaSubVAPID_(sub) {
         // Verifica server-side: conferma che l'endpoint Ã¨ davvero nel foglio
         if (json && (json.status === 'saved' || json.status === 'updated')) {
             try {
-                const verUrl = URL_GOOGLE + '?azione=verificaIscrizione&username=' + encodeURIComponent(utenteAttuale.nome.toUpperCase()) + '&endpoint=' + encodeURIComponent(sub.endpoint);
-                const verRes = await fetch(verUrl);
+                const verRes = await fetch(URL_GOOGLE, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        azione: 'verificaIscrizione',
+                        username: utenteAttuale.nome.toUpperCase(),
+                        endpoint: sub.endpoint
+                    })
+                });
                 const verJson = await verRes.json().catch(() => ({}));
                 if (!verJson.found) {
                     console.warn('[Push] verificaIscrizione: endpoint NON trovato nel foglio dopo il salvataggio!');
@@ -526,8 +532,11 @@ function _prefetchBackground() {
         .catch(function() { return null; });
     // Prefetch ordini: user-specific (dopo login utenteAttuale è già noto)
     const _isAlessio = utenteAttuale?.nome?.toUpperCase().trim() === 'ALESSIO';
-    const _opParam   = _isAlessio ? '' : encodeURIComponent(utenteAttuale?.nome || '');
-    prefetch.ordiniPromise = fetch(URL_GOOGLE + '?azione=getOrdiniAcquisti&operatore=' + _opParam)
+    const _opParam   = _isAlessio ? '' : (utenteAttuale?.nome || '');
+    prefetch.ordiniPromise = fetch(URL_GOOGLE, {
+        method: 'POST',
+        body: JSON.stringify({ azione: 'getOrdiniAcquisti', operatore: _opParam })
+    })
         .then(function(r) { return r.ok ? r.json() : null; })
         .catch(function() { return null; });
     // Salva il risultato anche nelle var bundle per accesso rapido successivo

@@ -52,7 +52,10 @@ function apriPopupNotifiche(e) {
     aggiornaBadgeNotifiche(0);
     try { localStorage.setItem('_notifBadgeCount', '0'); } catch {}
     if (utenteAttuale && utenteAttuale.nome) {
-        fetch(URL_GOOGLE + '?azione=segnaLetteNotifiche&username=' + encodeURIComponent(utenteAttuale.nome.toUpperCase())).catch(function(){});
+        fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify({ azione: 'segnaLetteNotifiche', username: utenteAttuale.nome.toUpperCase() })
+        }).catch(function(){});
     }
 }
 function chiudiPopupNotifiche() {
@@ -68,8 +71,10 @@ async function rispondiAccessoApp(richiestaId, nome, risposta, btnEl) {
         wrap.innerHTML = '<span class="notif-risposta-wait">\u23f3 Invio in corso\u2026</span>';
     }
     try {
-        const url = URL_GOOGLE + '?azione=rispondiAccessoFuoriOrario&id=' + encodeURIComponent(richiestaId) + '&ok=' + encodeURIComponent(risposta) + '&json=1';
-        const res  = await fetch(url);
+        const res  = await fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify({ azione: 'rispondiAccessoFuoriOrario', id: richiestaId, ok: risposta, json: 1 })
+        });
         const data = await res.json();
         if (data.status === 'ok') {
             const msg = risposta === 'SI' ? '\u2705 Accesso consentito' : '\ud83d\udeab Accesso negato';
@@ -302,7 +307,10 @@ function _initBadgeNotifiche() {
         if (count > 0) aggiornaBadgeNotifiche(count);
     } catch(e) {}
     if (!utenteAttuale || !utenteAttuale.nome) return;
-    fetch(URL_GOOGLE + '?azione=getNotifiche&username=' + encodeURIComponent(utenteAttuale.nome.toUpperCase()) + '&markRead=0')
+    fetch(URL_GOOGLE, {
+        method: 'POST',
+        body: JSON.stringify({ azione: 'getNotifiche', username: utenteAttuale.nome.toUpperCase(), markRead: 0 })
+    })
         .then(function(r) { return r.json(); })
         .then(function(d) {
             if (d && d.status === 'ok' && d.all && d.all.length) {

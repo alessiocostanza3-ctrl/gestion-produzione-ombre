@@ -380,8 +380,10 @@ async function _testPushNotifica() {
     const btn = document.getElementById('btn-test-push');
     if (btn) { btn.disabled = true; btn.textContent = '⏳ Invio...'; }
     try {
-        const url = URL_GOOGLE + '?azione=testPush&username=' + encodeURIComponent(utenteAttuale.nome.toUpperCase());
-        const res = await fetch(url);
+        const res = await fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify({ azione: 'testPush', username: utenteAttuale.nome.toUpperCase() })
+        });
         const json = await res.json().catch(() => ({}));
         if (json.sent > 0) {
             const logInfo = (json.log || []).map(r => 'HTTP ' + r.status + (r.body ? ' (' + String(r.body).substring(0,80) + ')' : '')).join(' | ');
@@ -1016,8 +1018,14 @@ async function _caricaSessionStats_() {
     if (!wrap) return;
     wrap.innerHTML = '<div style="font-size:12px;color:#64748b">Caricamento sessioni...</div>';
     try {
-        const url = URL_GOOGLE + '?azione=getSessionStats&username=' + encodeURIComponent(String(utenteAttuale.nome || '').toUpperCase()) + '&email=' + encodeURIComponent(String(utenteAttuale.email || '').toLowerCase());
-        const res = await fetch(url);
+        const res = await fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify({
+                azione: 'getSessionStats',
+                username: String(utenteAttuale.nome || '').toUpperCase(),
+                email: String(utenteAttuale.email || '').toLowerCase()
+            })
+        });
         const r = await res.json();
         if (!r || r.status !== 'success') {
             wrap.innerHTML = '<div style="font-size:12px;color:#b91c1c">Impossibile caricare statistiche sessioni.</div>';

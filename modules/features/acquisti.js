@@ -125,7 +125,11 @@ async function caricaOrdiniAcquisti(expectedRequestId = null, signal = null) {
             prefetch.ordiniBundle  = null;
             prefetch.ordiniPromise = null;
         } else {
-            const res = await fetch(`${URL_GOOGLE}?azione=getOrdiniAcquisti&operatore=${encodeURIComponent(opParam)}`, signal ? { signal } : {});
+            const res = await fetch(URL_GOOGLE, {
+                method: 'POST',
+                body: JSON.stringify({ azione: 'getOrdiniAcquisti', operatore: opParam }),
+                ...(signal ? { signal } : {})
+            });
             rows = await res.json();
         }
         if (signal?.aborted) return;
