@@ -36,6 +36,8 @@ function _invalidateProduzioneCache({ resetFetchTime = true, invalidatePersisten
     delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
     if (resetFetchTime) cacheFetchTime['PROGRAMMA PRODUZIONE DEL MESE'] = 0;
     _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
+    prefetch.dashBundle = null;
+    prefetch.dashPromise = null;
     if (!invalidatePersistent) return;
 
     // Debounce invalidazioni IndexedDB nelle raffiche di update.
@@ -44,6 +46,14 @@ function _invalidateProduzioneCache({ resetFetchTime = true, invalidatePersisten
         _prodCacheInvalidateTimer = null;
         ProdCache.invalidate('PROGRAMMA_PRODUZIONE').catch(() => {});
     }, 1200);
+}
+
+function _persistProduzioneHtmlSnapshot() {
+    const contenitore = document.getElementById('contenitore-dati');
+    if (!contenitore) return;
+    cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'] = contenitore.innerHTML;
+    cacheFetchTime['PROGRAMMA PRODUZIONE DEL MESE'] = Date.now();
+    _lsCacheSet('_html_PROGRAMMA PRODUZIONE DEL MESE', contenitore.innerHTML);
 }
 
 // Aggiorna last_modified in-memory dopo assegnazione operatori
@@ -890,6 +900,7 @@ function selezionaStato(optBtn, idRiga, colore) {
     if (card) card.classList.remove('stato-aperto');
     if (_attiviProd && prevProd) prevProd.stato = nuovoStato;
     _syncKanbanFromStato(idRiga, nuovoStato);
+    _persistProduzioneHtmlSnapshot();
 
     if (card) { card.classList.add('optimistic-pending'); card.style.transition = 'opacity 0.3s'; }
 
@@ -911,6 +922,7 @@ function selezionaStato(optBtn, idRiga, colore) {
             }
             if (_attiviProd && prevProd && prevStatoProd !== null) prevProd.stato = prevStatoProd;
             _syncKanbanFromStato(idRiga, statoPrec.testo);
+            _persistProduzioneHtmlSnapshot();
             notificaElegante('\u26a0\ufe0f Modifica non salvata \u2013 riprova', 'error');
             console.error('[selezionaStato] Rollback', { idRiga, nuovoStato, statoPrec: statoPrec.testo });
         }
@@ -920,6 +932,7 @@ function selezionaStato(optBtn, idRiga, colore) {
         labelEl.textContent = statoPrec.testo;
         if (_attiviProd && prevProd && prevStatoProd !== null) prevProd.stato = prevStatoProd;
         _syncKanbanFromStato(idRiga, statoPrec.testo);
+        _persistProduzioneHtmlSnapshot();
         notificaElegante('\u26a0\ufe0f Modifica non salvata \u2013 riprova', 'error');
         console.error('[selezionaStato] Errore + Rollback', err, { idRiga, nuovoStato });
     });
@@ -932,11 +945,7 @@ function selezionaStatoOrdine(optBtn, nOrdine, nuovoStato, nuovoColore) {
 
     const trigger = dropdown.querySelector('.stato-trigger');
     const labelEl = trigger ? trigger.querySelector('.stato-label-txt') : null;
-    if (idx >= 0) {
-        correnti.splice(idx, 1);
-    } else {
-        correnti.push(nomeOpNorm);
-    }
+    const dot     = trigger ? trigger.querySelector('.stato-dot') : null;
 
     const statoPrec = {
         testo:  labelEl ? labelEl.textContent : '',
@@ -969,6 +978,7 @@ function selezionaStatoOrdine(optBtn, nOrdine, nuovoStato, nuovoColore) {
         _syncKanbanFromStato(idRiga, nuovoStato);
         _syncStatoItemCard(idRiga, nuovoStato, nuovoColore);
     });
+    _persistProduzioneHtmlSnapshot();
 
     wrapper.classList.add('optimistic-pending');
     wrapper.style.transition = 'opacity 0.3s';
@@ -990,6 +1000,7 @@ function selezionaStatoOrdine(optBtn, nOrdine, nuovoStato, nuovoColore) {
                     }
                     const prevColore = (window.listaStati.find(s => s.nome === prev) || {}).colore || '#e2e8f0';
                     _syncKanbanFromStato(idRiga, prev);
+                    _persistProduzioneHtmlSnapshot();
                     _syncStatoItemCard(idRiga, prev, prevColore);
                 }
             });
@@ -1130,6 +1141,7 @@ async function aggiornaDato(selectEl, idRiga, campo, nuovoValore, skipForceSync 
                     if (campo === 'stato' && _isStatoFinale_(nuovoValore)) row.assegna = '';
                 }
             }
+            _persistProduzioneHtmlSnapshot();
             if (_attiviProd) {
                 const row = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
                 if (row) {

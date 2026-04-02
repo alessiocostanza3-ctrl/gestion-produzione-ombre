@@ -19,6 +19,63 @@ let sezioniMateriali = JSON.parse(localStorage.getItem('sezioniMateriali') || '[
 const _acqCache   = {};  // { 'MATERIALE DA ORDINARE': html, '_acq_ordini': html }
 const _acqCacheTs = {};  // { chiave: timestamp }
 
+function _getOrdiniAcquistiCacheKey() {
+    return 'ORDINI_ACQUISTI_' + (utenteAttuale?.nome?.toUpperCase() || '_');
+}
+
+function _persistOrdiniAcquistiSnapshot() {
+    const contenitore = document.getElementById('contenitore-dati');
+    if (!contenitore) return;
+    _acqCache['_acq_ordini'] = contenitore.innerHTML;
+    _acqCacheTs['_acq_ordini'] = Date.now();
+    ProdCache.set(_getOrdiniAcquistiCacheKey(), contenitore.innerHTML).catch(() => {});
+}
+
+function _clearOrdiniAcquistiPrefetch() {
+    prefetch.ordiniBundle = null;
+    prefetch.ordiniPromise = null;
+}
+
+function _applyOrdineItemUiState(row, btn, ordinato) {
+    row.classList.toggle('is-ordinato', ordinato);
+    btn.classList.toggle('checked', ordinato);
+    btn.title = ordinato ? 'Segna In Attesa' : 'Segna Ordinato';
+    const icon = btn.querySelector('i');
+    if (icon) icon.className = 'fas ' + (ordinato ? 'fa-check-circle' : 'fa-circle');
+    const badge = row.querySelector('.oi-stato-badge');
+    if (badge) {
+        badge.className = 'oi-stato-badge ' + (ordinato ? 'badge-ordinato-sm' : 'badge-attesa-sm');
+        badge.innerHTML = ordinato ? '<i class="fas fa-circle-check"></i> ORDINATO' : 'IN ATTESA';
+    }
+    const dot = row.querySelector('.oi-stato-dot');
+    if (dot) dot.className = 'oi-stato-dot ' + (ordinato ? 'dot-ordinato' : 'dot-attesa');
+
+    const gruppo = row.closest('.ordine-group');
+    if (gruppo) {
+        const allItems = gruppo.querySelectorAll('.ordine-item');
+        const totG = allItems.length;
+        const ordG = gruppo.querySelectorAll('.ordine-item.is-ordinato').length;
+        const prog = gruppo.querySelector('.og-progress');
+        if (prog) prog.textContent = ordG + '/' + totG;
+        if (ordG === totG) {
+            gruppo.classList.add('all-done');
+            const left = gruppo.querySelector('.og-left');
+            if (left && !left.querySelector('.og-done-badge')) {
+                left.insertAdjacentHTML('beforeend', '<span class="og-done-badge"><i class="fas fa-check-circle"></i> Completato</span>');
+            }
+        } else {
+            gruppo.classList.remove('all-done');
+            const db = gruppo.querySelector('.og-done-badge');
+            if (db) db.remove();
+        }
+    }
+    const sub = document.querySelector('.acquisti-subtitle');
+    if (sub) {
+        const allPending = document.querySelectorAll('.ordine-item:not(.is-ordinato)').length;
+        sub.textContent = allPending > 0 ? `${allPending} articoli in attesa` : 'Tutto ordinato ✅';
+    }
+}
+
 // ─── Tailwind utility presets (copia identica da script.js) ──────────────────
 const TW = {
     card: 'bg-white/90 border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-shadow',
@@ -97,7 +154,7 @@ async function caricaOrdiniAcquisti(expectedRequestId = null, signal = null) {
 
     const isAlessio = utenteAttuale?.nome?.toUpperCase().trim() === 'ALESSIO';
     const opParam   = isAlessio ? '' : (utenteAttuale?.nome || '');
-    const _ordCacheKey = 'ORDINI_ACQUISTI_' + (utenteAttuale?.nome?.toUpperCase() || '_');
+    const _ordCacheKey = _getOrdiniAcquistiCacheKey();
 
     // Stale-while-revalidate: mostra subito la cache IndexedDB se disponibile
     let _hasCached = false;
@@ -252,56 +309,19 @@ async function _toggleOrdinato(idRiga, btn) {
     const nuovoStato  = wasOrdinato ? 'IN ATTESA' : 'ORDINATO';
     btn.disabled = true;
     RevisionPoller.pauseFor(6000);
+    _applyOrdineItemUiState(row, btn, !wasOrdinato);
+    _clearOrdiniAcquistiPrefetch();
+    _persistOrdiniAcquistiSnapshot();
     try {
         const r = await fetch(URL_GOOGLE, {
             method: 'POST',
             body: JSON.stringify({ azione: 'setArticoloOrdinato', id_riga: idRiga, stato: nuovoStato })
         }).then(x => x.json());
         if (r.status !== 'ok') throw new Error('err');
-
-        row.classList.toggle('is-ordinato');
-        btn.classList.toggle('checked');
-        const icon = btn.querySelector('i');
-        if (icon) icon.className = 'fas ' + (row.classList.contains('is-ordinato') ? 'fa-check-circle' : 'fa-circle');
-        const badge = row.querySelector('.oi-stato-badge');
-        if (badge) {
-            const ordNow = row.classList.contains('is-ordinato');
-            badge.className = 'oi-stato-badge ' + (ordNow ? 'badge-ordinato-sm' : 'badge-attesa-sm');
-            badge.innerHTML = ordNow ? '<i class="fas fa-circle-check"></i> ORDINATO' : 'IN ATTESA';
-        }
-        const dot = row.querySelector('.oi-stato-dot');
-        if (dot) dot.className = 'oi-stato-dot ' + (row.classList.contains('is-ordinato') ? 'dot-ordinato' : 'dot-attesa');
-
-        const gruppo = row.closest('.ordine-group');
-        if (gruppo) {
-            const allItems = gruppo.querySelectorAll('.ordine-item');
-            const totG = allItems.length;
-            const ordG = gruppo.querySelectorAll('.ordine-item.is-ordinato').length;
-            const prog = gruppo.querySelector('.og-progress');
-            if (prog) prog.textContent = ordG + '/' + totG;
-            if (ordG === totG) {
-                gruppo.classList.add('all-done');
-                const left = gruppo.querySelector('.og-left');
-                if (left && !left.querySelector('.og-done-badge')) {
-                    left.insertAdjacentHTML('beforeend', '<span class="og-done-badge"><i class="fas fa-check-circle"></i> Completato</span>');
-                }
-            } else {
-                gruppo.classList.remove('all-done');
-                const db = gruppo.querySelector('.og-done-badge');
-                if (db) db.remove();
-            }
-        }
-        const sub = document.querySelector('.acquisti-subtitle');
-        if (sub) {
-            const allPending = document.querySelectorAll('.ordine-item:not(.is-ordinato)').length;
-            sub.textContent = allPending > 0 ? `${allPending} articoli in attesa` : 'Tutto ordinato ✅';
-        }
-        const _cont = document.getElementById('contenitore-dati');
-        if (_cont) {
-            _acqCache['_acq_ordini']   = _cont.innerHTML;
-            _acqCacheTs['_acq_ordini'] = Date.now();
-        }
+        _persistOrdiniAcquistiSnapshot();
     } catch(e) {
+        _applyOrdineItemUiState(row, btn, wasOrdinato);
+        _persistOrdiniAcquistiSnapshot();
         notificaElegante('Errore aggiornamento', 'error');
     }
     btn.disabled = false;

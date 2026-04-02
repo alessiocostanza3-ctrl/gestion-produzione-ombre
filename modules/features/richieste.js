@@ -41,8 +41,35 @@ function _invalidaCacheRichieste() {
     if (window.cacheContenuti)  delete window.cacheContenuti['STORICO_RICHIESTE'];
     if (window.cacheFetchTime)  delete window.cacheFetchTime['STORICO_RICHIESTE'];
     _lsCacheDel('_html_STORICO_RICHIESTE');
-    window._prefetchRqBundle  = null;
-    window._prefetchRqPromise = null;
+    prefetch.rqBundle = null;
+    prefetch.rqPromise = null;
+}
+
+function _persistRichiesteHtmlSnapshot() {
+    const contenitore = document.getElementById('contenitore-dati');
+    if (!contenitore) return;
+    if (window.cacheContenuti) window.cacheContenuti['STORICO_RICHIESTE'] = contenitore.innerHTML;
+    if (window.cacheFetchTime) window.cacheFetchTime['STORICO_RICHIESTE'] = Date.now();
+    _lsCacheSet('_html_STORICO_RICHIESTE', contenitore.innerHTML);
+}
+
+function _removeRichiestaCardOptimistic(idRiga) {
+    const selectors = [
+        `.req-card[data-id-riga="${CSS.escape(String(idRiga))}"]`,
+        `.scad-card[data-id-riga="${CSS.escape(String(idRiga))}"]`,
+        `#box-conferma-${CSS.escape(String(idRiga))}`,
+        `#box-risposta-${CSS.escape(String(idRiga))}`,
+        `#rc-body-${CSS.escape(String(idRiga))}`
+    ];
+    for (const sel of selectors) {
+        const el = sel.startsWith('#') ? document.querySelector(sel) : document.querySelector(sel);
+        const card = el?.classList?.contains('req-card') || el?.classList?.contains('scad-card') ? el : el?.closest('.req-card, .scad-card');
+        if (card) {
+            card.remove();
+            return true;
+        }
+    }
+    return false;
 }
 
 // ─── Helper: verifica se utente è esente (ALESSIO/MASTER) ────────────────────
@@ -918,6 +945,9 @@ function cambiaVistaUtente(valoreSelezionato) {
     caricaRichieste();
 }
 async function aggiornaRichiesta(idRiga, tipoAzione, tuttiIds) {
+    const contenitore = document.getElementById('contenitore-dati');
+    const prevHtml = contenitore ? contenitore.innerHTML : '';
+    const optimisticArchive = tipoAzione === 'risolto';
     try {
         const body = { azione: 'aggiorna_richiesta_stato', tipo: tipoAzione };
         if (tipoAzione === 'risolto' && tuttiIds && tuttiIds.length > 1) {
@@ -925,12 +955,23 @@ async function aggiornaRichiesta(idRiga, tipoAzione, tuttiIds) {
         } else {
             body.id_riga = idRiga;
         }
+        if (optimisticArchive) {
+            _removeRichiestaCardOptimistic(idRiga);
+            _persistRichiesteHtmlSnapshot();
+        }
         const res = await fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify(body) });
         const r = await res.json();
         if (r && r.status === 'auth_error') { window._gestisciAuthError_?.(r.message); return; }
+        if (!r || (r.status !== 'success' && r.status !== 'ok')) throw new Error('Aggiornamento non salvato');
         _invalidaCacheRichieste();
-        caricaRichieste(); // Rinfresca la vista
-    } catch (e) { notificaElegante('Errore aggiornamento.', 'error'); }
+        if (!optimisticArchive) caricaRichieste();
+    } catch (e) {
+        if (optimisticArchive && contenitore && prevHtml) {
+            contenitore.innerHTML = prevHtml;
+            _persistRichiesteHtmlSnapshot();
+        }
+        notificaElegante('Errore aggiornamento.', 'error');
+    }
 }
 function _sollecitaConferma(idRiga) {
     mostraConferma('Sollecita Richiesta', 'Inviare un sollecito per questa richiesta?', () => sollecitaRichiesta(idRiga), 'Sollecita');
@@ -1020,7 +1061,7 @@ function generaCardRichiesta(msgs, io, isArchiviata) {
         : `<span class="rc-tipo rc-tipo-domanda" title="Richiesta"><i class="fas fa-question"></i></span>`;
 
     return `
-        <div class="req-card${isArchiviata ? ' archiviata' : ''}${isSollecitata ? ' sollecitata' : ''}" data-ordine="${String(nOrd || '')}" data-cliente="${(nomeCliente || '').toLowerCase().replace(/"/g, '')}" data-riferimento="${(ultimo.RIFERIMENTO || '').toLowerCase().replace(/"/g, '')}">
+        <div class="req-card${isArchiviata ? ' archiviata' : ''}${isSollecitata ? ' sollecitata' : ''}" data-id-riga="${String(ultimo.id_riga || '')}" data-ordine="${String(nOrd || '')}" data-cliente="${(nomeCliente || '').toLowerCase().replace(/"/g, '')}" data-riferimento="${(ultimo.RIFERIMENTO || '').toLowerCase().replace(/"/g, '')}">
 
             <div class="rc-top">
                 <div class="rc-ordine-wrap">
@@ -1140,7 +1181,7 @@ function generaCardScadenza(msg, io) {
         else                urgClass = 'scad-ok';
     }
     return `
-    <div class="scad-card ${urgClass}" data-ordine="${nOrd}" data-cliente="${(cliente).toLowerCase().replace(/"/g,'')}">
+    <div class="scad-card ${urgClass}" data-id-riga="${String(msg.id_riga || '')}" data-ordine="${nOrd}" data-cliente="${(cliente).toLowerCase().replace(/"/g,'')}">
         <div class="scad-top">
             <div class="scad-ordine-wrap">
                 <span class="rc-tipo rc-tipo-scadenza" title="Scadenza"><i class="fa-solid fa-clock"></i></span>
