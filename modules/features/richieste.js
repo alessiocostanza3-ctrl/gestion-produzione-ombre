@@ -43,6 +43,7 @@ function _invalidaCacheRichieste() {
     _lsCacheDel('_html_STORICO_RICHIESTE');
     prefetch.rqBundle = null;
     prefetch.rqPromise = null;
+    ProdCache.invalidate('STORICO_RICHIESTE').catch(() => {});
 }
 
 function _persistRichiesteHtmlSnapshot() {
@@ -1029,7 +1030,7 @@ async function aggiornaRichiesta(idRiga, tipoAzione, tuttiIds) {
         }
     }
     try {
-        const body = { azione: 'aggiorna_richiesta_stato', tipo: tipoAzione };
+        const body = { azione: 'aggiorna_richiesta_stato', tipo: tipoAzione, mittente: utenteAttuale?.nome?.toUpperCase().trim() || 'SISTEMA' };
         if (tipoAzione === 'risolto' && tuttiIds && tuttiIds.length > 1) {
             body.id_righe = tuttiIds;
         } else {

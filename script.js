@@ -34,6 +34,13 @@ import {
 // Rimuovi il CSS critico inline: da qui in poi il JS gestisce l'overlay
 try { const _ci = document.getElementById('critical-init'); if (_ci) _ci.remove(); } catch(_e) {}
 
+/** Auto-reload quando il Service Worker si aggiorna (garantisce che giri il codice nuovo) */
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        window.location.reload();
+    });
+}
+
 /** Listener per messaggi dal Service Worker (push ricevuta in background) */
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('message', function(event) {
