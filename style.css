@@ -1735,6 +1735,7 @@ h1 {
     transition: background 0.2s, color 0.2s !important;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 5px;
     padding: 6px 12px !important;
     border-radius: 6px;

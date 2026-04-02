@@ -570,6 +570,36 @@ function generaCardArchivio(art, nOrd) {
 //  C) STATO & OPERATORI INTERACTION
 // ═══════════════════════════════════════════════════════════════════
 
+function _setAssegnaLocalByRow(idRiga, assegna) {
+    const id = String(idRiga);
+    const val = String(assegna || '');
+    if (Array.isArray(_attiviProd)) {
+        _attiviProd.forEach(r => {
+            if (String(r.id_riga) === id) r.assegna = val;
+        });
+    }
+    if (_ultimiDatiProduzione && Array.isArray(_ultimiDatiProduzione.produzione)) {
+        _ultimiDatiProduzione.produzione.forEach(r => {
+            if (String(r.id_riga) === id) r.assegna = val;
+        });
+    }
+}
+
+function _setAssegnaLocalByOrdine(nOrd, assegna) {
+    const ord = String(nOrd || '').trim();
+    const val = String(assegna || '');
+    const apply = arr => {
+        if (!Array.isArray(arr)) return;
+        arr.forEach(r => {
+            if (String(r.ordine || '').trim() === ord && !_isStatoFinale_(r.stato)) r.assegna = val;
+        });
+    };
+    apply(_attiviProd);
+    if (_ultimiDatiProduzione && Array.isArray(_ultimiDatiProduzione.produzione)) {
+        apply(_ultimiDatiProduzione.produzione);
+    }
+}
+
 async function rimuoviOperatore(idRiga, nOrd, nomeOperatore) {
     const container = document.querySelector(`.visualizza-operatori[data-id-riga="${idRiga}"]`);
     if (!container) return;
@@ -580,6 +610,8 @@ async function rimuoviOperatore(idRiga, nOrd, nomeOperatore) {
         .map(o => window._normNome(o.trim()))
         .filter(o => o && o.toUpperCase() !== _normOp.toUpperCase())
         .join(',');
+
+    _setAssegnaLocalByRow(idRiga, restanti);
 
     container.dataset.assegna = restanti;
     if (!restanti) {
@@ -597,8 +629,12 @@ async function rimuoviOperatore(idRiga, nOrd, nomeOperatore) {
 
     const mittente = (utenteAttuale && utenteAttuale.nome) ? utenteAttuale.nome.toUpperCase().trim() : '';
     const url = `${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(restanti)}&id_riga=${idRiga}&mittente=${encodeURIComponent(mittente)}`;
+    fetch(url).then(r => r.json()).then(j => {
+        if (!j || (j.status !== 'ok' && j.status !== 'success')) throw new Error('Assegnazione non salvata');
+        _syncAssegnaTimestamp(nOrd, idRiga, j.last_modified);
         _invalidateProduzioneCache();
-    fetch(url).then(r => r.json()).then(j => _syncAssegnaTimestamp(nOrd, idRiga, j.last_modified))
+        _repaintOpColors();
+    })
         .catch(e => { console.error('Errore rimozione operatore', e); notificaElegante('\u26a0\ufe0f Rimozione non salvata \u2013 riprova', 'error'); });
 }
 
@@ -661,8 +697,13 @@ function selezionaOpAssegna(optBtn, idRiga, nOrd, nomeOp) {
     const correnti = assegnaCorrente.split(',').map(n => window._normNome(n.trim())).filter(Boolean);
     const nomeOpNorm = window._normNome(nomeOp);
     const idx = correnti.findIndex(n => n.toUpperCase() === nomeOpNorm.toUpperCase());
-    if (idx >= 0) correnti.splice(idx, 1); else correnti.push(nomeOpNorm);
+    if (idx >= 0) {
+        correnti.splice(idx, 1);
+    } else {
+        correnti.push(nomeOpNorm);
+    }
     const nuovaAssegna = correnti.join(',');
+    _setAssegnaLocalByRow(idRiga, nuovaAssegna);
 
     dropdown.dataset.assegna = nuovaAssegna;
     const lbl = correnti.length ? correnti.map(window._normNome).join(', ') : 'Libero';
@@ -676,9 +717,13 @@ function selezionaOpAssegna(optBtn, idRiga, nOrd, nomeOp) {
     }
 
     const mitt = (utenteAttuale?.nome || '').toUpperCase().trim();
-        _invalidateProduzioneCache();
     fetch(`${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(nuovaAssegna)}&id_riga=${idRiga}&mittente=${encodeURIComponent(mitt)}`)
-        .then(r => r.json()).then(j => _syncAssegnaTimestamp(nOrd, idRiga, j.last_modified))
+        .then(r => r.json()).then(j => {
+            if (!j || (j.status !== 'ok' && j.status !== 'success')) throw new Error('Assegnazione non salvata');
+            _syncAssegnaTimestamp(nOrd, idRiga, j.last_modified);
+            _invalidateProduzioneCache();
+            _repaintOpColors();
+        })
         .catch(() => notificaElegante('\u26a0\ufe0f Assegnazione non salvata \u2013 riprova', 'error'));
 }
 
@@ -705,28 +750,34 @@ function selezionaOpAssegnaOrdine(optBtn, nOrd, nomeOp) {
     const wrapper = dropdown.closest('.ordine-wrapper');
     if (wrapper) {
         wrapper.querySelectorAll('.op-dropdown[data-id-riga]').forEach(d => {
-            const curr = (d.dataset.assegna || '').split(',').map(n => window._normNome(n.trim())).filter(Boolean);
-            const i2 = curr.findIndex(n => n.toUpperCase() === nomeOpNorm.toUpperCase());
-            if (idx >= 0 && i2 >= 0) curr.splice(i2, 1);
-            else if (idx < 0 && i2 < 0)  curr.push(nomeOpNorm);
-            d.dataset.assegna = curr.join(',');
-            const l2 = curr.length ? curr.map(window._normNome).join(', ') : 'Libero';
+            d.dataset.assegna = nuovaAssegna;
+            const l2 = correnti.length ? correnti.map(window._normNome).join(', ') : 'Libero';
             const lbl2 = d.querySelector('.op-trigger-label'); if (lbl2) lbl2.textContent = l2;
             d.querySelectorAll('.op-option').forEach(o => {
                 const nn = o.querySelector('span:not(.op-opt-dot)')?.textContent.trim() || '';
-                const isNow = curr.some(c => window._normNome(c) === nn);
+                const isNow = correnti.some(c => window._normNome(c) === nn);
                 o.classList.toggle('is-selected', isNow);
                 let ck = o.querySelector('.op-check-icon');
                 if (isNow && !ck) { ck = document.createElement('i'); ck.className='fas fa-check op-check-icon'; o.appendChild(ck); }
                 else if (!isNow && ck) ck.remove();
             });
         });
+        wrapper.querySelectorAll('.visualizza-operatori[data-id-riga]').forEach(cont => {
+            cont.dataset.assegna = nuovaAssegna;
+        });
     }
 
+    _setAssegnaLocalByOrdine(nOrd, nuovaAssegna);
+    _repaintOpColors();
+
     const mitt = (utenteAttuale?.nome || '').toUpperCase().trim();
-    _invalidateProduzioneCache();
     fetch(`${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(nuovaAssegna)}&mittente=${encodeURIComponent(mitt)}`)
-        .then(r => r.json()).then(j => _syncAssegnaTimestamp(nOrd, null, j.last_modified))
+        .then(r => r.json()).then(j => {
+            if (!j || (j.status !== 'ok' && j.status !== 'success')) throw new Error('Assegnazione non salvata');
+            _syncAssegnaTimestamp(nOrd, null, j.last_modified);
+            _invalidateProduzioneCache();
+            _repaintOpColors();
+        })
         .catch(() => notificaElegante('\u26a0\ufe0f Assegnazione non salvata \u2013 riprova', 'error'));
 }
 
@@ -739,6 +790,7 @@ function autoAssegnami(idRiga, nOrd, btnEl) {
     if (correnti.some(n => n.toUpperCase() === mio.toUpperCase())) return;
     correnti.push(mio);
     const nuova = correnti.join(',');
+    _setAssegnaLocalByRow(idRiga, nuova);
     container.dataset.assegna = nuova;
     const _mioUp = mio.toUpperCase();
     container.innerHTML = correnti.map(n => {
@@ -748,9 +800,13 @@ function autoAssegnami(idRiga, nOrd, btnEl) {
     }).join('');
     if (btnEl && btnEl.parentNode) btnEl.remove();
     const mitt = mio.toUpperCase().trim();
-    _invalidateProduzioneCache();
     fetch(`${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(nuova)}&id_riga=${idRiga}&mittente=${encodeURIComponent(mitt)}`)
-        .then(r => r.json()).then(j => _syncAssegnaTimestamp(nOrd, idRiga, j.last_modified))
+        .then(r => r.json()).then(j => {
+            if (!j || (j.status !== 'ok' && j.status !== 'success')) throw new Error('Assegnazione non salvata');
+            _syncAssegnaTimestamp(nOrd, idRiga, j.last_modified);
+            _invalidateProduzioneCache();
+            _repaintOpColors();
+        })
         .catch(() => notificaElegante('\u26a0\ufe0f Assegnazione non salvata \u2013 riprova', 'error'));
 }
 
@@ -761,10 +817,8 @@ function autoAssegnamiOrdine(nOrd) {
     const wrapper = document.querySelector(`.ordine-wrapper[data-ordine="${nOrd}"]`);
     if (wrapper) {
         wrapper.querySelectorAll('.visualizza-operatori[data-id-riga]').forEach(cont => {
-            const curr = (cont.dataset.assegna || '').split(',').map(n => window._normNome(n.trim())).filter(Boolean);
-            if (curr.some(n => n.toUpperCase() === mitt)) return;
-            curr.push(mio);
-            cont.dataset.assegna = curr.join(',');
+            const curr = [mio];
+            cont.dataset.assegna = mio;
             const _mioUp = mio.toUpperCase();
             cont.innerHTML = curr.map(n => {
                 const col = window._getOpColor(n); const idR = cont.dataset.idRiga; const ns = n.replace(/'/g,"\\'");
@@ -772,12 +826,36 @@ function autoAssegnamiOrdine(nOrd) {
                 return `<span class="badge-operatore" data-nome="${_esc(n)}" style="background:${col};border-color:${col}">${_esc(n)}${xBtn}</span>`;
             }).join('');
         });
+        wrapper.querySelectorAll('.op-dropdown[data-id-riga]').forEach(d => {
+            d.dataset.assegna = mio;
+            const lbl = d.querySelector('.op-trigger-label'); if (lbl) lbl.textContent = mio;
+            d.querySelectorAll('.op-option').forEach(o => {
+                const nn = o.querySelector('span:not(.op-opt-dot)')?.textContent.trim() || '';
+                const isNow = window._normNome(nn).toUpperCase() === mio.toUpperCase();
+                o.classList.toggle('is-selected', isNow);
+                let ck = o.querySelector('.op-check-icon');
+                if (isNow && !ck) { ck = document.createElement('i'); ck.className='fas fa-check op-check-icon'; o.appendChild(ck); }
+                else if (!isNow && ck) ck.remove();
+            });
+        });
+        const headDd = wrapper.querySelector('.op-dropdown-ord');
+        if (headDd) {
+            headDd.dataset.assegnaOrd = mio;
+            const headLbl = headDd.querySelector('.op-trigger-label');
+            if (headLbl) headLbl.textContent = mio;
+        }
         const btnOrd = wrapper.querySelector('.btn-assegnami-ord');
         if (btnOrd) btnOrd.remove();
     }
-    _invalidateProduzioneCache();
+    _setAssegnaLocalByOrdine(nOrd, mio);
+    _repaintOpColors();
     fetch(`${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(mio)}&mittente=${encodeURIComponent(mitt)}`)
-        .then(r => r.json()).then(j => _syncAssegnaTimestamp(nOrd, null, j.last_modified))
+        .then(r => r.json()).then(j => {
+            if (!j || (j.status !== 'ok' && j.status !== 'success')) throw new Error('Assegnazione non salvata');
+            _syncAssegnaTimestamp(nOrd, null, j.last_modified);
+            _invalidateProduzioneCache();
+            _repaintOpColors();
+        })
         .catch(() => notificaElegante('\u26a0\ufe0f Assegnazione non salvata \u2013 riprova', 'error'));
 }
 
@@ -813,7 +891,7 @@ function selezionaStato(optBtn, idRiga, colore) {
     if (_attiviProd && prevProd) prevProd.stato = nuovoStato;
     _syncKanbanFromStato(idRiga, nuovoStato);
 
-    if (card) { card.classList.add('optimistic-pending'); card.style.opacity = '0.7'; card.style.transition = 'opacity 0.3s'; }
+    if (card) { card.classList.add('optimistic-pending'); card.style.transition = 'opacity 0.3s'; }
 
     aggiornaDato(null, idRiga, 'stato', nuovoStato, true).then(ok => {
         if (card) { card.classList.remove('optimistic-pending'); card.style.opacity = ''; }
@@ -854,7 +932,11 @@ function selezionaStatoOrdine(optBtn, nOrdine, nuovoStato, nuovoColore) {
 
     const trigger = dropdown.querySelector('.stato-trigger');
     const labelEl = trigger ? trigger.querySelector('.stato-label-txt') : null;
-    const dot     = trigger ? trigger.querySelector('.stato-dot') : null;
+    if (idx >= 0) {
+        correnti.splice(idx, 1);
+    } else {
+        correnti.push(nomeOpNorm);
+    }
 
     const statoPrec = {
         testo:  labelEl ? labelEl.textContent : '',
@@ -889,7 +971,7 @@ function selezionaStatoOrdine(optBtn, nOrdine, nuovoStato, nuovoColore) {
     });
 
     wrapper.classList.add('optimistic-pending');
-    wrapper.style.opacity = '0.7'; wrapper.style.transition = 'opacity 0.3s';
+    wrapper.style.transition = 'opacity 0.3s';
 
     // UNA sola POST bulk per tutte le righe
     _aggiornaDatoBulk(righe, 'stato', nuovoStato).then(ok => {
@@ -1407,8 +1489,15 @@ function _patchProduzione(newAttivi, allProd, allArch) {
         if (newAssegna !== oldAssegna) {
             anyChange = true;
             oldRow.assegna = newAssegna;
-            const opEl = contenitore.querySelector(`.visualizza-operatori[data-id-riga="${idStr}"], .op-dropdown[data-id-riga="${idStr}"]`);
-            if (opEl) opEl.dataset.assegna = newAssegna;
+            const visEl = contenitore.querySelector(`.visualizza-operatori[data-id-riga="${idStr}"]`);
+            if (visEl) visEl.dataset.assegna = newAssegna;
+            const ddEl = contenitore.querySelector(`.op-dropdown[data-id-riga="${idStr}"]`);
+            if (ddEl) {
+                ddEl.dataset.assegna = newAssegna;
+                const arr = newAssegna.split(',').map(n => window._normNome(n.trim())).filter(Boolean);
+                const lbl = ddEl.querySelector('.op-trigger-label');
+                if (lbl) lbl.textContent = arr.length ? arr.join(', ') : 'Libero';
+            }
         }
     });
 
@@ -1416,6 +1505,7 @@ function _patchProduzione(newAttivi, allProd, allArch) {
         _attiviProd = newAttivi;
         delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
         cacheFetchTime['PROGRAMMA PRODUZIONE DEL MESE'] = Date.now();
+        _repaintOpColors();
     }
 }
 
@@ -2037,7 +2127,7 @@ function _initKanbanDnd() {
         });
 
         elDrop.classList.add('optimistic-pending');
-        elDrop.style.opacity = '0.7'; elDrop.style.transition = 'opacity 0.3s';
+        elDrop.style.transition = 'opacity 0.3s';
 
         _lastKanbanDragTs = Date.now();
         (async () => {
