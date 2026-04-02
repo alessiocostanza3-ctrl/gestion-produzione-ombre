@@ -160,6 +160,7 @@ async function caricaOrdiniAcquisti(expectedRequestId = null, signal = null) {
     let _hasCached = false;
     try {
         const _idbOrd = await ProdCache.get(_ordCacheKey);
+        if (_acquistTabAttivo !== 'ordini') return;
         if (_idbOrd && _idbOrd.dati) {
             contenitore.innerHTML  = _idbOrd.dati;
             _acqCache['_acq_ordini']   = _idbOrd.dati;
@@ -244,6 +245,7 @@ async function caricaOrdiniAcquisti(expectedRequestId = null, signal = null) {
         });
 
         html += `</div></div>`;
+        if (_acquistTabAttivo !== 'ordini') return;
         ProdCache.set(_ordCacheKey, html).catch(() => {});
         _acqCache['_acq_ordini']   = html;
         _acqCacheTs['_acq_ordini'] = Date.now();
@@ -381,6 +383,7 @@ async function caricaMateriali(silenzioso = false, expectedRequestId = null, sig
     if (!silenzioso) {
         try {
             const _idbMat = await ProdCache.get('MATERIALE_DA_ORDINARE');
+            if (_acquistTabAttivo !== 'catalogo') return;
             if (_idbMat && _idbMat.dati) {
                 contenitore.innerHTML = _idbMat.dati;
                 _acqCache['MATERIALE DA ORDINARE']   = _idbMat.dati;
@@ -557,6 +560,7 @@ async function caricaMateriali(silenzioso = false, expectedRequestId = null, sig
         });
 
         html += `</div>`;
+        if (_acquistTabAttivo !== 'catalogo') return;
         ProdCache.set('MATERIALE_DA_ORDINARE', html).catch(() => {});
         _acqCache['MATERIALE DA ORDINARE']   = html;
         _acqCacheTs['MATERIALE DA ORDINARE'] = Date.now();
