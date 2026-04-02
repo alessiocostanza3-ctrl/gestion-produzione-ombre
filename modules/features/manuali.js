@@ -40,9 +40,19 @@ function _normalizeSteps(steps) {
     return out.slice(0, MAX_STEP);
 }
 
+function _safeImgSrc(raw) {
+    const src = String(raw || '').trim();
+    if (!src) return '';
+
+    // Consenti solo immagini data URL o URL http/https.
+    if (/^data:image\/(png|jpe?g|webp|gif);base64,[a-z0-9+/=\s]+$/i.test(src)) return src;
+    if (/^https?:\/\/[^\s]+$/i.test(src)) return src;
+    return '';
+}
+
 function _buildManualeCard(m) {
     const stepsCount = Array.isArray(m.steps) ? m.steps.length : 0;
-    const cover = String(m.copertina || '').trim();
+    const cover = _safeImgSrc(m.copertina);
     const coverHtml = cover
         ? `<img src="${cover}" alt="copertina" class="w-full h-40 object-cover rounded-t-xl">`
         : `<div class="w-full h-40 bg-slate-100 rounded-t-xl flex items-center justify-center text-slate-400 text-3xl"><i class="fas fa-book-open"></i></div>`;
@@ -103,7 +113,7 @@ function _renderLista() {
 function _makeStepEditor(step, idx) {
     const title = _esc(step.titolo || '');
     const desc = _esc(step.descrizione || '');
-    const foto = String(step.foto || '').trim();
+    const foto = _safeImgSrc(step.foto);
     const img = foto ? `<img src="${foto}" alt="step-${idx + 1}" style="max-width:100%;max-height:180px;border-radius:10px;border:1px solid #e2e8f0">` : '<div class="text-xs text-slate-400">Nessuna foto</div>';
 
     return `
@@ -134,7 +144,7 @@ function _renderModalForm(mode, data) {
         steps: [ { titolo: '', descrizione: '', foto: '' } ]
     };
 
-    const coverImg = String(current.copertina || '').trim();
+    const coverImg = _safeImgSrc(current.copertina);
     const coverPreview = coverImg
         ? `<img id="manuali-copertina-preview" src="${coverImg}" alt="copertina" style="max-width:100%;max-height:200px;border-radius:10px;border:1px solid #e2e8f0">`
         : `<div id="manuali-copertina-preview" class="text-xs text-slate-400">Nessuna copertina</div>`;
@@ -304,11 +314,12 @@ function apriFormManuale(id) {
 
     // Salva copertina nel data-attribute del wrapper
     const coverWrap = document.getElementById('manuali-copertina-wrap');
-    if (coverWrap && m.copertina) coverWrap.setAttribute('data-copertina', m.copertina);
+    const safeCover = _safeImgSrc(m.copertina);
+    if (coverWrap && safeCover) coverWrap.setAttribute('data-copertina', safeCover);
 
     const boxes = Array.from(document.querySelectorAll('.manuale-step-edit'));
     boxes.forEach(function(box, idx) {
-        const foto = String((m.steps && m.steps[idx] && m.steps[idx].foto) || '').trim();
+        const foto = _safeImgSrc((m.steps && m.steps[idx] && m.steps[idx].foto) || '');
         if (foto) box.setAttribute('data-foto', foto);
     });
 }
@@ -393,8 +404,9 @@ function apriManuale(id) {
     if (!m) return;
 
     const stepsHtml = (m.steps || []).map(function(step, idx) {
-        const img = step.foto
-            ? `<img src="${step.foto}" alt="step-${idx + 1}" style="max-width:100%;border-radius:10px;border:1px solid #e2e8f0">`
+        const safeStepImg = _safeImgSrc(step.foto);
+        const img = safeStepImg
+            ? `<img src="${safeStepImg}" alt="step-${idx + 1}" style="max-width:100%;border-radius:10px;border:1px solid #e2e8f0">`
             : '<div class="text-xs text-slate-400">Nessuna immagine</div>';
         return `
         <details class="border border-slate-200 rounded-xl p-3 bg-white" ${idx === 0 ? 'open' : ''}>
@@ -406,7 +418,7 @@ function apriManuale(id) {
         </details>`;
     }).join('');
 
-    const coverDetail = String(m.copertina || '').trim();
+    const coverDetail = _safeImgSrc(m.copertina);
     const coverDetailHtml = coverDetail
         ? `<img src="${coverDetail}" alt="copertina" style="max-width:100%;max-height:260px;border-radius:10px;border:1px solid #e2e8f0;margin-bottom:12px">`
         : '';

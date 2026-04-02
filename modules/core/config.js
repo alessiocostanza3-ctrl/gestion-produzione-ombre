@@ -16,8 +16,8 @@ export const SESSION_DURATION_MS = 8 * 60 * 60 * 1000;   // 8 ore
 export const CACHE_TTL_MS = 5 * 60 * 1000;   // 5 minuti
 
 // ── Polling revisione / Ping keep-alive ───────────────────────────────────────
-export const REVISION_POLL_INTERVAL_MS = 15000;   // intervallo normale
-export const REVISION_POLL_FOCUS_MS    =  8000;   // tab in primo piano
+export const REVISION_POLL_INTERVAL_MS = 20000;   // intervallo normale
+export const REVISION_POLL_FOCUS_MS    = 12000;   // tab in primo piano
 export const REVISION_POLL_SLOW_MS     = 30000;   // tab in background
 export const PING_INTERVAL_MS          = 60000;   // keep-alive server
 

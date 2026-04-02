@@ -18,6 +18,7 @@ const _POLL_PROD_MS = 10000;
 let _lastKanbanDragTs = 0;
 let _mutationInFlight = 0;          // contatore di salvataggi in corso
 let _mutationLastDone = 0;          // timestamp ultimo salvataggio completato
+let _prodCacheInvalidateTimer = null;
 let _attiviProd = [];
 let _ordiniAutocompleteCache = [];
 let _ovStatiArt = ['PREPARARE','MANDA IN LAVORAZIONE','IN LAVORAZIONE','TORNATO DALLA LAVORAZIONE'];
@@ -29,6 +30,20 @@ function _getOvStatiAll() { return [..._ovStatiArt, ..._ovStatiOrd]; }
 function _isStatoFinale_(stato) {
     const s = String(stato || '').toUpperCase().trim();
     return s === 'IMBALLATO' || s === 'SPEDITO/CONSEGNATO' || s === 'SPEDITO' || s === 'CONSEGNATO';
+}
+
+function _invalidateProduzioneCache({ resetFetchTime = true, invalidatePersistent = true } = {}) {
+    delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
+    if (resetFetchTime) cacheFetchTime['PROGRAMMA PRODUZIONE DEL MESE'] = 0;
+    _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
+    if (!invalidatePersistent) return;
+
+    // Debounce invalidazioni IndexedDB nelle raffiche di update.
+    if (_prodCacheInvalidateTimer) clearTimeout(_prodCacheInvalidateTimer);
+    _prodCacheInvalidateTimer = setTimeout(() => {
+        _prodCacheInvalidateTimer = null;
+        ProdCache.invalidate('PROGRAMMA_PRODUZIONE').catch(() => {});
+    }, 1200);
 }
 
 // Aggiorna last_modified in-memory dopo assegnazione operatori
@@ -196,18 +211,26 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
         applicaFade(contenitore);
     }
 
+    const slowTimer = isBackgroundUpdate ? null : setTimeout(() => {
+        const el = document.getElementById('_prod-loader');
+        if (el) {
+            el.innerHTML = "<i class='fas fa-spinner fa-spin'></i> Connessione lenta, sto ancora caricando...";
+        }
+    }, 3500);
+
     const retryTimer = isBackgroundUpdate ? null : setTimeout(() => {
         const el = document.getElementById('_prod-loader');
-        if (el) el.innerHTML = `\u26a0\ufe0f Connessione lenta o server non raggiungibile.<br>
+        if (el) el.innerHTML = `\u26a0\ufe0f Server occupato o rete instabile.<br>
             <button onclick="cambiaPagina('PROGRAMMA PRODUZIONE DEL MESE', null)"
                 style="margin-top:12px;padding:8px 20px;background:#242424;color:#fff;
                        border:none;border-radius:8px;cursor:pointer;font-size:0.9rem">
                 &#x21bb; Riprova
             </button>`;
-    }, 12000);
+    }, 8000);
 
     try {
         const dati = await _fetchDatiProduzione(signal);
+        if (slowTimer) clearTimeout(slowTimer);
         if (retryTimer) clearTimeout(retryTimer);
 
         if (window.paginaAttuale !== nomeFoglio) return;
@@ -216,6 +239,7 @@ async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedReques
         _renderDatiProduzione(dati, isBackgroundUpdate);
 
     } catch (e) {
+        if (slowTimer) clearTimeout(slowTimer);
         if (retryTimer) clearTimeout(retryTimer);
         if (e.name === 'AbortError') return;
         console.error("Errore Dashboard:", e);
@@ -566,8 +590,7 @@ async function rimuoviOperatore(idRiga, nOrd, nomeOperatore) {
 
     const mittente = (utenteAttuale && utenteAttuale.nome) ? utenteAttuale.nome.toUpperCase().trim() : '';
     const url = `${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(restanti)}&id_riga=${idRiga}&mittente=${encodeURIComponent(mittente)}`;
-    delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
-    _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
+        _invalidateProduzioneCache();
     fetch(url).then(r => r.json()).then(j => _syncAssegnaTimestamp(nOrd, idRiga, j.last_modified))
         .catch(e => { console.error('Errore rimozione operatore', e); notificaElegante('\u26a0\ufe0f Rimozione non salvata \u2013 riprova', 'error'); });
 }
@@ -646,8 +669,7 @@ function selezionaOpAssegna(optBtn, idRiga, nOrd, nomeOp) {
     }
 
     const mitt = (utenteAttuale?.nome || '').toUpperCase().trim();
-    delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
-    _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
+        _invalidateProduzioneCache();
     fetch(`${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(nuovaAssegna)}&id_riga=${idRiga}&mittente=${encodeURIComponent(mitt)}`)
         .then(r => r.json()).then(j => _syncAssegnaTimestamp(nOrd, idRiga, j.last_modified))
         .catch(() => notificaElegante('\u26a0\ufe0f Assegnazione non salvata \u2013 riprova', 'error'));
@@ -695,8 +717,7 @@ function selezionaOpAssegnaOrdine(optBtn, nOrd, nomeOp) {
     }
 
     const mitt = (utenteAttuale?.nome || '').toUpperCase().trim();
-    delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
-    _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
+    _invalidateProduzioneCache();
     fetch(`${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(nuovaAssegna)}&mittente=${encodeURIComponent(mitt)}`)
         .then(r => r.json()).then(j => _syncAssegnaTimestamp(nOrd, null, j.last_modified))
         .catch(() => notificaElegante('\u26a0\ufe0f Assegnazione non salvata \u2013 riprova', 'error'));
@@ -720,8 +741,7 @@ function autoAssegnami(idRiga, nOrd, btnEl) {
     }).join('');
     if (btnEl && btnEl.parentNode) btnEl.remove();
     const mitt = mio.toUpperCase().trim();
-    delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
-    _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
+    _invalidateProduzioneCache();
     fetch(`${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(nuova)}&id_riga=${idRiga}&mittente=${encodeURIComponent(mitt)}`)
         .then(r => r.json()).then(j => _syncAssegnaTimestamp(nOrd, idRiga, j.last_modified))
         .catch(() => notificaElegante('\u26a0\ufe0f Assegnazione non salvata \u2013 riprova', 'error'));
@@ -748,8 +768,7 @@ function autoAssegnamiOrdine(nOrd) {
         const btnOrd = wrapper.querySelector('.btn-assegnami-ord');
         if (btnOrd) btnOrd.remove();
     }
-    delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
-    _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
+    _invalidateProduzioneCache();
     fetch(`${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(mio)}&mittente=${encodeURIComponent(mitt)}`)
         .then(r => r.json()).then(j => _syncAssegnaTimestamp(nOrd, null, j.last_modified))
         .catch(() => notificaElegante('\u26a0\ufe0f Assegnazione non salvata \u2013 riprova', 'error'));
@@ -792,7 +811,7 @@ function selezionaStato(optBtn, idRiga, colore) {
     aggiornaDato(null, idRiga, 'stato', nuovoStato, true).then(ok => {
         if (card) { card.classList.remove('optimistic-pending'); card.style.opacity = ''; }
         if (ok) {
-            ProdCache.invalidate('PROGRAMMA_PRODUZIONE').catch(() => {});
+            _invalidateProduzioneCache();
         } else {
             if (dot) dot.style.background = statoPrec.colore;
             labelEl.textContent = statoPrec.testo;
@@ -870,7 +889,7 @@ function selezionaStatoOrdine(optBtn, nOrdine, nuovoStato, nuovoColore) {
         wrapper.classList.remove('optimistic-pending'); wrapper.style.opacity = '';
         if (ok) {
             notificaElegante(`\u2714 Ordine ${nOrdine} aggiornato a ${nuovoStato}`, 'success');
-            ProdCache.invalidate('PROGRAMMA_PRODUZIONE').catch(() => {});
+            _invalidateProduzioneCache();
         } else {
             // Rollback
             righe.forEach(idRiga => {
@@ -961,7 +980,7 @@ async function aggiornaDato(selectEl, idRiga, campo, nuovoValore, skipForceSync 
                 tuaModifica:    nuovoValore,
                 serverModifica: campo === 'stato' ? (serverData.stato || '') : (serverData[campo] || ''),
                 onSceglioClient: async () => {
-                    RevisionPoller.pauseFor(6000);
+                    RevisionPoller.pauseFor(15000);
                     const bodyForce = {
                         azione:   'aggiorna_produzione',
                         id_riga:  idRiga,
@@ -985,7 +1004,7 @@ async function aggiornaDato(selectEl, idRiga, campo, nuovoValore, skipForceSync 
                             }
                         }
                         notificaElegante('\u2714 Modifica forzata salvata');
-                        ProdCache.invalidate('PROGRAMMA_PRODUZIONE').catch(() => {});
+                        _invalidateProduzioneCache();
                     } catch(eForce) { notificaElegante('\u26a0\ufe0f Errore durante il salvataggio forzato.', 'error'); }
                 },
                 onSceglioServer: () => {
@@ -1033,10 +1052,7 @@ async function aggiornaDato(selectEl, idRiga, campo, nuovoValore, skipForceSync 
         }
 
         if (!skipForceSync) notificaElegante('\u2714 ' + (campo === 'stato' ? 'Stato' : 'Modifica') + ' salvato', 'success');
-        
-        delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
-        cacheFetchTime['PROGRAMMA PRODUZIONE DEL MESE'] = 0;
-        _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
+        _invalidateProduzioneCache();
         
         return true;
     } catch (e) {
@@ -1099,9 +1115,7 @@ async function _aggiornaDatoBulk(idRighe, campo, nuovoValore) {
                 }
             });
         }
-        delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
-        cacheFetchTime['PROGRAMMA PRODUZIONE DEL MESE'] = 0;
-        _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
+        _invalidateProduzioneCache();
         return true;
     } catch (e) {
         console.error('[_aggiornaDatoBulk] error:', e);
@@ -1151,9 +1165,8 @@ async function gestisciArchiviazione(nOrd, tipo) {
 
                     if (risultato.status === "success") {
                         delete cacheContenuti['ARCHIVIO_ORDINI'];
-                        delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
                         _lsCacheDel('_html_ARCHIVIO_ORDINI');
-                        _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
+                        _invalidateProduzioneCache();
                         notificaElegante('\u2714 Ordine ' + nOrd + ' archiviato', 'success');
                     } else {
                         if (wrapperHTML && wrapperParent) {
@@ -1232,9 +1245,8 @@ async function gestisciRipristino(id_o_numero, tipo) {
             const risultato = await response.json();
             if (risultato.status === "success") {
                     delete cacheContenuti['ARCHIVIO_ORDINI'];
-                    delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
                     _lsCacheDel('_html_ARCHIVIO_ORDINI');
-                    _lsCacheDel('_html_PROGRAMMA PRODUZIONE DEL MESE');
+                    _invalidateProduzioneCache();
                     caricaDati(window.paginaAttuale);
                 } else {
                 notificaElegante('Errore: ' + risultato.message, 'error');
@@ -2042,7 +2054,7 @@ function _initKanbanDnd() {
                 notificaElegante('\u26a0\ufe0f Modifica non salvata \u2013 riprova', 'error');
                 console.error('[Kanban DnD] Rollback', { idRighe, newStato, oldStato });
             } else {
-                ProdCache.invalidate('PROGRAMMA_PRODUZIONE').catch(() => {});
+                _invalidateProduzioneCache();
             }
         })();
         idRighe.forEach(id => _syncStatoItemCard(id, newStato, colore));

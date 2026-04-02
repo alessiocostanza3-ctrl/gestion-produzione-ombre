@@ -6,6 +6,7 @@ import { getRevision, gasRequest } from './api.js';
 import {
     URL_GOOGLE,
     REVISION_POLL_INTERVAL_MS,
+    REVISION_POLL_FOCUS_MS,
     REVISION_POLL_SLOW_MS,
     PING_INTERVAL_MS
 } from './config.js';
@@ -38,14 +39,16 @@ export function configurePoller(opzioni) {
 ───────────────────────────────────────────────────────────────────────── */
 export const RevisionPoller = {
     INTERVAL_MS: REVISION_POLL_INTERVAL_MS,
-    INTERVAL_FOCUS_MS: 8000,
+    INTERVAL_FOCUS_MS: REVISION_POLL_FOCUS_MS,
     INTERVAL_BG_MS: REVISION_POLL_SLOW_MS,
     PING_INTERVAL_MS: PING_INTERVAL_MS,
+    MAX_BACKOFF_MS: 60000,
     _timer: null,
     _pingTimer: null,
     _lastRevision: null,
     _lastCheck: 0,
     _paused: false,
+    _errorStreak: 0,
     lastRevisionValue: null,
     lastOnlineList: [],
     lastCheckTs: 0,
@@ -54,6 +57,7 @@ export const RevisionPoller = {
         this.stop();
         this._lastRevision = null;
         this._paused = false;
+        this._errorStreak = 0;
         this._schedule(document.hidden ? this.INTERVAL_BG_MS : this.INTERVAL_FOCUS_MS);
         // Primo ping dopo 5s, poi ogni PING_INTERVAL_MS
         this._schedulePing(5000);
@@ -87,8 +91,13 @@ export const RevisionPoller = {
     _tick: function() {
         var self = this;
         this._check().finally(function() {
-            var interval = document.hidden ? self.INTERVAL_BG_MS
+            var baseInterval = document.hidden ? self.INTERVAL_BG_MS
                 : (document.hasFocus && document.hasFocus() ? self.INTERVAL_FOCUS_MS : self.INTERVAL_MS);
+            var interval = baseInterval;
+            if (self._errorStreak > 0) {
+                var factor = Math.min(4, 1 + (self._errorStreak * 0.5));
+                interval = Math.min(self.MAX_BACKOFF_MS, Math.round(baseInterval * factor));
+            }
             self._schedule(interval);
         });
     },
@@ -97,8 +106,12 @@ export const RevisionPoller = {
         if (this._paused) return;
         try {
             var data = await getRevision();
-            if (!data || data.status !== 'ok') return;
+            if (!data || data.status !== 'ok') {
+                this._errorStreak = Math.min(this._errorStreak + 1, 10);
+                return;
+            }
             var rev = Number(data.revision);
+            this._errorStreak = 0;
             this._lastCheck = Date.now();
             this.lastRevisionValue = rev;
             this.lastCheckTs = Date.now();
@@ -120,6 +133,7 @@ export const RevisionPoller = {
             var chi = data.utente || 'Qualcuno';
             if (_onRemoteChange) _onRemoteChange(chi);
         } catch (e) {
+            this._errorStreak = Math.min(this._errorStreak + 1, 10);
             if (e && e.name !== 'AbortError') console.warn('[RevisionPoller]', e);
         }
     },
