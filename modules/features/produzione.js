@@ -899,7 +899,7 @@ function selezionaStato(optBtn, idRiga, colore) {
     const card = dropdown.closest('.item-card');
     if (card) card.classList.remove('stato-aperto');
     if (_attiviProd && prevProd) prevProd.stato = nuovoStato;
-    _syncKanbanFromStato(idRiga, nuovoStato);
+    _refreshOverview();
     _persistProduzioneHtmlSnapshot();
 
     if (card) { card.classList.add('optimistic-pending'); card.style.transition = 'opacity 0.3s'; }
@@ -921,7 +921,7 @@ function selezionaStato(optBtn, idRiga, colore) {
                 statoPrec.selectedBtn.appendChild(ic);
             }
             if (_attiviProd && prevProd && prevStatoProd !== null) prevProd.stato = prevStatoProd;
-            _syncKanbanFromStato(idRiga, statoPrec.testo);
+            _refreshOverview();
             _persistProduzioneHtmlSnapshot();
             notificaElegante('\u26a0\ufe0f Modifica non salvata \u2013 riprova', 'error');
             console.error('[selezionaStato] Rollback', { idRiga, nuovoStato, statoPrec: statoPrec.testo });
@@ -931,7 +931,7 @@ function selezionaStato(optBtn, idRiga, colore) {
         if (dot) dot.style.background = statoPrec.colore;
         labelEl.textContent = statoPrec.testo;
         if (_attiviProd && prevProd && prevStatoProd !== null) prevProd.stato = prevStatoProd;
-        _syncKanbanFromStato(idRiga, statoPrec.testo);
+        _refreshOverview();
         _persistProduzioneHtmlSnapshot();
         notificaElegante('\u26a0\ufe0f Modifica non salvata \u2013 riprova', 'error');
         console.error('[selezionaStato] Errore + Rollback', err, { idRiga, nuovoStato });
@@ -975,9 +975,9 @@ function selezionaStatoOrdine(optBtn, nOrdine, nuovoStato, nuovoColore) {
             const r = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
             if (r) r.stato = nuovoStato;
         }
-        _syncKanbanFromStato(idRiga, nuovoStato);
         _syncStatoItemCard(idRiga, nuovoStato, nuovoColore);
     });
+    _refreshOverview();
     _persistProduzioneHtmlSnapshot();
 
     wrapper.classList.add('optimistic-pending');
@@ -1000,11 +1000,11 @@ function selezionaStatoOrdine(optBtn, nOrdine, nuovoStato, nuovoColore) {
                         if (r) r.stato = prev;
                     }
                     const prevColore = (window.listaStati.find(s => s.nome === prev) || {}).colore || '#e2e8f0';
-                    _syncKanbanFromStato(idRiga, prev);
-                    _persistProduzioneHtmlSnapshot();
                     _syncStatoItemCard(idRiga, prev, prevColore);
                 }
             });
+            _refreshOverview();
+            _persistProduzioneHtmlSnapshot();
             if (labelEl) labelEl.textContent = statoPrec.testo;
             if (dot) dot.style.background = statoPrec.colore;
             notificaElegante('\u26a0\ufe0f Modifica non salvata \u2013 riprova', 'error');
@@ -1022,10 +1022,10 @@ function selezionaStatoOrdine(optBtn, nOrdine, nuovoStato, nuovoColore) {
             }
             if (prev) {
                 const prevColore = (window.listaStati.find(s => s.nome === prev) || {}).colore || '#e2e8f0';
-                _syncKanbanFromStato(idRiga, prev);
                 _syncStatoItemCard(idRiga, prev, prevColore);
             }
         });
+        _refreshOverview();
         notificaElegante('\u26a0\ufe0f Modifica non salvata \u2013 riprova', 'error');
         console.error('[selezionaStatoOrdine] Rollback', err, { nOrdine, nuovoStato });
     });
@@ -1614,6 +1614,17 @@ function _syncKanbanFromStato(idRiga, newStato) {
 // ═══════════════════════════════════════════════════════════════════
 //  G) OVERVIEW / KANBAN
 // ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Ricostruisce l'intera overview a partire da _attiviProd (già aggiornato ottimisticamente).
+ * Usata dopo ogni cambio di stato per aggiornare il kanban con creazione/rimozione di card.
+ */
+function _refreshOverview() {
+    const ovContent = document.getElementById('ov-content');
+    if (!ovContent || ovContent.querySelector('.ov-lazy-placeholder')) return;
+    ovContent.innerHTML = _buildOverviewInnerHtml(_attiviProd);
+    requestAnimationFrame(_initKanbanDnd);
+}
 
 function _ovLoadIfNeeded(summary) {
     const details = summary.parentElement;
