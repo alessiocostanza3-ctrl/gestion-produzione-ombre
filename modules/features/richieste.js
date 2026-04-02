@@ -62,9 +62,19 @@ function _removeRichiestaCardOptimistic(idRiga) {
         `#rc-body-${CSS.escape(String(idRiga))}`
     ];
     for (const sel of selectors) {
-        const el = sel.startsWith('#') ? document.querySelector(sel) : document.querySelector(sel);
+        const el = document.querySelector(sel);
         const card = el?.classList?.contains('req-card') || el?.classList?.contains('scad-card') ? el : el?.closest('.req-card, .scad-card');
         if (card) {
+            // Aggiorna il badge contatore del gruppo padre (rg-count)
+            const group = card.closest('.req-group');
+            if (group) {
+                const countEl = group.querySelector('.rg-count');
+                if (countEl) {
+                    const prev = parseInt(countEl.textContent, 10) || 0;
+                    if (prev <= 1) { countEl.remove(); }
+                    else { countEl.textContent = prev - 1; }
+                }
+            }
             card.remove();
             return true;
         }
@@ -956,6 +966,9 @@ async function aggiornaRichiesta(idRiga, tipoAzione, tuttiIds) {
             body.id_riga = idRiga;
         }
         if (optimisticArchive) {
+            // Pausiamo il poller per 20s: evita che la nuova revision (pubblicata dal backend
+            // subito dopo la POST) sovrascriva l'aggiornamento ottimistico prima che sia visibile
+            RevisionPoller.pauseFor(20000);
             _removeRichiestaCardOptimistic(idRiga);
             _persistRichiesteHtmlSnapshot();
         }
