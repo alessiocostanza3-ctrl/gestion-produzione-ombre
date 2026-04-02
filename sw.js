@@ -102,7 +102,10 @@ self.addEventListener('push', function(event) {
                         .then(function(sub) {
                             var endpoint = sub && sub.endpoint ? sub.endpoint : '';
                             if (!endpoint) return _showNotif_('PROD', 'Hai nuove notifiche', null);
-                            return fetch(GAS_URL + '?azione=getNotificheByEndpoint&endpoint=' + encodeURIComponent(endpoint))
+                            return fetch(GAS_URL, {
+                                method: 'POST',
+                                body: JSON.stringify({ azione: 'getNotificheByEndpoint', endpoint: endpoint })
+                            })
                                 .then(function(r) { return r.json(); })
                                 .then(function(d) {
                                     if (!d || d.status !== 'ok') return _showNotif_('PROD', 'Hai nuove notifiche', null);
@@ -120,7 +123,10 @@ self.addEventListener('push', function(event) {
                         .catch(function() { return _showNotif_('PROD', 'Hai nuove notifiche', null); });
                 }
                 // markRead=0: il SW legge senza segnare come lette (evita race condition multi-device)
-                return fetch(GAS_URL + '?azione=getNotifiche&username=' + encodeURIComponent(username) + '&markRead=0')
+                return fetch(GAS_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ azione: 'getNotifiche', username: username, markRead: 0 })
+                })
                     .then(function(r) { return r.json(); })
                     .then(function(d) {
                         if (!d || d.status === 'none') {
@@ -166,7 +172,10 @@ self.addEventListener('notificationclick', function(event) {
     var target   = event.notification.data && event.notification.data.target;
     // Segna come lette sul server al click
     if (username) {
-        fetch(GAS_URL + '?azione=segnaLetteNotifiche&username=' + encodeURIComponent(username)).catch(function(){});
+        fetch(GAS_URL, {
+            method: 'POST',
+            body: JSON.stringify({ azione: 'segnaLetteNotifiche', username: username })
+        }).catch(function(){});
     }
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(list) {
