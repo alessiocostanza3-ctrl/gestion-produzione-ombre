@@ -608,7 +608,10 @@ async function _loadFabbisognoProduzioneRows_() {
         prefetch.dashBundle = null;
         prefetch.dashPromise = null;
     } else {
-        const dashResp = await fetch(URL_GOOGLE + '?azione=getAllDashboard');
+        const dashResp = await fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify({ azione: 'getAllDashboard', includeArchivio: false })
+        });
         if (!dashResp.ok) throw new Error(`HTTP ${dashResp.status}`);
         dashBundle = await dashResp.json();
     }
@@ -632,7 +635,11 @@ export async function _fetchDatiRichieste(signal = null) {
             prefetch.rqPromise = null;
             return b;
         }
-        const resp = await fetch(URL_GOOGLE + '?azione=getAllRichieste', signal ? { signal } : {});
+        const resp = await fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify({ azione: 'getAllRichieste' }),
+            ...(signal ? { signal } : {})
+        });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         return resp.json();
     }

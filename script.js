@@ -59,9 +59,33 @@ if ('serviceWorker' in navigator) {
 
 let _fetchSessionPatchDone = false;
 let _sessionRefreshTimer = null;
+let _sessionWarnTimer = null;
 let _refreshAuthFailCount_ = 0; // conta auth_error consecutivi dal refresh silenzioso
 let _healthBadgeEl = null;
 let _lastDataRefreshAt = 0;
+let _lastSessionWarnTs = 0;
+
+function _parseSessionExpiryMs_() {
+    const raw = utenteAttuale?.sessionExpiresAt;
+    if (!raw) return 0;
+    const num = Number(raw);
+    if (Number.isFinite(num) && num > 0) return num;
+    const dt = new Date(raw).getTime();
+    return Number.isFinite(dt) ? dt : 0;
+}
+
+function _checkSessionExpiryWarning_() {
+    const expMs = _parseSessionExpiryMs_();
+    if (!expMs) return;
+    const remain = expMs - Date.now();
+    if (remain <= 0) return;
+    if (remain > 10 * 60 * 1000) return;
+    // Evita spam: massimo una notifica ogni 3 minuti.
+    if (Date.now() - _lastSessionWarnTs < 3 * 60 * 1000) return;
+    _lastSessionWarnTs = Date.now();
+    const mins = Math.max(1, Math.floor(remain / 60000));
+    notificaElegante('Sessione in scadenza tra circa ' + mins + ' min. Salva eventuali modifiche.', 'warning');
+}
 
 function _fmtHealthTime_(ts) {
     if (!ts) return 'mai';
@@ -258,7 +282,10 @@ async function _refreshSessionSilenzioso_() {
 
 function _startSessionRefreshTicker_() {
     if (_sessionRefreshTimer) clearInterval(_sessionRefreshTimer);
+    if (_sessionWarnTimer) clearInterval(_sessionWarnTimer);
     _sessionRefreshTimer = setInterval(_refreshSessionSilenzioso_, 5 * 60 * 1000);
+    _sessionWarnTimer = setInterval(_checkSessionExpiryWarning_, 60 * 1000);
+    _checkSessionExpiryWarning_();
 }
 
 window.addEventListener('storage', function(ev) {
@@ -482,10 +509,16 @@ function _prefetchBackground() {
     // Rimuovi eventuale cache LS degli ordini salvata da versioni precedenti (dati real-time: non vanno in LS)
     _lsCacheDel('_html__acq_ordini');
     // Avvia subito senza delay per massimizzare il tempo disponibile prima del click
-    prefetch.dashPromise = fetch(URL_GOOGLE + '?azione=getAllDashboard')
+    prefetch.dashPromise = fetch(URL_GOOGLE, {
+        method: 'POST',
+        body: JSON.stringify({ azione: 'getAllDashboard', includeArchivio: false })
+    })
         .then(function(r) { return r.ok ? r.json() : null; })
         .catch(function() { return null; });
-    prefetch.rqPromise   = fetch(URL_GOOGLE + '?azione=getAllRichieste')
+    prefetch.rqPromise   = fetch(URL_GOOGLE, {
+        method: 'POST',
+        body: JSON.stringify({ azione: 'getAllRichieste' })
+    })
         .then(function(r) { return r.ok ? r.json() : null; })
         .catch(function() { return null; });
     prefetch.matPromise  = fetch(URL_GOOGLE + '?pagina=MATERIALE+DA+ORDINARE')
@@ -741,6 +774,10 @@ function logout() {
         if (_sessionRefreshTimer) {
             clearInterval(_sessionRefreshTimer);
             _sessionRefreshTimer = null;
+        }
+        if (_sessionWarnTimer) {
+            clearInterval(_sessionWarnTimer);
+            _sessionWarnTimer = null;
         }
 
         // (b) Cancella IndexedDB ProdCache (fire-and-forget, non blocca)

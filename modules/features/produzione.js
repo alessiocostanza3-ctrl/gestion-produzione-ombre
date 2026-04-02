@@ -77,7 +77,11 @@ async function _fetchDatiProduzione(signal = null) {
         prefetch.dashBundle = null;
         prefetch.dashPromise = null;
     } else {
-        const _dashResp = await fetch(URL_GOOGLE + '?azione=getAllDashboard', signal ? { signal } : {});
+        const _dashResp = await fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify({ azione: 'getAllDashboard', includeArchivio: false }),
+            ...(signal ? { signal } : {})
+        });
         if (!_dashResp.ok) throw new Error(`HTTP ${_dashResp.status}`);
         _dashBundle = await _dashResp.json();
     }
@@ -270,7 +274,10 @@ async function caricaArchivio() {
             prefetch.dashBundle = null;
             prefetch.dashPromise = null;
         } else {
-            const _aResp = await fetch(URL_GOOGLE + '?azione=getAllDashboard');
+            const _aResp = await fetch(URL_GOOGLE, {
+                method: 'POST',
+                body: JSON.stringify({ azione: 'getAllDashboard', includeArchivio: true })
+            });
             if (!_aResp.ok) throw new Error(`HTTP ${_aResp.status}`);
             _aBundle = await _aResp.json();
         }
@@ -1278,7 +1285,10 @@ async function _pollProdStep() {
     if (_mutationInFlight > 0) return;
     if (Date.now() - _mutationLastDone < 12000) return;
     try {
-        const resp = await fetch(URL_GOOGLE + '?azione=getAllDashboard');
+        const resp = await fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify({ azione: 'getAllDashboard', includeArchivio: false })
+        });
         if (!resp.ok) return;
         const bundle = await resp.json();
         if (!bundle || !bundle.produzione) return;
