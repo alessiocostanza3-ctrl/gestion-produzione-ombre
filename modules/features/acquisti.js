@@ -479,9 +479,9 @@ async function caricaMateriali(silenzioso = false, expectedRequestId = null, sig
             }
 
             sezItems.forEach(({ item, gi: index }) => {
-                const nomeProdotto = (item.OGGETTO || "Senza nome").replace(/"/g, '&quot;');
-                const fornitore    = (item.FORNITORE || "Generico").replace(/"/g, '&quot;');
-                const codice       = (item.CODICE || "").replace(/"/g, '&quot;');
+                const nomeProdotto = _esc(item.OGGETTO || 'Senza nome');
+                const fornitore    = _esc(item.FORNITORE || 'Generico');
+                const codice       = _esc(item.CODICE || '');
                 const qtyId        = `qty-item-${index}`;
                 const idRiga       = item.id_riga;
                 const nomePulitoJS = nomeProdotto.replace(/'/g, "\\'").replace(/"/g, '&quot;');
@@ -593,10 +593,10 @@ function toggleMostraCarrello() {
     } else {
         lista.innerHTML = carrelloLocale.map((item, index) => `
             <div class="cart-item-row">
-                ${item.foto ? `<img src="${item.foto}" class="cart-item-photo">` : `<div class="cart-item-placeholder"><i class="fas fa-shopping-basket cart-item-icon"></i></div>`}
+                ${item.foto ? `<img src="${_esc(item.foto)}" class="cart-item-photo">` : `<div class="cart-item-placeholder"><i class="fas fa-shopping-basket cart-item-icon"></i></div>`}
                 <div class="flex-grow">
-                    <div class="cart-item-name">${item.prodotto}</div>
-                    <div class="cart-item-details">Qt: ${item.quantita} - ${item.fornitore}</div>
+                    <div class="cart-item-name">${_esc(item.prodotto)}</div>
+                    <div class="cart-item-details">Qt: ${_esc(String(item.quantita))} - ${_esc(item.fornitore)}</div>
                 </div>
                 <button onclick="rimuoviDalCarrello(${index})" class="btn-inline-trash"><i class="fas fa-trash"></i></button>
             </div>`).join('');
@@ -693,10 +693,10 @@ function scattaFoto(nomeProdotto) {
             const base64String = event.target.result;
             const fornitore = container.getAttribute('data-fornitore') || '';
             container.innerHTML = `
-                <img src="${base64String}"
+                <img src="${_esc(base64String)}"
                      class="modal-img"
-                     onclick="event.stopPropagation(); apriImmagineIntera('${base64String}')">
-                ${fornitore ? `<span class="mat-badge-fornitore">${fornitore}</span>` : ''}`;
+                     onclick="event.stopPropagation(); apriImmagineIntera(this.src)">
+                ${fornitore ? `<span class="mat-badge-fornitore">${_esc(fornitore)}</span>` : ''}`;
             container.style.border = '';
             const card = container.closest('.materiale-card');
             if (card) {
@@ -717,7 +717,7 @@ function resetFoto(nomeProdotto) {
         container.innerHTML = `
             <i class="fas fa-camera mat-img-icon"></i>
             <span class="mat-img-hint">Scatta foto</span>
-            ${fornitore ? `<span class="mat-badge-fornitore">${fornitore}</span>` : ''}`;
+            ${fornitore ? `<span class="mat-badge-fornitore">${_esc(fornitore)}</span>` : ''}`;
         container.style.border = '';
         const card = container.closest('.materiale-card');
         if (card) {
@@ -827,16 +827,16 @@ async function duplicaArticolo(idRiga, nome, fornitore, codice) {
         divScatola.innerHTML = `
             <div class="materiale-card ${TW.card}">
                 <div class="mat-card-img img-preview-container"
-                     data-prod="${nome}" data-fornitore="${fornitore}"
+                     data-prod="${_esc(nome)}" data-fornitore="${_esc(fornitore)}"
                      onclick="scattaFoto('${nome.replace(/'/g, "\\'")}')">
                     <i class="fas fa-camera mat-img-icon"></i>
                     <span class="mat-img-hint">Scatta foto</span>
-                    <span class="mat-badge-fornitore">${fornitore}</span>
+                    <span class="mat-badge-fornitore">${_esc(fornitore)}</span>
                 </div>
                 <div class="materiale-info">
-                    <div class="materiale-nome">${nome}</div>
-                    ${codice ? `<div class="materiale-codice">${codice}</div>` : ''}
-                    <div class="materiale-fornitore mat-fornitore-mobile">${fornitore}</div>
+                    <div class="materiale-nome">${_esc(nome)}</div>
+                    ${codice ? `<div class="materiale-codice">${_esc(codice)}</div>` : ''}
+                    <div class="materiale-fornitore mat-fornitore-mobile">${_esc(fornitore)}</div>
                 </div>
                 <div class="materiale-actions">
                     <div class="qty-order-container">

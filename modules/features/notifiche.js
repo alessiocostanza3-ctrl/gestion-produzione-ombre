@@ -76,9 +76,9 @@ async function rispondiAccessoApp(richiestaId, nome, risposta, btnEl) {
             // Persisti il risultato in localStorage: la prossima apertura del pannello
             // non mostrer\u00e0 pi\u00f9 i pulsanti per questa richiesta
             _segnaAccessoGestito_(richiestaId, msg);
-            if (wrap) wrap.innerHTML = '<span class="notif-risposta-ok">' + msg + '</span>';
+            if (wrap) wrap.innerHTML = '<span class="notif-risposta-ok">' + _escapeHtml_(msg) + '</span>';
         } else {
-            if (wrap) wrap.innerHTML = '<span class="notif-risposta-err">\u26a0\ufe0f ' + (data.msg || 'Errore') + '</span>';
+            if (wrap) wrap.innerHTML = '<span class="notif-risposta-err">\u26a0\ufe0f ' + _escapeHtml_(data.msg || 'Errore') + '</span>';
         }
     } catch (err) {
         if (wrap) wrap.innerHTML = '<span class="notif-risposta-err">\u26a0\ufe0f Errore di rete</span>';
@@ -194,8 +194,8 @@ function _notifHtml_(arr) {
         try {
             const parsed = JSON.parse(n.corpo || '');
             if (parsed && parsed.tipo === 'accesso_richiesta') {
-                const rid  = _escapeHtml_(parsed.id   || '');
-                const nome = _escapeHtml_(parsed.nome || '');
+                const ridSafe  = encodeURIComponent(parsed.id   || '');
+                const nomeSafe = encodeURIComponent(parsed.nome || '');
                 // Controlla se Alessio ha gi\u00e0 risposto (persistito in localStorage)
                 const gestiti = _getAccessiGestiti_();
                 if (gestiti[parsed.id]) {
@@ -203,8 +203,8 @@ function _notifHtml_(arr) {
                 } else {
                     corpoHtml = `<div class="notifica-corpo">Vuole entrare fuori orario.</div>
                   <div class="notif-azioni-accesso">
-                                        <button class="notif-btn-consenti" onclick="event.stopPropagation(); rispondiAccessoApp('${rid}','${nome}','SI',this)">✅ Consenti</button>
-                                        <button class="notif-btn-nega"    onclick="event.stopPropagation(); rispondiAccessoApp('${rid}','${nome}','NO',this)">🚫 Nega</button>
+                                        <button class="notif-btn-consenti" onclick="event.stopPropagation(); rispondiAccessoApp(decodeURIComponent('${ridSafe}'),decodeURIComponent('${nomeSafe}'),'SI',this)">✅ Consenti</button>
+                                        <button class="notif-btn-nega"    onclick="event.stopPropagation(); rispondiAccessoApp(decodeURIComponent('${ridSafe}'),decodeURIComponent('${nomeSafe}'),'NO',this)">🚫 Nega</button>
                   </div>`;
                 }
             }

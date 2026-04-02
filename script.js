@@ -60,6 +60,91 @@ if ('serviceWorker' in navigator) {
 let _fetchSessionPatchDone = false;
 let _sessionRefreshTimer = null;
 let _refreshAuthFailCount_ = 0; // conta auth_error consecutivi dal refresh silenzioso
+let _healthBadgeEl = null;
+let _lastDataRefreshAt = 0;
+
+function _fmtHealthTime_(ts) {
+    if (!ts) return 'mai';
+    const d = new Date(ts);
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    const ss = String(d.getSeconds()).padStart(2, '0');
+    return `${hh}:${mm}:${ss}`;
+}
+
+function _networkHealthLabel_() {
+    if (!navigator.onLine) return 'offline';
+    const c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if (!c) return 'online';
+    const et = String(c.effectiveType || '').toLowerCase();
+    const slowType = et === 'slow-2g' || et === '2g';
+    const slowRtt = Number(c.rtt || 0) > 650;
+    const slowDown = Number(c.downlink || 0) > 0 && Number(c.downlink) < 1.2;
+    return (slowType || slowRtt || slowDown) ? 'lenta' : 'online';
+}
+
+function _ensureHealthBadge_() {
+    if (_healthBadgeEl && document.body.contains(_healthBadgeEl)) return _healthBadgeEl;
+    let el = document.getElementById('app-health-badge');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'app-health-badge';
+        el.style.position = 'fixed';
+        el.style.right = '12px';
+        el.style.zIndex = '9999';
+        el.style.padding = '7px 10px';
+        el.style.borderRadius = '999px';
+        el.style.fontSize = '11px';
+        el.style.fontWeight = '700';
+        el.style.backdropFilter = 'blur(6px)';
+        el.style.border = '1px solid rgba(15,23,42,0.18)';
+        el.style.boxShadow = '0 6px 18px rgba(15,23,42,0.15)';
+        el.style.maxWidth = '80vw';
+        el.style.whiteSpace = 'nowrap';
+        el.style.overflow = 'hidden';
+        el.style.textOverflow = 'ellipsis';
+        document.body.appendChild(el);
+    }
+    _healthBadgeEl = el;
+    return el;
+}
+
+function _renderHealthBadge_() {
+    const el = _ensureHealthBadge_();
+    const rete = _networkHealthLabel_();
+    const tsLabel = _fmtHealthTime_(_lastDataRefreshAt);
+    const isMobile = window.innerWidth <= 768;
+    el.style.bottom = isMobile ? '72px' : '12px';
+    if (rete === 'offline') {
+        el.style.background = 'rgba(254,226,226,0.92)';
+        el.style.color = '#991b1b';
+    } else if (rete === 'lenta') {
+        el.style.background = 'rgba(254,243,199,0.94)';
+        el.style.color = '#92400e';
+    } else {
+        el.style.background = 'rgba(220,252,231,0.94)';
+        el.style.color = '#14532d';
+    }
+    el.textContent = 'Rete: ' + rete + ' | Agg: ' + tsLabel;
+}
+
+function _markDataFresh_(ts) {
+    _lastDataRefreshAt = Number(ts) || Date.now();
+    _renderHealthBadge_();
+}
+
+function _initHealthBadge_() {
+    _ensureHealthBadge_();
+    _renderHealthBadge_();
+    window.addEventListener('online', _renderHealthBadge_);
+    window.addEventListener('offline', _renderHealthBadge_);
+    window.addEventListener('resize', _renderHealthBadge_);
+    const c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if (c && typeof c.addEventListener === 'function') {
+        c.addEventListener('change', _renderHealthBadge_);
+    }
+}
+
 function _getSessionToken_() {
     // Delegato a modules/core/session.js
     return getSessionToken();
@@ -453,6 +538,7 @@ function _initModuliENaviga_() {
     const _pollerConf = {
         onRemoteChange: function(nomeUtente) {
             notificaElegante('\uD83D\uDD04 ' + nomeUtente + ' ha aggiornato i dati');
+            _markDataFresh_(Date.now());
             switch (paginaAttuale) {
                 case 'PROGRAMMA PRODUZIONE DEL MESE':
                     caricaSezioneConCache('PROGRAMMA_PRODUZIONE', _fetchDatiProduzione, _renderDatiProduzione, true)
@@ -478,6 +564,8 @@ function _initModuliENaviga_() {
     };
     configurePoller(_pollerConf);
     RevisionPoller.start();
+    _initHealthBadge_();
+    _markDataFresh_(Date.now());
 
     let paginaSalvata = null;
     try { paginaSalvata = localStorage.getItem('ultimaPaginaProduzione'); } catch (_e) {}
@@ -875,6 +963,7 @@ async function cambiaPagina(nomeFoglio, elementoMenu) {
 
     if (cacheContenuti[nomeFoglio]) {
         contenitore.innerHTML = cacheContenuti[nomeFoglio];
+        _markDataFresh_(cacheFetchTime[nomeFoglio] || Date.now());
         applicaFade(contenitore);
         aggiornaListaFiltrabili();
         // Riattiva DnD kanban dopo restore da cache
