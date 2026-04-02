@@ -954,10 +954,80 @@ function cambiaVistaUtente(valoreSelezionato) {
     // Ricarichiamo la pagina per aggiornare bolle e filtri
     caricaRichieste();
 }
+// ─── Sync Richieste → Produzione ────────────────────────────────────────────
+/**
+ * Pulisce ottimisticamente l'assegnazione dal DOM di Produzione (se caricato)
+ * e aggiorna _attiviProd in-memory.
+ */
+function _clearAssegnazioneProduzione(nOrd) {
+    if (!nOrd) return;
+    // Aggiorna _attiviProd in-memory via funzione esposta da produzione.js
+    if (typeof window._setAssegnaLocalByOrdine === 'function') {
+        window._setAssegnaLocalByOrdine(nOrd, '');
+    }
+    // Aggiorna il DOM della pagina Produzione se l'ordine è attualmente nel DOM
+    const wrapper = document.querySelector(`.ordine-wrapper[data-ordine="${CSS.escape(nOrd)}"]`);
+    if (wrapper) {
+        // Celle singola riga: visualizza-operatori e op-dropdown
+        wrapper.querySelectorAll('.visualizza-operatori').forEach(cont => {
+            cont.dataset.assegna = '';
+            cont.innerHTML = '<span class="operatore-libero">Libero</span>';
+        });
+        wrapper.querySelectorAll('.op-dropdown[data-id-riga]').forEach(d => {
+            d.dataset.assegna = '';
+            const lbl = d.querySelector('.op-trigger-label');
+            if (lbl) lbl.textContent = 'Libero';
+            d.querySelectorAll('.op-option').forEach(o => {
+                o.classList.remove('is-selected');
+                o.querySelector('.op-check-icon')?.remove();
+            });
+        });
+        // Header ordine: op-dropdown-ord
+        const headDd = wrapper.querySelector('.op-dropdown-ord');
+        if (headDd) {
+            headDd.dataset.assegnaOrd = '';
+            const lbl = headDd.querySelector('.op-trigger-label');
+            if (lbl) lbl.textContent = 'Libero';
+            headDd.querySelectorAll('.op-option').forEach(o => {
+                o.classList.remove('is-selected');
+                o.querySelector('.op-check-icon')?.remove();
+            });
+        }
+    }
+    // Refresh carico operatori + overview
+    if (typeof window._repaintOpColors === 'function') window._repaintOpColors();
+    if (typeof window._refreshOverview === 'function') window._refreshOverview();
+}
+
+/**
+ * Fire-and-forget: salva assegna='' nel backend per l'ordine specificato.
+ */
+async function _sincronizzaCancellaAssegna(nOrd) {
+    try {
+        const mitt = (utenteAttuale?.nome || '').toUpperCase().trim();
+        await fetch(`${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=&mittente=${encodeURIComponent(mitt)}`);
+    } catch (e) {
+        console.warn('[_sincronizzaCancellaAssegna] Errore:', e);
+    }
+}
+
 async function aggiornaRichiesta(idRiga, tipoAzione, tuttiIds) {
     const contenitore = document.getElementById('contenitore-dati');
     const prevHtml = contenitore ? contenitore.innerHTML : '';
     const optimisticArchive = tipoAzione === 'risolto';
+
+    // Se stiamo archiviando una card ASSEGNAZIONE, ricaviamo l'ordine dal DOM
+    // per sincronizzare anche la pagina Produzione
+    let ordineAssegnazione = null;
+    if (optimisticArchive) {
+        const card = document.querySelector(`.req-card[data-id-riga="${CSS.escape(String(idRiga))}"]`);
+        if (card) {
+            const group = card.closest('.req-group');
+            if (group && group.id === 'rg-assegnazioni') {
+                ordineAssegnazione = card.dataset.ordine || null;
+            }
+        }
+    }
     try {
         const body = { azione: 'aggiorna_richiesta_stato', tipo: tipoAzione };
         if (tipoAzione === 'risolto' && tuttiIds && tuttiIds.length > 1) {
@@ -971,6 +1041,10 @@ async function aggiornaRichiesta(idRiga, tipoAzione, tuttiIds) {
             RevisionPoller.pauseFor(20000);
             _removeRichiestaCardOptimistic(idRiga);
             _persistRichiesteHtmlSnapshot();
+            // Se era un'ASSEGNAZIONE: aggiorna subito anche il DOM di Produzione
+            if (ordineAssegnazione) {
+                _clearAssegnazioneProduzione(ordineAssegnazione);
+            }
         }
         const res = await fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify(body) });
         const r = await res.json();
@@ -978,6 +1052,10 @@ async function aggiornaRichiesta(idRiga, tipoAzione, tuttiIds) {
         if (!r || (r.status !== 'success' && r.status !== 'ok')) throw new Error('Aggiornamento non salvato');
         _invalidaCacheRichieste();
         if (!optimisticArchive) caricaRichieste();
+        // Se era un'ASSEGNAZIONE: cancella assegna nel backend (fire-and-forget)
+        if (ordineAssegnazione) {
+            _sincronizzaCancellaAssegna(ordineAssegnazione);
+        }
     } catch (e) {
         if (optimisticArchive && contenitore && prevHtml) {
             contenitore.innerHTML = prevHtml;

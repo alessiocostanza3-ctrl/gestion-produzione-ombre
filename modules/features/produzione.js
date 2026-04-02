@@ -2337,6 +2337,8 @@ function registerGlobals() {
     window.caricaDati = caricaDati;
     window.caricaArchivio = caricaArchivio;
     window._syncKanbanFromStato = _syncKanbanFromStato;
+    window._setAssegnaLocalByOrdine = _setAssegnaLocalByOrdine;
+    window._refreshOverview = _refreshOverview;
 }
 
 function init() {
