@@ -1137,8 +1137,10 @@ function generaCardRichiesta(msgs, io, isArchiviata) {
 
     // Mittente e destinatario presi dal PRIMO messaggio (le risposte non cambiano il mittente originale)
     const mittenteUnico = _normNome(primo.DA) || '\u2013';
-    // Supporta destinatari multipli separati da virgola (es. "RICCARDO, FABIO T.")
-    const destinatariOriginali = String(primo.A || '').split(',').map(d => _normNome(d.trim())).filter(Boolean);
+    // Raccoglie destinatari da TUTTI i messaggi del thread (retrocompatibile con vecchio formato una-riga-per-op)
+    const destinatariOriginali = [...new Set(
+        msgs.flatMap(m => String(m.A || '').split(',').map(d => _normNome(d.trim())).filter(Boolean))
+    )];
     const destinatariHtml = destinatariOriginali.length > 1
         ? destinatariOriginali.map(d => `<span class="rc-val rc-val-a">${d}</span>`).join('<span style="color:#cbd5e1;margin:0 1px">,</span> ')
         : `<span class="rc-val rc-val-a">${destinatariOriginali[0] || '\u2013'}</span>`;
@@ -1179,9 +1181,10 @@ function generaCardRichiesta(msgs, io, isArchiviata) {
 
             <div class="rc-foot">
                 <span class="rc-date">${formattaData(ultimo["DATA ORA"])}</span>
-                <span class="rc-msgcount">${msgs.length} <i class="fa-regular fa-comment"></i></span>
+                ${!isAssegnazione ? `<span class="rc-msgcount">${msgs.length} <i class="fa-regular fa-comment"></i></span>` : ''}
             </div>
 
+            ${!isAssegnazione ? `
             <button class="rc-expand-btn" onclick="_toggleRcBody('${ultimo.id_riga}', this)" title="Mostra/nascondi messaggi">
                 <i class="fa-solid fa-chevron-down"></i>
                 <span>${msgs.length === 1 ? '1 messaggio' : msgs.length + ' messaggi'}</span>
@@ -1201,7 +1204,7 @@ function generaCardRichiesta(msgs, io, isArchiviata) {
                             </div>
                         </div>`;
                 }).join('')}
-            </div>
+            </div>` : ''}
 
             ${!isArchiviata ? `
                 <div id="box-conferma-${ultimo.id_riga}" class="box-conferma box-hidden">
