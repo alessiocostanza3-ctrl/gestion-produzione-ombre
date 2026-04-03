@@ -245,7 +245,7 @@ function _renderModalForm(mode, data) {
 
     host.innerHTML = `
     <div id="manuali-modal" class="modal-overlay active" style="display:flex;z-index:4500">
-      <div class="modal-content" style="max-width:1280px;max-height:90vh;overflow-y:auto;">
+      <div class="modal-content" style="width:90vw;max-width:1280px;max-height:90vh;overflow-y:auto;">
         <h2 style="margin-bottom:20px">${mode === 'edit' ? 'Modifica manuale' : 'Nuovo manuale'}</h2>
 
         <!-- ① COPERTINA E INFO -->
@@ -485,7 +485,7 @@ function _chiediConferma(messaggio, onConferma) {
     if (existing) existing.remove();
     const overlay = document.createElement('div');
     overlay.id = 'manuali-confirm-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9000;display:flex;align-items:center;justify-content:center';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:11000;display:flex;align-items:center;justify-content:center';
     overlay.innerHTML = `
     <div style="background:#fff;border-radius:16px;padding:28px 32px;max-width:380px;width:90%;box-shadow:0 20px 40px rgba(0,0,0,0.18);text-align:center">
         <div style="font-size:2rem;margin-bottom:12px">🗑️</div>
@@ -708,7 +708,7 @@ function apriManuale(id) {
 
     host.innerHTML = `
     <div id="manuali-modal" class="modal-overlay active" style="display:flex;z-index:4500">
-      <div class="modal-content" style="max-width:1200px;max-height:90vh;overflow:auto;">
+      <div class="modal-content" style="width:90vw;max-width:1200px;max-height:90vh;overflow:auto;">
         <h2>${_esc(m.titolo || '(Senza titolo)')}</h2>
         <p class="text-xs text-slate-500 mb-3">${_esc(m.categoria || 'Generale')} · v${Number(m.version || 1)} · aggiornato ${_esc(_formatTs(m.updatedAt))}</p>
         ${coverHtml}
