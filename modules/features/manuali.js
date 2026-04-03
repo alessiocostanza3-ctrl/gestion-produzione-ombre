@@ -245,7 +245,7 @@ function _renderModalForm(mode, data) {
 
     host.innerHTML = `
     <div id="manuali-modal" class="modal-overlay active" style="display:flex;z-index:4500">
-      <div class="modal-content" style="max-width:960px;max-height:90vh;overflow-y:auto;">
+      <div class="modal-content" style="max-width:1280px;max-height:90vh;overflow-y:auto;">
         <h2 style="margin-bottom:20px">${mode === 'edit' ? 'Modifica manuale' : 'Nuovo manuale'}</h2>
 
         <!-- ① COPERTINA E INFO -->
@@ -480,7 +480,26 @@ function chiudiFormManuale() {
     _activeModalId = null;
 }
 
-// ─── CRUD sezioni ────────────────────────────────────────────────────────────────
+function _chiediConferma(messaggio, onConferma) {
+    const existing = document.getElementById('manuali-confirm-overlay');
+    if (existing) existing.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'manuali-confirm-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9000;display:flex;align-items:center;justify-content:center';
+    overlay.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:28px 32px;max-width:380px;width:90%;box-shadow:0 20px 40px rgba(0,0,0,0.18);text-align:center">
+        <div style="font-size:2rem;margin-bottom:12px">🗑️</div>
+        <p style="font-size:.95rem;font-weight:600;color:#1e293b;margin-bottom:20px">${messaggio}</p>
+        <div style="display:flex;gap:10px;justify-content:center">
+            <button id="manuali-confirm-no" class="btn-modal-cancel" style="min-width:100px">Annulla</button>
+            <button id="manuali-confirm-si" class="btn-modal-send" style="min-width:100px;background:#ef4444">Elimina</button>
+        </div>
+    </div>`;
+    document.body.appendChild(overlay);
+    document.getElementById('manuali-confirm-no').onclick = function() { overlay.remove(); };
+    document.getElementById('manuali-confirm-si').onclick = function() { overlay.remove(); onConferma(); };
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+}
 
 function _reindexSection(containerSel, itemSel, attrName, removeFn, reindexFileOnchange) {
     const root = document.querySelector(containerSel);
@@ -505,9 +524,11 @@ function aggiungiSchedaRow() {
 }
 
 function rimuoviSchedaRow(idx) {
-    const row = document.querySelector(`.scheda-row[data-row-idx="${idx}"]`);
-    if (row) row.remove();
-    _reindexSection('#manuali-scheda-edit', '.scheda-row', 'data-row-idx', 'rimuoviSchedaRow', null);
+    _chiediConferma('Eliminare questa voce dalla scheda tecnica?', function() {
+        const row = document.querySelector(`.scheda-row[data-row-idx="${idx}"]`);
+        if (row) row.remove();
+        _reindexSection('#manuali-scheda-edit', '.scheda-row', 'data-row-idx', 'rimuoviSchedaRow', null);
+    });
 }
 
 function aggiungiOccorrenteItem() {
@@ -520,9 +541,11 @@ function aggiungiOccorrenteItem() {
 }
 
 function rimuoviOccorrenteItem(idx) {
-    const item = document.querySelector(`.occorrente-item[data-item-idx="${idx}"]`);
-    if (item) item.remove();
-    _reindexSection('#manuali-occorrente-edit', '.occorrente-item', 'data-item-idx', 'rimuoviOccorrenteItem', 'cambiaFotoOccorrente');
+    _chiediConferma('Eliminare questo elemento dal materiale occorrente?', function() {
+        const item = document.querySelector(`.occorrente-item[data-item-idx="${idx}"]`);
+        if (item) item.remove();
+        _reindexSection('#manuali-occorrente-edit', '.occorrente-item', 'data-item-idx', 'rimuoviOccorrenteItem', 'cambiaFotoOccorrente');
+    });
 }
 
 function aggiungiProcStep() {
@@ -534,18 +557,20 @@ function aggiungiProcStep() {
 }
 
 function rimuoviProcStep(idx) {
-    const step = document.querySelector(`.proc-step[data-step-idx="${idx}"]`);
-    if (step) step.remove();
-    const root = document.getElementById('manuali-proc-edit');
-    if (!root) return;
-    root.querySelectorAll('.proc-step').forEach(function(el, i) {
-        el.setAttribute('data-step-idx', String(i));
-        const title = el.querySelector('h4');
-        if (title) title.textContent = 'Step ' + (i + 1);
-        const del = el.querySelector('button');
-        if (del) del.setAttribute('onclick', `rimuoviProcStep(${i})`);
-        const inp = el.querySelector('input[type="file"]');
-        if (inp) inp.setAttribute('onchange', `cambiaFotoProcedimento(this, ${i})`);
+    _chiediConferma('Eliminare questo step del procedimento?', function() {
+        const step = document.querySelector(`.proc-step[data-step-idx="${idx}"]`);
+        if (step) step.remove();
+        const root = document.getElementById('manuali-proc-edit');
+        if (!root) return;
+        root.querySelectorAll('.proc-step').forEach(function(el, i) {
+            el.setAttribute('data-step-idx', String(i));
+            const title = el.querySelector('h4');
+            if (title) title.textContent = 'Step ' + (i + 1);
+            const del = el.querySelector('button');
+            if (del) del.setAttribute('onclick', `rimuoviProcStep(${i})`);
+            const inp = el.querySelector('input[type="file"]');
+            if (inp) inp.setAttribute('onchange', `cambiaFotoProcedimento(this, ${i})`);
+        });
     });
 }
 
@@ -683,7 +708,7 @@ function apriManuale(id) {
 
     host.innerHTML = `
     <div id="manuali-modal" class="modal-overlay active" style="display:flex;z-index:4500">
-      <div class="modal-content" style="max-width:920px;max-height:90vh;overflow:auto;">
+      <div class="modal-content" style="max-width:1200px;max-height:90vh;overflow:auto;">
         <h2>${_esc(m.titolo || '(Senza titolo)')}</h2>
         <p class="text-xs text-slate-500 mb-3">${_esc(m.categoria || 'Generale')} · v${Number(m.version || 1)} · aggiornato ${_esc(_formatTs(m.updatedAt))}</p>
         ${coverHtml}
