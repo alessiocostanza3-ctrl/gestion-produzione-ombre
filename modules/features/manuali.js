@@ -65,6 +65,12 @@ function _imgPreviewHtml(src, alt) {
     return `<div class="text-xs text-slate-400" style="margin-bottom:6px">Nessuna foto</div>`;
 }
 
+function _fileInputHtml(onchange) {
+    return `
+    <input type="file" class="manuale-file-input" accept="image/*" onchange="${onchange}">
+    <label class="manuale-file-label" onclick="this.previousElementSibling.click()"><i class="fas fa-upload"></i> Carica foto</label>`;
+}
+
 function _buildManualeCard(m) {
     const sections = _getSections(m);
     const procCount = sections
@@ -161,7 +167,7 @@ function _makeOccorrenteItem(item, idx) {
             <button type="button" class="${window.TW?.btnDanger || ''}" onclick="rimuoviOccorrenteItem(${idx})" title="Rimuovi"><i class="fas fa-trash"></i></button>
         </div>
         ${_imgPreviewHtml(foto, `occ-${idx}`)}
-        <input type="file" accept="image/*" onchange="cambiaFotoOccorrente(this, ${idx})">
+        ${_fileInputHtml(`cambiaFotoOccorrente(this, ${idx})`)}
     </div>`;
 }
 
@@ -174,8 +180,8 @@ function _makeProcStep(proc, idx) {
             <button type="button" class="${window.TW?.btnDanger || ''}" onclick="rimuoviProcStep(${idx})"><i class="fas fa-trash"></i></button>
         </div>
         ${_imgPreviewHtml(foto, `proc-${idx}`)}
-        <input type="file" accept="image/*" onchange="cambiaFotoProcedimento(this, ${idx})" style="margin-bottom:6px">
-        <textarea class="input-field-modern" data-field="descrizione" rows="3" placeholder="Descrizione del passaggio...">${_esc((proc && proc.descrizione) || '')}</textarea>
+        ${_fileInputHtml(`cambiaFotoProcedimento(this, ${idx})`)}
+        <textarea class="input-field-modern" data-field="descrizione" rows="3" style="margin-top:8px" placeholder="Descrizione del passaggio...">${_esc((proc && proc.descrizione) || '')}</textarea>
     </div>`;
 }
 
@@ -184,7 +190,7 @@ function _makeDisegnoSection(foto) {
     return `
     <div id="manuali-disegno-wrap"${safe ? ` data-foto="${_esc(safe)}"` : ''} class="border border-slate-200 rounded-xl p-3 bg-white">
         ${_imgPreviewHtml(safe, 'disegno-tecnico')}
-        <input type="file" accept="image/*" onchange="cambiaFotoDisegno(this)">
+        ${_fileInputHtml('cambiaFotoDisegno(this)')}
     </div>`;
 }
 
@@ -258,7 +264,7 @@ function _renderModalForm(mode, data) {
           <label class="modal-label">Immagine di copertina</label>
           <div id="manuali-copertina-wrap"${coverImg ? ` data-copertina="${_esc(coverImg)}"` : ''}>
             ${coverPreview}
-            <input type="file" accept="image/*" onchange="cambiaCopertina(this)">
+            ${_fileInputHtml('cambiaCopertina(this)')}
           </div>
         </div>
 
@@ -390,10 +396,7 @@ async function cambiaCopertina(inputEl) {
             newImg.id = 'manuali-copertina-preview';
             newImg.src = resized;
             newImg.alt = 'copertina';
-            newImg.style.maxWidth = '100%';
-            newImg.style.maxHeight = '200px';
-            newImg.style.borderRadius = '10px';
-            newImg.style.border = '1px solid #e2e8f0';
+            newImg.style.cssText = 'max-width:100%;max-height:200px;border-radius:10px;border:1px solid #e2e8f0;display:block;margin-bottom:6px';
             wrap.insertBefore(newImg, wrap.firstChild);
         }
     } catch (_) {
@@ -426,8 +429,8 @@ function _setFotoOnWrap(wrap, resized) {
         const newImg = document.createElement('img');
         newImg.src = resized;
         newImg.style.cssText = 'max-width:100%;max-height:180px;border-radius:10px;border:1px solid #e2e8f0;display:block;margin-bottom:6px';
-        const fileInput = wrap.querySelector('input[type="file"]');
-        wrap.insertBefore(newImg, fileInput);
+        const anchor = wrap.querySelector('.manuale-file-input') || wrap.querySelector('input[type="file"]');
+        wrap.insertBefore(newImg, anchor);
     }
 }
 

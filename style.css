@@ -7722,6 +7722,33 @@ body.page-pip #rotate-overlay { display: none !important; }
     background: #f1f5f9;
 }
 .pip-reso-bom-hint { font-weight: 400; color: #94a3b8; text-transform: none; letter-spacing: 0; }
+
+/* ─── Manuali: file input stilato ────────────────────────────────────────── */
+.manuale-file-input { display: none; }
+
+.manuale-file-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 16px;
+    background: #242424;
+    color: #ffffff;
+    border: none;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+    user-select: none;
+    margin-top: 6px;
+}
+.manuale-file-label:hover {
+    background: #ffffff;
+    color: #242424;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+}
+.manuale-file-label i { font-size: 12px; }
 .pip-reso-bom-list {
     max-height: 180px; overflow-y: auto;
     display: flex; flex-direction: column;
