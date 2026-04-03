@@ -17,6 +17,24 @@ const MAX_SCHEDA_ROWS = 30;
 const MAX_OCCORRENTE = 20;
 const MAX_IMG_DATA_LEN = 1_200_000;
 
+const SCHEDA_VOCI_STANDARD = [
+    'Dimensione della sfera',
+    'Finiture',
+    'Ottiche',
+    'Grado di Protezione IP',
+    'Tipologia di installazione',
+    'Potenza assorbita',
+    'Alimentazione',
+    'Dimmerazione',
+    'Temperatura colore',
+    'Indice di resa cromatica',
+    'Tolleranza cromatica',
+    'Flusso luminoso',
+    'Efficienza luminosa',
+    'Mantenimento del flusso luminoso',
+    'Temperatura di esercizio'
+];
+
 let _manuali = [];
 let _manualiById = {};
 let _activeModalId = null;
@@ -112,11 +130,22 @@ function _renderLista() {
 
 // ─── Editor sezioni ─────────────────────────────────────────────────────────────
 
-function _makeSchedaRow(voce, valore, idx) {
+// Riga standard: etichetta fissa a sinistra, solo valore editabile a destra
+function _makeSchedaRowStandard(voce, valore, idx) {
     return `
-    <div class="scheda-row" data-row-idx="${idx}" style="display:grid;grid-template-columns:1fr 1fr 36px;gap:6px;align-items:center">
-        <input type="text" class="input-field-modern" data-field="voce" placeholder="Caratteristica (es. Potenza)" value="${_esc(voce || '')}">
-        <input type="text" class="input-field-modern" data-field="valore" placeholder="Valore (es. 8W)" value="${_esc(valore || '')}">
+    <div class="scheda-row" data-row-idx="${idx}" data-voce="${_esc(voce)}" style="display:grid;grid-template-columns:1fr 1fr 36px;gap:6px;align-items:center">
+        <span style="padding:8px 10px;font-size:.875rem;font-weight:500;color:#334155">${_esc(voce)}</span>
+        <input type="text" class="input-field-modern" data-field="valore" placeholder="Valore" value="${_esc(valore || '')}">
+        <button type="button" class="${window.TW?.btnDanger || ''}" onclick="rimuoviSchedaRow(${idx})" title="Rimuovi"><i class="fas fa-trash"></i></button>
+    </div>`;
+}
+
+// Riga custom: entrambi i campi editabili (aggiunta manuale)
+function _makeSchedaRowCustom(voce, valore, idx) {
+    return `
+    <div class="scheda-row scheda-row-custom" data-row-idx="${idx}" style="display:grid;grid-template-columns:1fr 1fr 36px;gap:6px;align-items:center">
+        <input type="text" class="input-field-modern" data-field="voce" placeholder="Caratteristica aggiuntiva" value="${_esc(voce || '')}">
+        <input type="text" class="input-field-modern" data-field="valore" placeholder="Valore" value="${_esc(valore || '')}">
         <button type="button" class="${window.TW?.btnDanger || ''}" onclick="rimuoviSchedaRow(${idx})" title="Rimuovi"><i class="fas fa-trash"></i></button>
     </div>`;
 }
@@ -177,9 +206,22 @@ function _renderModalForm(mode, data) {
     // Sezione 5: Disegno Tecnico
     const dtFoto = sections ? (sections.disegnoTecnico?.foto || '') : '';
 
-    const schedaRows = st.length > 0
-        ? st.map(function(r, i) { return _makeSchedaRow(r.voce, r.valore, i); }).join('')
-        : _makeSchedaRow('', '', 0);
+    // Costruisci scheda: prima le voci standard (con valore salvato se esiste), poi le custom
+    const savedMap = {};
+    const customRows = [];
+    st.forEach(function(r) {
+        if (SCHEDA_VOCI_STANDARD.includes(r.voce)) {
+            savedMap[r.voce] = r.valore;
+        } else {
+            customRows.push(r);
+        }
+    });
+    let _ri = 0;
+    const schedaRows = SCHEDA_VOCI_STANDARD.map(function(voce) {
+        return _makeSchedaRowStandard(voce, savedMap[voce] || '', _ri++);
+    }).join('') + customRows.map(function(r) {
+        return _makeSchedaRowCustom(r.voce, r.valore, _ri++);
+    }).join('');
     const occItems = occ.length > 0
         ? occ.map(function(o, i) { return _makeOccorrenteItem(o, i); }).join('')
         : _makeOccorrenteItem(null, 0);
@@ -267,7 +309,8 @@ function _collectSectionsFromDom() {
     // Scheda Tecnica
     const schedaTecnica = [];
     document.querySelectorAll('#manuali-scheda-edit .scheda-row').forEach(function(row) {
-        const voce = String(row.querySelector('[data-field="voce"]')?.value || '').trim();
+        // Le righe standard hanno data-voce; le custom hanno un input[data-field="voce"]
+        const voce = String(row.getAttribute('data-voce') || row.querySelector('[data-field="voce"]')?.value || '').trim();
         const valore = String(row.querySelector('[data-field="valore"]')?.value || '').trim();
         if (voce || valore) schedaTecnica.push({ voce: voce, valore: valore });
     });
@@ -455,7 +498,7 @@ function aggiungiSchedaRow() {
     if (!root) return;
     const count = root.querySelectorAll('.scheda-row').length;
     if (count >= MAX_SCHEDA_ROWS) { notificaElegante('Numero massimo voci raggiunto.', 'warning'); return; }
-    root.insertAdjacentHTML('beforeend', _makeSchedaRow('', '', count));
+    root.insertAdjacentHTML('beforeend', _makeSchedaRowCustom('', '', count));
 }
 
 function rimuoviSchedaRow(idx) {
