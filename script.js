@@ -613,7 +613,7 @@ function _initModuliENaviga_() {
     };
     configurePoller(_pollerConf);
     RevisionPoller.start();
-    _initHealthBadge_();
+    // _initHealthBadge_(); // badge rete/orario nascosto su richiesta
     _markDataFresh_(Date.now());
 
     let paginaSalvata = null;
