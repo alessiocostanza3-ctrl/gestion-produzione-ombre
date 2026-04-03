@@ -307,9 +307,10 @@ function _renderOrdineItem(item, isAlessio) {
 async function _toggleOrdinato(idRiga, btn) {
     const row = document.getElementById('oi-' + idRiga);
     if (!row) return;
+    if (row.dataset.fetching === '1') return;
     const wasOrdinato = row.classList.contains('is-ordinato');
     const nuovoStato  = wasOrdinato ? 'IN ATTESA' : 'ORDINATO';
-    btn.disabled = true;
+    row.dataset.fetching = '1';
     RevisionPoller.pauseFor(6000);
     _applyOrdineItemUiState(row, btn, !wasOrdinato);
     _clearOrdiniAcquistiPrefetch();
@@ -326,7 +327,7 @@ async function _toggleOrdinato(idRiga, btn) {
         _persistOrdiniAcquistiSnapshot();
         notificaElegante('Errore aggiornamento', 'error');
     }
-    btn.disabled = false;
+    delete row.dataset.fetching;
 }
 
 /* ─── SEZIONI CATALOGO ───────────────────────────────────────────────────── */
