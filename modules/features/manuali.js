@@ -12,7 +12,9 @@ import {
 } from '../core/repository.js';
 
 const CACHE_KEY = 'MANUALI_PRODOTTI';
-const MAX_STEP = 12;
+const MAX_PROC_STEPS = 20;
+const MAX_SCHEDA_ROWS = 30;
+const MAX_OCCORRENTE = 20;
 const MAX_IMG_DATA_LEN = 1_200_000;
 
 let _manuali = [];
@@ -26,32 +28,30 @@ function _formatTs(ts) {
     return d.toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-function _normalizeSteps(steps) {
-    const arr = Array.isArray(steps) ? steps : [];
-    const out = arr.map(function(s) {
-        return {
-            titolo: String((s && s.titolo) || '').trim(),
-            descrizione: String((s && s.descrizione) || '').trim(),
-            foto: String((s && s.foto) || '').trim()
-        };
-    }).filter(function(s) {
-        return !!(s.titolo || s.descrizione || s.foto);
-    });
-    return out.slice(0, MAX_STEP);
-}
-
 function _safeImgSrc(raw) {
     const src = String(raw || '').trim();
     if (!src) return '';
-
-    // Consenti solo immagini data URL o URL http/https.
     if (/^data:image\/(png|jpe?g|webp|gif);base64,[a-z0-9+/=\s]+$/i.test(src)) return src;
     if (/^https?:\/\/[^\s]+$/i.test(src)) return src;
     return '';
 }
 
+// Restituisce l'oggetto sections se formato v2, null se vecchio formato (steps)
+function _getSections(m) {
+    if (m && m.sections && m.sections._v === 2) return m.sections;
+    return null;
+}
+
+function _imgPreviewHtml(src, alt) {
+    if (src) return `<img src="${src}" alt="${alt}" style="max-width:100%;max-height:180px;border-radius:10px;border:1px solid #e2e8f0;display:block;margin-bottom:6px">`;
+    return `<div class="text-xs text-slate-400" style="margin-bottom:6px">Nessuna foto</div>`;
+}
+
 function _buildManualeCard(m) {
-    const stepsCount = Array.isArray(m.steps) ? m.steps.length : 0;
+    const sections = _getSections(m);
+    const procCount = sections
+        ? (Array.isArray(sections.procedimenti) ? sections.procedimenti.length : 0)
+        : (Array.isArray(m.steps) ? m.steps.length : 0);
     const cover = _safeImgSrc(m.copertina);
     const coverHtml = cover
         ? `<img src="${cover}" alt="copertina" class="w-full h-40 object-cover rounded-t-xl">`
@@ -68,7 +68,7 @@ function _buildManualeCard(m) {
                 <span class="${window.TW?.pill || ''}">v${Number(m.version || 1)}</span>
             </div>
             <div class="mt-3 text-xs text-slate-600 space-y-1">
-                <p><b>Step:</b> ${stepsCount}</p>
+                <p><b>Procedimenti:</b> ${procCount}</p>
                 <p><b>Aggiornato:</b> ${_esc(_formatTs(m.updatedAt))}</p>
                 <p><b>Da:</b> ${_esc(m.updatedBy || '-')}</p>
             </div>
@@ -110,92 +110,191 @@ function _renderLista() {
     window.aggiornaListaFiltrabili?.();
 }
 
-function _makeStepEditor(step, idx) {
-    const title = _esc(step.titolo || '');
-    const desc = _esc(step.descrizione || '');
-    const foto = _safeImgSrc(step.foto);
-    const img = foto ? `<img src="${foto}" alt="step-${idx + 1}" style="max-width:100%;max-height:180px;border-radius:10px;border:1px solid #e2e8f0">` : '<div class="text-xs text-slate-400">Nessuna foto</div>';
+// ─── Editor sezioni ─────────────────────────────────────────────────────────────
 
+function _makeSchedaRow(voce, valore, idx) {
     return `
-    <div class="manuale-step-edit border border-slate-200 rounded-xl p-3 bg-white" data-step-idx="${idx}">
-        <div class="flex items-center justify-between mb-2">
+    <div class="scheda-row" data-row-idx="${idx}" style="display:grid;grid-template-columns:1fr 1fr 36px;gap:6px;align-items:center">
+        <input type="text" class="input-field-modern" data-field="voce" placeholder="Caratteristica (es. Potenza)" value="${_esc(voce || '')}">
+        <input type="text" class="input-field-modern" data-field="valore" placeholder="Valore (es. 8W)" value="${_esc(valore || '')}">
+        <button type="button" class="${window.TW?.btnDanger || ''}" onclick="rimuoviSchedaRow(${idx})" title="Rimuovi"><i class="fas fa-trash"></i></button>
+    </div>`;
+}
+
+function _makeOccorrenteItem(item, idx) {
+    const foto = _safeImgSrc((item && item.foto) || '');
+    return `
+    <div class="occorrente-item border border-slate-200 rounded-xl p-3 bg-white" data-item-idx="${idx}"${foto ? ` data-foto="${_esc(foto)}"` : ''}>
+        <div style="display:grid;grid-template-columns:54px 1fr 1fr 36px;gap:6px;align-items:center;margin-bottom:8px">
+            <input type="text" class="input-field-modern" data-field="lettera" placeholder="A" value="${_esc((item && item.lettera) || '')}" style="text-align:center;font-weight:700">
+            <input type="text" class="input-field-modern" data-field="nome" placeholder="Nome componente" value="${_esc((item && item.nome) || '')}">
+            <input type="text" class="input-field-modern" data-field="codice" placeholder="Codice (es. LB4PIY062B-1)" value="${_esc((item && item.codice) || '')}">
+            <button type="button" class="${window.TW?.btnDanger || ''}" onclick="rimuoviOccorrenteItem(${idx})" title="Rimuovi"><i class="fas fa-trash"></i></button>
+        </div>
+        ${_imgPreviewHtml(foto, `occ-${idx}`)}
+        <input type="file" accept="image/*" onchange="cambiaFotoOccorrente(this, ${idx})">
+    </div>`;
+}
+
+function _makeProcStep(proc, idx) {
+    const foto = _safeImgSrc((proc && proc.foto) || '');
+    return `
+    <div class="proc-step border border-slate-200 rounded-xl p-3 bg-white" data-step-idx="${idx}"${foto ? ` data-foto="${_esc(foto)}"` : ''}>
+        <div class="flex items-center justify-between" style="margin-bottom:8px">
             <h4 class="text-sm font-semibold text-slate-800">Step ${idx + 1}</h4>
-            <button type="button" class="${window.TW?.btnDanger || ''}" onclick="rimuoviStepManuale(${idx})"><i class="fas fa-trash"></i></button>
+            <button type="button" class="${window.TW?.btnDanger || ''}" onclick="rimuoviProcStep(${idx})"><i class="fas fa-trash"></i></button>
         </div>
-        <div class="grid gap-2">
-            <input type="text" class="input-field-modern" placeholder="Titolo step (opzionale)" data-field="titolo" value="${title}">
-            <textarea class="input-field-modern" data-field="descrizione" rows="3" placeholder="Descrizione step">${desc}</textarea>
-            <div class="grid gap-2">
-                ${img}
-                <input type="file" accept="image/*" onchange="cambiaFotoStepManuale(this, ${idx})">
-            </div>
-        </div>
+        ${_imgPreviewHtml(foto, `proc-${idx}`)}
+        <input type="file" accept="image/*" onchange="cambiaFotoProcedimento(this, ${idx})" style="margin-bottom:6px">
+        <textarea class="input-field-modern" data-field="descrizione" rows="3" placeholder="Descrizione del passaggio...">${_esc((proc && proc.descrizione) || '')}</textarea>
+    </div>`;
+}
+
+function _makeDisegnoSection(foto) {
+    const safe = _safeImgSrc(foto || '');
+    return `
+    <div id="manuali-disegno-wrap"${safe ? ` data-foto="${_esc(safe)}"` : ''} class="border border-slate-200 rounded-xl p-3 bg-white">
+        ${_imgPreviewHtml(safe, 'disegno-tecnico')}
+        <input type="file" accept="image/*" onchange="cambiaFotoDisegno(this)">
     </div>`;
 }
 
 function _renderModalForm(mode, data) {
     const host = document.getElementById('manuali-modal-host');
     if (!host) return;
-    const current = data || {
-        id: '',
-        titolo: '',
-        categoria: '',
-        copertina: '',
-        steps: [ { titolo: '', descrizione: '', foto: '' } ]
-    };
 
-    const coverImg = _safeImgSrc(current.copertina);
+    const sections = _getSections(data);
+    // Sezione 2: Scheda Tecnica
+    const st = sections ? (sections.schedaTecnica || []) : [];
+    // Sezione 3: Occorrente
+    const occ = sections ? (sections.occorrente || []) : [];
+    // Sezione 4: Procedimento (con retrocompatibilità steps v1)
+    const proc = sections
+        ? (sections.procedimenti || [])
+        : (Array.isArray(data?.steps) ? data.steps.map(function(s) {
+            return { descrizione: (s.descrizione || s.titolo || ''), foto: s.foto || '' };
+        }) : []);
+    // Sezione 5: Disegno Tecnico
+    const dtFoto = sections ? (sections.disegnoTecnico?.foto || '') : '';
+
+    const schedaRows = st.length > 0
+        ? st.map(function(r, i) { return _makeSchedaRow(r.voce, r.valore, i); }).join('')
+        : _makeSchedaRow('', '', 0);
+    const occItems = occ.length > 0
+        ? occ.map(function(o, i) { return _makeOccorrenteItem(o, i); }).join('')
+        : _makeOccorrenteItem(null, 0);
+    const procSteps = proc.length > 0
+        ? proc.map(function(p, i) { return _makeProcStep(p, i); }).join('')
+        : _makeProcStep(null, 0);
+
+    const coverImg = _safeImgSrc(data?.copertina || '');
     const coverPreview = coverImg
-        ? `<img id="manuali-copertina-preview" src="${coverImg}" alt="copertina" style="max-width:100%;max-height:200px;border-radius:10px;border:1px solid #e2e8f0">`
-        : `<div id="manuali-copertina-preview" class="text-xs text-slate-400">Nessuna copertina</div>`;
+        ? `<img id="manuali-copertina-preview" src="${coverImg}" alt="copertina" style="max-width:100%;max-height:200px;border-radius:10px;border:1px solid #e2e8f0;display:block;margin-bottom:6px">`
+        : `<div id="manuali-copertina-preview" class="text-xs text-slate-400" style="margin-bottom:6px">Nessuna copertina</div>`;
 
-    const stepHtml = (current.steps || []).map(_makeStepEditor).join('');
+    const secTitle = (icon, label) =>
+        `<h3 style="font-weight:700;font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;color:#64748b;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #e2e8f0"><i class="${icon}"></i> &nbsp;${label}</h3>`;
+
     host.innerHTML = `
     <div id="manuali-modal" class="modal-overlay active" style="display:flex;z-index:4500">
-      <div class="modal-content" style="max-width:920px;max-height:90vh;overflow:auto;">
-        <h2>${mode === 'edit' ? 'Modifica manuale' : 'Nuovo manuale'}</h2>
-        <div class="grid gap-2">
-            <label class="modal-label">Titolo manuale</label>
-            <input id="manuali-titolo" class="input-field-modern" type="text" value="${_esc(current.titolo || '')}" placeholder="Es. Installazione Testa LED 500mA">
-            <label class="modal-label">Categoria</label>
-            <input id="manuali-categoria" class="input-field-modern" type="text" value="${_esc(current.categoria || '')}" placeholder="Es. Assemblaggio">
+      <div class="modal-content" style="max-width:960px;max-height:90vh;overflow-y:auto;">
+        <h2 style="margin-bottom:20px">${mode === 'edit' ? 'Modifica manuale' : 'Nuovo manuale'}</h2>
 
-            <label class="modal-label">Immagine di copertina</label>
-            <div id="manuali-copertina-wrap" class="grid gap-2">
-                ${coverPreview}
-                <input type="file" accept="image/*" onchange="cambiaCopertina(this)">
+        <!-- ① COPERTINA E INFO -->
+        <div class="manuale-form-section" style="margin-bottom:22px">
+          ${secTitle('fas fa-image', 'Copertina e info')}
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <div>
+              <label class="modal-label">Titolo manuale *</label>
+              <input id="manuali-titolo" class="input-field-modern" type="text" value="${_esc(data?.titolo || '')}" placeholder="Es. BONA 7/12">
             </div>
+            <div>
+              <label class="modal-label">Categoria</label>
+              <input id="manuali-categoria" class="input-field-modern" type="text" value="${_esc(data?.categoria || '')}" placeholder="Es. Lampade a Picchetto">
+            </div>
+          </div>
+          <label class="modal-label">Immagine di copertina</label>
+          <div id="manuali-copertina-wrap"${coverImg ? ` data-copertina="${_esc(coverImg)}"` : ''}>
+            ${coverPreview}
+            <input type="file" accept="image/*" onchange="cambiaCopertina(this)">
+          </div>
         </div>
 
-        <div class="mt-3 mb-2 flex items-center justify-between">
-            <label class="modal-label" style="margin:0">Step operativi</label>
-            <button type="button" class="${window.TW?.btn || ''}" onclick="aggiungiStepManuale()"><i class="fas fa-plus"></i> Aggiungi step</button>
+        <!-- ② SCHEDA TECNICA -->
+        <div class="manuale-form-section" style="margin-bottom:22px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            ${secTitle('fas fa-table', 'Scheda Tecnica')}
+            <button type="button" class="${window.TW?.btn || ''}" onclick="aggiungiSchedaRow()" style="margin-bottom:10px"><i class="fas fa-plus"></i> Aggiungi voce</button>
+          </div>
+          <div id="manuali-scheda-edit" class="grid gap-2">${schedaRows}</div>
         </div>
-        <div id="manuali-steps-edit" class="grid gap-2">${stepHtml}</div>
+
+        <!-- ③ MATERIALE OCCORRENTE -->
+        <div class="manuale-form-section" style="margin-bottom:22px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            ${secTitle('fas fa-boxes-stacked', 'Materiale Occorrente')}
+            <button type="button" class="${window.TW?.btn || ''}" onclick="aggiungiOccorrenteItem()" style="margin-bottom:10px"><i class="fas fa-plus"></i> Aggiungi</button>
+          </div>
+          <div id="manuali-occorrente-edit" class="grid gap-3">${occItems}</div>
+        </div>
+
+        <!-- ④ PROCEDIMENTO -->
+        <div class="manuale-form-section" style="margin-bottom:22px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            ${secTitle('fas fa-list-check', 'Procedimento')}
+            <button type="button" class="${window.TW?.btn || ''}" onclick="aggiungiProcStep()" style="margin-bottom:10px"><i class="fas fa-plus"></i> Aggiungi step</button>
+          </div>
+          <div id="manuali-proc-edit" class="grid gap-3">${procSteps}</div>
+        </div>
+
+        <!-- ⑤ DISEGNO TECNICO -->
+        <div class="manuale-form-section" style="margin-bottom:22px">
+          ${secTitle('fas fa-drafting-compass', 'Disegno Tecnico')}
+          ${_makeDisegnoSection(dtFoto)}
+        </div>
 
         <div class="modal-actions" style="margin-top:14px;display:flex;gap:10px;justify-content:flex-end;">
-            <button type="button" class="btn-modal-cancel" onclick="chiudiFormManuale()">Annulla</button>
-            <button type="button" class="btn-modal-send" onclick="salvaManualeCorrente()">Salva manuale</button>
+          <button type="button" class="btn-modal-cancel" onclick="chiudiFormManuale()">Annulla</button>
+          <button type="button" class="btn-modal-send" onclick="salvaManualeCorrente()"><i class="fas fa-save"></i> Salva manuale</button>
         </div>
       </div>
     </div>`;
 
-    _activeModalId = mode === 'edit' ? current.id : null;
+    _activeModalId = mode === 'edit' ? (data?.id || null) : null;
 }
 
-function _collectStepsFromDom() {
-    const root = document.getElementById('manuali-steps-edit');
-    if (!root) return [];
-    const boxes = Array.from(root.querySelectorAll('.manuale-step-edit'));
-    return boxes.map(function(box) {
-        return {
-            titolo: String(box.querySelector('[data-field="titolo"]')?.value || '').trim(),
-            descrizione: String(box.querySelector('[data-field="descrizione"]')?.value || '').trim(),
-            foto: String(box.getAttribute('data-foto') || '').trim()
-        };
-    }).filter(function(s) {
-        return !!(s.titolo || s.descrizione || s.foto);
+function _collectSectionsFromDom() {
+    // Scheda Tecnica
+    const schedaTecnica = [];
+    document.querySelectorAll('#manuali-scheda-edit .scheda-row').forEach(function(row) {
+        const voce = String(row.querySelector('[data-field="voce"]')?.value || '').trim();
+        const valore = String(row.querySelector('[data-field="valore"]')?.value || '').trim();
+        if (voce || valore) schedaTecnica.push({ voce: voce, valore: valore });
     });
+
+    // Occorrente
+    const occorrente = [];
+    document.querySelectorAll('#manuali-occorrente-edit .occorrente-item').forEach(function(item) {
+        const lettera = String(item.querySelector('[data-field="lettera"]')?.value || '').trim();
+        const nome = String(item.querySelector('[data-field="nome"]')?.value || '').trim();
+        const codice = String(item.querySelector('[data-field="codice"]')?.value || '').trim();
+        const foto = String(item.getAttribute('data-foto') || '').trim();
+        if (lettera || nome || codice || foto) occorrente.push({ lettera: lettera, nome: nome, codice: codice, foto: foto });
+    });
+
+    // Procedimenti
+    const procedimenti = [];
+    document.querySelectorAll('#manuali-proc-edit .proc-step').forEach(function(step) {
+        const descrizione = String(step.querySelector('[data-field="descrizione"]')?.value || '').trim();
+        const foto = String(step.getAttribute('data-foto') || '').trim();
+        if (descrizione || foto) procedimenti.push({ descrizione: descrizione, foto: foto });
+    });
+
+    // Disegno Tecnico
+    const dtWrap = document.getElementById('manuali-disegno-wrap');
+    const disegnoTecnico = { foto: String(dtWrap?.getAttribute('data-foto') || '').trim() };
+
+    return { _v: 2, schedaTecnica: schedaTecnica, occorrente: occorrente, procedimenti: procedimenti, disegnoTecnico: disegnoTecnico };
 }
 
 async function _toBase64(file) {
@@ -259,37 +358,61 @@ async function cambiaCopertina(inputEl) {
     }
 }
 
-async function cambiaFotoStepManuale(inputEl, idx) {
+async function _handleImageUpload(file, onSuccess) {
     try {
-        const file = inputEl?.files && inputEl.files[0];
-        if (!file) return;
         const b64 = await _toBase64(file);
         const resized = await _resizeFotoBase64(b64, 900);
         if (!resized || resized.length > MAX_IMG_DATA_LEN) {
             notificaElegante('Immagine troppo grande, riduci la risoluzione.', 'warning');
             return;
         }
-        const box = document.querySelector(`.manuale-step-edit[data-step-idx="${idx}"]`);
-        if (!box) return;
-        box.setAttribute('data-foto', resized);
-        const img = box.querySelector('img');
-        if (img) img.src = resized;
-        else {
-            const wrap = box.querySelector('.grid.gap-2');
-            if (wrap) {
-                const top = document.createElement('img');
-                top.src = resized;
-                top.alt = 'preview-step';
-                top.style.maxWidth = '100%';
-                top.style.maxHeight = '180px';
-                top.style.borderRadius = '10px';
-                top.style.border = '1px solid #e2e8f0';
-                wrap.insertBefore(top, wrap.firstChild);
-            }
-        }
+        onSuccess(resized);
     } catch (_) {
         notificaElegante('Errore nel caricamento immagine.', 'error');
     }
+}
+
+function _setFotoOnWrap(wrap, resized) {
+    wrap.setAttribute('data-foto', resized);
+    let img = wrap.querySelector('img');
+    if (img) {
+        img.src = resized;
+    } else {
+        const placeholder = wrap.querySelector('div.text-xs');
+        if (placeholder) placeholder.remove();
+        const newImg = document.createElement('img');
+        newImg.src = resized;
+        newImg.style.cssText = 'max-width:100%;max-height:180px;border-radius:10px;border:1px solid #e2e8f0;display:block;margin-bottom:6px';
+        const fileInput = wrap.querySelector('input[type="file"]');
+        wrap.insertBefore(newImg, fileInput);
+    }
+}
+
+async function cambiaFotoOccorrente(inputEl, idx) {
+    const file = inputEl?.files && inputEl.files[0];
+    if (!file) return;
+    await _handleImageUpload(file, function(resized) {
+        const item = document.querySelector(`.occorrente-item[data-item-idx="${idx}"]`);
+        if (item) _setFotoOnWrap(item, resized);
+    });
+}
+
+async function cambiaFotoProcedimento(inputEl, idx) {
+    const file = inputEl?.files && inputEl.files[0];
+    if (!file) return;
+    await _handleImageUpload(file, function(resized) {
+        const step = document.querySelector(`.proc-step[data-step-idx="${idx}"]`);
+        if (step) _setFotoOnWrap(step, resized);
+    });
+}
+
+async function cambiaFotoDisegno(inputEl) {
+    const file = inputEl?.files && inputEl.files[0];
+    if (!file) return;
+    await _handleImageUpload(file, function(resized) {
+        const wrap = document.getElementById('manuali-disegno-wrap');
+        if (wrap) _setFotoOnWrap(wrap, resized);
+    });
 }
 
 function apriFormManuale(id) {
@@ -302,26 +425,7 @@ function apriFormManuale(id) {
         notificaElegante('Manuale non trovato.', 'warning');
         return;
     }
-    _renderModalForm('edit', {
-        id: m.id,
-        titolo: m.titolo,
-        categoria: m.categoria,
-        copertina: m.copertina || '',
-        steps: (m.steps || []).map(function(s) {
-            return { titolo: s.titolo || '', descrizione: s.descrizione || '', foto: s.foto || '' };
-        })
-    });
-
-    // Salva copertina nel data-attribute del wrapper
-    const coverWrap = document.getElementById('manuali-copertina-wrap');
-    const safeCover = _safeImgSrc(m.copertina);
-    if (coverWrap && safeCover) coverWrap.setAttribute('data-copertina', safeCover);
-
-    const boxes = Array.from(document.querySelectorAll('.manuale-step-edit'));
-    boxes.forEach(function(box, idx) {
-        const foto = _safeImgSrc((m.steps && m.steps[idx] && m.steps[idx].foto) || '');
-        if (foto) box.setAttribute('data-foto', foto);
-    });
+    _renderModalForm('edit', m);
 }
 
 function chiudiFormManuale() {
@@ -330,33 +434,72 @@ function chiudiFormManuale() {
     _activeModalId = null;
 }
 
-function aggiungiStepManuale() {
-    const root = document.getElementById('manuali-steps-edit');
+// ─── CRUD sezioni ────────────────────────────────────────────────────────────────
+
+function _reindexSection(containerSel, itemSel, attrName, removeFn, reindexFileOnchange) {
+    const root = document.querySelector(containerSel);
     if (!root) return;
-    const count = root.querySelectorAll('.manuale-step-edit').length;
-    if (count >= MAX_STEP) {
-        notificaElegante('Hai raggiunto il massimo numero di step.', 'warning');
-        return;
-    }
-    root.insertAdjacentHTML('beforeend', _makeStepEditor({ titolo: '', descrizione: '', foto: '' }, count));
+    root.querySelectorAll(itemSel).forEach(function(el, i) {
+        el.setAttribute(attrName, String(i));
+        const del = el.querySelector('button');
+        if (del) del.setAttribute('onclick', `${removeFn}(${i})`);
+        if (reindexFileOnchange) {
+            const inp = el.querySelector('input[type="file"]');
+            if (inp) inp.setAttribute('onchange', `${reindexFileOnchange}(this, ${i})`);
+        }
+    });
 }
 
-function rimuoviStepManuale(idx) {
-    const box = document.querySelector(`.manuale-step-edit[data-step-idx="${idx}"]`);
-    if (!box) return;
-    box.remove();
-
-    const root = document.getElementById('manuali-steps-edit');
+function aggiungiSchedaRow() {
+    const root = document.getElementById('manuali-scheda-edit');
     if (!root) return;
-    const all = Array.from(root.querySelectorAll('.manuale-step-edit'));
-    all.forEach(function(el, i) {
+    const count = root.querySelectorAll('.scheda-row').length;
+    if (count >= MAX_SCHEDA_ROWS) { notificaElegante('Numero massimo voci raggiunto.', 'warning'); return; }
+    root.insertAdjacentHTML('beforeend', _makeSchedaRow('', '', count));
+}
+
+function rimuoviSchedaRow(idx) {
+    const row = document.querySelector(`.scheda-row[data-row-idx="${idx}"]`);
+    if (row) row.remove();
+    _reindexSection('#manuali-scheda-edit', '.scheda-row', 'data-row-idx', 'rimuoviSchedaRow', null);
+}
+
+function aggiungiOccorrenteItem() {
+    const root = document.getElementById('manuali-occorrente-edit');
+    if (!root) return;
+    const count = root.querySelectorAll('.occorrente-item').length;
+    if (count >= MAX_OCCORRENTE) { notificaElegante('Numero massimo elementi raggiunto.', 'warning'); return; }
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    root.insertAdjacentHTML('beforeend', _makeOccorrenteItem({ lettera: letters[count] || '', nome: '', codice: '', foto: '' }, count));
+}
+
+function rimuoviOccorrenteItem(idx) {
+    const item = document.querySelector(`.occorrente-item[data-item-idx="${idx}"]`);
+    if (item) item.remove();
+    _reindexSection('#manuali-occorrente-edit', '.occorrente-item', 'data-item-idx', 'rimuoviOccorrenteItem', 'cambiaFotoOccorrente');
+}
+
+function aggiungiProcStep() {
+    const root = document.getElementById('manuali-proc-edit');
+    if (!root) return;
+    const count = root.querySelectorAll('.proc-step').length;
+    if (count >= MAX_PROC_STEPS) { notificaElegante('Numero massimo step raggiunto.', 'warning'); return; }
+    root.insertAdjacentHTML('beforeend', _makeProcStep(null, count));
+}
+
+function rimuoviProcStep(idx) {
+    const step = document.querySelector(`.proc-step[data-step-idx="${idx}"]`);
+    if (step) step.remove();
+    const root = document.getElementById('manuali-proc-edit');
+    if (!root) return;
+    root.querySelectorAll('.proc-step').forEach(function(el, i) {
         el.setAttribute('data-step-idx', String(i));
         const title = el.querySelector('h4');
         if (title) title.textContent = 'Step ' + (i + 1);
-        const input = el.querySelector('input[type="file"]');
-        if (input) input.setAttribute('onchange', `cambiaFotoStepManuale(this, ${i})`);
         const del = el.querySelector('button');
-        if (del) del.setAttribute('onclick', `rimuoviStepManuale(${i})`);
+        if (del) del.setAttribute('onclick', `rimuoviProcStep(${i})`);
+        const inp = el.querySelector('input[type="file"]');
+        if (inp) inp.setAttribute('onchange', `cambiaFotoProcedimento(this, ${i})`);
     });
 }
 
@@ -364,14 +507,10 @@ async function salvaManualeCorrente() {
     const titolo = String(document.getElementById('manuali-titolo')?.value || '').trim();
     const categoria = String(document.getElementById('manuali-categoria')?.value || '').trim();
     const copertina = String(document.getElementById('manuali-copertina-wrap')?.getAttribute('data-copertina') || '').trim();
-    const steps = _normalizeSteps(_collectStepsFromDom());
+    const sections = _collectSectionsFromDom();
 
     if (!titolo) {
         notificaElegante('Inserisci un titolo manuale.', 'warning');
-        return;
-    }
-    if (!steps.length) {
-        notificaElegante('Inserisci almeno uno step valido.', 'warning');
         return;
     }
 
@@ -379,9 +518,9 @@ async function salvaManualeCorrente() {
         notificaElegante('Salvataggio manuale in corso...', 'info');
         let res;
         if (_activeModalId) {
-            res = await updateManuale({ id: _activeModalId, titolo: titolo, categoria: categoria, copertina: copertina, steps: steps });
+            res = await updateManuale({ id: _activeModalId, titolo: titolo, categoria: categoria, copertina: copertina, sections: sections });
         } else {
-            res = await createManuale({ titolo: titolo, categoria: categoria, copertina: copertina, steps: steps });
+            res = await createManuale({ titolo: titolo, categoria: categoria, copertina: copertina, sections: sections });
         }
 
         if (!res || res.status !== 'ok') {
@@ -403,35 +542,106 @@ function apriManuale(id) {
     const m = _manualiById[id];
     if (!m) return;
 
-    const stepsHtml = (m.steps || []).map(function(step, idx) {
-        const safeStepImg = _safeImgSrc(step.foto);
-        const img = safeStepImg
-            ? `<img src="${safeStepImg}" alt="step-${idx + 1}" style="max-width:100%;border-radius:10px;border:1px solid #e2e8f0">`
-            : '<div class="text-xs text-slate-400">Nessuna immagine</div>';
-        return `
-        <details class="border border-slate-200 rounded-xl p-3 bg-white" ${idx === 0 ? 'open' : ''}>
-            <summary class="cursor-pointer font-semibold text-slate-800">Step ${idx + 1}${step.titolo ? ' - ' + _esc(step.titolo) : ''}</summary>
-            <div class="mt-2 grid gap-2">
-                ${img}
-                <p class="text-sm text-slate-700">${_esc(step.descrizione || '-')}</p>
-            </div>
-        </details>`;
-    }).join('');
-
-    const coverDetail = _safeImgSrc(m.copertina);
-    const coverDetailHtml = coverDetail
-        ? `<img src="${coverDetail}" alt="copertina" style="max-width:100%;max-height:260px;border-radius:10px;border:1px solid #e2e8f0;margin-bottom:12px">`
-        : '';
-
     const host = document.getElementById('manuali-modal-host');
     if (!host) return;
+
+    const coverDetail = _safeImgSrc(m.copertina);
+    const coverHtml = coverDetail
+        ? `<img src="${coverDetail}" alt="copertina" style="max-width:100%;max-height:260px;border-radius:10px;border:1px solid #e2e8f0;margin-bottom:16px">`
+        : '';
+
+    const secLabel = (icon, label) =>
+        `<h3 style="font-weight:700;font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;color:#64748b;margin:18px 0 8px;padding-bottom:6px;border-bottom:2px solid #e2e8f0"><i class="${icon}"></i> &nbsp;${label}</h3>`;
+
+    const sections = _getSections(m);
+    let contentHtml = '';
+
+    if (sections) {
+        // ── Scheda Tecnica ──
+        const schedaRows = (sections.schedaTecnica || []).map(function(r) {
+            return `<tr>
+                <td style="padding:7px 10px;font-weight:500;color:#334155;border-bottom:1px solid #f1f5f9">${_esc(r.voce || '')}</td>
+                <td style="padding:7px 10px;color:#64748b;border-bottom:1px solid #f1f5f9">${_esc(r.valore || '')}</td>
+            </tr>`;
+        }).join('');
+        if (schedaRows) {
+            contentHtml += secLabel('fas fa-table', 'Scheda Tecnica') + `
+            <table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden">
+                <thead><tr style="background:#f8fafc">
+                    <th style="padding:7px 10px;text-align:left;font-size:.75rem;color:#94a3b8;font-weight:600">Caratteristica</th>
+                    <th style="padding:7px 10px;text-align:left;font-size:.75rem;color:#94a3b8;font-weight:600">Valore</th>
+                </tr></thead>
+                <tbody>${schedaRows}</tbody>
+            </table>`;
+        }
+
+        // ── Occorrente ──
+        const occItems = (sections.occorrente || []).map(function(o) {
+            const fotoSafe = _safeImgSrc(o.foto || '');
+            return `<div style="padding:10px;border:1px solid #e2e8f0;border-radius:10px;background:#fff">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:${fotoSafe ? '8px' : '0'}">
+                    <span style="min-width:28px;height:28px;border-radius:50%;background:#1e293b;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem">${_esc(o.lettera || '')}</span>
+                    <div>
+                        <strong class="text-sm">${_esc(o.nome || '')}</strong>
+                        ${o.codice ? `<br><span class="text-xs text-slate-400">${_esc(o.codice)}</span>` : ''}
+                    </div>
+                </div>
+                ${fotoSafe ? `<img src="${fotoSafe}" alt="occ" style="max-width:100%;max-height:140px;border-radius:8px;border:1px solid #e2e8f0">` : ''}
+            </div>`;
+        }).join('');
+        if (occItems) {
+            contentHtml += secLabel('fas fa-boxes-stacked', 'Materiale Occorrente') +
+                `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px">${occItems}</div>`;
+        }
+
+        // ── Procedimento ──
+        const procHtml = (sections.procedimenti || []).map(function(p, i) {
+            const fotoSafe = _safeImgSrc(p.foto || '');
+            return `<details class="border border-slate-200 rounded-xl p-3 bg-white" ${i === 0 ? 'open' : ''}>
+                <summary class="cursor-pointer font-semibold text-slate-800">Step ${i + 1}</summary>
+                <div class="mt-2 grid gap-2">
+                    ${fotoSafe ? `<img src="${fotoSafe}" alt="step-${i + 1}" style="max-width:100%;border-radius:10px;border:1px solid #e2e8f0">` : ''}
+                    <p class="text-sm text-slate-700">${_esc(p.descrizione || '-')}</p>
+                </div>
+            </details>`;
+        }).join('');
+        if (procHtml) {
+            contentHtml += secLabel('fas fa-list-check', 'Procedimento') +
+                `<div class="grid gap-2">${procHtml}</div>`;
+        }
+
+        // ── Disegno Tecnico ──
+        const dtFoto = _safeImgSrc(sections.disegnoTecnico?.foto || '');
+        if (dtFoto) {
+            contentHtml += secLabel('fas fa-drafting-compass', 'Disegno Tecnico') +
+                `<img src="${dtFoto}" alt="disegno-tecnico" style="max-width:100%;border-radius:10px;border:1px solid #e2e8f0">`;
+        }
+
+    } else {
+        // ── Retrocompatibilità v1 ──
+        contentHtml = (m.steps || []).map(function(step, idx) {
+            const safeStepImg = _safeImgSrc(step.foto);
+            const img = safeStepImg
+                ? `<img src="${safeStepImg}" alt="step-${idx + 1}" style="max-width:100%;border-radius:10px;border:1px solid #e2e8f0">`
+                : '<div class="text-xs text-slate-400">Nessuna immagine</div>';
+            return `
+            <details class="border border-slate-200 rounded-xl p-3 bg-white" ${idx === 0 ? 'open' : ''}>
+                <summary class="cursor-pointer font-semibold text-slate-800">Step ${idx + 1}${step.titolo ? ' - ' + _esc(step.titolo) : ''}</summary>
+                <div class="mt-2 grid gap-2">
+                    ${img}
+                    <p class="text-sm text-slate-700">${_esc(step.descrizione || '-')}</p>
+                </div>
+            </details>`;
+        }).join('');
+    }
+
     host.innerHTML = `
     <div id="manuali-modal" class="modal-overlay active" style="display:flex;z-index:4500">
       <div class="modal-content" style="max-width:920px;max-height:90vh;overflow:auto;">
         <h2>${_esc(m.titolo || '(Senza titolo)')}</h2>
         <p class="text-xs text-slate-500 mb-3">${_esc(m.categoria || 'Generale')} · v${Number(m.version || 1)} · aggiornato ${_esc(_formatTs(m.updatedAt))}</p>
-        ${coverDetailHtml}
-        <div class="grid gap-2">${stepsHtml || '<div class="empty-msg">Nessuno step disponibile.</div>'}</div>
+        ${coverHtml}
+        <div>${contentHtml || '<div class="empty-msg">Nessun contenuto disponibile.</div>'}</div>
         <div class="modal-actions" style="margin-top:14px;display:flex;gap:10px;justify-content:flex-end;">
             <button type="button" class="btn-modal-cancel" onclick="chiudiFormManuale()">Chiudi</button>
         </div>
@@ -552,11 +762,24 @@ export function registerGlobals() {
     window.apriManuale = apriManuale;
     window.apriFormManuale = apriFormManuale;
     window.chiudiFormManuale = chiudiFormManuale;
-    window.aggiungiStepManuale = aggiungiStepManuale;
-    window.rimuoviStepManuale = rimuoviStepManuale;
-    window.cambiaFotoStepManuale = cambiaFotoStepManuale;
+    // Scheda Tecnica
+    window.aggiungiSchedaRow = aggiungiSchedaRow;
+    window.rimuoviSchedaRow = rimuoviSchedaRow;
+    // Occorrente
+    window.aggiungiOccorrenteItem = aggiungiOccorrenteItem;
+    window.rimuoviOccorrenteItem = rimuoviOccorrenteItem;
+    window.cambiaFotoOccorrente = cambiaFotoOccorrente;
+    // Procedimento
+    window.aggiungiProcStep = aggiungiProcStep;
+    window.rimuoviProcStep = rimuoviProcStep;
+    window.cambiaFotoProcedimento = cambiaFotoProcedimento;
+    // Disegno Tecnico
+    window.cambiaFotoDisegno = cambiaFotoDisegno;
+    // Copertina
     window.cambiaCopertina = cambiaCopertina;
+    // Salva
     window.salvaManualeCorrente = salvaManualeCorrente;
+    // Storico
     window.apriStoricoManuale = apriStoricoManuale;
     window.chiudiStoricoManuale = chiudiStoricoManuale;
 }
