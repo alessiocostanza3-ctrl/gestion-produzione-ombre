@@ -627,8 +627,8 @@ function _csvImportEsc_(value) {
 }
 
 function _csvImportStateOptionsHtml_(selected) {
-    const stati = ['MANDA IN LAVORAZIONE', 'IN PRODUZIONE', 'IMBALLATO', 'SPEDITO', 'CONSEGNATO'];
-    const current = String(selected || 'MANDA IN LAVORAZIONE').trim().toUpperCase();
+    const stati = ['IN ATTESA DI ISTRUZIONI', 'PREPARARE', 'MANDA IN LAVORAZIONE', 'IN PRODUZIONE', 'IMBALLATO', 'SPEDITO/CONSEGNATO'];
+    const current = String(selected || 'IN ATTESA DI ISTRUZIONI').trim().toUpperCase();
     return stati.map(st => `<option value="${st}" ${st === current ? 'selected' : ''}>${st}</option>`).join('');
 }
 
@@ -689,7 +689,7 @@ function _apriCsvImportReviewModal_(preview, onConfirm, onCancel) {
     const finishHtml = (preview.finishCandidates || []).length ? `
         <section class="csv-import-review-section">
             <div class="csv-import-review-section-title">Righe con finiture/colori rilevati</div>
-            <p class="csv-import-review-note">Per queste righe puoi scegliere lo stato da impostare. Le righe che hanno già uno stato diverso da <strong>MANDA IN LAVORAZIONE</strong> non vengono mostrate qui e restano intatte.</p>
+            <p class="csv-import-review-note">Per queste righe puoi scegliere lo stato da impostare. Le righe che hanno già uno stato diverso da <strong>IN ATTESA DI ISTRUZIONI</strong> non vengono mostrate qui e restano intatte.</p>
             <div class="csv-import-review-table-wrap">
                 <table class="csv-import-review-table">
                     <thead><tr><th>Ordine</th><th>Codice</th><th>Finitura rilevata</th><th>Stato da impostare</th></tr></thead>

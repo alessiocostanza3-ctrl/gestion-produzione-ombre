@@ -527,7 +527,7 @@ import{a as Q,b as Wn,c as w,d as dt,e as oe,f as _,g as h,h as q,i as Qo,j as Y
             ${e.defaultStato>0?`<br><span>Stato default "MANDA IN LAVORAZIONE": <strong>${e.defaultStato}</strong></span>`:""}
             ${e.evasi>0?`<br><span>\u{1F69A} Spostati a SPEDITO: <strong>${e.evasi}</strong></span>`:""}
             ${e.missingSkipped>0?`<br><span>Ordini assenti lasciati invariati: <strong>${e.missingSkipped}</strong></span>`:""}
-        </div>`}function co(e){return`<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:12px 16px;font-size:0.88rem;color:#991b1b"><strong>\u274C Errore:</strong> ${e||"Errore sconosciuto"}</div>`}function te(e){return String(e||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;")}function Ns(e){let t=["MANDA IN LAVORAZIONE","IN PRODUZIONE","IMBALLATO","SPEDITO","CONSEGNATO"],o=String(e||"MANDA IN LAVORAZIONE").trim().toUpperCase();return t.map(i=>`<option value="${i}" ${i===o?"selected":""}>${i}</option>`).join("")}function zs(){let e=document.getElementById("csv-import-review-modal");return e||(e=document.createElement("div"),e.id="csv-import-review-modal",e.className="csv-import-review-overlay",e.innerHTML=`
+        </div>`}function co(e){return`<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:12px 16px;font-size:0.88rem;color:#991b1b"><strong>\u274C Errore:</strong> ${e||"Errore sconosciuto"}</div>`}function te(e){return String(e||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;")}function Ns(e){let t=["IN ATTESA DI ISTRUZIONI","PREPARARE","MANDA IN LAVORAZIONE","IN PRODUZIONE","IMBALLATO","SPEDITO/CONSEGNATO"],o=String(e||"IN ATTESA DI ISTRUZIONI").trim().toUpperCase();return t.map(i=>`<option value="${i}" ${i===o?"selected":""}>${i}</option>`).join("")}function zs(){let e=document.getElementById("csv-import-review-modal");return e||(e=document.createElement("div"),e.id="csv-import-review-modal",e.className="csv-import-review-overlay",e.innerHTML=`
         <div class="csv-import-review-box" onclick="event.stopPropagation()">
             <div class="csv-import-review-head">
                 <div>
@@ -560,7 +560,7 @@ import{a as Q,b as Wn,c as w,d as dt,e as oe,f as _,g as h,h as q,i as Qo,j as Y
         </section>`:"",s=(e.finishCandidates||[]).length?`
         <section class="csv-import-review-section">
             <div class="csv-import-review-section-title">Righe con finiture/colori rilevati</div>
-            <p class="csv-import-review-note">Per queste righe puoi scegliere lo stato da impostare. Le righe che hanno gi\xE0 uno stato diverso da <strong>MANDA IN LAVORAZIONE</strong> non vengono mostrate qui e restano intatte.</p>
+            <p class="csv-import-review-note">Per queste righe puoi scegliere lo stato da impostare. Le righe che hanno gi\xE0 uno stato diverso da <strong>IN ATTESA DI ISTRUZIONI</strong> non vengono mostrate qui e restano intatte.</p>
             <div class="csv-import-review-table-wrap">
                 <table class="csv-import-review-table">
                     <thead><tr><th>Ordine</th><th>Codice</th><th>Finitura rilevata</th><th>Stato da impostare</th></tr></thead>
