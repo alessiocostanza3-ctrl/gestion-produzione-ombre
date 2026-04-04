@@ -15,7 +15,7 @@ const CACHE_KEY = 'MANUALI_PRODOTTI';
 const MAX_PROC_STEPS = 20;
 const MAX_SCHEDA_ROWS = 30;
 const MAX_OCCORRENTE = 20;
-const MAX_IMG_DATA_LEN = 1_200_000;
+const MAX_IMG_DATA_LEN = 4_000_000;
 
 const SCHEDA_VOCI_STANDARD = [
     'Dimensione della sfera',
@@ -355,7 +355,7 @@ async function _toBase64(file) {
     });
 }
 
-async function _resizeFotoBase64(base64, maxPx = 900) {
+async function _resizeFotoBase64(base64, maxPx = 1200) {
     return new Promise(function(resolve) {
         const img = new Image();
         img.onload = function() {
