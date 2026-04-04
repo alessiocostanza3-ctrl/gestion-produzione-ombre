@@ -366,7 +366,7 @@ async function _resizeFotoBase64(base64, maxPx = 1200) {
             const ctx = canvas.getContext('2d');
             if (!ctx) return resolve(base64);
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            resolve(canvas.toDataURL('image/jpeg', 0.40));
+            resolve(canvas.toDataURL('image/jpeg', 0.80));
         };
         img.onerror = function() { resolve(base64); };
         img.src = base64;
@@ -378,7 +378,7 @@ async function cambiaCopertina(inputEl) {
         const file = inputEl?.files && inputEl.files[0];
         if (!file) return;
         const b64 = await _toBase64(file);
-        const resized = await _resizeFotoBase64(b64, 240);
+        const resized = await _resizeFotoBase64(b64, 800);
         if (!resized || resized.length > MAX_IMG_DATA_LEN) {
             notificaElegante('Immagine di copertina troppo grande, riduci la risoluzione.', 'warning');
             return;
@@ -407,7 +407,7 @@ async function cambiaCopertina(inputEl) {
 async function _handleImageUpload(file, onSuccess) {
     try {
         const b64 = await _toBase64(file);
-        const resized = await _resizeFotoBase64(b64, 240);
+        const resized = await _resizeFotoBase64(b64, 800);
         if (!resized || resized.length > MAX_IMG_DATA_LEN) {
             notificaElegante('Immagine troppo grande, riduci la risoluzione.', 'warning');
             return;
