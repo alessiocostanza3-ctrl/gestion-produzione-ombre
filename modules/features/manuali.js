@@ -61,8 +61,13 @@ function _getSections(m) {
     return null;
 }
 
-function _imgPreviewHtml(src, alt) {
-    if (src) return `<img src="${src}" alt="${alt}" style="max-width:100%;max-height:180px;border-radius:10px;border:1px solid #e2e8f0;display:block;margin-bottom:6px">`;
+function _imgPreviewHtml(src, alt, deleteFnStr) {
+    if (src) {
+        const xBtn = deleteFnStr
+            ? `<button type="button" onclick="${deleteFnStr}" title="Rimuovi foto" style="position:absolute;top:-7px;right:-7px;background:#ef4444;border:none;color:#fff;width:22px;height:22px;border-radius:50%;font-size:1.1rem;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.3)">&times;</button>`
+            : '';
+        return `<div class="foto-wrapper" style="position:relative;display:inline-block;max-width:100%;margin-bottom:6px"><img src="${src}" alt="${alt}" style="max-width:100%;max-height:180px;border-radius:10px;border:1px solid #e2e8f0;display:block">${xBtn}</div>`;
+    }
     return `<div class="text-xs text-slate-400" style="margin-bottom:6px">Nessuna foto</div>`;
 }
 
@@ -167,7 +172,7 @@ function _makeOccorrenteItem(item, idx) {
             <input type="text" class="input-field-modern" data-field="codice" placeholder="Codice (es. LB4PIY062B-1)" value="${_esc((item && item.codice) || '')}">
             <button type="button" class="${window.TW?.btnDanger || ''}" onclick="rimuoviOccorrenteItem(${idx})" title="Rimuovi"><i class="fas fa-trash"></i></button>
         </div>
-        ${_imgPreviewHtml(foto, `occ-${idx}`)}
+        ${_imgPreviewHtml(foto, `occ-${idx}`, 'eliminaFotoOccorrente(this)')}
         ${_fileInputHtml(`cambiaFotoOccorrente(this, ${idx})`)}
     </div>`;
 }
@@ -180,7 +185,7 @@ function _makeProcStep(proc, idx) {
             <h4 class="text-sm font-semibold text-slate-800">Step ${idx + 1}</h4>
             <button type="button" class="${window.TW?.btnDanger || ''}" onclick="rimuoviProcStep(${idx})"><i class="fas fa-trash"></i></button>
         </div>
-        ${_imgPreviewHtml(foto, `proc-${idx}`)}
+        ${_imgPreviewHtml(foto, `proc-${idx}`, 'eliminaFotoProcedimento(this)')}
         ${_fileInputHtml(`cambiaFotoProcedimento(this, ${idx})`)}
         <textarea class="input-field-modern" data-field="descrizione" rows="3" style="margin-top:8px" placeholder="Descrizione del passaggio...">${_esc((proc && proc.descrizione) || '')}</textarea>
     </div>`;
@@ -190,7 +195,7 @@ function _makeDisegnoSection(foto) {
     const safe = _safeImgSrc(foto || '');
     return `
     <div id="manuali-disegno-wrap"${safe ? ` data-foto="${_esc(safe)}"` : ''} class="border border-slate-200 rounded-xl p-3 bg-white">
-        ${_imgPreviewHtml(safe, 'disegno-tecnico')}
+        ${_imgPreviewHtml(safe, 'disegno-tecnico', 'eliminaFotoDisegno(this)')}
         ${_fileInputHtml('cambiaFotoDisegno(this)')}
     </div>`;
 }
@@ -419,19 +424,43 @@ async function _handleImageUpload(file, onSuccess) {
     }
 }
 
-function _setFotoOnWrap(wrap, resized) {
+function _setFotoOnWrap(wrap, resized, deleteFnStr) {
     wrap.setAttribute('data-foto', resized);
+    const existing = wrap.querySelector('.foto-wrapper');
+    if (existing) {
+        existing.querySelector('img').src = resized;
+        return;
+    }
     let img = wrap.querySelector('img');
     if (img) {
         img.src = resized;
-    } else {
-        const placeholder = wrap.querySelector('div.text-xs');
-        if (placeholder) placeholder.remove();
-        const newImg = document.createElement('img');
-        newImg.src = resized;
-        newImg.style.cssText = 'max-width:100%;max-height:180px;border-radius:10px;border:1px solid #e2e8f0;display:block;margin-bottom:6px';
-        const anchor = wrap.querySelector('.manuale-file-input') || wrap.querySelector('input[type="file"]');
-        wrap.insertBefore(newImg, anchor);
+        return;
+    }
+    const placeholder = wrap.querySelector('div.text-xs');
+    if (placeholder) placeholder.remove();
+    const fotoDiv = document.createElement('div');
+    fotoDiv.className = 'foto-wrapper';
+    fotoDiv.style.cssText = 'position:relative;display:inline-block;max-width:100%;margin-bottom:6px';
+    const newImg = document.createElement('img');
+    newImg.src = resized;
+    newImg.style.cssText = 'max-width:100%;max-height:180px;border-radius:10px;border:1px solid #e2e8f0;display:block';
+    fotoDiv.appendChild(newImg);
+    if (deleteFnStr) {
+        fotoDiv.insertAdjacentHTML('beforeend', `<button type="button" onclick="${deleteFnStr}" title="Rimuovi foto" style="position:absolute;top:-7px;right:-7px;background:#ef4444;border:none;color:#fff;width:22px;height:22px;border-radius:50%;font-size:1.1rem;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.3)">&times;</button>`);
+    }
+    const anchor = wrap.querySelector('.manuale-file-input') || wrap.querySelector('input[type="file"]');
+    wrap.insertBefore(fotoDiv, anchor);
+}
+
+function _clearFotoOnWrap(wrap) {
+    wrap.removeAttribute('data-foto');
+    const fotoWrapper = wrap.querySelector('.foto-wrapper');
+    if (fotoWrapper) {
+        const placeholder = document.createElement('div');
+        placeholder.className = 'text-xs text-slate-400';
+        placeholder.style.marginBottom = '6px';
+        placeholder.textContent = 'Nessuna foto';
+        fotoWrapper.replaceWith(placeholder);
     }
 }
 
@@ -440,7 +469,7 @@ async function cambiaFotoOccorrente(inputEl, idx) {
     if (!file) return;
     await _handleImageUpload(file, function(resized) {
         const item = document.querySelector(`.occorrente-item[data-item-idx="${idx}"]`);
-        if (item) _setFotoOnWrap(item, resized);
+        if (item) _setFotoOnWrap(item, resized, 'eliminaFotoOccorrente(this)');
     });
 }
 
@@ -449,7 +478,7 @@ async function cambiaFotoProcedimento(inputEl, idx) {
     if (!file) return;
     await _handleImageUpload(file, function(resized) {
         const step = document.querySelector(`.proc-step[data-step-idx="${idx}"]`);
-        if (step) _setFotoOnWrap(step, resized);
+        if (step) _setFotoOnWrap(step, resized, 'eliminaFotoProcedimento(this)');
     });
 }
 
@@ -458,7 +487,28 @@ async function cambiaFotoDisegno(inputEl) {
     if (!file) return;
     await _handleImageUpload(file, function(resized) {
         const wrap = document.getElementById('manuali-disegno-wrap');
-        if (wrap) _setFotoOnWrap(wrap, resized);
+        if (wrap) _setFotoOnWrap(wrap, resized, 'eliminaFotoDisegno(this)');
+    });
+}
+
+function eliminaFotoOccorrente(btn) {
+    _chiediConferma('Rimuovere la foto da questo elemento?', function() {
+        const wrap = btn.closest('.occorrente-item');
+        if (wrap) _clearFotoOnWrap(wrap);
+    });
+}
+
+function eliminaFotoProcedimento(btn) {
+    _chiediConferma('Rimuovere la foto da questo step?', function() {
+        const wrap = btn.closest('.proc-step');
+        if (wrap) _clearFotoOnWrap(wrap);
+    });
+}
+
+function eliminaFotoDisegno(btn) {
+    _chiediConferma('Rimuovere la foto del disegno tecnico?', function() {
+        const wrap = document.getElementById('manuali-disegno-wrap');
+        if (wrap) _clearFotoOnWrap(wrap);
     });
 }
 
@@ -925,6 +975,9 @@ export function registerGlobals() {
     // Occorrente
     window.aggiungiOccorrenteItem = aggiungiOccorrenteItem;
     window.rimuoviOccorrenteItem = rimuoviOccorrenteItem;
+    window.eliminaFotoOccorrente = eliminaFotoOccorrente;
+    window.eliminaFotoProcedimento = eliminaFotoProcedimento;
+    window.eliminaFotoDisegno = eliminaFotoDisegno;
     window.cambiaFotoOccorrente = cambiaFotoOccorrente;
     // Procedimento
     window.aggiungiProcStep = aggiungiProcStep;
