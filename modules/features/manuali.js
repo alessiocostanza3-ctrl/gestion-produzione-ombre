@@ -38,6 +38,7 @@ const SCHEDA_VOCI_STANDARD = [
 let _manuali = [];
 let _manualiById = {};
 let _activeModalId = null;
+let _occLightboxItems = []; // foto items per lightbox occorrente
 
 function _formatTs(ts) {
     if (!ts) return '-';
@@ -647,9 +648,17 @@ function apriManuale(id) {
         }
 
         // ── Occorrente ──
+        _occLightboxItems = [];
         const occItems = (sections.occorrente || []).map(function(o) {
             const fotoSafe = _safeImgSrc(o.foto || '');
-            return `<div style="padding:10px;border:1px solid #e2e8f0;border-radius:10px;background:#fff">
+            let photoIdx = -1;
+            if (fotoSafe) {
+                _occLightboxItems.push({ lettera: o.lettera || '', nome: o.nome || '', foto: fotoSafe });
+                photoIdx = _occLightboxItems.length - 1;
+            }
+            const clickOpen = fotoSafe ? `onclick="_apriLightboxOcc_(${photoIdx})"` : '';
+            const cardStyle = `padding:10px;border:1px solid #e2e8f0;border-radius:10px;background:#fff${fotoSafe ? ';cursor:pointer' : ''}`;
+            return `<div ${clickOpen} style="${cardStyle}">
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:${fotoSafe ? '8px' : '0'}">
                     <span style="min-width:28px;height:28px;border-radius:50%;background:#1e293b;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem">${_esc(o.lettera || '')}</span>
                     <div>
@@ -657,7 +666,7 @@ function apriManuale(id) {
                         ${o.codice ? `<br><span class="text-xs text-slate-400">${_esc(o.codice)}</span>` : ''}
                     </div>
                 </div>
-                ${fotoSafe ? `<img src="${fotoSafe}" alt="occ" style="max-width:100%;max-height:140px;border-radius:8px;border:1px solid #e2e8f0">` : ''}
+                ${fotoSafe ? `<img src="${fotoSafe}" alt="occ" style="max-width:100%;max-height:140px;border-radius:8px;border:1px solid #e2e8f0;pointer-events:none">` : ''}
             </div>`;
         }).join('');
         if (occItems) {
@@ -828,9 +837,86 @@ export async function caricaManuali(expectedRequestId = null, signal = null, isB
     }
 }
 
+function _apriLightboxOcc_(startIdx) {
+    const items = _occLightboxItems;
+    if (!items.length) return;
+    let cur = startIdx;
+
+    function _chiudi() {
+        const el = document.getElementById('_occ_lightbox');
+        if (el) el.remove();
+        document.removeEventListener('keydown', _kbHandler);
+    }
+
+    function _mostra(idx) {
+        cur = idx;
+        const item = items[idx];
+        document.getElementById('_occ_lb_img').src = item.foto;
+        document.getElementById('_occ_lb_badge').textContent = item.lettera;
+        document.getElementById('_occ_lb_nome').textContent = item.nome;
+        document.getElementById('_occ_lb_counter').textContent = items.length > 1 ? `${idx + 1} / ${items.length}` : '';
+    }
+
+    function _nav(dir) {
+        _mostra((cur + dir + items.length) % items.length);
+    }
+
+    function _kbHandler(e) {
+        if (e.key === 'ArrowLeft')  _nav(-1);
+        else if (e.key === 'ArrowRight') _nav(1);
+        else if (e.key === 'Escape')  _chiudi();
+    }
+
+    // Rimuovi lightbox esistente
+    document.getElementById('_occ_lightbox')?.remove();
+    if (window._occLbKeyHandler) document.removeEventListener('keydown', window._occLbKeyHandler);
+
+    const multi = items.length > 1;
+    const arrowBtn = 'background:rgba(255,255,255,.15);border:none;color:#fff;width:48px;height:48px;border-radius:50%;font-size:1.8rem;cursor:pointer;flex-shrink:0;line-height:1;display:flex;align-items:center;justify-content:center;';
+
+    const overlay = document.createElement('div');
+    overlay.id = '_occ_lightbox';
+    overlay.style.cssText = 'position:fixed;z-index:99999;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center';
+    overlay.innerHTML = `
+      <button id="_occ_lb_close" style="position:absolute;top:14px;right:18px;background:none;border:none;color:#fff;font-size:2rem;line-height:1;cursor:pointer;opacity:.75;padding:4px 8px">&#10005;</button>
+      <div style="display:flex;align-items:center;gap:12px;width:92vw;max-width:880px">
+        <button id="_occ_lb_prev" style="${arrowBtn}${multi ? '' : 'visibility:hidden'}">&#8249;</button>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:12px;min-width:0">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span id="_occ_lb_badge" style="min-width:36px;height:36px;border-radius:50%;background:#fff;color:#1e293b;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:1.1rem"></span>
+            <span id="_occ_lb_nome" style="color:#fff;font-weight:600;font-size:1rem"></span>
+          </div>
+          <img id="_occ_lb_img" src="" alt="" style="max-width:100%;max-height:72vh;border-radius:12px;object-fit:contain">
+          <span id="_occ_lb_counter" style="color:#94a3b8;font-size:.85rem"></span>
+        </div>
+        <button id="_occ_lb_next" style="${arrowBtn}${multi ? '' : 'visibility:hidden'}">&#8250;</button>
+      </div>`;
+
+    document.body.appendChild(overlay);
+
+    document.getElementById('_occ_lb_close').addEventListener('click', _chiudi);
+    document.getElementById('_occ_lb_prev').addEventListener('click', function() { _nav(-1); });
+    document.getElementById('_occ_lb_next').addEventListener('click', function() { _nav(1); });
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) _chiudi(); });
+
+    // Swipe touch
+    let _tx = 0;
+    overlay.addEventListener('touchstart', function(e) { _tx = e.changedTouches[0].clientX; }, { passive: true });
+    overlay.addEventListener('touchend', function(e) {
+        const dx = e.changedTouches[0].clientX - _tx;
+        if (Math.abs(dx) > 50) _nav(dx < 0 ? 1 : -1);
+    }, { passive: true });
+
+    document.addEventListener('keydown', _kbHandler);
+    window._occLbKeyHandler = _kbHandler;
+
+    _mostra(startIdx);
+}
+
 export function registerGlobals() {
     window.caricaManuali = caricaManuali;
     window.apriManuale = apriManuale;
+    window._apriLightboxOcc_ = _apriLightboxOcc_;
     window.apriFormManuale = apriFormManuale;
     window.chiudiFormManuale = chiudiFormManuale;
     // Scheda Tecnica
