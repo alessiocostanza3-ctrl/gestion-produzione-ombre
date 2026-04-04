@@ -161,7 +161,6 @@ function _renderHealthBadge_() {
 
 function _markDataFresh_(ts) {
     _lastDataRefreshAt = Number(ts) || Date.now();
-    _renderHealthBadge_();
 }
 
 function _initHealthBadge_() {
