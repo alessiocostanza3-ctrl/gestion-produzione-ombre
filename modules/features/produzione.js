@@ -388,7 +388,7 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
 
         // Dropdown STATO per l'ordine (bulk change tutte righe)
         let _statoZoneOrd = '';
-        if (!isArchivio && window._isUtenteEsente()) {
+        if (!isArchivio) {
             const _statiBulk = righe
                 .map(r => String(r.stato || 'IN ATTESA').toUpperCase().trim())
                 .filter((s, i, arr) => arr.indexOf(s) === i);
@@ -399,7 +399,6 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
                 return `<button type="button" class="stato-option" onclick="event.stopPropagation(); selezionaStatoOrdine(this,'${_nOrdS}','${st.nome}','${st.colore}')"><span class="stato-opt-dot" style="background:${st.colore}"></span><span>${st.nome}</span></button>`;
             }).join('');
             _statoZoneOrd = `<div class="stato-dropdown stato-dropdown-ord" data-nord="${nOrd}"><button type="button" class="stato-trigger" onclick="event.stopPropagation(); toggleStatoDropdown(this)" title="Cambia stato tutte righe"><span class="stato-dot" style="background:${_configStato.colore}"></span><span class="stato-label-txt">${_statoBulkLbl}</span><i class="fas fa-chevron-down stato-chevron"></i></button><div class="stato-popup">${_statoOptsOrd}</div></div>`;
-        } else if (isArchivio || !window._isUtenteEsente()) {
         }
 
         // Azioni disponibili per questo ordine
