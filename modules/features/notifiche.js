@@ -48,9 +48,10 @@ function apriPopupNotifiche(e) {
     if (!modal) return;
     modal.classList.add('is-open');
     renderNotificheList();
-    // Azzera badge immediatamente e segna lette sul server
-    aggiornaBadgeNotifiche(0);
+    // Azzera badge immediatamente: salva timestamp "ultima apertura"
+    try { localStorage.setItem('_notifLastRead', String(Date.now())); } catch {}
     try { localStorage.setItem('_notifBadgeCount', '0'); } catch {}
+    aggiornaBadgeNotifiche(0);
     if (utenteAttuale && utenteAttuale.nome) {
         fetch(URL_GOOGLE, {
             method: 'POST',
@@ -264,12 +265,15 @@ function _salvaNotificheInLocale_(all) {
         existing.forEach(function(n) { const k = n.titolo + '||' + n.corpo; if (!map[k]) map[k] = n; });
         const merged = _pruneNotificheExpired_(Object.values(map)).slice(0, 200);
         localStorage.setItem('_notificheArr', JSON.stringify(merged));
-        // Aggiorna badge count SOLO se ci sono notifiche nuove rispetto all'ultima lettura
-        const prevCount = parseInt(localStorage.getItem('_notifBadgeCount') || '0');
-        if (all.length > prevCount || all.length > 0 && prevCount === 0) {
-            localStorage.setItem('_notifBadgeCount', String(all.length));
-        }
-        aggiornaBadgeNotifiche(parseInt(localStorage.getItem('_notifBadgeCount') || '0'));
+        // Calcola badge: solo notifiche con _ts successivo all'ultima apertura del pannello
+        const lastRead = parseInt(localStorage.getItem('_notifLastRead') || '0');
+        const unread = withTs.filter(function(n) {
+            const ms = _parseNotifTsMs_(n._ts);
+            return !ms || ms > lastRead; // senza timestamp → considera come nuova (safe)
+        });
+        const newCount = unread.length;
+        try { localStorage.setItem('_notifBadgeCount', String(newCount)); } catch {}
+        aggiornaBadgeNotifiche(newCount);
     } catch(e) {}
 }
 
@@ -299,12 +303,16 @@ function _mostraToastRiepilogoNotifiche_(count) {
     notificaElegante('\ud83d\udd14 Hai ' + count + ' notific' + (count === 1 ? 'a' : 'he') + ' da leggere');
 }
 
-/** Inizializza il badge notifiche all'avvio: legge prima da localStorage, poi fetch fresco dal server */
+/** Inizializza il badge notifiche all'avvio: ricalcola da storico locale rispetto a _notifLastRead */
 function _initBadgeNotifiche() {
-    // Usa _notifBadgeCount (azzerato all'apertura del modal), NON la lunghezza dello storico
     try {
-        const count = parseInt(localStorage.getItem('_notifBadgeCount') || '0');
-        if (count > 0) aggiornaBadgeNotifiche(count);
+        const arr = _pruneNotificheExpired_(JSON.parse(localStorage.getItem('_notificheArr') || '[]'));
+        const lastRead = parseInt(localStorage.getItem('_notifLastRead') || '0');
+        const unread = arr.filter(function(n) {
+            const ms = _parseNotifTsMs_(n._ts);
+            return !ms || ms > lastRead;
+        });
+        if (unread.length > 0) aggiornaBadgeNotifiche(unread.length);
     } catch(e) {}
     if (!utenteAttuale || !utenteAttuale.nome) return;
     fetch(URL_GOOGLE, {
