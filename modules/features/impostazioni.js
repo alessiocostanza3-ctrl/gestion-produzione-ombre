@@ -255,18 +255,9 @@ function chiudiAccountMenu() {
     if (dropdown) dropdown.classList.remove('open');
 }
 
-/** Aggiorna la pagina corrente: svuota cache, ricarica impostazioni e ricarica dati dal server */
-async function _aggiornaPagina() {
+/** Aggiorna la pagina corrente: svuota cache locale e ricarica immediatamente */
+function _aggiornaPagina() {
     _lsCacheDel('_impostazioni_cache');
-    try {
-        if ('serviceWorker' in navigator) {
-            const reg = await navigator.serviceWorker.getRegistration();
-            if (reg) await reg.update();
-        }
-    } catch (e) {
-        console.warn('[refresh] update service worker:', e);
-    }
-    await _fetchImpostazioniDaServer();
     if (window.paginaAttuale) {
         if (window.cacheContenuti) delete window.cacheContenuti[window.paginaAttuale];
         _lsCacheDel('_html_' + window.paginaAttuale);
