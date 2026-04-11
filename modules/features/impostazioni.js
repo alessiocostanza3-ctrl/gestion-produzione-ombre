@@ -514,6 +514,78 @@ function _vapidB64ToUint8_(b64url) {
 //  CSV IMPORT
 // ═══════════════════════════════════════════════════════════════════════════════
 
+/**
+ * Mostra un banner in-app + notifica browser nativa (se permesso già concesso)
+ * nel momento in cui il CSV viene analizzato e richiede revisione, PRIMA che
+ * il modal appaia. Permette all'utente di tornare al modal se ha cambiato tab.
+ */
+function _mostraBannerImportCSV_() {
+    // ── Browser Notification (solo se permesso già concesso, senza chiederlo) ──
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        try {
+            const iconUrl = new URL('./logo.png', location.href).href;
+            const n = new Notification('📋 Completa l\'importazione', {
+                body: 'CSV caricato, controlla i dettagli e dai OK',
+                icon: iconUrl,
+                tag: 'csv-import',
+                renotify: true
+            });
+            n.onclick = function () {
+                window.focus();
+                const modal = document.getElementById('csv-import-review-modal');
+                if (modal && !modal.classList.contains('active')) {
+                    modal.style.display = 'flex';
+                    modal.offsetHeight;
+                    modal.classList.add('active');
+                }
+                n.close();
+            };
+        } catch (_) {}
+    }
+
+    // ── Banner in-app persistente ──────────────────────────────────────────────
+    let banner = document.getElementById('_csv-import-banner_');
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.id = '_csv-import-banner_';
+        document.body.appendChild(banner);
+    }
+    Object.assign(banner.style, {
+        position: 'fixed', top: '0', left: '0', right: '0',
+        zIndex: '10000', display: 'flex', alignItems: 'center',
+        gap: '10px', padding: '10px 16px',
+        background: '#fef3c7', borderBottom: '2px solid #f59e0b',
+        fontSize: '0.89rem', color: '#92400e', fontFamily: 'inherit',
+        boxShadow: '0 2px 10px rgba(0,0,0,.18)', boxSizing: 'border-box'
+    });
+    banner.innerHTML = [
+        '<span style="flex:1">📋 <strong>Completa l\'importazione</strong>',
+        ' — CSV caricato, controlla i dettagli e dai OK</span>',
+        '<button id="_csv-banner-vai_" style="background:#f59e0b;color:#fff;border:none;',
+        'border-radius:6px;padding:5px 14px;font-size:0.84rem;cursor:pointer;font-weight:600">',
+        'Vai al controllo</button>',
+        '<button id="_csv-banner-close_" style="background:transparent;border:none;',
+        'font-size:1.1rem;cursor:pointer;color:#92400e;line-height:1;padding:0 4px">✕</button>'
+    ].join('');
+
+    const dismiss = function () { banner.style.display = 'none'; };
+
+    document.getElementById('_csv-banner-vai_').onclick = function () {
+        const modal = document.getElementById('csv-import-review-modal');
+        if (modal) {
+            if (!modal.classList.contains('active')) {
+                modal.style.display = 'flex';
+                modal.offsetHeight;
+                modal.classList.add('active');
+            } else {
+                modal.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+        dismiss();
+    };
+    document.getElementById('_csv-banner-close_').onclick = dismiss;
+}
+
 async function importaCSVDaFile(input) {
     const file = input && input.files && input.files[0];
     const labelNome = document.getElementById('csv-upload-filename');
@@ -563,6 +635,7 @@ async function importaCSVDaFile(input) {
         };
 
         if (preview.reviewRequired) {
+            _mostraBannerImportCSV_();
             _apriCsvImportReviewModal_(preview, async (decisioni) => {
                 await applyImport(decisioni);
             }, () => {
@@ -743,6 +816,9 @@ function _chiudiCsvImportReviewModal_(notifyCancel) {
     if (!modal) return;
     modal.classList.remove('active');
     setTimeout(() => { if (!modal.classList.contains('active')) modal.style.display = 'none'; }, 180);
+    // Chiudi il banner CSV se ancora visibile
+    const banner = document.getElementById('_csv-import-banner_');
+    if (banner) banner.style.display = 'none';
     if (notifyCancel && _csvImportReviewHandlers.onCancel) _csvImportReviewHandlers.onCancel();
 }
 
