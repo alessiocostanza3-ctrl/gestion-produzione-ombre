@@ -9,7 +9,7 @@
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbyVMV9MkGiqphN0AKXJdHXF0Arp1vxTYrCYi1SGv_4MKLRJkx--5HoGq7mmQX-p0ZTZ/exec';
 var APP_URL = 'https://alessiocostanza3-ctrl.github.io/gestion-produzione-ombre/';
 
-var SHELL_CACHE = 'prod-shell-v234';
+var SHELL_CACHE = 'prod-shell-v235';
 var SHELL_ASSETS = [
     APP_URL,
     APP_URL + 'index.html',
@@ -171,6 +171,8 @@ self.addEventListener('notificationclick', function(event) {
     var url      = (event.notification.data && event.notification.data.url) || APP_URL;
     var username = event.notification.data && event.notification.data.username;
     var target   = event.notification.data && event.notification.data.target;
+    var action   = event.notification.data && event.notification.data.action;
+
     // Segna come lette sul server al click
     if (username) {
         fetch(GAS_URL, {
@@ -178,27 +180,19 @@ self.addEventListener('notificationclick', function(event) {
             body: JSON.stringify({ azione: 'segnaLetteNotifiche', username: username })
         }).catch(function(){});
     }
+
+    // CSV import: apri csv-import.html SUBITO, sincrono, senza matchAll.
+    // clients.openWindow() deve essere chiamato il prima possibile nel handler
+    // del notificationclick per evitare che il contesto "user gesture" scada su mobile.
+    var isCsvAction = action === 'openCsvModal' ||
+        /importazione/i.test(String(event.notification.title || ''));
+    if (isCsvAction) {
+        event.waitUntil(clients.openWindow(APP_URL + 'csv-import.html'));
+        return;
+    }
+
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(list) {
-            var action = event.notification.data && event.notification.data.action;
-            var csvUrl = APP_URL + 'csv-import.html';
-
-            // CSV import: naviga la finestra esistente al URL con il param (client.navigate),
-            // oppure apri nuova finestra. client.navigate è l'unico modo affidabile per
-            // portare il ?action=openCsvModal nell'app già aperta su mobile.
-            if (action === 'openCsvModal') {
-                var existingClient = null;
-                for (var j = 0; j < list.length; j++) {
-                    if (list[j].url.indexOf(APP_URL) !== -1) { existingClient = list[j]; break; }
-                }
-                if (existingClient && typeof existingClient.navigate === 'function') {
-                    return existingClient.navigate(csvUrl).then(function(c) {
-                        if (c && 'focus' in c) return c.focus();
-                    }).catch(function() { return clients.openWindow(csvUrl); });
-                }
-                return clients.openWindow(csvUrl);
-            }
-
             for (var i = 0; i < list.length; i++) {
                 if (list[i].url.indexOf(APP_URL) !== -1 && 'focus' in list[i]) {
                     var client = list[i];
