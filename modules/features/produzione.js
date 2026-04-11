@@ -329,6 +329,11 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
 
     let html = "";
     const _ordKeys = Object.keys(gruppi).sort((a, b) => {
+        // CSV_REVIEW: righe da attenzionare sempre in cima
+        const _hasRevA = gruppi[a].some(r => String(r.last_modified_by || '').startsWith('CSV_REVIEW'));
+        const _hasRevB = gruppi[b].some(r => String(r.last_modified_by || '').startsWith('CSV_REVIEW'));
+        if (_hasRevA && !_hasRevB) return -1;
+        if (!_hasRevA && _hasRevB) return 1;
         const _cliA = (gruppi[a][0].cliente || '').trim().toUpperCase();
         const _nA   = (!_cliA || _cliA === 'DA DEFINIRE') ? (gruppi[a][0].riferimento || a).toUpperCase() : _cliA;
         const _cliB = (gruppi[b][0].cliente || '').trim().toUpperCase();
@@ -342,6 +347,8 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
         const htmlRiferimento = riferimento ? `<span class="riferimento-label">(${_esc(riferimento)})</span>` : '';;
 
         const classWrapper = isArchivio ? 'archivio-wrapper' : '';
+        const _hasReviewRows = righe.some(r => String(r.last_modified_by || '').startsWith('CSV_REVIEW'));
+        const _reviewWrapCls = _hasReviewRows ? ' csv-review-order' : '';
         const classHeader = isArchivio ? 'archivio-header' : '';
         const colorCliente = isArchivio ? '#475569' : 'inherit';
 
@@ -432,7 +439,7 @@ function generaBloccoOrdiniUnificato(dati, isArchivio) {
         const bottoniHeader = _desktopBtns + _mobileTrigger;
 
         html += `
-        <div class="ordine-wrapper ${classWrapper}" data-ordine="${nOrd}" data-cliente="${(cliente || '').toLowerCase().replace(/"/g, '')}" data-riferimento="${(riferimento || '').toLowerCase().replace(/"/g, '')}" data-codici="${righe.map(a => (a.codice && a.codice !== 'false' ? a.codice : '')).join('|').toLowerCase()}">
+        <div class="ordine-wrapper ${classWrapper}${_reviewWrapCls}" data-ordine="${nOrd}" data-cliente="${(cliente || '').toLowerCase().replace(/"/g, '')}" data-riferimento="${(riferimento || '').toLowerCase().replace(/"/g, '')}" data-codici="${righe.map(a => (a.codice && a.codice !== 'false' ? a.codice : '')).join('|').toLowerCase()}">
             <div class="riga-ordine ${classHeader}" onclick="toggleAccordion(this)">
                 <div class="flex-grow">
                     <span class="order-title" style="--order-color:${colorCliente}" title="${_esc(cliente)}">${_esc(cliente)} ${htmlRiferimento}</span>
@@ -455,6 +462,16 @@ function generaCardArticolo(art, nOrd, cliente) {
     const statoAttuale = (art.stato || "IN ATTESA").toUpperCase();
     const configStato = window.listaStati.find(s => s.nome === statoAttuale) || {colore: "#e2e8f0"};
     const codicePrincipale = art.codice && art.codice !== "false" ? art.codice : "Senza Codice";
+
+    const _csvFlag = String(art.last_modified_by || '');
+    const _isCsvReview = _csvFlag.startsWith('CSV_REVIEW');
+    const _csvBlinkCls = _isCsvReview ? ` csv-review-blink${_csvFlag === 'CSV_REVIEW_MISSING' ? ' csv-review-missing' : ' csv-review-finish'}` : '';
+    let _csvBanner = '';
+    if (_csvFlag === 'CSV_REVIEW_MISSING') {
+        _csvBanner = `<div class="csv-review-banner"><span class="csv-review-badge missing"><i class="fas fa-exclamation-triangle"></i> Assente dal CSV</span><button class="btn-csv-resolve" onclick="event.stopPropagation();csvReviewResolve('${art.id_riga}',this)"><i class="fas fa-check"></i> Risolvi</button></div>`;
+    } else if (_csvFlag === 'CSV_REVIEW_FINISH') {
+        _csvBanner = `<div class="csv-review-banner"><span class="csv-review-badge finish"><i class="fas fa-paint-brush"></i> Finitura rilevata</span><button class="btn-csv-resolve" onclick="event.stopPropagation();csvReviewResolve('${art.id_riga}',this)"><i class="fas fa-check"></i> Risolvi</button></div>`;
+    }
 
     const _assegnatiCard = (art.assegna && art.assegna !== '' && art.assegna !== 'undefined')
         ? art.assegna.split(',').map(n => window._normNome(n.trim())).filter(Boolean) : [];
@@ -482,7 +499,8 @@ function generaCardArticolo(art, nOrd, cliente) {
     }
 
     return `
-    <div class="item-card ${TW.card}" data-codice="${codicePrincipale.toLowerCase().replace(/"/g, '')}">
+    <div class="item-card ${TW.card}${_csvBlinkCls}" data-codice="${codicePrincipale.toLowerCase().replace(/"/g, '')}">
+        ${_csvBanner}
         <div><span class="label-sm ${TW.label}">Codice Prodotto</span><b class="${TW.value}">${codicePrincipale}</b></div>
         <div class="qty-cell">
             <span class="label-sm ${TW.label}">Quantit\u00e0</span>
@@ -2299,6 +2317,52 @@ function _aggiornaVisibilitaFiltroArticoli(nomeFoglio) {
     }
 }
 
+// ── CSV Review resolve ──────────────────────────────────────────────
+async function csvReviewResolve(idRiga, btnEl) {
+    if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
+    try {
+        const res = await fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify({
+                azione: 'csvReviewResolve',
+                id_riga: idRiga,
+                mittente: (utenteAttuale && utenteAttuale.nome) ? utenteAttuale.nome.toUpperCase() : ''
+            })
+        });
+        const r = await res.json();
+        if (r && r.status === 'auth_error') { window._gestisciAuthError_(r.message); return; }
+        if (r && r.status === 'ok') {
+            const card = btnEl ? btnEl.closest('.item-card') : null;
+            if (card) {
+                card.classList.remove('csv-review-blink', 'csv-review-missing', 'csv-review-finish');
+                const banner = card.querySelector('.csv-review-banner');
+                if (banner) banner.remove();
+            }
+            // aggiorna anche dati locali
+            if (_attiviProd) {
+                const row = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
+                if (row) row.last_modified_by = (utenteAttuale && utenteAttuale.nome) ? utenteAttuale.nome.toUpperCase() : '';
+            }
+            // rimuovi classe ordine se non ci sono più righe review
+            if (card) {
+                const wrapper = card.closest('.ordine-wrapper');
+                if (wrapper && !wrapper.querySelector('.csv-review-blink')) {
+                    wrapper.classList.remove('csv-review-order');
+                }
+            }
+            _invalidateProduzioneCache();
+            notificaElegante('✓ Riga risolta', 'success');
+        } else {
+            notificaElegante('⚠️ Errore risoluzione — riprova', 'error');
+            if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = '<i class="fas fa-check"></i> Risolvi'; }
+        }
+    } catch (e) {
+        console.error('[csvReviewResolve]', e);
+        notificaElegante('⚠️ Errore rete — riprova', 'error');
+        if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = '<i class="fas fa-check"></i> Risolvi'; }
+    }
+}
+
 // ═══════════════════════════════════════════════════════════════════
 //  REGISTER GLOBALS & INIT
 // ═══════════════════════════════════════════════════════════════════
@@ -2338,6 +2402,7 @@ function registerGlobals() {
     window._syncKanbanFromStato = _syncKanbanFromStato;
     window._setAssegnaLocalByOrdine = _setAssegnaLocalByOrdine;
     window._refreshOverview = _refreshOverview;
+    window.csvReviewResolve = csvReviewResolve;
 }
 
 function init() {

@@ -514,83 +514,6 @@ function _vapidB64ToUint8_(b64url) {
 //  CSV IMPORT
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/**
- * Mostra un banner in-app + notifica browser nativa (se permesso già concesso)
- * nel momento in cui il CSV viene analizzato e richiede revisione, PRIMA che
- * il modal appaia. Permette all'utente di tornare al modal se ha cambiato tab.
- */
-function _mostraBannerImportCSV_() {
-    // ── Push notification via Service Worker (funziona su mobile e desktop) ──
-    if (typeof Notification !== 'undefined' && Notification.permission === 'granted' && 'serviceWorker' in navigator) {
-        navigator.serviceWorker.ready.then(function (reg) {
-            const iconUrl = new URL('./logo.png', location.href).href;
-            reg.showNotification('📋 Completa l\'importazione', {
-                body: 'CSV caricato, controlla i dettagli e dai OK',
-                icon: iconUrl,
-                tag: 'csv-import',
-                renotify: true,
-                data: { action: 'openCsvModal' }
-            });
-        }).catch(function () {});
-    }
-
-    // ── Ascolta postMessage dal Service Worker per riaprire il modal CSV ──
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.addEventListener('message', function _csvSwMsg(ev) {
-            if (ev.data && ev.data.type === 'OPEN_CSV_MODAL') {
-                const modal = document.getElementById('csv-import-review-modal');
-                if (modal) {
-                    modal.style.display = 'flex';
-                    modal.offsetHeight;
-                    modal.classList.add('active');
-                }
-            }
-        });
-    }
-
-    // ── Banner in-app persistente ──────────────────────────────────────────────
-    let banner = document.getElementById('_csv-import-banner_');
-    if (!banner) {
-        banner = document.createElement('div');
-        banner.id = '_csv-import-banner_';
-        document.body.appendChild(banner);
-    }
-    Object.assign(banner.style, {
-        position: 'fixed', top: '0', left: '0', right: '0',
-        zIndex: '10000', display: 'flex', alignItems: 'center',
-        gap: '10px', padding: '10px 16px',
-        background: '#fef3c7', borderBottom: '2px solid #f59e0b',
-        fontSize: '0.89rem', color: '#92400e', fontFamily: 'inherit',
-        boxShadow: '0 2px 10px rgba(0,0,0,.18)', boxSizing: 'border-box'
-    });
-    banner.innerHTML = [
-        '<span style="flex:1">📋 <strong>Completa l\'importazione</strong>',
-        ' — CSV caricato, controlla i dettagli e dai OK</span>',
-        '<button id="_csv-banner-vai_" style="background:#f59e0b;color:#fff;border:none;',
-        'border-radius:6px;padding:5px 14px;font-size:0.84rem;cursor:pointer;font-weight:600">',
-        'Vai al controllo</button>',
-        '<button id="_csv-banner-close_" style="background:transparent;border:none;',
-        'font-size:1.1rem;cursor:pointer;color:#92400e;line-height:1;padding:0 4px">✕</button>'
-    ].join('');
-
-    const dismiss = function () { banner.style.display = 'none'; };
-
-    document.getElementById('_csv-banner-vai_').onclick = function () {
-        const modal = document.getElementById('csv-import-review-modal');
-        if (modal) {
-            if (!modal.classList.contains('active')) {
-                modal.style.display = 'flex';
-                modal.offsetHeight;
-                modal.classList.add('active');
-            } else {
-                modal.scrollIntoView({ behavior: 'smooth' });
-            }
-        }
-        dismiss();
-    };
-    document.getElementById('_csv-banner-close_').onclick = dismiss;
-}
-
 async function importaCSVDaFile(input) {
     const file = input && input.files && input.files[0];
     const labelNome = document.getElementById('csv-upload-filename');
@@ -612,45 +535,21 @@ async function importaCSVDaFile(input) {
 
     if (risultato) {
         risultato.style.display = 'block';
-        risultato.innerHTML = `<div style="display:flex;align-items:center;gap:8px;color:#64748b;font-size:0.88rem"><i class="fas fa-spinner fa-spin"></i> Analisi CSV in corso…</div>`;
+        risultato.innerHTML = `<div style="display:flex;align-items:center;gap:8px;color:#64748b;font-size:0.88rem"><i class="fas fa-spinner fa-spin"></i> Import CSV in corso…</div>`;
     }
 
     try {
-        const preview = await _csvImportRequest_(csvText, separatore, {});
-        if (preview.status === 'error') {
-            if (risultato) risultato.innerHTML = _csvImportErrorHtml_(preview.msg || preview.message || 'Errore sconosciuto');
-            input.value = '';
-            return;
-        }
-
-        const applyImport = async (decisioni) => {
-            if (risultato) {
-                risultato.style.display = 'block';
-                risultato.innerHTML = `<div style="display:flex;align-items:center;gap:8px;color:#64748b;font-size:0.88rem"><i class="fas fa-spinner fa-spin"></i> Applico le modifiche selezionate…</div>`;
+        const json = await _csvImportRequest_(csvText, separatore, {});
+        if (risultato) {
+            if (json.status === 'ok') {
+                let msg = `<strong>✅ Import completato</strong><br>Nuovi: <strong>${json.nuove || 0}</strong> · Saltati: <strong>${json.saltate || 0}</strong>`;
+                if (json.aggiornate > 0) msg += ` · Qty aggiornate: <strong>${json.aggiornate}</strong>`;
+                if (json.reviewCount > 0) msg += `<br><span style="color:#d97706">⚠ <strong>${json.reviewCount}</strong> righe da attenzionare — vai in Produzione per rivederle.</span>`;
+                risultato.innerHTML = `<div style="background:#dcfce7;border:1px solid #86efac;border-radius:10px;padding:12px 16px;font-size:0.88rem;color:#166534">${msg}</div>`;
+                setTimeout(() => { if (typeof window.caricaDati === 'function') window.caricaDati('PROGRAMMA PRODUZIONE DEL MESE', true); }, 800);
+            } else {
+                risultato.innerHTML = _csvImportErrorHtml_(json.msg || json.message || 'Errore sconosciuto');
             }
-            const json = await _csvImportRequest_(csvText, separatore, Object.assign({ confermaImportCSV: true }, decisioni || {}));
-            if (risultato) {
-                if (json.status === 'ok') {
-                    risultato.innerHTML = _csvImportSuccessHtml_(json);
-                    setTimeout(() => { if (typeof window.caricaDati === 'function') window.caricaDati('PROGRAMMA PRODUZIONE DEL MESE', true); }, 800);
-                } else {
-                    risultato.innerHTML = _csvImportErrorHtml_(json.msg || json.message || 'Errore sconosciuto');
-                }
-            }
-        };
-
-        if (preview.reviewRequired) {
-            _mostraBannerImportCSV_();
-            _apriCsvImportReviewModal_(preview, async (decisioni) => {
-                await applyImport(decisioni);
-            }, () => {
-                if (risultato) {
-                    risultato.style.display = 'block';
-                    risultato.innerHTML = `<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:12px 16px;font-size:0.88rem;color:#9a3412"><strong>⚠ Importazione sospesa</strong><br><span>Nessuna modifica applicata: chiudi o conferma il modal per procedere.</span></div>`;
-                }
-            });
-        } else {
-            await applyImport({ applyMissingCsvChanges: false, finishStateDecisions: {} });
         }
     } catch (err) {
         if (risultato) {
@@ -668,221 +567,8 @@ async function _csvImportRequest_(csvText, separatore, extraPayload) {
     return await res.json().catch(() => ({}));
 }
 
-function _csvImportSuccessHtml_(json) {
-    return `
-        <div style="background:#dcfce7;border:1px solid #86efac;border-radius:10px;padding:12px 16px;font-size:0.88rem;color:#166534">
-            <strong>✅ Importazione completata</strong><br>
-            <span>Nuovi ordini inseriti: <strong>${json.nuove || 0}</strong></span><br>
-            <span>Duplicati saltati: <strong>${json.saltate || 0}</strong></span>
-            ${json.aggiornate > 0 ? `<br><span>Quantità aggiornate: <strong>${json.aggiornate}</strong></span>` : ''}
-            ${json.finiture > 0 ? `<br><span>Finiture rilevate dal CSV: <strong>${json.finiture}</strong></span>` : ''}
-            ${json.defaultStato > 0 ? `<br><span>Stato default "MANDA IN LAVORAZIONE": <strong>${json.defaultStato}</strong></span>` : ''}
-            ${json.evasi > 0 ? `<br><span>🚚 Spostati a SPEDITO: <strong>${json.evasi}</strong></span>` : ''}
-            ${json.missingSkipped > 0 ? `<br><span>Ordini assenti lasciati invariati: <strong>${json.missingSkipped}</strong></span>` : ''}
-        </div>`;
-}
-
 function _csvImportErrorHtml_(msg) {
     return `<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:12px 16px;font-size:0.88rem;color:#991b1b"><strong>❌ Errore:</strong> ${msg || 'Errore sconosciuto'}</div>`;
-}
-
-function _csvImportEsc_(value) {
-    return String(value || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
-
-function _csvImportStateOptionsHtml_(selected) {
-    const stati = ['IN ATTESA DI ISTRUZIONI', 'PREPARARE', 'MANDA IN LAVORAZIONE', 'IN PRODUZIONE', 'IMBALLATO', 'SPEDITO/CONSEGNATO'];
-    const current = String(selected || 'IN ATTESA DI ISTRUZIONI').trim().toUpperCase();
-    return stati.map(st => `<option value="${st}" ${st === current ? 'selected' : ''}>${st}</option>`).join('');
-}
-
-function _ensureCsvImportReviewModal_() {
-    let modal = document.getElementById('csv-import-review-modal');
-    if (modal) return modal;
-    modal = document.createElement('div');
-    modal.id = 'csv-import-review-modal';
-    modal.className = 'csv-import-review-overlay';
-    modal.innerHTML = `
-        <div class="csv-import-review-box" onclick="event.stopPropagation()">
-            <div class="csv-import-review-head">
-                <div>
-                    <h3>Revisione import CSV</h3>
-                    <p>Controlla ordini assenti dal CSV e righe con finiture/colori rilevati prima di applicare l'import.</p>
-                </div>
-                <button type="button" class="csv-import-review-close" onclick="_chiudiCsvImportReviewModal_(true)">✕</button>
-            </div>
-            <div id="csv-import-review-body" class="csv-import-review-body"></div>
-            <div class="csv-import-review-actions">
-                <button type="button" class="hives-btn hives-btn-soft" onclick="_chiudiCsvImportReviewModal_(true)">Annulla</button>
-                <button type="button" class="hives-btn" id="csv-import-review-confirm">Conferma import</button>
-            </div>
-        </div>`;
-    modal.addEventListener('click', () => _chiudiCsvImportReviewModal_(true));
-    document.body.appendChild(modal);
-    return modal;
-}
-
-let _csvImportReviewHandlers = { onConfirm: null, onCancel: null };
-
-function _apriCsvImportReviewModal_(preview, onConfirm, onCancel) {
-    const modal = _ensureCsvImportReviewModal_();
-    const body = document.getElementById('csv-import-review-body');
-    const btn = document.getElementById('csv-import-review-confirm');
-    if (!modal || !body || !btn) return;
-
-    _csvImportReviewHandlers = { onConfirm: onConfirm || null, onCancel: onCancel || null };
-
-    const missingHtml = (preview.missingCandidates || []).length ? `
-        <section class="csv-import-review-section">
-            <div class="csv-import-review-section-title">Ordini assenti dal CSV</div>
-            <p class="csv-import-review-note">Se confermi, questi ordini verranno impostati a <strong>SPEDITO</strong>. Se lasci l'opzione su "non modificare", resteranno invariati. Gli ordini già <strong>IMBALLATO</strong> sono esclusi automaticamente.</p>
-            <div class="csv-import-review-choice">
-                <label><input type="radio" name="csv-missing-action" value="skip" checked> Non modificare gli ordini assenti</label>
-                <label><input type="radio" name="csv-missing-action" value="apply"> Segna come SPEDITO gli ordini assenti</label>
-            </div>
-            <div class="csv-import-review-list">
-                ${(preview.missingCandidates || []).map(item => `
-                    <article class="csv-import-review-item">
-                        <div><strong>Ordine ${_csvImportEsc_(item.ordine)}</strong> · ${_csvImportEsc_(item.codice)}</div>
-                        <div>Cliente: ${_csvImportEsc_(item.cliente || '—')}</div>
-                        <div>Rif: ${_csvImportEsc_(item.rif || '—')} · Stato attuale: <strong>${_csvImportEsc_(item.statoAttuale || 'VUOTO')}</strong></div>
-                    </article>`).join('')}
-            </div>
-        </section>` : '';
-
-    const finishHtml = (preview.finishCandidates || []).length ? `
-        <section class="csv-import-review-section">
-            <div class="csv-import-review-section-title">Righe con finiture/colori rilevati</div>
-            <p class="csv-import-review-note">Per queste righe puoi scegliere lo stato da impostare. Le righe che hanno già uno stato diverso da <strong>IN ATTESA DI ISTRUZIONI</strong> non vengono mostrate qui e restano intatte.</p>
-            <div class="csv-import-review-table-wrap">
-                <table class="csv-import-review-table">
-                    <thead><tr><th>Ordine</th><th>Codice</th><th>Finitura rilevata</th><th>Stato da impostare</th></tr></thead>
-                    <tbody>
-                        ${(preview.finishCandidates || []).map(item => `
-                            <tr>
-                                <td>
-                                    <div><strong>${_csvImportEsc_(item.ordine)}</strong></div>
-                                    <div class="csv-import-review-cell-sub">${_csvImportEsc_(item.rif || '—')}</div>
-                                </td>
-                                <td>
-                                    <div>${_csvImportEsc_(item.codice)}</div>
-                                    <div class="csv-import-review-cell-sub">${_csvImportEsc_(item.prodotto || '')}</div>
-                                </td>
-                                <td>${_csvImportEsc_(item.tag)}</td>
-                                <td>
-                                    <select class="csv-import-review-select" data-key="${_csvImportEsc_(item.key)}">
-                                        ${_csvImportStateOptionsHtml_(item.statoAttuale || 'MANDA IN LAVORAZIONE')}
-                                    </select>
-                                </td>
-                            </tr>`).join('')}
-                    </tbody>
-                </table>
-            </div>
-        </section>` : '';
-
-    body.innerHTML = `
-        <div class="csv-import-review-summary">
-            <div>Nuove righe previste: <strong>${preview.preview?.nuove || 0}</strong></div>
-            <div>Quantità da aggiornare: <strong>${preview.preview?.aggiornate || 0}</strong></div>
-            <div>Righe con finiture: <strong>${(preview.finishCandidates || []).length}</strong></div>
-            <div>Ordini assenti da valutare: <strong>${(preview.missingCandidates || []).length}</strong></div>
-        </div>
-        ${missingHtml}
-        ${finishHtml}`;
-
-    btn.onclick = async () => {
-        const selectedMissing = document.querySelector('input[name="csv-missing-action"]:checked');
-        const applyMissingCsvChanges = !!selectedMissing && selectedMissing.value === 'apply';
-        const finishStateDecisions = {};
-        body.querySelectorAll('.csv-import-review-select').forEach(sel => {
-            const key = sel.getAttribute('data-key');
-            const value = String(sel.value || '').trim();
-            if (key && value) finishStateDecisions[key] = value;
-        });
-        modal.classList.remove('active');
-        setTimeout(() => { modal.style.display = 'none'; }, 180);
-        if (_csvImportReviewHandlers.onConfirm) {
-            await _csvImportReviewHandlers.onConfirm({ applyMissingCsvChanges, finishStateDecisions });
-        }
-    };
-
-    modal.style.display = 'flex';
-    modal.offsetHeight;
-    modal.classList.add('active');
-}
-
-function _chiudiCsvImportReviewModal_(notifyCancel) {
-    const modal = document.getElementById('csv-import-review-modal');
-    if (!modal) return;
-    modal.classList.remove('active');
-    setTimeout(() => { if (!modal.classList.contains('active')) modal.style.display = 'none'; }, 180);
-    // Chiudi il banner CSV se ancora visibile
-    const banner = document.getElementById('_csv-import-banner_');
-    if (banner) banner.style.display = 'none';
-    if (notifyCancel && _csvImportReviewHandlers.onCancel) _csvImportReviewHandlers.onCancel();
-}
-
-/**
- * Apre il modal CSV import scaricando la preview dal server (per mobile dopo tap notifica push).
- * Richiede che GAS abbia un import in sospeso per l'utente corrente (salvato in Drive).
- */
-async function _apriCsvPendingModal_() {
-    const risultato = document.getElementById('csv-upload-result');
-    const _spin = `<div style="display:flex;align-items:center;gap:8px;color:#64748b;font-size:0.88rem"><i class="fas fa-spinner fa-spin"></i> Carico import in sospeso…</div>`;
-    if (risultato) { risultato.style.display = 'block'; risultato.innerHTML = _spin; }
-    try {
-        const res = await fetch(URL_GOOGLE, {
-            method: 'POST',
-            body: JSON.stringify({ azione: 'getCsvPendingImport' })
-        });
-        const preview = await res.json().catch(() => ({}));
-        if (preview.status === 'none') {
-            if (risultato) { risultato.innerHTML = `<div style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:10px;padding:12px 16px;font-size:0.88rem;color:#475569">Nessun import CSV in sospeso.</div>`; }
-            return;
-        }
-        if (preview.status === 'expired') {
-            if (risultato) { risultato.innerHTML = _csvImportErrorHtml_('Import scaduto (>24h). Ricarica il CSV dal PC.'); }
-            return;
-        }
-        if (preview.status === 'error' || preview.status === 'forbidden') {
-            if (risultato) { risultato.innerHTML = _csvImportErrorHtml_(preview.msg || 'Errore'); }
-            return;
-        }
-        if (risultato) risultato.style.display = 'none';
-
-        const applyFromPending = async (decisioni) => {
-            if (risultato) { risultato.style.display = 'block'; risultato.innerHTML = _spin.replace('Carico import in sospeso', 'Applico le modifiche selezionate'); }
-            // Manda conferma senza csvText: GAS recupera da Drive
-            const json = await fetch(URL_GOOGLE, {
-                method: 'POST',
-                body: JSON.stringify(Object.assign({ azione: 'importaOrdiniCSV', csvText: '', separatore: ';', confermaImportCSV: true }, decisioni || {}))
-            }).then(r => r.json()).catch(() => ({}));
-            if (risultato) {
-                risultato.style.display = 'block';
-                if (json.status === 'ok') {
-                    risultato.innerHTML = _csvImportSuccessHtml_(json);
-                    setTimeout(() => { if (typeof window.caricaDati === 'function') window.caricaDati('PROGRAMMA PRODUZIONE DEL MESE', true); }, 800);
-                } else {
-                    risultato.innerHTML = _csvImportErrorHtml_(json.msg || json.message || 'Errore sconosciuto');
-                }
-            }
-        };
-
-        if (preview.reviewRequired) {
-            _apriCsvImportReviewModal_(preview, applyFromPending, () => {
-                if (risultato) { risultato.style.display = 'block'; risultato.innerHTML = `<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:12px 16px;font-size:0.88rem;color:#9a3412"><strong>⚠ Importazione annullata</strong></div>`; }
-            });
-        } else {
-            await applyFromPending({ applyMissingCsvChanges: false, finishStateDecisions: {} });
-        }
-    } catch (e) {
-        if (risultato) { risultato.style.display = 'block'; risultato.innerHTML = _csvImportErrorHtml_(e.message); }
-    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1351,11 +1037,6 @@ function caricaInterfacciaImpostazioni() {
             </div>
             <div id="section-importa-csv" class="settings-section-body" style="display:none">
                 <div class="card-settings">
-                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:12px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px">
-                        <i class="fas fa-mobile-alt" style="color:#3b82f6;font-size:1.1rem"></i>
-                        <span style="font-size:0.85rem;color:#1e40af;flex:1">Hai ricevuto la notifica sul cellulare?</span>
-                        <a href="csv-import.html" target="_blank" style="padding:8px 16px;background:#3b82f6;color:#fff;border-radius:8px;font-size:0.84rem;font-weight:700;text-decoration:none;white-space:nowrap">📋 Apri Import CSV</a>
-                    </div>
                     <h3 style="margin:0 0 8px 0">Importa Ordini da CSV</h3>
                     <p style="margin:0 0 14px 0;font-size:0.85rem;color:#64748b">Seleziona il file CSV esportato dal gestionale (separatore <strong>;</strong>). I duplicati vengono saltati automaticamente.</p>
                     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -2436,8 +2117,6 @@ export function registerGlobals() {
     window._getNotifPrefs          = _getNotifPrefs;
     // CSV Import
     window.importaCSVDaFile        = importaCSVDaFile;
-    window._chiudiCsvImportReviewModal_ = _chiudiCsvImportReviewModal_;
-    window._apriCsvPendingModal_   = _apriCsvPendingModal_;
     // Pagina Impostazioni
     window.caricaInterfacciaImpostazioni = caricaInterfacciaImpostazioni;
     window.caricaDatiIniziali      = caricaDatiIniziali;
