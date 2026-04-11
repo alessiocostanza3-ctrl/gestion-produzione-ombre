@@ -181,29 +181,29 @@ self.addEventListener('notificationclick', function(event) {
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(list) {
             var action = event.notification.data && event.notification.data.action;
             var csvUrl = APP_URL + '?action=openCsvModal';
+
+            // CSV import: usa SEMPRE l'URL con il param, così il browser naviga
+            // la finestra esistente (PWA standalone) o ne apre una nuova già puntata correttamente.
+            // Non passare per postMessage che è inaffidabile quando l'app è in background su mobile.
+            if (action === 'openCsvModal') {
+                return clients.openWindow(csvUrl);
+            }
+
             for (var i = 0; i < list.length; i++) {
                 if (list[i].url.indexOf(APP_URL) !== -1 && 'focus' in list[i]) {
                     var client = list[i];
                     return client.focus().then(function() {
-                        if (action === 'openCsvModal') {
-                            client.postMessage({ type: 'OPEN_CSV_MODAL' });
-                        } else if (target) {
+                        if (target) {
                             client.postMessage({ type: 'OPEN_NOTIFICATION_TARGET', target: target });
                         }
                     });
                 }
             }
-            return clients.openWindow(action === 'openCsvModal' ? csvUrl : url).then(function(newClient) {
-                if (newClient) {
+            return clients.openWindow(url).then(function(newClient) {
+                if (newClient && target) {
                     setTimeout(function() {
-                        try {
-                            if (action === 'openCsvModal') {
-                                newClient.postMessage({ type: 'OPEN_CSV_MODAL' });
-                            } else if (target) {
-                                newClient.postMessage({ type: 'OPEN_NOTIFICATION_TARGET', target: target });
-                            }
-                        } catch (_) {}
-                    }, 2000);
+                        try { newClient.postMessage({ type: 'OPEN_NOTIFICATION_TARGET', target: target }); } catch (_) {}
+                    }, 900);
                 }
             });
         })
