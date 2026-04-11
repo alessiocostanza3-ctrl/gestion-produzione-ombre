@@ -1351,6 +1351,11 @@ function caricaInterfacciaImpostazioni() {
             </div>
             <div id="section-importa-csv" class="settings-section-body" style="display:none">
                 <div class="card-settings">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:12px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px">
+                        <i class="fas fa-mobile-alt" style="color:#3b82f6;font-size:1.1rem"></i>
+                        <span style="font-size:0.85rem;color:#1e40af;flex:1">Hai ricevuto la notifica sul cellulare?</span>
+                        <a href="csv-import.html" target="_blank" style="padding:8px 16px;background:#3b82f6;color:#fff;border-radius:8px;font-size:0.84rem;font-weight:700;text-decoration:none;white-space:nowrap">📋 Apri Import CSV</a>
+                    </div>
                     <h3 style="margin:0 0 8px 0">Importa Ordini da CSV</h3>
                     <p style="margin:0 0 14px 0;font-size:0.85rem;color:#64748b">Seleziona il file CSV esportato dal gestionale (separatore <strong>;</strong>). I duplicati vengono saltati automaticamente.</p>
                     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">

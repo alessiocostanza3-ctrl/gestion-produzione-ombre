@@ -9,7 +9,7 @@
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbyVMV9MkGiqphN0AKXJdHXF0Arp1vxTYrCYi1SGv_4MKLRJkx--5HoGq7mmQX-p0ZTZ/exec';
 var APP_URL = 'https://alessiocostanza3-ctrl.github.io/gestion-produzione-ombre/';
 
-var SHELL_CACHE = 'prod-shell-v235';
+var SHELL_CACHE = 'prod-shell-v236';
 var SHELL_ASSETS = [
     APP_URL,
     APP_URL + 'index.html',
@@ -218,13 +218,18 @@ self.addEventListener('notificationclick', function(event) {
 function _showNotif_(titolo, corpo, username) {
     var target = _extractSearchFromText_(titolo, corpo);
     var action = /importazione/i.test(String(titolo || '')) ? 'openCsvModal' : '';
+    var csvPageUrl = APP_URL + 'csv-import.html';
+    // Per CSV: URL diretto nel body così l'utente lo vede nella notifica
+    var finalCorpo = action === 'openCsvModal'
+        ? (corpo || '') + '\n📎 Apri: ' + csvPageUrl
+        : corpo;
     return self.registration.showNotification(titolo, {
-        body:     corpo,
+        body:     finalCorpo,
         icon:     APP_URL + 'logo.png',
         badge:    APP_URL + 'logo.png',
         tag:      'prod-notif',
         renotify: true,
-        data:     { url: APP_URL, username: username || null, target: target || '', action: action }
+        data:     { url: action === 'openCsvModal' ? csvPageUrl : APP_URL, username: username || null, target: target || '', action: action }
     });
 }
 
