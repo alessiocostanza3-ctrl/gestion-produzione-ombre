@@ -9,7 +9,7 @@
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbyVMV9MkGiqphN0AKXJdHXF0Arp1vxTYrCYi1SGv_4MKLRJkx--5HoGq7mmQX-p0ZTZ/exec';
 var APP_URL = 'https://alessiocostanza3-ctrl.github.io/gestion-produzione-ombre/';
 
-var SHELL_CACHE = 'prod-shell-v233';
+var SHELL_CACHE = 'prod-shell-v234';
 var SHELL_ASSETS = [
     APP_URL,
     APP_URL + 'index.html',
@@ -17,7 +17,8 @@ var SHELL_ASSETS = [
     APP_URL + 'head-init.js',
     APP_URL + 'dist/script.bundle.js',
     APP_URL + 'manifest.json',
-    APP_URL + 'offline.html'
+    APP_URL + 'offline.html',
+    APP_URL + 'csv-import.html'
 ];
 
 /* ---- ciclo di vita ---- */
@@ -180,7 +181,7 @@ self.addEventListener('notificationclick', function(event) {
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(list) {
             var action = event.notification.data && event.notification.data.action;
-            var csvUrl = APP_URL + '?action=openCsvModal';
+            var csvUrl = APP_URL + 'csv-import.html';
 
             // CSV import: naviga la finestra esistente al URL con il param (client.navigate),
             // oppure apri nuova finestra. client.navigate è l'unico modo affidabile per

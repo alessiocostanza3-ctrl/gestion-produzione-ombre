@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Import CSV — PROD</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f1f5f9;color:#0f172a;min-height:100vh;display:flex;flex-direction:column}
+#app{flex:1;max-width:860px;margin:0 auto;width:100%;padding:24px 16px}
+h1{font-size:1.2rem;font-weight:800;margin-bottom:20px;display:flex;align-items:center;gap:10px}
+#status{padding:18px;border-radius:14px;font-size:.9rem;background:#fff;border:1px solid #e2e8f0;display:flex;align-items:center;gap:10px}
+#status.err{background:#fee2e2;border-color:#fca5a5;color:#991b1b}
+#status.ok{background:#dcfce7;border-color:#86efac;color:#166534}
+#status.warn{background:#fff7ed;border-color:#fdba74;color:#92400e}
+.spin{display:inline-block;width:18px;height:18px;border:3px solid #94a3b8;border-top-color:#3b82f6;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Modal */
+.overlay{position:fixed;inset:0;background:rgba(15,23,42,.55);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px;z-index:100}
+.box{width:min(960px,96vw);max-height:90vh;overflow:auto;background:#fff;border-radius:20px;box-shadow:0 30px 80px rgba(15,23,42,.22);padding:22px;display:flex;flex-direction:column;gap:16px}
+.head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.head h2{font-size:1.1rem;color:#0f172a;margin-bottom:4px}
+.head p{font-size:.88rem;color:#64748b}
+.close-btn{border:1px solid #e2e8f0;background:#fff;color:#334155;border-radius:999px;width:34px;height:34px;cursor:pointer;font-size:16px;flex-shrink:0}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.summary>div{border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;padding:11px 12px;font-size:.86rem;color:#334155}
+section.sec{border:1px solid #e2e8f0;border-radius:14px;padding:14px;background:#fff}
+.sec-title{font-weight:800;color:#0f172a;margin-bottom:8px}
+.sec-note{margin:0 0 12px;font-size:.84rem;color:#64748b}
+.choice{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:12px;font-size:.9rem;color:#334155}
+.choice label{display:inline-flex;align-items:center;gap:8px}
+.list{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+.item{border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;padding:10px 12px;font-size:.83rem;color:#334155;display:flex;flex-direction:column;gap:4px}
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:.83rem}
+th,td{border-bottom:1px solid #e2e8f0;padding:9px 10px;text-align:left;vertical-align:top}
+th{background:#f8fafc;color:#334155;position:sticky;top:0}
+.cell-sub{margin-top:3px;color:#94a3b8;font-size:.76rem}
+select{min-width:190px;border:1px solid #cbd5e1;border-radius:10px;padding:7px 10px;background:#fff;color:#0f172a;font-size:.85rem}
+.actions{display:flex;justify-content:flex-end;gap:10px;margin-top:4px;flex-wrap:wrap}
+.btn{padding:10px 22px;border-radius:10px;border:none;cursor:pointer;font-size:.9rem;font-weight:700}
+.btn-cancel{background:#f1f5f9;color:#475569;border:1px solid #e2e8f0}
+.btn-confirm{background:#0f172a;color:#fff}
+.btn-back{background:#3b82f6;color:#fff;margin-top:18px;display:inline-block;text-decoration:none;padding:10px 22px;border-radius:10px;font-size:.9rem;font-weight:700}
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>📋 Import CSV</h1>
+  <div id="status"><span class="spin"></span> Carico dati in sospeso…</div>
+  <div id="modal-area"></div>
+</div>
+<script>
+var GAS_URL = 'https://script.google.com/macros/s/AKfycbyVMV9MkGiqphN0AKXJdHXF0Arp1vxTYrCYi1SGv_4MKLRJkx--5HoGq7mmQX-p0ZTZ/exec';
+var APP_URL = 'https://alessiocostanza3-ctrl.github.io/gestion-produzione-ombre/';
+var _auth = null;
+
+function esc(v){return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+
+function stateOpts(sel){
+  var ss=['IN ATTESA DI ISTRUZIONI','PREPARARE','MANDA IN LAVORAZIONE','IN PRODUZIONE','IMBALLATO','SPEDITO/CONSEGNATO'];
+  var cur=String(sel||'IN ATTESA DI ISTRUZIONI').trim().toUpperCase();
+  return ss.map(function(s){return'<option value="'+s+'"'+(s===cur?' selected':'')+'>'+s+'</option>';}).join('');
+}
+
+function setStatus(msg,type){
+  var el=document.getElementById('status');
+  el.className=type||'';
+  el.innerHTML=msg;
+}
+
+function getSession(){
+  try{
+    var s=localStorage.getItem('sessioneUtente')||sessionStorage.getItem('sessioneUtente');
+    if(!s) return null;
+    var u=JSON.parse(s);
+    if(u.expiresAt && Date.now()>u.expiresAt) return null;
+    return u;
+  }catch(e){return null;}
+}
+
+function gasPost(payload){
+  if(_auth) payload._auth=_auth;
+  return fetch(GAS_URL,{method:'POST',body:JSON.stringify(payload)}).then(function(r){return r.json();}).catch(function(){return{status:'error',msg:'Errore di rete'};});
+}
+
+function showResult(html){
+  document.getElementById('modal-area').innerHTML=html+'<br><a href="'+APP_URL+'" class="btn-back">← Torna all\'app</a>';
+}
+
+function renderPreview(preview){
+  var missingHtml='';
+  if((preview.missingCandidates||[]).length){
+    missingHtml='<section class="sec"><div class="sec-title">Ordini assenti dal CSV</div>'
+      +'<p class="sec-note">Se confermi, questi ordini verranno impostati a <strong>SPEDITO</strong>. Se lasci "non modificare", resteranno invariati.</p>'
+      +'<div class="choice"><label><input type="radio" name="csv-miss" value="skip" checked> Non modificare</label>'
+      +'<label><input type="radio" name="csv-miss" value="apply"> Segna come SPEDITO</label></div>'
+      +'<div class="list">'
+      +preview.missingCandidates.map(function(it){
+        return'<div class="item"><div><strong>Ordine '+esc(it.ordine)+'</strong> · '+esc(it.codice)+'</div>'
+          +'<div>Cliente: '+esc(it.cliente||'—')+'</div>'
+          +'<div>Rif: '+esc(it.rif||'—')+' · Stato: <strong>'+esc(it.statoAttuale||'VUOTO')+'</strong></div></div>';
+      }).join('')+'</div></section>';
+  }
+  var finishHtml='';
+  if((preview.finishCandidates||[]).length){
+    finishHtml='<section class="sec"><div class="sec-title">Righe con finiture/colori rilevati</div>'
+      +'<p class="sec-note">Scegli lo stato da impostare per ogni riga.</p>'
+      +'<div class="table-wrap"><table><thead><tr><th>Ordine</th><th>Codice</th><th>Finitura</th><th>Stato</th></tr></thead><tbody>'
+      +preview.finishCandidates.map(function(it){
+        return'<tr><td><div><strong>'+esc(it.ordine)+'</strong></div><div class="cell-sub">'+esc(it.rif||'—')+'</div></td>'
+          +'<td><div>'+esc(it.codice)+'</div><div class="cell-sub">'+esc(it.prodotto||'')+'</div></td>'
+          +'<td>'+esc(it.tag)+'</td>'
+          +'<td><select data-key="'+esc(it.key)+'">'+stateOpts(it.statoAttuale)+'</select></td></tr>';
+      }).join('')+'</tbody></table></div></section>';
+  }
+  var body='<div class="summary">'
+    +'<div>Nuove righe: <strong>'+(preview.preview&&preview.preview.nuove||0)+'</strong></div>'
+    +'<div>Qty aggiornate: <strong>'+(preview.preview&&preview.preview.aggiornate||0)+'</strong></div>'
+    +'<div>Finiture: <strong>'+(preview.finishCandidates||[]).length+'</strong></div>'
+    +'<div>Assenti: <strong>'+(preview.missingCandidates||[]).length+'</strong></div>'
+    +'</div>'+missingHtml+finishHtml
+    +'<div class="actions">'
+    +'<button class="btn btn-cancel" id="btn-annulla">Annulla</button>'
+    +'<button class="btn btn-confirm" id="btn-conferma">Conferma import</button>'
+    +'</div>';
+
+  var area=document.getElementById('modal-area');
+  area.innerHTML='<div class="box">'+
+    '<div class="head"><div><h2>Revisione import CSV</h2><p>Controlla ordini assenti e righe con finiture prima di confermare.</p></div></div>'+
+    body+'</div>';
+
+  document.getElementById('btn-annulla').onclick=function(){
+    showResult('<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:12px;padding:16px;color:#92400e"><strong>⚠ Importazione annullata.</strong><br>Nessuna modifica applicata.</div>');
+  };
+  document.getElementById('btn-conferma').onclick=async function(){
+    var selMiss=document.querySelector('input[name="csv-miss"]:checked');
+    var applyMissing=!!(selMiss&&selMiss.value==='apply');
+    var fsd={};
+    document.querySelectorAll('[data-key]').forEach(function(s){if(s.getAttribute('data-key')&&s.value)fsd[s.getAttribute('data-key')]=s.value;});
+    document.getElementById('btn-conferma').disabled=true;
+    document.getElementById('btn-conferma').textContent='Attendere…';
+    setStatus('<span class="spin"></span> Applico le modifiche…');
+    var json=await gasPost({azione:'importaOrdiniCSV',csvText:'',separatore:';',confermaImportCSV:true,applyMissingCsvChanges:applyMissing,finishStateDecisions:fsd});
+    if(json.status==='ok'){
+      setStatus('✅ Import completato correttamente.','ok');
+      showResult('<div style="background:#dcfce7;border:1px solid #86efac;border-radius:12px;padding:16px;color:#166534">'
+        +'<strong>✅ Importazione completata</strong><br>'
+        +'Nuovi ordini: <strong>'+(json.nuove||0)+'</strong> &nbsp;·&nbsp; Duplicati saltati: <strong>'+(json.saltate||0)+'</strong>'
+        +(json.aggiornate>0?'<br>Qty aggiornate: <strong>'+json.aggiornate+'</strong>':'')
+        +(json.evasi>0?'<br>🚚 Spostati a SPEDITO: <strong>'+json.evasi+'</strong>':'')
+        +'</div>');
+    } else {
+      setStatus('❌ '+(json.msg||json.message||'Errore sconosciuto'),'err');
+      showResult('<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:12px;padding:16px;color:#991b1b"><strong>❌ Errore:</strong> '+esc(json.msg||json.message||'Errore')+'</div>');
+    }
+  };
+}
+
+async function init(){
+  var u=getSession();
+  if(!u){
+    setStatus('⚠ Sessione non trovata. <a href="'+APP_URL+'" style="color:#3b82f6;font-weight:700">Accedi dall\'app</a> e riprova.','warn');
+    return;
+  }
+  _auth={username:u.nome||u.username||'',sessionToken:u.sessionToken||'',ruolo:u.ruolo||''};
+  var preview=await gasPost({azione:'getCsvPendingImport'});
+  if(preview.status==='none'){
+    setStatus('Nessun import CSV in sospeso.','warn');
+    document.getElementById('modal-area').innerHTML='<a href="'+APP_URL+'" class="btn-back">← Torna all\'app</a>';
+    return;
+  }
+  if(preview.status==='expired'){
+    setStatus('⚠ Import scaduto (>24h). Ricarica il CSV dal PC.','warn');
+    document.getElementById('modal-area').innerHTML='<a href="'+APP_URL+'" class="btn-back">← Torna all\'app</a>';
+    return;
+  }
+  if(preview.status==='error'||preview.status==='forbidden'){
+    setStatus('❌ '+(preview.msg||'Errore'),'err');
+    return;
+  }
+  setStatus('');
+  document.getElementById('status').style.display='none';
+  renderPreview(preview);
+}
+
+init();
+</script>
+</body>
+</html>
