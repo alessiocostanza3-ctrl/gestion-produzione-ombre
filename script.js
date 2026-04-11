@@ -630,6 +630,21 @@ function _initModuliENaviga_() {
     cambiaPagina(paginaSalvata, _tastoMenu).catch(e => {
         if (e && e.name !== 'AbortError') console.warn('[init] cambiaPagina:', e);
     });
+
+    // Gestione azione da URL (es. ?action=openCsvModal da notifica push mobile)
+    try {
+        const _urlParams = new URLSearchParams(window.location.search);
+        const _urlAction = _urlParams.get('action');
+        if (_urlAction === 'openCsvModal') {
+            // Pulisce il parametro dall'URL senza ricaricare la pagina
+            const _cleanUrl = window.location.pathname + window.location.hash;
+            window.history.replaceState(null, '', _cleanUrl);
+            // Naviga a IMPOSTAZIONI dopo che la pagina corrente si è caricata
+            setTimeout(function() {
+                cambiaPagina('IMPOSTAZIONI', null).catch(function() {});
+            }, 400);
+        }
+    } catch (_) {}
 }
 
 window.onload = async function() {

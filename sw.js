@@ -180,6 +180,7 @@ self.addEventListener('notificationclick', function(event) {
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(list) {
             var action = event.notification.data && event.notification.data.action;
+            var csvUrl = APP_URL + '?action=openCsvModal';
             for (var i = 0; i < list.length; i++) {
                 if (list[i].url.indexOf(APP_URL) !== -1 && 'focus' in list[i]) {
                     var client = list[i];
@@ -192,7 +193,7 @@ self.addEventListener('notificationclick', function(event) {
                     });
                 }
             }
-            return clients.openWindow(url).then(function(newClient) {
+            return clients.openWindow(action === 'openCsvModal' ? csvUrl : url).then(function(newClient) {
                 if (newClient) {
                     setTimeout(function() {
                         try {
