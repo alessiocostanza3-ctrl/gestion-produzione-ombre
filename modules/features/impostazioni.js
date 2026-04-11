@@ -827,6 +827,64 @@ function _chiudiCsvImportReviewModal_(notifyCancel) {
     if (notifyCancel && _csvImportReviewHandlers.onCancel) _csvImportReviewHandlers.onCancel();
 }
 
+/**
+ * Apre il modal CSV import scaricando la preview dal server (per mobile dopo tap notifica push).
+ * Richiede che GAS abbia un import in sospeso per l'utente corrente (salvato in Drive).
+ */
+async function _apriCsvPendingModal_() {
+    const risultato = document.getElementById('csv-upload-result');
+    const _spin = `<div style="display:flex;align-items:center;gap:8px;color:#64748b;font-size:0.88rem"><i class="fas fa-spinner fa-spin"></i> Carico import in sospeso…</div>`;
+    if (risultato) { risultato.style.display = 'block'; risultato.innerHTML = _spin; }
+    try {
+        const res = await fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify({ azione: 'getCsvPendingImport' })
+        });
+        const preview = await res.json().catch(() => ({}));
+        if (preview.status === 'none') {
+            if (risultato) { risultato.innerHTML = `<div style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:10px;padding:12px 16px;font-size:0.88rem;color:#475569">Nessun import CSV in sospeso.</div>`; }
+            return;
+        }
+        if (preview.status === 'expired') {
+            if (risultato) { risultato.innerHTML = _csvImportErrorHtml_('Import scaduto (>24h). Ricarica il CSV dal PC.'); }
+            return;
+        }
+        if (preview.status === 'error' || preview.status === 'forbidden') {
+            if (risultato) { risultato.innerHTML = _csvImportErrorHtml_(preview.msg || 'Errore'); }
+            return;
+        }
+        if (risultato) risultato.style.display = 'none';
+
+        const applyFromPending = async (decisioni) => {
+            if (risultato) { risultato.style.display = 'block'; risultato.innerHTML = _spin.replace('Carico import in sospeso', 'Applico le modifiche selezionate'); }
+            // Manda conferma senza csvText: GAS recupera da Drive
+            const json = await fetch(URL_GOOGLE, {
+                method: 'POST',
+                body: JSON.stringify(Object.assign({ azione: 'importaOrdiniCSV', csvText: '', separatore: ';', confermaImportCSV: true }, decisioni || {}))
+            }).then(r => r.json()).catch(() => ({}));
+            if (risultato) {
+                risultato.style.display = 'block';
+                if (json.status === 'ok') {
+                    risultato.innerHTML = _csvImportSuccessHtml_(json);
+                    setTimeout(() => { if (typeof window.caricaDati === 'function') window.caricaDati('PROGRAMMA PRODUZIONE DEL MESE', true); }, 800);
+                } else {
+                    risultato.innerHTML = _csvImportErrorHtml_(json.msg || json.message || 'Errore sconosciuto');
+                }
+            }
+        };
+
+        if (preview.reviewRequired) {
+            _apriCsvImportReviewModal_(preview, applyFromPending, () => {
+                if (risultato) { risultato.style.display = 'block'; risultato.innerHTML = `<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:12px 16px;font-size:0.88rem;color:#9a3412"><strong>⚠ Importazione annullata</strong></div>`; }
+            });
+        } else {
+            await applyFromPending({ applyMissingCsvChanges: false, finishStateDecisions: {} });
+        }
+    } catch (e) {
+        if (risultato) { risultato.style.display = 'block'; risultato.innerHTML = _csvImportErrorHtml_(e.message); }
+    }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 //  PAGINA IMPOSTAZIONI
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -2374,6 +2432,7 @@ export function registerGlobals() {
     // CSV Import
     window.importaCSVDaFile        = importaCSVDaFile;
     window._chiudiCsvImportReviewModal_ = _chiudiCsvImportReviewModal_;
+    window._apriCsvPendingModal_   = _apriCsvPendingModal_;
     // Pagina Impostazioni
     window.caricaInterfacciaImpostazioni = caricaInterfacciaImpostazioni;
     window.caricaDatiIniziali      = caricaDatiIniziali;

@@ -639,9 +639,15 @@ function _initModuliENaviga_() {
             // Pulisce il parametro dall'URL senza ricaricare la pagina
             const _cleanUrl = window.location.pathname + window.location.hash;
             window.history.replaceState(null, '', _cleanUrl);
-            // Naviga a IMPOSTAZIONI dopo che la pagina corrente si è caricata
+            // Naviga a IMPOSTAZIONI, poi apri il modal pending
             setTimeout(function() {
-                cambiaPagina('IMPOSTAZIONI', null).catch(function() {});
+                cambiaPagina('IMPOSTAZIONI', null).then(function() {
+                    setTimeout(function() {
+                        if (typeof window._apriCsvPendingModal_ === 'function') {
+                            window._apriCsvPendingModal_();
+                        }
+                    }, 300);
+                }).catch(function() {});
             }, 400);
         }
     } catch (_) {}
