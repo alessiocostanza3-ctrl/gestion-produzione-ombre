@@ -48,6 +48,12 @@ if ('serviceWorker' in navigator) {
             _salvaNotificheInLocale_(event.data.notifiche || []);
             return;
         }
+        if (event.data && event.data.type === 'OPEN_CSV_MODAL') {
+            if (typeof window.cambiaPagina === 'function') {
+                window.cambiaPagina('IMPOSTAZIONI', null).catch(function() {});
+            }
+            return;
+        }
         if (event.data && event.data.type === 'OPEN_NOTIFICATION_TARGET') {
             try {
                 var target = String(event.data.target || '').trim();

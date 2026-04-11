@@ -193,10 +193,16 @@ self.addEventListener('notificationclick', function(event) {
                 }
             }
             return clients.openWindow(url).then(function(newClient) {
-                if (newClient && target && action !== 'openCsvModal') {
+                if (newClient) {
                     setTimeout(function() {
-                        try { newClient.postMessage({ type: 'OPEN_NOTIFICATION_TARGET', target: target }); } catch (_) {}
-                    }, 900);
+                        try {
+                            if (action === 'openCsvModal') {
+                                newClient.postMessage({ type: 'OPEN_CSV_MODAL' });
+                            } else if (target) {
+                                newClient.postMessage({ type: 'OPEN_NOTIFICATION_TARGET', target: target });
+                            }
+                        } catch (_) {}
+                    }, 2000);
                 }
             });
         })
@@ -206,13 +212,14 @@ self.addEventListener('notificationclick', function(event) {
 /* ---- helper ---- */
 function _showNotif_(titolo, corpo, username) {
     var target = _extractSearchFromText_(titolo, corpo);
+    var action = /importazione/i.test(String(titolo || '')) ? 'openCsvModal' : '';
     return self.registration.showNotification(titolo, {
         body:     corpo,
         icon:     APP_URL + 'logo.png',
         badge:    APP_URL + 'logo.png',
         tag:      'prod-notif',
         renotify: true,
-        data:     { url: APP_URL, username: username || null, target: target || '' }
+        data:     { url: APP_URL, username: username || null, target: target || '', action: action }
     });
 }
 
