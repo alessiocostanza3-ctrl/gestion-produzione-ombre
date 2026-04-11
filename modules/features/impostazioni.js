@@ -520,27 +520,32 @@ function _vapidB64ToUint8_(b64url) {
  * il modal appaia. Permette all'utente di tornare al modal se ha cambiato tab.
  */
 function _mostraBannerImportCSV_() {
-    // ── Browser Notification (solo se permesso già concesso, senza chiederlo) ──
-    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-        try {
+    // ── Push notification via Service Worker (funziona su mobile e desktop) ──
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted' && 'serviceWorker' in navigator) {
+        navigator.serviceWorker.ready.then(function (reg) {
             const iconUrl = new URL('./logo.png', location.href).href;
-            const n = new Notification('📋 Completa l\'importazione', {
+            reg.showNotification('📋 Completa l\'importazione', {
                 body: 'CSV caricato, controlla i dettagli e dai OK',
                 icon: iconUrl,
                 tag: 'csv-import',
-                renotify: true
+                renotify: true,
+                data: { action: 'openCsvModal' }
             });
-            n.onclick = function () {
-                window.focus();
+        }).catch(function () {});
+    }
+
+    // ── Ascolta postMessage dal Service Worker per riaprire il modal CSV ──
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('message', function _csvSwMsg(ev) {
+            if (ev.data && ev.data.type === 'OPEN_CSV_MODAL') {
                 const modal = document.getElementById('csv-import-review-modal');
-                if (modal && !modal.classList.contains('active')) {
+                if (modal) {
                     modal.style.display = 'flex';
                     modal.offsetHeight;
                     modal.classList.add('active');
                 }
-                n.close();
-            };
-        } catch (_) {}
+            }
+        });
     }
 
     // ── Banner in-app persistente ──────────────────────────────────────────────

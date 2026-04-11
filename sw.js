@@ -179,16 +179,21 @@ self.addEventListener('notificationclick', function(event) {
     }
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(list) {
+            var action = event.notification.data && event.notification.data.action;
             for (var i = 0; i < list.length; i++) {
                 if (list[i].url.indexOf(APP_URL) !== -1 && 'focus' in list[i]) {
                     var client = list[i];
                     return client.focus().then(function() {
-                        if (target) client.postMessage({ type: 'OPEN_NOTIFICATION_TARGET', target: target });
+                        if (action === 'openCsvModal') {
+                            client.postMessage({ type: 'OPEN_CSV_MODAL' });
+                        } else if (target) {
+                            client.postMessage({ type: 'OPEN_NOTIFICATION_TARGET', target: target });
+                        }
                     });
                 }
             }
             return clients.openWindow(url).then(function(newClient) {
-                if (newClient && target) {
+                if (newClient && target && action !== 'openCsvModal') {
                     setTimeout(function() {
                         try { newClient.postMessage({ type: 'OPEN_NOTIFICATION_TARGET', target: target }); } catch (_) {}
                     }, 900);
