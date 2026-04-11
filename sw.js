@@ -182,10 +182,19 @@ self.addEventListener('notificationclick', function(event) {
             var action = event.notification.data && event.notification.data.action;
             var csvUrl = APP_URL + '?action=openCsvModal';
 
-            // CSV import: usa SEMPRE l'URL con il param, così il browser naviga
-            // la finestra esistente (PWA standalone) o ne apre una nuova già puntata correttamente.
-            // Non passare per postMessage che è inaffidabile quando l'app è in background su mobile.
+            // CSV import: naviga la finestra esistente al URL con il param (client.navigate),
+            // oppure apri nuova finestra. client.navigate è l'unico modo affidabile per
+            // portare il ?action=openCsvModal nell'app già aperta su mobile.
             if (action === 'openCsvModal') {
+                var existingClient = null;
+                for (var j = 0; j < list.length; j++) {
+                    if (list[j].url.indexOf(APP_URL) !== -1) { existingClient = list[j]; break; }
+                }
+                if (existingClient && typeof existingClient.navigate === 'function') {
+                    return existingClient.navigate(csvUrl).then(function(c) {
+                        if (c && 'focus' in c) return c.focus();
+                    }).catch(function() { return clients.openWindow(csvUrl); });
+                }
                 return clients.openWindow(csvUrl);
             }
 
