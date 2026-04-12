@@ -8,6 +8,7 @@ import { utenteAttuale } from '../core/session.js';
 import RevisionPoller from '../core/revision-poller.js';
 import { lsCacheSet as _lsCacheSet, lsCacheDel as _lsCacheDel } from '../core/ls-cache.js';
 import { cacheContenuti, cacheFetchTime, prefetch } from '../core/state.js';
+import { createGhost, moveGhost, removeGhost, dropTargetAtPoint } from '../core/dnd.js';
 
 // (Paginazione rimossa: tutti gli ordini caricati in un colpo)
 
@@ -2016,7 +2017,7 @@ function _initKanbanDnd() {
                 }
             } catch (_) {}
         }
-        if (ghost) { ghost.remove(); ghost = null; }
+        if (ghost) { removeGhost(ghost); ghost = null; }
         if (dragEl) { 
             dragEl.classList.remove('ov-drag-active');
             dragEl.style.userSelect = '';
@@ -2036,31 +2037,19 @@ function _initKanbanDnd() {
         srcStato = item.dataset.statoCorrente;
         dragPointerId = pointerId;
 
-        const rect = item.getBoundingClientRect();
-        offX = clientX - rect.left;
-        offY = clientY - rect.top;
-
-        ghost = item.cloneNode(true);
-        ghost.removeAttribute('id');
-        ghost.style.cssText = [
-            'position:fixed',
-            `width:${rect.width}px`,
-            `height:${rect.height}px`,
-            `left:${rect.left}px`,
-            `top:${rect.top}px`,
-            'opacity:0.92',
-            'pointer-events:none',
-            'user-select:none',
-            '-webkit-user-select:none',
-            'z-index:99999',
-            'border-radius:8px',
-            'box-shadow:0 10px 32px rgba(0,0,0,0.55)',
-            'transform:scale(1.05) rotate(-1.2deg)',
-            'transition:transform 0.1s',
-            'background:#1e2d3d',
-            'border:1.5px solid #475569'
-        ].join(';');
-        document.body.appendChild(ghost);
+        const g = createGhost(item, clientX, clientY, {
+            opacity: 0.92,
+            scale: '1.05',
+            rotate: '-1.2deg',
+            borderRadius: '8px',
+            shadow: '0 10px 32px rgba(0,0,0,0.55)',
+            background: '#1e2d3d',
+            border: '1.5px solid #475569',
+            transition: 'transform 0.1s'
+        });
+        ghost = g.ghost;
+        offX = g.offX;
+        offY = g.offY;
 
         item.style.userSelect = 'none';
         dragEl.classList.add('ov-drag-active');
@@ -2123,8 +2112,7 @@ function _initKanbanDnd() {
             }
         }
         if (!dragEl || !ghost) return;
-        ghost.style.left = (e.clientX - offX) + 'px';
-        ghost.style.top  = (e.clientY - offY) + 'px';
+        moveGhost(ghost, e.clientX, e.clientY, offX, offY);
         _highlight(_bodyAtPoint(e.clientX, e.clientY));
     }
     grid.addEventListener('pointermove', _onPointerMove);

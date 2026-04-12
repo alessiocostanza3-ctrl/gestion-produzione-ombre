@@ -8,6 +8,7 @@ import { utenteAttuale } from '../core/session.js';
 import { notificaElegante, applicaFade, mostraConferma, _esc } from '../core/ui.js';
 import RevisionPoller from '../core/revision-poller.js';
 import { lsCacheGet as _lsCacheGet, lsCacheSet as _lsCacheSet, lsCacheDel as _lsCacheDel } from '../core/ls-cache.js';
+import { createGhost, moveGhost, removeGhost, dropTargetAtPoint } from '../core/dnd.js';
 
 // ─── localStorage helpers (→ modules/core/ls-cache.js) ──────────────────────
 
@@ -1339,12 +1340,13 @@ function initSortable(containerId, onReorder) {
         if (hasHandle && !e.target.closest('.dnd-handle, .drag-handle')) return;
         touchSrc = src;
         const t = e.touches[0];
-        const r = src.getBoundingClientRect();
-        touchOffX = t.clientX - r.left;
-        touchOffY = t.clientY - r.top;
-        touchGhost = src.cloneNode(true);
-        touchGhost.style.cssText = `position:fixed;width:${r.width}px;height:${r.height}px;opacity:0.85;pointer-events:none;z-index:99999;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,0.25);left:${r.left}px;top:${r.top}px;transition:none;transform:scale(1.04) rotate(-1deg);`;
-        document.body.appendChild(touchGhost);
+        const g = createGhost(src, t.clientX, t.clientY, {
+            opacity: 0.85, borderRadius: '14px',
+            shadow: '0 10px 30px rgba(0,0,0,0.25)'
+        });
+        touchGhost = g.ghost;
+        touchOffX = g.offX;
+        touchOffY = g.offY;
         src.style.opacity = '0.25';
         src.style.transform = 'scale(0.97)';
     }, { passive: true });
@@ -1353,12 +1355,8 @@ function initSortable(containerId, onReorder) {
         if (!touchSrc || !touchGhost) return;
         e.preventDefault();
         const t = e.touches[0];
-        touchGhost.style.left = (t.clientX - touchOffX) + 'px';
-        touchGhost.style.top  = (t.clientY - touchOffY) + 'px';
-        touchGhost.style.display = 'none';
-        const below = document.elementFromPoint(t.clientX, t.clientY);
-        touchGhost.style.display = '';
-        const over = below?.closest('[draggable="true"]');
+        moveGhost(touchGhost, t.clientX, t.clientY, touchOffX, touchOffY);
+        const over = dropTargetAtPoint(touchGhost, t.clientX, t.clientY, '[draggable="true"]');
         if (over && over !== touchSrc && container.contains(over)) {
             const rect = over.getBoundingClientRect();
             container.insertBefore(touchSrc, t.clientY < rect.top + rect.height / 2 ? over : over.nextSibling);
@@ -1369,7 +1367,7 @@ function initSortable(containerId, onReorder) {
         if (!touchSrc) return;
         touchSrc.style.opacity = '';
         touchSrc.style.transform = '';
-        if (touchGhost) { touchGhost.remove(); touchGhost = null; }
+        removeGhost(touchGhost); touchGhost = null;
         if (onReorder) onReorder(container);
         touchSrc = null;
     });
