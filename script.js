@@ -538,7 +538,10 @@ function _prefetchBackground() {
     })
         .then(function(r) { return r.ok ? r.json() : null; })
         .catch(function() { return null; });
-    prefetch.matPromise  = fetch(URL_GOOGLE + '?pagina=MATERIALE+DA+ORDINARE')
+    prefetch.matPromise  = fetch(URL_GOOGLE, {
+        method: 'POST',
+        body: JSON.stringify({ pagina: 'MATERIALE DA ORDINARE' })
+    })
         .then(function(r) { return r.ok ? r.json() : null; })
         .catch(function() { return null; });
     // Prefetch ordini: user-specific (dopo login utenteAttuale è già noto)
