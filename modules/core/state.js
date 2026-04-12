@@ -31,13 +31,4 @@ export const prefetch = {
     ordiniPromise: null,
 };
 
-/**
- * Stato navigazione (usato da cambiaPagina in script.js).
- */
-export const navState = {
-    paginaAttuale:    null,
-    requestSerial:    0,
-    latestRequest:    0,
-    abortController:  null,
-    lastClickTime:    0,
-};
+// navState rimosso: script.js usa variabili locali dedicate per la navigazione.

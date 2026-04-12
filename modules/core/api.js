@@ -38,9 +38,14 @@ export async function gasRequest(params) {
  * @param {number} [timeoutMs=8000]
  * @returns {Promise<any>}
  */
-export async function gasRequestWithTimeout(params, timeoutMs = 8000) {
+export async function gasRequestWithTimeout(params, timeoutMs = 8000, { signal } = {}) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
+    // Se un signal esterno viene fornito, aborta anche il nostro controller
+    if (signal) {
+        if (signal.aborted) { clearTimeout(timer); throw new DOMException('Aborted', 'AbortError'); }
+        signal.addEventListener('abort', () => controller.abort(), { once: true });
+    }
     const token = getSessionToken();
     const body = token ? { ...params, _token: token } : { ...params };
     try {
@@ -78,6 +83,35 @@ export async function getRevision() {
         const res = await fetch(URL_GOOGLE + '?azione=getRevision', { signal: controller.signal });
         clearTimeout(timer);
         return await res.json();
+    } catch (err) {
+        clearTimeout(timer);
+        throw err;
+    }
+}
+
+/**
+ * Esegue una richiesta GET verso GAS con timeout e gestione auth_error.
+ *
+ * @param {Record<string,string>} queryParams  — parametri query string
+ * @param {number} [timeoutMs=8000]
+ * @returns {Promise<any>}
+ */
+export async function gasGetWithTimeout(queryParams, timeoutMs = 8000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const qs = new URLSearchParams(queryParams).toString();
+        const res = await fetch(URL_GOOGLE + '?' + qs, { signal: controller.signal });
+        clearTimeout(timer);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && data.status === 'auth_error') {
+            clearSession();
+            const err = new Error('auth_error');
+            err.authError = true;
+            throw err;
+        }
+        return data;
     } catch (err) {
         clearTimeout(timer);
         throw err;

@@ -4,7 +4,7 @@
 
 import { URL_GOOGLE } from '../core/config.js';
 import { utenteAttuale } from '../core/session.js';
-import { notificaElegante } from '../core/ui.js';
+import { notificaElegante, _esc } from '../core/ui.js';
 
 const NOTIF_RETENTION_DAYS = 7;
 const NOTIF_RETENTION_MS = NOTIF_RETENTION_DAYS * 24 * 60 * 60 * 1000;
@@ -177,14 +177,8 @@ function _notifIcona_(titolo) {
     if (/assegnaz/i.test(titolo))  return 'fa-user-check';
     return 'fa-bell';
 }
-function _escapeHtml_(value) {
-    return String(value == null ? '' : value)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
-}
+// _escapeHtml_ rimossa: usa _esc da core/ui.js
+const _escapeHtml_ = _esc;
 function _notifHtml_(arr) {
     if (!arr.length) return '<div class="notif-empty"><i class="far fa-bell-slash"></i><p>Nessuna notifica recente</p></div>';
     return arr.map(function(n, idx) {

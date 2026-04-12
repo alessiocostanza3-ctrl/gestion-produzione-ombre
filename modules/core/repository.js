@@ -6,8 +6,7 @@
 
 'use strict';
 
-import { gasRequest, gasRequestWithTimeout } from './api.js';
-import { URL_GOOGLE } from './config.js';
+import { gasRequest, gasRequestWithTimeout, gasGetWithTimeout } from './api.js';
 
 // ── LETTURA ───────────────────────────────────────────────────────────────────
 
@@ -19,9 +18,7 @@ import { URL_GOOGLE } from './config.js';
 export async function fetchDashboard({ limit = 100, offset = 0, signal } = {}) {
     const params = { azione: 'getAllDashboard', limit };
     if (offset > 0) params.offset = offset;
-    return signal
-        ? gasRequestWithTimeout(params, 8000)
-        : gasRequestWithTimeout(params, 8000);
+    return gasRequestWithTimeout(params, 8000, { signal });
 }
 
 /**
@@ -37,9 +34,7 @@ export async function fetchRichieste() {
  * @returns {Promise<object>}
  */
 export async function fetchMateriale() {
-    const res = await fetch(URL_GOOGLE + '?pagina=' + encodeURIComponent('MATERIALE DA ORDINARE'));
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    return res.json();
+    return gasGetWithTimeout({ pagina: 'MATERIALE DA ORDINARE' }, 8000);
 }
 
 /**
@@ -55,9 +50,7 @@ export async function fetchImpostazioni() {
  * @returns {Promise<{ revision: number }>}
  */
 export async function fetchRevision() {
-    const res = await fetch(URL_GOOGLE + '?azione=getRevision');
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    return res.json();
+    return gasGetWithTimeout({ azione: 'getRevision' }, 5000);
 }
 
 /**
@@ -73,9 +66,7 @@ export async function fetchUtenti() {
  * @returns {Promise<Record<string, string>>}
  */
 export async function fetchAvatarColors() {
-    const res = await fetch(URL_GOOGLE + '?azione=getAvatarColors');
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    return res.json();
+    return gasGetWithTimeout({ azione: 'getAvatarColors' }, 8000);
 }
 
 // ── SCRITTURA ─────────────────────────────────────────────────────────────────

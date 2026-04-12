@@ -7,7 +7,7 @@ import {
   getSessionToken, refreshSessionExpiry
 } from './modules/core/session.js';
 import { lsCacheGet as _lsCacheGet, lsCacheSet as _lsCacheSet, lsCacheDel as _lsCacheDel } from './modules/core/ls-cache.js';
-import { cacheContenuti, cacheFetchTime, prefetch, navState } from './modules/core/state.js';
+import { cacheContenuti, cacheFetchTime, prefetch } from './modules/core/state.js';
 // api.js is imported by revision-poller.js and pipistrelli.js
 import RevisionPoller, { configurePoller } from './modules/core/revision-poller.js';
 // pipistrelli.js: lazy-loaded dinamicamente in cambiaPagina → NON importare staticamente
