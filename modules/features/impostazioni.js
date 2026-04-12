@@ -10,7 +10,7 @@ import RevisionPoller from '../core/revision-poller.js';
 import { lsCacheGet as _lsCacheGet, lsCacheSet as _lsCacheSet, lsCacheDel as _lsCacheDel } from '../core/ls-cache.js';
 import { createGhost, moveGhost, removeGhost, dropTargetAtPoint } from '../core/dnd.js';
 import {
-    _qrCaricaPostazioni, _chiudiScannerQR, _qrRenderListaCanvas,
+    _qrPostazioniArr, _qrCaricaPostazioni, _chiudiScannerQR, _qrRenderListaCanvas,
     apriScannerQR, _processaQR, _chiudiModaleQRAzione,
     _qrFiltroOrdini, _qrSelezionaOrdine, _qrScegliStato,
     _qrSelezionaTutti, _qrDeselezionaTutti, _confermaSpostaPostazione,

@@ -687,6 +687,7 @@ ${items.map(p => `
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export {
+    _qrPostazioniArr,
     _qrCaricaPostazioni,
     _chiudiScannerQR,
     _qrRenderListaCanvas,
