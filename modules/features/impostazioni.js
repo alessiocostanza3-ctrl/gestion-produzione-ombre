@@ -244,7 +244,7 @@ function _setAvatarColor(color) {
     try { localStorage.setItem('avatarColor_' + nomeKey, color); } catch {}
     if (window._avatarColorsCache) window._avatarColorsCache[nomeKey] = color;
     if (utenteAttuale.nome) {
-        fetch(`${URL_GOOGLE}?azione=setAvatarColor&username=${encodeURIComponent(utenteAttuale.nome)}&color=${encodeURIComponent(color)}`)
+        fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify({ azione: 'setAvatarColor', username: utenteAttuale.nome, color: color }) })
             .catch(() => {});
     }
     _applyAvatarColorUI(color);
@@ -295,7 +295,7 @@ function chiudiAccountMenuMobile() {
 /** Mostra la diagnostica push (solo MASTER): lista dispositivi registrati per ogni utente */
 async function _mostraDiagnosticaPush() {
     try {
-        const res  = await fetch(URL_GOOGLE + '?azione=pushInfo');
+        const res  = await fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify({ azione: 'pushInfo' }) });
         const json = await res.json().catch(() => ({}));
         const subs = json.subscriptions || [];
         if (!subs.length) {
@@ -588,7 +588,7 @@ function _csvImportErrorHtml_(msg) {
 
 async function caricaImpostazioni() {
     try {
-        const res = await fetch(URL_GOOGLE + "?azione=getImpostazioni");
+        const res = await fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify({ azione: 'getImpostazioni' }) });
         const settings = await res.json();
         window.listaStati = settings.stati || [];
         window.listaOperatori = settings.operatori || [];
@@ -628,7 +628,7 @@ async function caricaDatiIniziali() {
 async function _fetchImpostazioniDaServer() {
     const LS_KEY = '_impostazioni_cache';
     try {
-        const res = await fetch(URL_GOOGLE + '?azione=getImpostazioni');
+        const res = await fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify({ azione: 'getImpostazioni' }) });
         const settings = await res.json();
         window.listaStati     = (settings.stati && settings.stati.length) ? settings.stati : window._defaultListaStati_();
         window.listaOperatori = settings.operatori || [];
@@ -667,7 +667,7 @@ async function caricaListaUtenti() {
     if (!container) return;
     container.innerHTML = '<div class="centered-msg small">Caricamento...</div>';
     try {
-        const res  = await fetch(`${URL_GOOGLE}?azione=getUtenti`);
+        const res  = await fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify({ azione: 'getUtenti' }) });
         const list = await res.json();
         if (!list.length) {
             container.innerHTML = '<p class="centered-msg small">Nessun utente creato. Clicca "+ Aggiungi Utente".</p>';

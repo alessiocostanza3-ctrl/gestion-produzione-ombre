@@ -745,7 +745,7 @@ function selezionaOpAssegna(optBtn, idRiga, nOrd, nomeOp) {
     }
 
     const mitt = (utenteAttuale?.nome || '').toUpperCase().trim();
-    fetch(`${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(nuovaAssegna)}&id_riga=${idRiga}&mittente=${encodeURIComponent(mitt)}`)
+    fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify({ azione: 'assegnaOperatori', ordine: nOrd, operatori: nuovaAssegna, id_riga: idRiga, mittente: mitt }) })
         .then(r => r.json()).then(j => {
             if (!j || (j.status !== 'ok' && j.status !== 'success')) throw new Error('Assegnazione non salvata');
             _syncAssegnaTimestamp(nOrd, idRiga, j.last_modified);
@@ -799,7 +799,7 @@ function selezionaOpAssegnaOrdine(optBtn, nOrd, nomeOp) {
     _repaintOpColors();
 
     const mitt = (utenteAttuale?.nome || '').toUpperCase().trim();
-    fetch(`${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(nuovaAssegna)}&mittente=${encodeURIComponent(mitt)}`)
+    fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify({ azione: 'assegnaOperatori', ordine: nOrd, operatori: nuovaAssegna, mittente: mitt }) })
         .then(r => r.json()).then(j => {
             if (!j || (j.status !== 'ok' && j.status !== 'success')) throw new Error('Assegnazione non salvata');
             _syncAssegnaTimestamp(nOrd, null, j.last_modified);
@@ -828,7 +828,7 @@ function autoAssegnami(idRiga, nOrd, btnEl) {
     }).join('');
     if (btnEl && btnEl.parentNode) btnEl.remove();
     const mitt = mio.toUpperCase().trim();
-    fetch(`${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(nuova)}&id_riga=${idRiga}&mittente=${encodeURIComponent(mitt)}`)
+    fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify({ azione: 'assegnaOperatori', ordine: nOrd, operatori: nuova, id_riga: idRiga, mittente: mitt }) })
         .then(r => r.json()).then(j => {
             if (!j || (j.status !== 'ok' && j.status !== 'success')) throw new Error('Assegnazione non salvata');
             _syncAssegnaTimestamp(nOrd, idRiga, j.last_modified);
@@ -877,7 +877,7 @@ function autoAssegnamiOrdine(nOrd) {
     }
     _setAssegnaLocalByOrdine(nOrd, mio);
     _repaintOpColors();
-    fetch(`${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(mio)}&mittente=${encodeURIComponent(mitt)}`)
+    fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify({ azione: 'assegnaOperatori', ordine: nOrd, operatori: mio, mittente: mitt }) })
         .then(r => r.json()).then(j => {
             if (!j || (j.status !== 'ok' && j.status !== 'success')) throw new Error('Assegnazione non salvata');
             _syncAssegnaTimestamp(nOrd, null, j.last_modified);

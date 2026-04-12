@@ -94,8 +94,7 @@ const TW = {
 // ─── localStorage helpers (saranno consolidati in cache.js in futuro) ─────────
 // ─── Tiny fetch wrapper per GET JSON ─────────────────────────────────────────
 function fetchJson(pagina, signal) {
-    const url = URL_GOOGLE + '?pagina=' + encodeURIComponent(pagina);
-    return fetch(url, signal ? { signal } : {})
+    return fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify({ pagina: pagina }), ...(signal ? { signal } : {}) })
         .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
 }
 
@@ -341,7 +340,7 @@ async function _caricaSezioniDaBackend() {
         } catch(e) {}
     }
     try {
-        const res = await fetch(URL_GOOGLE + '?pagina=SEZIONI_CONFIG');
+        const res = await fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify({ azione: 'getSezioni' }) });
         const sezioniRemote = await res.json();
         if (Array.isArray(sezioniRemote) && sezioniRemote.length > 0) {
             sezioniMateriali = sezioniRemote;

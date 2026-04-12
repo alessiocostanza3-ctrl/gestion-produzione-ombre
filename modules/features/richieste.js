@@ -270,7 +270,7 @@ export function apriNuovaRichiesta(opzioni = {}) {
     }
     // Se cache vuota prova a caricare
     if (_ordiniAutocompleteCache.length === 0) {
-        fetch(URL_GOOGLE + '?pagina=' + encodeURIComponent('PROGRAMMA PRODUZIONE DEL MESE'))
+        fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify({ pagina: 'PROGRAMMA PRODUZIONE DEL MESE' }) })
             .then(r => r.json())
             .then(dati => {
                 const seen = new Set();
@@ -986,7 +986,7 @@ function _clearAssegnazioneProduzione(nOrd) {
 async function _sincronizzaCancellaAssegna(nOrd) {
     try {
         const mitt = (utenteAttuale?.nome || '').toUpperCase().trim();
-        await fetch(`${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=&mittente=${encodeURIComponent(mitt)}`);
+        await fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify({ azione: 'assegnaOperatori', ordine: nOrd, operatori: '', mittente: mitt }) });
     } catch (e) {
         console.warn('[_sincronizzaCancellaAssegna] Errore:', e);
     }

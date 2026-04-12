@@ -81,7 +81,7 @@ function _initAvatarColor() {
 
 async function _caricaColoriAvatarDaServer() {
     try {
-        const res = await fetch(`${URL_GOOGLE}?azione=getAvatarColors`);
+        const res = await fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify({ azione: 'getAvatarColors' }) });
         if (!res.ok) return;
         const map = await res.json();
         if (typeof map !== 'object' || Array.isArray(map)) return;

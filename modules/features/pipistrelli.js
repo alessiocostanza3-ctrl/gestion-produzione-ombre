@@ -123,7 +123,7 @@ function _pipPushToServer() {
  * Chiama cb(true) se ha applicato dati dal server, cb(false) altrimenti.
  */
 function _pipFetchFromServer(cb) {
-    fetch(URL_GOOGLE + '?azione=getPipData')
+    fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify({ azione: 'getPipData' }) })
         .then(function(r) { return r.json(); })
         .then(function(d) {
             var serverTs = parseInt(d.ts || 0);

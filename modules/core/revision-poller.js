@@ -149,11 +149,14 @@ export const RevisionPoller = {
     _pingServer: async function() {
         var utente = _getUtenteAttuale ? _getUtenteAttuale() : null;
         if (!utente || !utente.nome) return;
-        var url = URL_GOOGLE + '?azione=ping'
-            + '&username=' + encodeURIComponent(utente.nome)
-            + '&pagina='   + encodeURIComponent((_getPaginaCorrente ? _getPaginaCorrente() : '') || '');
         try {
-            var resp = await fetch(url);
+            var resp = await fetch(URL_GOOGLE, {
+                method: 'POST',
+                body: JSON.stringify({
+                    azione: 'ping',
+                    pagina: (_getPaginaCorrente ? _getPaginaCorrente() : '') || ''
+                })
+            });
             var data = await resp.json();
             if (data && data.status === 'ok' && Array.isArray(data.online)) {
                 if (_onUsersOnline) _onUsersOnline(data.online);

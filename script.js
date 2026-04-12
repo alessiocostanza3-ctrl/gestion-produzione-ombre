@@ -219,11 +219,9 @@ function _patchFetchWithSession_() {
             if (!rawUrl || rawUrl.indexOf(URL_GOOGLE) !== 0) return originalFetch(input, init);
 
             const method = String((init && init.method) || 'GET').toUpperCase();
+            // FASE 5: GET requests to GAS no longer carry sessionToken in URL
             if (method === 'GET') {
-                const urlConToken = (token && rawUrl.indexOf('sessionToken=') === -1)
-                    ? rawUrl + (rawUrl.indexOf('?') === -1 ? '?' : '&') + 'sessionToken=' + encodeURIComponent(token)
-                    : rawUrl;
-                return originalFetch(urlConToken, init).then(_intercettaAuthError_);
+                return originalFetch(input, init).then(_intercettaAuthError_);
             }
             if (method === 'POST' && init && typeof init.body === 'string') {
                 try {

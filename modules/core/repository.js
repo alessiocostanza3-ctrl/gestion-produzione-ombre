@@ -34,7 +34,7 @@ export async function fetchRichieste() {
  * @returns {Promise<object>}
  */
 export async function fetchMateriale() {
-    return gasGetWithTimeout({ pagina: 'MATERIALE DA ORDINARE' }, 8000);
+    return gasRequestWithTimeout({ pagina: 'MATERIALE DA ORDINARE' }, 8000);
 }
 
 /**
@@ -66,7 +66,7 @@ export async function fetchUtenti() {
  * @returns {Promise<Record<string, string>>}
  */
 export async function fetchAvatarColors() {
-    return gasGetWithTimeout({ azione: 'getAvatarColors' }, 8000);
+    return gasRequestWithTimeout({ azione: 'getAvatarColors' }, 8000);
 }
 
 // ── SCRITTURA ─────────────────────────────────────────────────────────────────
