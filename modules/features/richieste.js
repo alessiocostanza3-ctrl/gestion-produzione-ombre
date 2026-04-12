@@ -8,33 +8,13 @@ import { utenteAttuale } from '../core/session.js';
 import { notificaElegante, applicaFade, mostraConferma } from '../core/ui.js';
 import RevisionPoller from '../core/revision-poller.js';
 import { prefetch } from '../core/state.js';
+import { lsCacheGet as _lsCacheGet, lsCacheSet as _lsCacheSet, lsCacheDel as _lsCacheDel } from '../core/ls-cache.js';
 
 // ─── Stato interno ────────────────────────────────────────────────────────────
 let _ordiniAutocompleteCache = [];
 
 // ─── Alias _normNome (definita in script.js, dipende da _NOME_CANON) ──────────
 const _normNome = n => window._normNome ? window._normNome(n) : (n ? String(n).trim() : n);
-
-// ─── localStorage helpers (copia da script.js) ───────────────────────────────
-function _lsCacheGet(key, ttlMs) {
-    try {
-        const raw = localStorage.getItem(key);
-        if (!raw) return null;
-        const parsed = JSON.parse(raw);
-        if (Date.now() - parsed.ts < ttlMs) return parsed.data;
-        return null;
-    } catch(e) { return null; }
-}
-function _lsCacheSet(key, data) {
-    try {
-        const str = (typeof data === 'string') ? data : JSON.stringify(data);
-        if (str.length > 2500000) return;
-        localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data: str }));
-    } catch(e) {}
-}
-function _lsCacheDel(key) {
-    try { localStorage.removeItem(key); } catch(e) {}
-}
 
 // ─── Helper: invalida cache STORICO_RICHIESTE ─────────────────────────────────
 function _invalidaCacheRichieste() {

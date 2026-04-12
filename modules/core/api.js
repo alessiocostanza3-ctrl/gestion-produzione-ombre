@@ -5,6 +5,18 @@
 import { URL_GOOGLE } from './config.js';
 import { getSessionToken, clearSession } from './session.js';
 
+// ── Request deduplication ──────────────────────────────────────────────────────
+// Se una richiesta identica (stessi params) è già in-flight, ritorna la stessa Promise.
+const _inflight = new Map();
+
+function _dedup(key, executor) {
+    const existing = _inflight.get(key);
+    if (existing) return existing;
+    const promise = executor().finally(() => _inflight.delete(key));
+    _inflight.set(key, promise);
+    return promise;
+}
+
 /**
  * Esegue una request verso Google Apps Script.
  * Inietta automaticamente il token di sessione.
@@ -13,22 +25,25 @@ import { getSessionToken, clearSession } from './session.js';
  * @param {Object} params  — corpo della request (verrà serializzato in JSON)
  * @returns {Promise<any>} — risposta JSON parsata
  */
-export async function gasRequest(params) {
-    const token = getSessionToken();
-    const body = token ? { ...params, _token: token } : { ...params };
-    const res = await fetch(URL_GOOGLE, {
-        method: 'POST',
-        body: JSON.stringify(body)
+export function gasRequest(params) {
+    const key = JSON.stringify(params);
+    return _dedup(key, async () => {
+        const token = getSessionToken();
+        const body = token ? { ...params, _token: token } : { ...params };
+        const res = await fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify(body)
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && data.status === 'auth_error') {
+            clearSession();
+            const err = new Error('auth_error');
+            err.authError = true;
+            throw err;
+        }
+        return data;
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    if (data && data.status === 'auth_error') {
-        clearSession();
-        const err = new Error('auth_error');
-        err.authError = true;
-        throw err;
-    }
-    return data;
 }
 
 /**
@@ -38,10 +53,16 @@ export async function gasRequest(params) {
  * @param {number} [timeoutMs=8000]
  * @returns {Promise<any>}
  */
-export async function gasRequestWithTimeout(params, timeoutMs = 8000, { signal } = {}) {
+export function gasRequestWithTimeout(params, timeoutMs = 8000, { signal } = {}) {
+    // Non deduplicare richieste con signal esterno (abort diversi)
+    if (signal) return _gasRequestWithTimeoutRaw(params, timeoutMs, signal);
+    const key = JSON.stringify(params) + '|' + timeoutMs;
+    return _dedup(key, () => _gasRequestWithTimeoutRaw(params, timeoutMs, null));
+}
+
+async function _gasRequestWithTimeoutRaw(params, timeoutMs, signal) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
-    // Se un signal esterno viene fornito, aborta anche il nostro controller
     if (signal) {
         if (signal.aborted) { clearTimeout(timer); throw new DOMException('Aborted', 'AbortError'); }
         signal.addEventListener('abort', () => controller.abort(), { once: true });
@@ -96,7 +117,12 @@ export async function getRevision() {
  * @param {number} [timeoutMs=8000]
  * @returns {Promise<any>}
  */
-export async function gasGetWithTimeout(queryParams, timeoutMs = 8000) {
+export function gasGetWithTimeout(queryParams, timeoutMs = 8000) {
+    const key = 'GET|' + JSON.stringify(queryParams) + '|' + timeoutMs;
+    return _dedup(key, () => _gasGetRaw(queryParams, timeoutMs));
+}
+
+async function _gasGetRaw(queryParams, timeoutMs) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {

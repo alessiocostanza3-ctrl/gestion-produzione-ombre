@@ -8,6 +8,7 @@ import {
 } from './modules/core/session.js';
 import { lsCacheGet as _lsCacheGet, lsCacheSet as _lsCacheSet, lsCacheDel as _lsCacheDel } from './modules/core/ls-cache.js';
 import { cacheContenuti, cacheFetchTime, prefetch } from './modules/core/state.js';
+import { LS_DEVICE_KEYS, LS_DEVICE_PREFIXES } from './modules/core/ls-keys.js';
 // api.js is imported by revision-poller.js and pipistrelli.js
 import RevisionPoller, { configurePoller } from './modules/core/revision-poller.js';
 // pipistrelli.js: lazy-loaded dinamicamente in cambiaPagina → NON importare staticamente
@@ -827,10 +828,9 @@ function logout() {
 
         // Preserva i dati per-device (non legati alla sessione utente)
         const datiDevice = {};
-        const keysDevice = ['notifPrefs', '_pushStato', 'mlPipQty', 'mlPipCaricato', 'mlPipMovimenti', 'mlPipPronti'];
         for (let i = 0; i < localStorage.length; i++) {
             const k = localStorage.key(i);
-            if (k && (k.startsWith('avatarColor_') || k.startsWith('avatarColorRecenti_') || k.startsWith('avatarColorHidden_') || keysDevice.includes(k))) datiDevice[k] = localStorage.getItem(k);
+            if (k && (LS_DEVICE_PREFIXES.some(p => k.startsWith(p)) || LS_DEVICE_KEYS.includes(k))) datiDevice[k] = localStorage.getItem(k);
         }
 
         // (c) + (d) Pulizia totale della memoria del browser
