@@ -17,6 +17,21 @@ function _dedup(key, executor) {
     return promise;
 }
 
+// ── Retry with exponential backoff ─────────────────────────────────────────────
+async function _withRetry(fn, maxRetries, baseDelayMs, signal) {
+    for (let attempt = 0; ; attempt++) {
+        try {
+            return await fn();
+        } catch (err) {
+            const canRetry = attempt < maxRetries
+                && !err.authError
+                && !(signal && signal.aborted);
+            if (!canRetry) throw err;
+            await new Promise(r => setTimeout(r, baseDelayMs * 2 ** attempt));
+        }
+    }
+}
+
 /**
  * Esegue una request verso Google Apps Script.
  * Inietta automaticamente il token di sessione.
@@ -53,11 +68,12 @@ export function gasRequest(params) {
  * @param {number} [timeoutMs=8000]
  * @returns {Promise<any>}
  */
-export function gasRequestWithTimeout(params, timeoutMs = 8000, { signal } = {}) {
-    // Non deduplicare richieste con signal esterno (abort diversi)
-    if (signal) return _gasRequestWithTimeoutRaw(params, timeoutMs, signal);
+export function gasRequestWithTimeout(params, timeoutMs = 8000, { signal, retries = 0 } = {}) {
+    if (signal) {
+        return _withRetry(() => _gasRequestWithTimeoutRaw(params, timeoutMs, signal), retries, 500, signal);
+    }
     const key = JSON.stringify(params) + '|' + timeoutMs;
-    return _dedup(key, () => _gasRequestWithTimeoutRaw(params, timeoutMs, null));
+    return _dedup(key, () => _withRetry(() => _gasRequestWithTimeoutRaw(params, timeoutMs, null), retries, 500));
 }
 
 async function _gasRequestWithTimeoutRaw(params, timeoutMs, signal) {
@@ -117,9 +133,9 @@ export async function getRevision() {
  * @param {number} [timeoutMs=8000]
  * @returns {Promise<any>}
  */
-export function gasGetWithTimeout(queryParams, timeoutMs = 8000) {
+export function gasGetWithTimeout(queryParams, timeoutMs = 8000, { retries = 0 } = {}) {
     const key = 'GET|' + JSON.stringify(queryParams) + '|' + timeoutMs;
-    return _dedup(key, () => _gasGetRaw(queryParams, timeoutMs));
+    return _dedup(key, () => _withRetry(() => _gasGetRaw(queryParams, timeoutMs), retries, 500));
 }
 
 async function _gasGetRaw(queryParams, timeoutMs) {

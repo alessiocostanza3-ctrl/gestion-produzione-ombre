@@ -639,6 +639,7 @@ async function _fetchImpostazioniDaServer() {
         }));
     } catch(e) {
         console.warn('[Boot] _fetchImpostazioniDaServer:', e);
+        notificaElegante('Impostazioni non aggiornate — uso dati locali.', 'warning');
     }
 }
 

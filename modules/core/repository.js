@@ -18,7 +18,7 @@ import { gasRequest, gasRequestWithTimeout, gasGetWithTimeout } from './api.js';
 export async function fetchDashboard({ limit = 100, offset = 0, signal } = {}) {
     const params = { azione: 'getAllDashboard', limit };
     if (offset > 0) params.offset = offset;
-    return gasRequestWithTimeout(params, 8000, { signal });
+    return gasRequestWithTimeout(params, 8000, { signal, retries: 2 });
 }
 
 /**
@@ -26,7 +26,7 @@ export async function fetchDashboard({ limit = 100, offset = 0, signal } = {}) {
  * @returns {Promise<{ attive: object[], completate: object[] }>}
  */
 export async function fetchRichieste() {
-    return gasRequestWithTimeout({ azione: 'getAllRichieste' }, 8000);
+    return gasRequestWithTimeout({ azione: 'getAllRichieste' }, 8000, { retries: 2 });
 }
 
 /**
@@ -34,7 +34,7 @@ export async function fetchRichieste() {
  * @returns {Promise<object>}
  */
 export async function fetchMateriale() {
-    return gasRequestWithTimeout({ pagina: 'MATERIALE DA ORDINARE' }, 8000);
+    return gasRequestWithTimeout({ pagina: 'MATERIALE DA ORDINARE' }, 8000, { retries: 2 });
 }
 
 /**
@@ -42,7 +42,7 @@ export async function fetchMateriale() {
  * @returns {Promise<{ stati: object[], operatori: string[], ... }>}
  */
 export async function fetchImpostazioni() {
-    return gasRequestWithTimeout({ azione: 'getImpostazioni' }, 8000);
+    return gasRequestWithTimeout({ azione: 'getImpostazioni' }, 8000, { retries: 2 });
 }
 
 /**
@@ -50,7 +50,7 @@ export async function fetchImpostazioni() {
  * @returns {Promise<{ revision: number }>}
  */
 export async function fetchRevision() {
-    return gasGetWithTimeout({ azione: 'getRevision' }, 5000);
+    return gasGetWithTimeout({ azione: 'getRevision' }, 5000, { retries: 2 });
 }
 
 /**
@@ -66,7 +66,7 @@ export async function fetchUtenti() {
  * @returns {Promise<Record<string, string>>}
  */
 export async function fetchAvatarColors() {
-    return gasRequestWithTimeout({ azione: 'getAvatarColors' }, 8000);
+    return gasRequestWithTimeout({ azione: 'getAvatarColors' }, 8000, { retries: 2 });
 }
 
 // ── SCRITTURA ─────────────────────────────────────────────────────────────────
@@ -121,7 +121,7 @@ export async function inviaOrdine(items) {
  * @returns {Promise<{status:string, manuali: object[]}>}
  */
 export async function fetchManuali() {
-    return gasRequestWithTimeout({ azione: 'getManuali' }, 10000);
+    return gasRequestWithTimeout({ azione: 'getManuali' }, 10000, { retries: 2 });
 }
 
 /**
@@ -148,5 +148,5 @@ export async function updateManuale(payload) {
  * @returns {Promise<{status:string, storico: object[]}>}
  */
 export async function fetchStoricoManuale(idManuale) {
-    return gasRequestWithTimeout({ azione: 'getStoricoManuale', id: idManuale }, 10000);
+    return gasRequestWithTimeout({ azione: 'getStoricoManuale', id: idManuale }, 10000, { retries: 2 });
 }

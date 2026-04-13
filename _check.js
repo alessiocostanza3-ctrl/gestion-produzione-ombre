@@ -13,6 +13,8 @@ const api  = fs.readFileSync('modules/core/api.js', 'utf8');
 const repo = fs.readFileSync('modules/core/repository.js', 'utf8');
 const bun  = fs.readFileSync('dist/script.bundle.js', 'utf8');
 const man  = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
+const rich = fs.readFileSync('modules/features/richieste.js', 'utf8');
+const imp  = fs.readFileSync('modules/features/impostazioni.js', 'utf8');
 
 ok('F5.1 head-init.js esiste',                    fs.existsSync('head-init.js'));
 ok('F5.1 login fn NON inline in index',           !idx.includes('function verificaAccesso'));
@@ -69,6 +71,28 @@ ok('F5.8 repository fetchMateriale POST',           repo.includes('gasRequestWit
 // Struttura bundle
 ok('F6.4 bundle dist/ esiste',                     fs.existsSync('dist/script.bundle.js'));
 ok('F6.5 bundle code-split chunks',                fs.readdirSync('dist').filter(f => f.startsWith('chunk-')).length >= 2);
+
+// ═══════════════════════════════════════════════════════════════════════
+//  FASE 7 — Retry con exponential backoff + graceful degradation
+// ═══════════════════════════════════════════════════════════════════════
+
+// Retry infra in api.js
+ok('F7.4 api.js _withRetry helper',                api.includes('_withRetry'));
+ok('F7.5 api.js backoff esponenziale 2**',          api.includes('2 ** attempt'));
+ok('F7.6 api.js no retry su auth_error',            api.includes('authError'));
+ok('F7.7 gasRequestWithTimeout retries param',      api.includes('retries = 0'));
+ok('F7.8 gasGetWithTimeout retries param',          api.includes('gasGetWithTimeout(queryParams, timeoutMs = 8000, { retries'));
+
+// Repository usa retries per le letture
+ok('F7.9 repo fetchDashboard retries',              repo.includes("retries: 2") && repo.includes('getAllDashboard'));
+ok('F7.10 repo fetchRichieste retries',             repo.includes("{ retries: 2 }") || (repo.includes('getAllRichieste') && repo.includes('retries')));
+ok('F7.11 repo fetchImpostazioni retries',          repo.includes("getImpostazioni") && repo.includes('retries'));
+ok('F7.12 repo fetchRevision retries',              repo.includes("getRevision") && repo.includes('retries'));
+
+// Graceful degradation — no silent error swallowing
+ok('F7.13 richieste no alert() bare',              !rich.includes("alert('Errore durante il sollecito')"));
+ok('F7.14 richieste inviaRisposta notifica errore', rich.includes("notificaElegante('Errore invio risposta"));
+ok('F7.15 impostazioni toast su fetch fail',        imp.includes("notificaElegante('Impostazioni non aggiornate"));
 
 const ver = (idx.match(/\?v=(\d{8}[a-z])/) || [])[1];
 const swv = (sw.match(/prod-shell-(v\d+)/) || [])[1];

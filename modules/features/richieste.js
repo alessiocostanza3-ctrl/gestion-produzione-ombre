@@ -382,8 +382,8 @@ async function confermaInvioSupporto() {
     };
 
     Promise.all([
-        tipoAzione === 'ASSEGNAZIONE' ? fetch(urlAssegnazione).catch(() => {}) : Promise.resolve(),
-        fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify(payload) }).catch(() => {})
+        tipoAzione === 'ASSEGNAZIONE' ? fetch(urlAssegnazione).catch(() => notificaElegante('Errore assegnazione operatore.', 'error')) : Promise.resolve(),
+        fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify(payload) }).catch(() => notificaElegante('Errore invio richiesta.', 'error'))
     ]).then(() => {
         // Aggiorna dati in background dopo che il server ha risposto
         if (window.paginaAttuale === 'STORICO_RICHIESTE') {
@@ -462,7 +462,7 @@ async function inviaRisposta(idRiga, nOrdine, destinatario, cliente) {
     };
     fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify(payload) })
         .then(() => { if (window.paginaAttuale === 'STORICO_RICHIESTE') caricaRichieste().catch(() => {}); })
-        .catch(() => {});
+        .catch(() => notificaElegante('Errore invio risposta.', 'error'));
     } catch (e) { notificaElegante('Errore invio risposta.', 'error'); }
 }
 
@@ -1069,7 +1069,7 @@ async function sollecitaRichiesta(idRiga) {
             caricaRichieste();
         }
     } catch (e) {
-        alert('Errore durante il sollecito.');
+        notificaElegante('Errore durante il sollecito.', 'error');
     }
 }
 function formattaData(stringaData) {
