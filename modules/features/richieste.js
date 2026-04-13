@@ -1083,7 +1083,7 @@ function formattaData(stringaData) {
         d = new Date(stringaData);
         // Se fallisce, proviamo formato italiano GG/MM/AAAA HH:MM
         if (isNaN(d.getTime())) {
-            const match = String(stringaData).match(/(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
+            const match = String(stringaData).match(/(\d{2})[/-](\d{2})[/-](\d{4})/);
             if (match) {
                 const [, g, m, a] = match;
                 const oraMatch = String(stringaData).match(/(\d{2})[:.](\d{2})/);

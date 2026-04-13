@@ -9,7 +9,7 @@
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbyVMV9MkGiqphN0AKXJdHXF0Arp1vxTYrCYi1SGv_4MKLRJkx--5HoGq7mmQX-p0ZTZ/exec';
 var APP_URL = 'https://alessiocostanza3-ctrl.github.io/gestion-produzione-ombre/';
 
-var SHELL_CACHE = 'prod-shell-v239';
+var SHELL_CACHE = 'prod-shell-v240';
 var SHELL_ASSETS = [
     APP_URL,
     APP_URL + 'index.html',
@@ -219,7 +219,7 @@ function _showNotif_(titolo, corpo, username) {
 
 function _extractSearchFromText_(titolo, corpo) {
     var text = String(titolo || '') + ' ' + String(corpo || '');
-    var ord = text.match(/\bORD(?:INE)?\.?\s*[:#-]?\s*([A-Z0-9\/-]{2,})/i);
+    var ord = text.match(/\bORD(?:INE)?\.?\s*[:#-]?\s*([A-Z0-9/-]{2,})/i);
     if (ord && ord[1]) return String(ord[1]).trim();
     var cod = text.match(/\b([A-Z]{2,}[A-Z0-9]*-[A-Z0-9-]{2,})\b/i);
     if (cod && cod[1]) return String(cod[1]).trim();

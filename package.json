@@ -6,6 +6,8 @@
   "scripts": {
     "build": "node build.mjs",
     "build:watch": "node build.mjs --watch",
+    "lint": "eslint .",
+    "check": "node _check.js",
     "serve": "node server.js",
     "start": "node server.js"
   },
@@ -22,6 +24,9 @@
   },
   "homepage": "https://github.com/alessiocostanza3-ctrl/gestion-produzione-ombre#readme",
   "devDependencies": {
-    "esbuild": "^0.27.4"
+    "@eslint/js": "^10.0.1",
+    "esbuild": "^0.27.4",
+    "eslint": "^10.2.0",
+    "globals": "^17.5.0"
   }
 }

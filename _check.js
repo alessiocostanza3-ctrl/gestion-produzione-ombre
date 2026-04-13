@@ -94,6 +94,19 @@ ok('F7.13 richieste no alert() bare',              !rich.includes("alert('Errore
 ok('F7.14 richieste inviaRisposta notifica errore', rich.includes("notificaElegante('Errore invio risposta"));
 ok('F7.15 impostazioni toast su fetch fail',        imp.includes("notificaElegante('Impostazioni non aggiornate"));
 
+// ═══════════════════════════════════════════════════════════════════════
+//  FASE 8 — ESLint + GitHub Actions CI
+// ═══════════════════════════════════════════════════════════════════════
+
+ok('F8.4 eslint.config.mjs esiste',                fs.existsSync('eslint.config.mjs'));
+ok('F8.5 eslint devDependency',                    JSON.parse(fs.readFileSync('package.json', 'utf8')).devDependencies?.eslint);
+ok('F8.6 npm lint script',                         JSON.parse(fs.readFileSync('package.json', 'utf8')).scripts?.lint === 'eslint .');
+ok('F8.7 npm check script',                        JSON.parse(fs.readFileSync('package.json', 'utf8')).scripts?.check === 'node _check.js');
+ok('F8.8 GitHub Actions CI workflow',              fs.existsSync('.github/workflows/ci.yml'));
+ok('F8.9 CI runs lint step',                       fs.readFileSync('.github/workflows/ci.yml', 'utf8').includes('eslint'));
+ok('F8.10 CI runs check step',                     fs.readFileSync('.github/workflows/ci.yml', 'utf8').includes('_check.js'));
+ok('F8.11 CI runs build step',                     fs.readFileSync('.github/workflows/ci.yml', 'utf8').includes('build.mjs'));
+
 const ver = (idx.match(/\?v=(\d{8}[a-z])/) || [])[1];
 const swv = (sw.match(/prod-shell-(v\d+)/) || [])[1];
 const gasVer = (gas.match(/@(\d+)/) || [])[1] || '?';

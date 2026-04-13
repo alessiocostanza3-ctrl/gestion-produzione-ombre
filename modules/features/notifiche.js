@@ -329,7 +329,7 @@ function _extractSearchFromNotifica_(n) {
     var text = (titolo + ' ' + corpo).replace(/\s+/g, ' ').trim();
     if (!text) return '';
 
-    var mOrd = text.match(/\bORD(?:INE)?\.?\s*[:#-]?\s*([A-Z0-9\/-]{2,})/i);
+    var mOrd = text.match(/\bORD(?:INE)?\.?\s*[:#-]?\s*([A-Z0-9/-]{2,})/i);
     if (mOrd && mOrd[1]) return String(mOrd[1]).trim();
 
     // fallback: prende un codice prodotto comune (es. VELOP-35-L)

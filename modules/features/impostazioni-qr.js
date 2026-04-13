@@ -637,6 +637,7 @@ async function _qrApriFinestroStampa(postazioni) {
         return { ...p, dataUrl };
     }));
 
+    /* eslint-disable no-useless-escape */
     const html = `<!DOCTYPE html>
 <html lang="it">
 <head>
@@ -674,6 +675,7 @@ ${items.map(p => `
 <script>setTimeout(()=>window.print(),800);<\/script>
 </body>
 </html>`;
+    /* eslint-enable no-useless-escape */
 
     const _blob    = new Blob([html], { type: 'text/html; charset=utf-8' });
     const _blobUrl = URL.createObjectURL(_blob);

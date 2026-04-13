@@ -7,7 +7,7 @@ try {
   for (const f of readdirSync('dist')) {
     unlinkSync(join('dist', f));
   }
-} catch(e) {}
+} catch { /* dist may not exist */ }
 
 await build({
   entryPoints: ['script.js'],
