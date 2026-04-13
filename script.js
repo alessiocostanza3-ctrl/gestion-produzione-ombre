@@ -578,15 +578,10 @@ function _initModuliENaviga_() {
     _patchFetchWithSession_();
     _startSessionRefreshTicker_();
     if (_pipModule) _pipModule.registerGlobals();
-    registerUIGlobals();
-    registerAcquistiGlobals();
-    registerRichiesteGlobals();
-    registerManualiGlobals();
+    // registerXxxGlobals() già chiamati al boot (modulo top-level)
     initRichieste();
     initManuali();
-    registerImpostazioniGlobals();
     initImpostazioni();
-    registerProduzioneGlobals();
     initProduzione();
     window.cambiaPagina = cambiaPagina;
     window.aggiornaListaFiltrabili = aggiornaListaFiltrabili;
