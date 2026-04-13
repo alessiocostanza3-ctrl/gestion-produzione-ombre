@@ -9,29 +9,18 @@ import RevisionPoller from '../core/revision-poller.js';
 import { lsCacheSet as _lsCacheSet, lsCacheDel as _lsCacheDel } from '../core/ls-cache.js';
 import { cacheContenuti, cacheFetchTime, prefetch } from '../core/state.js';
 import { createGhost, moveGhost, removeGhost, dropTargetAtPoint } from '../core/dnd.js';
+import { prodState, getOvStatiAll, isStatoFinale } from './produzione-state.js';
+import { generaBloccoOrdiniUnificato } from './produzione-cards.js';
+import {
+    _refreshOverview, _ovLoadIfNeeded, _apriArchivio,
+    _buildOverviewInnerHtml, _buildCaricoOperatoriHtml,
+    _initKanbanDnd, _aggiornaKanbanCount, _checkKanbanEmpty,
+    _syncStatoItemCard, _scrollToOrdineList
+} from './produzione-overview.js';
 
 // (Paginazione rimossa: tutti gli ordini caricati in un colpo)
 
-// ── Stato interno del modulo ────────────────────────────────────────────
-let _ultimiDatiProduzione = null;
-let _pollProdTimer = null;
-const _POLL_PROD_MS = 10000;
-let _lastKanbanDragTs = 0;
-let _mutationInFlight = 0;          // contatore di salvataggi in corso
-let _mutationLastDone = 0;          // timestamp ultimo salvataggio completato
-let _prodCacheInvalidateTimer = null;
-let _attiviProd = [];
-let _ordiniAutocompleteCache = [];
-let _ovStatiArt = ['PREPARARE','MANDA IN LAVORAZIONE','IN LAVORAZIONE','TORNATO DALLA LAVORAZIONE'];
-let _ovStatiOrd = ['IN PRODUZIONE','IMBALLATO'];
-let _datiArchLazy = null;  // dati archivio: renderizzati lazy solo all'apertura della sezione
-
-function _getOvStatiAll() { return [..._ovStatiArt, ..._ovStatiOrd]; }
-
-function _isStatoFinale_(stato) {
-    const s = String(stato || '').toUpperCase().trim();
-    return s === 'IMBALLATO' || s === 'SPEDITO/CONSEGNATO' || s === 'SPEDITO' || s === 'CONSEGNATO';
-}
+// ── Stato interno del modulo → condiviso via produzione-state.js ────
 
 function _invalidateProduzioneCache({ resetFetchTime = true, invalidatePersistent = true } = {}) {
     delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
@@ -42,9 +31,9 @@ function _invalidateProduzioneCache({ resetFetchTime = true, invalidatePersisten
     if (!invalidatePersistent) return;
 
     // Debounce invalidazioni IndexedDB nelle raffiche di update.
-    if (_prodCacheInvalidateTimer) clearTimeout(_prodCacheInvalidateTimer);
-    _prodCacheInvalidateTimer = setTimeout(() => {
-        _prodCacheInvalidateTimer = null;
+    if (prodState.prodCacheInvalidateTimer) clearTimeout(prodState.prodCacheInvalidateTimer);
+    prodState.prodCacheInvalidateTimer = setTimeout(() => {
+        prodState.prodCacheInvalidateTimer = null;
         ProdCache.invalidate('PROGRAMMA_PRODUZIONE').catch(() => {});
     }, 1200);
 }
@@ -61,7 +50,7 @@ function _persistProduzioneHtmlSnapshot() {
 // (evita falsi positivi di conflitto su modifiche stato successive)
 function _syncAssegnaTimestamp(nOrd, idRiga, lastModified) {
     if (!lastModified) return;
-    const sources = [_ultimiDatiProduzione?.produzione, _attiviProd];
+    const sources = [prodState.ultimiDatiProduzione?.produzione, prodState.attiviProd];
     for (const arr of sources) {
         if (!arr) continue;
         for (const row of arr) {
@@ -104,7 +93,7 @@ function _renderDatiProduzione(dati, _isBackground = null) {
     if (window.paginaAttuale !== 'PROGRAMMA PRODUZIONE DEL MESE') return;
     // Sincronizza colori avatar degli operatori PRIMA di renderizzare
     if (dati.avatarColors) _syncAvatarColors(dati.avatarColors);
-    _ultimiDatiProduzione = dati;
+    prodState.ultimiDatiProduzione = dati;
 
     const contenitore = document.getElementById('contenitore-dati');
     if (!contenitore) return;
@@ -119,8 +108,8 @@ function _renderDatiProduzione(dati, _isBackground = null) {
 
     // --- OVERVIEW STATI ---
     const attivi = datiProd.filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE');
-    _attiviProd = attivi;
-    const STATI_OV = _getOvStatiAll();
+    prodState.attiviProd = attivi;
+    const STATI_OV = getOvStatiAll();
     const numInFocus = attivi.filter(r => STATI_OV.includes((r.stato||'').toUpperCase().trim())).length;
 
     // --- SEZIONE ATTIVA --- (tutti gli ordini)
@@ -128,7 +117,7 @@ function _renderDatiProduzione(dati, _isBackground = null) {
     let htmlAttivi = generaBloccoOrdiniUnificato(_attProdFull, false);
 
     // --- SEZIONE ARCHIVIATA --- lazy: render solo all'apertura (+100-500ms risparmio)
-    _datiArchLazy = datiArch;
+    prodState.datiArchLazy = datiArch;
     const htmlArchiviati = ''; // sezione chiusa: render on-demand in _apriArchivio()
 
     const isMobileOv = window.innerWidth <= 600;
@@ -196,11 +185,10 @@ function _renderDatiProduzione(dati, _isBackground = null) {
     }
 
     window.aggiornaListaFiltrabili();
-    _osservaArchivio('archivio-prod-details');
     requestAnimationFrame(_initKanbanDnd);
     requestAnimationFrame(() => {
-        if (_attiviProd) {
-            _attiviProd.forEach(r => {
+        if (prodState.attiviProd) {
+            prodState.attiviProd.forEach(r => {
                 if (parseFloat(r.qty_evasa) > 0) {
                     const block = document.getElementById('qty-evasa-block-' + r.id_riga);
                     const btn   = block && block.closest('.qty-cell')?.querySelector('.btn-qty-evasa-toggle');
@@ -213,10 +201,10 @@ function _renderDatiProduzione(dati, _isBackground = null) {
     _startPollingProduzione();
 
     // Salva raw data per autocomplete del modal
-    _ordiniAutocompleteCache = datiProd.filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE').map(r => ({ ordine: r.ordine || '', cliente: r.cliente || '', riferimento: r.riferimento || '' }));
+    prodState.ordiniAutocompleteCache = datiProd.filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE').map(r => ({ ordine: r.ordine || '', cliente: r.cliente || '', riferimento: r.riferimento || '' }));
     const seen = new Set();
-    _ordiniAutocompleteCache = _ordiniAutocompleteCache.filter(o => { if (seen.has(o.ordine)) return false; seen.add(o.ordine); return true; });
-    window._ordiniAutocompleteCache = _ordiniAutocompleteCache;
+    prodState.ordiniAutocompleteCache = prodState.ordiniAutocompleteCache.filter(o => { if (seen.has(o.ordine)) return false; seen.add(o.ordine); return true; });
+    window._ordiniAutocompleteCache = prodState.ordiniAutocompleteCache;
 }
 
 async function caricaDati(nomeFoglio, isBackgroundUpdate = false, expectedRequestId = null, signal = null) {
@@ -313,301 +301,19 @@ async function caricaArchivio() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  B) CARD GENERATORS
-// ═══════════════════════════════════════════════════════════════════
-
-function generaBloccoOrdiniUnificato(dati, isArchivio) {
-    if (!dati || dati.length === 0) return "";
-    const TW = window.TW;
-
-    const gruppi = {};
-    dati.forEach(r => {
-        if (!isArchivio && String(r.archiviato).toUpperCase() === "TRUE") return;
-        const nOrd = r.ordine || "N.D.";
-        if (!gruppi[nOrd]) gruppi[nOrd] = [];
-        gruppi[nOrd].push(r);
-    });
-
-    let html = "";
-    const _ordKeys = Object.keys(gruppi).sort((a, b) => {
-        // CSV_REVIEW: righe da attenzionare sempre in cima
-        const _hasRevA = gruppi[a].some(r => String(r.last_modified_by || '').startsWith('CSV_REVIEW'));
-        const _hasRevB = gruppi[b].some(r => String(r.last_modified_by || '').startsWith('CSV_REVIEW'));
-        if (_hasRevA && !_hasRevB) return -1;
-        if (!_hasRevA && _hasRevB) return 1;
-        const _cliA = (gruppi[a][0].cliente || '').trim().toUpperCase();
-        const _nA   = (!_cliA || _cliA === 'DA DEFINIRE') ? (gruppi[a][0].riferimento || a).toUpperCase() : _cliA;
-        const _cliB = (gruppi[b][0].cliente || '').trim().toUpperCase();
-        const _nB   = (!_cliB || _cliB === 'DA DEFINIRE') ? (gruppi[b][0].riferimento || b).toUpperCase() : _cliB;
-        return _nA < _nB ? -1 : _nA > _nB ? 1 : (a < b ? -1 : a > b ? 1 : 0);
-    });
-    _ordKeys.forEach(nOrd => {
-        const righe = gruppi[nOrd];
-        const cliente = righe[0].cliente;
-        const riferimento = righe[0].riferimento || "";
-        const htmlRiferimento = riferimento ? `<span class="riferimento-label">(${_esc(riferimento)})</span>` : '';;
-
-        const classWrapper = isArchivio ? 'archivio-wrapper' : '';
-        const _hasReviewRows = righe.some(r => String(r.last_modified_by || '').startsWith('CSV_REVIEW'));
-        const _reviewWrapCls = _hasReviewRows ? ' csv-review-order' : '';
-        const classHeader = isArchivio ? 'archivio-header' : '';
-        const colorCliente = isArchivio ? '#475569' : 'inherit';
-
-        let nOrdBadge;
-        if (nOrd.includes('/')) {
-            const slashIdx = nOrd.indexOf('/');
-            const base = nOrd.substring(0, slashIdx);
-            const sez  = nOrd.substring(slashIdx + 1);
-            const sezTrunc = sez.length > 3 ? sez.substring(0, 3) + '.' : sez;
-            nOrdBadge = `${base}/${sezTrunc}`;
-        } else {
-            nOrdBadge = nOrd.length > 14 ? nOrd.substring(0, 14) + '\u2026' : nOrd;
-        }
-
-        // Zona operatori nell'header (solo ordini attivi)
-        let _opZoneOrd = '';
-        if (!isArchivio) {
-            if (window._isUtenteEsente()) {
-                const _allAss = [...new Set(
-                    righe.flatMap(r => (!_isStatoFinale_(r.stato) && r.assegna && r.assegna !== '' && r.assegna !== 'undefined')
-                        ? r.assegna.split(',').map(n => window._normNome(n.trim())).filter(Boolean) : [])
-                )];
-                const _lblOrd = _allAss.length ? _allAss.map(window._normNome).join(', ') : 'Libero';
-                const _opOptsOrd = window.listaOperatori.map(op => {
-                    const _sel = _allAss.some(a => a.toUpperCase() === window._normNome(op.nome).toUpperCase());
-                    const _col = window._getOpColor(op.nome.trim());
-                    const _ns  = op.nome.trim().replace(/'/g, "\\'");
-                    const _nOrdS = nOrd.replace(/'/g, "\\'");
-                    return `<button type="button" class="op-option${_sel ? ' is-selected' : ''}" onclick="selezionaOpAssegnaOrdine(this,'${_nOrdS}','${_ns}')"><span class="op-opt-dot" style="background:${_col}"></span><span>${window._normNome(op.nome)}</span>${_sel ? '<i class="fas fa-check op-check-icon"></i>' : ''}</button>`;
-                }).join('');
-                _opZoneOrd = `<div class="op-dropdown op-dropdown-ord" data-nord="${nOrd}" data-assegna-ord="${_allAss.join(',').replace(/"/g,'&quot;')}"><button type="button" class="op-trigger op-trigger-ord" onclick="event.stopPropagation(); toggleOpDropdown(this)"><i class="fas fa-user-tag op-icon"></i><span class="op-trigger-label">${_lblOrd}</span><i class="fas fa-chevron-down op-chevron"></i></button><div class="op-popup">${_opOptsOrd}</div></div>`;
-            } else {
-                const _mioN = (utenteAttuale?.nome || '').toUpperCase().trim();
-                const _giaSonoOrd = righe.some(r => !_isStatoFinale_(r.stato) && r.assegna && r.assegna.split(',').some(n => n.trim().toUpperCase() === _mioN));
-                if (!_giaSonoOrd) {
-                    const _nOrdS = nOrd.replace(/'/g, "\\'");
-                    _opZoneOrd = `<button class="btn-assegnami btn-assegnami-ord" onclick="event.stopPropagation(); autoAssegnamiOrdine('${_nOrdS}')" title="Assegnami a tutto l'ordine"><i class="fas fa-user-plus"></i></button>`;
-                }
-            }
-        }
-        const _nOrdEsc  = nOrd.replace(/'/g, "\\'");
-        const _cliEsc   = (cliente || '').replace(/'/g, "\\'");
-        const _idRiga0  = righe[0].id_riga;
-
-        // Dropdown STATO per l'ordine (bulk change tutte righe)
-        let _statoZoneOrd = '';
-        if (!isArchivio) {
-            const _statiBulk = righe
-                .map(r => String(r.stato || 'IN ATTESA').toUpperCase().trim())
-                .filter((s, i, arr) => arr.indexOf(s) === i);
-            const _statoBulkLbl = _statiBulk.length === 1 ? _statiBulk[0] : `${_statiBulk.length} Stati`;
-            const _configStato = window.listaStati.find(s => s.nome === _statiBulk[0]) || {colore: "#e2e8f0"};
-            const _statoOptsOrd = window.listaStati.map(st => {
-                const _nOrdS = nOrd.replace(/'/g, "\\'");
-                return `<button type="button" class="stato-option" onclick="event.stopPropagation(); selezionaStatoOrdine(this,'${_nOrdS}','${st.nome}','${st.colore}')"><span class="stato-opt-dot" style="background:${st.colore}"></span><span>${st.nome}</span></button>`;
-            }).join('');
-            _statoZoneOrd = `<div class="stato-dropdown stato-dropdown-ord" data-nord="${nOrd}"><button type="button" class="stato-trigger" onclick="event.stopPropagation(); toggleStatoDropdown(this)" title="Cambia stato tutte righe"><span class="stato-dot" style="background:${_configStato.colore}"></span><span class="stato-label-txt">${_statoBulkLbl}</span><i class="fas fa-chevron-down stato-chevron"></i></button><div class="stato-popup">${_statoOptsOrd}</div></div>`;
-        }
-
-        // Azioni disponibili per questo ordine
-        const _aChiedi   = `apriModalAiuto('${_idRiga0}', 'INTERO ORDINE', '${_nOrdEsc}', '${_cliEsc}')`;
-        const _aArchivia = `gestisciArchiviazione('${_nOrdEsc}')`;
-        const _aSollecit = `apriModalSollecito('','${_nOrdEsc}','${_cliEsc}','Intero Ordine')`;
-        const _aRiprist  = `gestisciRipristino('${_nOrdEsc}', 'ORDINE')`;
-
-        let _menuVoci = '';
-        if (isArchivio) {
-            _menuVoci = `<button class="ord-menu-item" onclick="event.stopPropagation();chiudiTuttiMenuAzioni();${_aRiprist}"><i class="fa-solid fa-rotate-left"></i> Ripristina</button>`;
-        } else {
-            _menuVoci += `<button class="ord-menu-item" onclick="event.stopPropagation();chiudiTuttiMenuAzioni();${_aChiedi}"><i class="fa-regular fa-envelope"></i> Chiedi</button>`;
-            if (window._isUtenteEsente()) {
-                _menuVoci += `<button class="ord-menu-item ord-menu-item--danger" onclick="event.stopPropagation();chiudiTuttiMenuAzioni();${_aArchivia}"><i class="fa-solid fa-box-archive"></i> Archivia</button>`;
-            }
-            if (window._isCommerciale() || window._isUtenteEsente()) {
-                _menuVoci += `<button class="ord-menu-item ord-menu-item--warn" onclick="event.stopPropagation();chiudiTuttiMenuAzioni();${_aSollecit}"><i class="fa-solid fa-calendar-alt"></i> Scadenza</button>`;
-            }
-        }
-
-        const _desktopBtns = isArchivio ? '' : `${_opZoneOrd}${_statoZoneOrd}`;
-
-        const _mobileTrigger = `<div class="ord-azioni-menu" onclick="event.stopPropagation()">
-            <button class="ord-azioni-trigger" onclick="toggleMenuAzioni(this)" title="Azioni">
-                <i class="fas fa-ellipsis-v"></i>
-            </button>
-            <div class="ord-azioni-popup">${_menuVoci}</div>
-        </div>`;
-
-        const bottoniHeader = _desktopBtns + _mobileTrigger;
-
-        html += `
-        <div class="ordine-wrapper ${classWrapper}${_reviewWrapCls}" data-ordine="${nOrd}" data-cliente="${(cliente || '').toLowerCase().replace(/"/g, '')}" data-riferimento="${(riferimento || '').toLowerCase().replace(/"/g, '')}" data-codici="${righe.map(a => (a.codice && a.codice !== 'false' ? a.codice : '')).join('|').toLowerCase()}">
-            <div class="riga-ordine ${classHeader}" onclick="toggleAccordion(this)">
-                <div class="flex-grow">
-                    <span class="order-title" style="--order-color:${colorCliente}" title="${_esc(cliente)}">${_esc(cliente)} ${htmlRiferimento}</span>
-                </div>
-                <div class="order-info">
-                    <div class="badge-count ${TW.pill}" title="ORD.${nOrd}"><span class="badge-ord-num">ORD.${nOrdBadge}</span><span class="badge-sep">\u00b7</span>${righe.length} ART.</div>
-                    ${bottoniHeader}
-                </div>
-            </div>
-            <div class="dettagli-container${isArchivio ? ' hidden' : ''}">
-                ${righe.map(art => isArchivio ? generaCardArchivio(art, nOrd) : generaCardArticolo(art, nOrd, cliente)).join('')}
-            </div>
-        </div>`;
-    });
-    return html;
-}
-
-function generaCardArticolo(art, nOrd, cliente) {
-    const TW = window.TW;
-    const statoAttuale = (art.stato || "IN ATTESA").toUpperCase();
-    const configStato = window.listaStati.find(s => s.nome === statoAttuale) || {colore: "#e2e8f0"};
-    const codicePrincipale = art.codice && art.codice !== "false" ? art.codice : "Senza Codice";
-
-    const _csvFlag = String(art.last_modified_by || '');
-    const _isCsvReview = _csvFlag.startsWith('CSV_REVIEW');
-    const _csvBlinkCls = _isCsvReview ? ` csv-review-blink${_csvFlag === 'CSV_REVIEW_MISSING' ? ' csv-review-missing' : ' csv-review-finish'}` : '';
-    let _csvBanner = '';
-    if (_csvFlag === 'CSV_REVIEW_MISSING') {
-        _csvBanner = `<div class="csv-review-banner"><span class="csv-review-badge missing"><i class="fas fa-exclamation-triangle"></i> Assente dal CSV</span><button class="btn-csv-resolve" onclick="event.stopPropagation();csvReviewResolve('${art.id_riga}',this)"><i class="fas fa-check"></i> Risolvi</button></div>`;
-    } else if (_csvFlag === 'CSV_REVIEW_FINISH') {
-        _csvBanner = `<div class="csv-review-banner"><span class="csv-review-badge finish"><i class="fas fa-paint-brush"></i> Finitura rilevata</span><button class="btn-csv-resolve" onclick="event.stopPropagation();csvReviewResolve('${art.id_riga}',this)"><i class="fas fa-check"></i> Risolvi</button></div>`;
-    }
-
-    const _assegnatiCard = (art.assegna && art.assegna !== '' && art.assegna !== 'undefined')
-        ? art.assegna.split(',').map(n => window._normNome(n.trim())).filter(Boolean) : [];
-    let opZoneCard;
-    if (window._isUtenteEsente()) {
-        const _lbl = _assegnatiCard.length ? _assegnatiCard.map(window._normNome).join(', ') : 'Libero';
-        const _opts = window.listaOperatori.map(op => {
-            const _sel = _assegnatiCard.some(a => a.toUpperCase() === window._normNome(op.nome).toUpperCase());
-            const _col = window._getOpColor(op.nome.trim());
-            const _ns  = op.nome.trim().replace(/'/g, "\\'");
-            return `<button type="button" class="op-option${_sel ? ' is-selected' : ''}" onclick="selezionaOpAssegna(this,'${art.id_riga}','${nOrd}','${_ns}')"><span class="op-opt-dot" style="background:${_col}"></span><span>${window._normNome(op.nome)}</span>${_sel ? '<i class="fas fa-check op-check-icon"></i>' : ''}</button>`;
-        }).join('');
-        const _mioMasterNorm = window._normNome(utenteAttuale?.nome||'').toUpperCase().trim();
-        opZoneCard = `<div class="op-dropdown" data-id-riga="${art.id_riga}" data-assegna="${(art.assegna||'').replace(/"/g,'&quot;')}" data-nord="${nOrd}"><button type="button" class="op-trigger" onclick="toggleOpDropdown(this)"><i class="fas fa-user-tag op-icon"></i><span class="op-trigger-label">${_lbl}</span><i class="fas fa-chevron-down op-chevron"></i></button><div class="op-popup">${_opts}</div></div>${!_assegnatiCard.some(n => n.toUpperCase() === _mioMasterNorm) ? `<button class="btn-assegnami" onclick="autoAssegnami('${art.id_riga}','${nOrd}',this)" title="Assegnami"><i class="fas fa-user-plus"></i></button>` : ''}`;
-    } else {
-        const _mio = window._normNome(utenteAttuale?.nome || '').toUpperCase().trim();
-        const _bdg = _assegnatiCard.map(n => {
-            const _col = window._getOpColor(n); const _ns = n.replace(/'/g, "\\'");
-            const _xBtn = n.toUpperCase() === _mio ? `<button class="btn-rimuovi-op" onclick="rimuoviOperatore('${art.id_riga}','${nOrd}','${_ns}')" title="Rimuovi assegnazione">&times;</button>` : '';
-            return `<span class="badge-operatore" data-nome="${n}" style="background:${_col};border-color:${_col}">${n}${_xBtn}</span>`;
-        }).join('');
-        const _giaIo = _assegnatiCard.some(n => n.toUpperCase() === _mio);
-        const _btnIo = !_giaIo ? `<button class="btn-assegnami" onclick="autoAssegnami('${art.id_riga}','${nOrd}',this)"><i class="fas fa-user-plus"></i> Assegnami</button>` : '';
-        opZoneCard = `<div class="visualizza-operatori" data-id-riga="${art.id_riga}" data-assegna="${(art.assegna||'').replace(/"/g,'&quot;')}" data-nord="${nOrd}">${_bdg || '<span class="operatore-libero">Libero</span>'}${_btnIo}</div>`;
-    }
-
-    return `
-    <div class="item-card ${TW.card}${_csvBlinkCls}" data-codice="${codicePrincipale.toLowerCase().replace(/"/g, '')}">
-        ${_csvBanner}
-        <div><span class="label-sm ${TW.label}">Codice Prodotto</span><b class="${TW.value}">${codicePrincipale}</b></div>
-        <div class="qty-cell">
-            <span class="label-sm ${TW.label}">Quantit\u00e0</span>
-            <div class="qty-row">
-                <b class="${TW.value} qty-totale">${art.qty}</b>
-                <button class="btn-qty-evasa-toggle" title="Imposta quantit\u00e0 evasa" onclick="toggleQtyEvasa(this, '${art.id_riga}', ${parseFloat(art.qty)||0})" aria-label="Quantit\u00e0 parziale">
-                    <i class="fas fa-flag-checkered"></i>
-                </button>
-                <span class="qty-evasa-block" id="qty-evasa-block-${art.id_riga}" style="display:none">
-                    <input type="number" class="qty-evasa-input" id="qty-evasa-input-${art.id_riga}"
-                        min="0" max="${parseFloat(art.qty)||9999}" step="1"
-                        value="${parseFloat(art.qty_evasa)||''}"
-                        placeholder="Evasa"
-                        onchange="salvaQtyEvasa('${art.id_riga}', ${parseFloat(art.qty)||0}, this.value)"
-                        oninput="aggiornaRimanente('${art.id_riga}', ${parseFloat(art.qty)||0}, this.value)"
-                    />
-                    <span class="qty-rimanente-wrap">
-                        <span class="qty-rim-lbl">Rim.</span>
-                        <b class="qty-rimanente" id="qty-rimanente-${art.id_riga}">${
-                            (parseFloat(art.qty_evasa) > 0)
-                                ? Math.max(0, parseFloat(art.qty) - parseFloat(art.qty_evasa))
-                                : '\u2014'
-                        }</b>
-                    </span>
-                </span>
-            </div>
-        </div>
-        <div>
-            <span class="label-sm ${TW.label}">Stato</span>
-            <div class="stato-dropdown" data-id-riga="${art.id_riga}">
-                <button type="button" class="stato-trigger" onclick="toggleStatoDropdown(this)">
-                    <span class="stato-dot" style="background:${configStato.colore}"></span>
-                    <span class="stato-label-txt">${statoAttuale}</span>
-                    <i class="fas fa-chevron-down stato-chevron"></i>
-                </button>
-                <div class="stato-popup">
-                    ${window.listaStati.map(s => `<button type="button" class="stato-option${s.nome === statoAttuale ? ' is-selected' : ''}" onclick="selezionaStato(this, '${art.id_riga}', '${s.colore}')"><span class="stato-opt-dot" style="background:${s.colore}"></span><span>${s.nome}</span>${s.nome === statoAttuale ? '<i class="fas fa-check stato-check-icon"></i>' : ''}</button>`).join('')}
-                </div>
-            </div>
-        </div>
-        <div>
-            <span class="label-sm ${TW.label}">Operatore/i Assegnati</span>
-            ${opZoneCard}
-        </div>
-        <div class="order-info-col">
-            <button class="btn-chiedi-assegna ${TW.btnPrimary}" onclick="apriModalAiuto('${art.id_riga}', '${codicePrincipale}', '${nOrd}', '${(cliente||'').replace(/'/g,"\\'")}')">\n                <i class="fa-regular fa-envelope"></i> Chiedi\n            </button>\n            ${(window._isCommerciale() || window._isUtenteEsente()) ? `<button class="btn-sollecita" onclick="apriModalSollecito('${art.id_riga}','${nOrd}','${(cliente||'').replace(/'/g,"\\'")  }','${codicePrincipale.replace(/'/g,"\\'")  }')"><i class="fa-solid fa-calendar-alt"></i> Scadenza</button>` : ''}\n        </div>
-    </div>`;
-}
-
-function generaCardArchivio(art, nOrd) {
-    const TW = window.TW;
-    const codicePrincipale = art.codice && art.codice !== "false" ? art.codice : "Senza Codice";
-    const statoArchiviato = (art.stato || "COMPLETATO").toUpperCase();
-
-    let operatoreValore = art.assegna;
-    if (!operatoreValore || operatoreValore === "false" || operatoreValore === "") {
-        operatoreValore = "Nessuno";
-    }
-
-    return `
-    <div class="item-card archivio-layout ${TW.card}">
-        <div>
-            <span class="label-sm ${TW.label}">Codice Prodotto</span>
-            <b class="archivio-codice ${TW.value}">${codicePrincipale}</b>
-        </div>
-
-        <div class="archivio-qty">
-            <span class="label-sm ${TW.label}">Quantit\u00e0</span>
-            <b class="archivio-qty-val ${TW.value}">${art.qty}</b>
-        </div>
-
-        <div>
-            <span class="label-sm ${TW.label}">Ultimo Stato</span>
-            <span class="archivio-stato ${TW.value}">${statoArchiviato}</span>
-        </div>
-
-        <div>
-            <span class="label-sm ${TW.label}">Operatore</span>
-            <span class="archivio-operatore ${TW.value}">${_esc(operatoreValore)}</span>
-        </div>
-
-        <div class="item-actions">
-            <button class="btn-archive-action primary ${TW.btnPrimary}" title="Reso Cliente" onclick="gestisciRipristino('${art.id_riga}', 'RIGA', 'RESO')">
-                <i class="fa-solid fa-box"></i>
-            </button>
-            <button class="btn-archive-action warning ${TW.btnWarning}" title="Errore Archiviazione" onclick="gestisciRipristino('${art.id_riga}', 'RIGA', 'ERRORE')">
-                <i class="fa-solid fa-rotate"></i>
-            </button>
-        </div>
-    </div>`;
-}
-
-// ═══════════════════════════════════════════════════════════════════
 //  C) STATO & OPERATORI INTERACTION
 // ═══════════════════════════════════════════════════════════════════
 
 function _setAssegnaLocalByRow(idRiga, assegna) {
     const id = String(idRiga);
     const val = String(assegna || '');
-    if (Array.isArray(_attiviProd)) {
-        _attiviProd.forEach(r => {
+    if (Array.isArray(prodState.attiviProd)) {
+        prodState.attiviProd.forEach(r => {
             if (String(r.id_riga) === id) r.assegna = val;
         });
     }
-    if (_ultimiDatiProduzione && Array.isArray(_ultimiDatiProduzione.produzione)) {
-        _ultimiDatiProduzione.produzione.forEach(r => {
+    if (prodState.ultimiDatiProduzione && Array.isArray(prodState.ultimiDatiProduzione.produzione)) {
+        prodState.ultimiDatiProduzione.produzione.forEach(r => {
             if (String(r.id_riga) === id) r.assegna = val;
         });
     }
@@ -619,12 +325,12 @@ function _setAssegnaLocalByOrdine(nOrd, assegna) {
     const apply = arr => {
         if (!Array.isArray(arr)) return;
         arr.forEach(r => {
-            if (String(r.ordine || '').trim() === ord && !_isStatoFinale_(r.stato)) r.assegna = val;
+            if (String(r.ordine || '').trim() === ord && !isStatoFinale(r.stato)) r.assegna = val;
         });
     };
-    apply(_attiviProd);
-    if (_ultimiDatiProduzione && Array.isArray(_ultimiDatiProduzione.produzione)) {
-        apply(_ultimiDatiProduzione.produzione);
+    apply(prodState.attiviProd);
+    if (prodState.ultimiDatiProduzione && Array.isArray(prodState.ultimiDatiProduzione.produzione)) {
+        apply(prodState.ultimiDatiProduzione.produzione);
     }
 }
 
@@ -899,7 +605,7 @@ function selezionaStato(optBtn, idRiga, colore) {
         colore: dot ? dot.style.background : '',
         selectedBtn: dropdown.querySelector('.stato-option.is-selected')
     };
-    const prevProd = _attiviProd ? _attiviProd.find(x => String(x.id_riga) === String(idRiga)) : null;
+    const prevProd = prodState.attiviProd ? prodState.attiviProd.find(x => String(x.id_riga) === String(idRiga)) : null;
     const prevStatoProd = prevProd ? prevProd.stato : null;
 
     if (dot) dot.style.background = colore || '#94a3b8';
@@ -916,7 +622,7 @@ function selezionaStato(optBtn, idRiga, colore) {
     dropdown.classList.remove('open');
     const card = dropdown.closest('.item-card');
     if (card) card.classList.remove('stato-aperto');
-    if (_attiviProd && prevProd) prevProd.stato = nuovoStato;
+    if (prodState.attiviProd && prevProd) prevProd.stato = nuovoStato;
     _refreshOverview();
     _persistProduzioneHtmlSnapshot();
 
@@ -938,7 +644,7 @@ function selezionaStato(optBtn, idRiga, colore) {
                 const ic = document.createElement('i'); ic.className = 'fas fa-check stato-check-icon';
                 statoPrec.selectedBtn.appendChild(ic);
             }
-            if (_attiviProd && prevProd && prevStatoProd !== null) prevProd.stato = prevStatoProd;
+            if (prodState.attiviProd && prevProd && prevStatoProd !== null) prevProd.stato = prevStatoProd;
             _refreshOverview();
             _persistProduzioneHtmlSnapshot();
             notificaElegante('\u26a0\ufe0f Modifica non salvata \u2013 riprova', 'error');
@@ -948,7 +654,7 @@ function selezionaStato(optBtn, idRiga, colore) {
         if (card) { card.classList.remove('optimistic-pending'); card.style.opacity = ''; }
         if (dot) dot.style.background = statoPrec.colore;
         labelEl.textContent = statoPrec.testo;
-        if (_attiviProd && prevProd && prevStatoProd !== null) prevProd.stato = prevStatoProd;
+        if (prodState.attiviProd && prevProd && prevStatoProd !== null) prevProd.stato = prevStatoProd;
         _refreshOverview();
         _persistProduzioneHtmlSnapshot();
         notificaElegante('\u26a0\ufe0f Modifica non salvata \u2013 riprova', 'error');
@@ -983,14 +689,14 @@ function selezionaStatoOrdine(optBtn, nOrdine, nuovoStato, nuovoColore) {
 
     const statiPrecRighe = {};
     righe.forEach(idRiga => {
-        const r = _attiviProd ? _attiviProd.find(x => String(x.id_riga) === String(idRiga)) : null;
+        const r = prodState.attiviProd ? prodState.attiviProd.find(x => String(x.id_riga) === String(idRiga)) : null;
         statiPrecRighe[idRiga] = r ? r.stato : null;
     });
 
     // Optimistic UI: aggiorna subito tutto
     righe.forEach(idRiga => {
-        if (_attiviProd) {
-            const r = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
+        if (prodState.attiviProd) {
+            const r = prodState.attiviProd.find(x => String(x.id_riga) === String(idRiga));
             if (r) r.stato = nuovoStato;
         }
         _syncStatoItemCard(idRiga, nuovoStato, nuovoColore);
@@ -1013,8 +719,8 @@ function selezionaStatoOrdine(optBtn, nOrdine, nuovoStato, nuovoColore) {
             righe.forEach(idRiga => {
                 const prev = statiPrecRighe[idRiga];
                 if (prev) {
-                    if (_attiviProd) {
-                        const r = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
+                    if (prodState.attiviProd) {
+                        const r = prodState.attiviProd.find(x => String(x.id_riga) === String(idRiga));
                         if (r) r.stato = prev;
                     }
                     const prevColore = (window.listaStati.find(s => s.nome === prev) || {}).colore || '#e2e8f0';
@@ -1034,8 +740,8 @@ function selezionaStatoOrdine(optBtn, nOrdine, nuovoStato, nuovoColore) {
         if (dot) dot.style.background = statoPrec.colore;
         righe.forEach(idRiga => {
             const prev = statiPrecRighe[idRiga];
-            if (prev && _attiviProd) {
-                const r = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
+            if (prev && prodState.attiviProd) {
+                const r = prodState.attiviProd.find(x => String(x.id_riga) === String(idRiga));
                 if (r) r.stato = prev;
             }
             if (prev) {
@@ -1061,10 +767,10 @@ function toggleAccordion(elemento) {
 
 async function aggiornaDato(selectEl, idRiga, campo, nuovoValore, skipForceSync = false) {
     RevisionPoller.pauseFor(15000);
-    _mutationInFlight++;
+    prodState.mutationInFlight++;
     let clientTimestamp = null;
-    if (_ultimiDatiProduzione && _ultimiDatiProduzione.produzione) {
-        const row = _ultimiDatiProduzione.produzione.find(x => String(x.id_riga) === String(idRiga));
+    if (prodState.ultimiDatiProduzione && prodState.ultimiDatiProduzione.produzione) {
+        const row = prodState.ultimiDatiProduzione.produzione.find(x => String(x.id_riga) === String(idRiga));
         if (row && row.last_modified) clientTimestamp = row.last_modified;
     }
 
@@ -1113,12 +819,12 @@ async function aggiornaDato(selectEl, idRiga, campo, nuovoValore, skipForceSync 
                         const rf = await resForce.json();
                         if (rf && rf.status === 'auth_error') { window._gestisciAuthError_(rf.message); return; }
                         if (rf && rf.last_modified) {
-                            if (_ultimiDatiProduzione && _ultimiDatiProduzione.produzione) {
-                                const rowf = _ultimiDatiProduzione.produzione.find(x => String(x.id_riga) === String(idRiga));
+                            if (prodState.ultimiDatiProduzione && prodState.ultimiDatiProduzione.produzione) {
+                                const rowf = prodState.ultimiDatiProduzione.produzione.find(x => String(x.id_riga) === String(idRiga));
                                 if (rowf) { rowf.last_modified = rf.last_modified; rowf[campo] = nuovoValore; }
                             }
-                            if (_attiviProd) {
-                                const rowf = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
+                            if (prodState.attiviProd) {
+                                const rowf = prodState.attiviProd.find(x => String(x.id_riga) === String(idRiga));
                                 if (rowf) { rowf.last_modified = rf.last_modified; rowf[campo] = nuovoValore; }
                             }
                         }
@@ -1128,16 +834,16 @@ async function aggiornaDato(selectEl, idRiga, campo, nuovoValore, skipForceSync 
                 },
                 onSceglioServer: () => {
                     if (selectEl) { selectEl.value = serverData[campo] || serverData.stato || ''; selectEl.style.opacity = '1'; }
-                    if (_ultimiDatiProduzione && _ultimiDatiProduzione.produzione) {
-                        const rowS = _ultimiDatiProduzione.produzione.find(x => String(x.id_riga) === String(idRiga));
+                    if (prodState.ultimiDatiProduzione && prodState.ultimiDatiProduzione.produzione) {
+                        const rowS = prodState.ultimiDatiProduzione.produzione.find(x => String(x.id_riga) === String(idRiga));
                         if (rowS) {
                             if (serverData.stato)             rowS.stato = serverData.stato;
                             if (serverData.last_modified)     rowS.last_modified = serverData.last_modified;
                             if (serverData.last_modified_by)  rowS.last_modified_by = serverData.last_modified_by;
                         }
                     }
-                    if (_attiviProd) {
-                        const rowS = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
+                    if (prodState.attiviProd) {
+                        const rowS = prodState.attiviProd.find(x => String(x.id_riga) === String(idRiga));
                         if (rowS && serverData.stato) rowS.stato = serverData.stato;
                     }
                     notificaElegante('\ud83d\udd04 Aggiornato con la versione del server');
@@ -1152,21 +858,21 @@ async function aggiornaDato(selectEl, idRiga, campo, nuovoValore, skipForceSync 
             return false;
         }
         if (r.last_modified) {
-            if (_ultimiDatiProduzione && _ultimiDatiProduzione.produzione) {
-                const row = _ultimiDatiProduzione.produzione.find(x => String(x.id_riga) === String(idRiga));
+            if (prodState.ultimiDatiProduzione && prodState.ultimiDatiProduzione.produzione) {
+                const row = prodState.ultimiDatiProduzione.produzione.find(x => String(x.id_riga) === String(idRiga));
                 if (row) {
                     row.last_modified = r.last_modified;
                     row[campo] = nuovoValore;
-                    if (campo === 'stato' && _isStatoFinale_(nuovoValore)) row.assegna = '';
+                    if (campo === 'stato' && isStatoFinale(nuovoValore)) row.assegna = '';
                 }
             }
             _persistProduzioneHtmlSnapshot();
-            if (_attiviProd) {
-                const row = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
+            if (prodState.attiviProd) {
+                const row = prodState.attiviProd.find(x => String(x.id_riga) === String(idRiga));
                 if (row) {
                     row.last_modified = r.last_modified;
                     row[campo] = nuovoValore;
-                    if (campo === 'stato' && _isStatoFinale_(nuovoValore)) row.assegna = '';
+                    if (campo === 'stato' && isStatoFinale(nuovoValore)) row.assegna = '';
                 }
             }
         }
@@ -1181,8 +887,8 @@ async function aggiornaDato(selectEl, idRiga, campo, nuovoValore, skipForceSync 
         if (!skipForceSync) notificaElegante('\u2717 Errore: cambio NON salvato. Riprova.', 'error');
         return false;
     } finally {
-        _mutationInFlight = Math.max(0, _mutationInFlight - 1);
-        _mutationLastDone = Date.now();
+        prodState.mutationInFlight = Math.max(0, prodState.mutationInFlight - 1);
+        prodState.mutationLastDone = Date.now();
     }
 }
 
@@ -1192,7 +898,7 @@ async function aggiornaDato(selectEl, idRiga, campo, nuovoValore, skipForceSync 
  */
 async function _aggiornaDatoBulk(idRighe, campo, nuovoValore) {
     RevisionPoller.pauseFor(15000);
-    _mutationInFlight++;
+    prodState.mutationInFlight++;
     try {
         const bodyObj = {
             azione:    'aggiorna_produzione',
@@ -1217,20 +923,20 @@ async function _aggiornaDatoBulk(idRighe, campo, nuovoValore) {
         // Aggiorna in-memory data per tutte le righe
         if (r.last_modified) {
             idRighe.forEach(idRiga => {
-                if (_ultimiDatiProduzione && _ultimiDatiProduzione.produzione) {
-                    const row = _ultimiDatiProduzione.produzione.find(x => String(x.id_riga) === String(idRiga));
+                if (prodState.ultimiDatiProduzione && prodState.ultimiDatiProduzione.produzione) {
+                    const row = prodState.ultimiDatiProduzione.produzione.find(x => String(x.id_riga) === String(idRiga));
                     if (row) {
                         row.last_modified = r.last_modified;
                         row[campo] = nuovoValore;
-                        if (campo === 'stato' && _isStatoFinale_(nuovoValore)) row.assegna = '';
+                        if (campo === 'stato' && isStatoFinale(nuovoValore)) row.assegna = '';
                     }
                 }
-                if (_attiviProd) {
-                    const row = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
+                if (prodState.attiviProd) {
+                    const row = prodState.attiviProd.find(x => String(x.id_riga) === String(idRiga));
                     if (row) {
                         row.last_modified = r.last_modified;
                         row[campo] = nuovoValore;
-                        if (campo === 'stato' && _isStatoFinale_(nuovoValore)) row.assegna = '';
+                        if (campo === 'stato' && isStatoFinale(nuovoValore)) row.assegna = '';
                     }
                 }
             });
@@ -1241,8 +947,8 @@ async function _aggiornaDatoBulk(idRighe, campo, nuovoValore) {
         console.error('[_aggiornaDatoBulk] error:', e);
         return false;
     } finally {
-        _mutationInFlight = Math.max(0, _mutationInFlight - 1);
-        _mutationLastDone = Date.now();
+        prodState.mutationInFlight = Math.max(0, prodState.mutationInFlight - 1);
+        prodState.mutationLastDone = Date.now();
     }
 }
 
@@ -1261,8 +967,8 @@ async function gestisciArchiviazione(nOrd, tipo) {
                 wrapper.style.transform = 'scale(0.97)';
                 setTimeout(() => wrapper.remove(), 150);
             }
-            if (_attiviProd) {
-                _attiviProd = _attiviProd.filter(r => String(r.ordine || '').trim() !== String(nOrd).trim());
+            if (prodState.attiviProd) {
+                prodState.attiviProd = prodState.attiviProd.filter(r => String(r.ordine || '').trim() !== String(nOrd).trim());
             }
             const kanbanItem = document.querySelector(`.ov-kanban-item[data-codice="${CSS.escape(nOrd)}"], .ov-kanban-item[data-ordine*="${nOrd}"]`);
             if (kanbanItem) kanbanItem.remove();
@@ -1348,8 +1054,8 @@ async function salvaQtyEvasa(idRiga, qtyTot, val) {
     const evasa = parseFloat(val);
     if (isNaN(evasa) || evasa < 0) return;
     aggiornaRimanente(idRiga, qtyTot, evasa);
-    if (_attiviProd) {
-        const r = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
+    if (prodState.attiviProd) {
+        const r = prodState.attiviProd.find(x => String(x.id_riga) === String(idRiga));
         if (r) r.qty_evasa = String(evasa);
     }
     await aggiornaDato(null, idRiga, 'qty_evasa', evasa);
@@ -1387,20 +1093,20 @@ async function gestisciRipristino(id_o_numero, tipo) {
 
 function _startPollingProduzione() {
     _stopPollingProduzione();
-    _pollProdTimer = setInterval(_pollProdStep, _POLL_PROD_MS);
+    prodState.pollProdTimer = setInterval(_pollProdStep, prodState.POLL_PROD_MS);
 }
 function _stopPollingProduzione() {
-    if (_pollProdTimer) { clearInterval(_pollProdTimer); _pollProdTimer = null; }
+    if (prodState.pollProdTimer) { clearInterval(prodState.pollProdTimer); prodState.pollProdTimer = null; }
 }
 
 async function _pollProdStep() {
     if (window.paginaAttuale !== 'PROGRAMMA PRODUZIONE DEL MESE') { _stopPollingProduzione(); return; }
     if (document.visibilityState === 'hidden') return;
     if (document.querySelector('.stato-dropdown.open, .op-dropdown.open')) return;
-    if (Date.now() - _lastKanbanDragTs < 5000) return;
+    if (Date.now() - prodState.lastKanbanDragTs < 5000) return;
     // Skip polling while saves are in-flight or just completed (< 12s)
-    if (_mutationInFlight > 0) return;
-    if (Date.now() - _mutationLastDone < 12000) return;
+    if (prodState.mutationInFlight > 0) return;
+    if (Date.now() - prodState.mutationLastDone < 12000) return;
     try {
         const resp = await fetch(URL_GOOGLE, {
             method: 'POST',
@@ -1443,8 +1149,8 @@ function _repaintOpColors() {
         el.style.background = col;
         el.style.borderColor = col;
     });
-    if (_attiviProd && _attiviProd.length) {
-        const newHtml = _buildCaricoOperatoriHtml(_attiviProd);
+    if (prodState.attiviProd && prodState.attiviProd.length) {
+        const newHtml = _buildCaricoOperatoriHtml(prodState.attiviProd);
         const cards = cont.querySelectorAll('.ov-stato-card');
         const opCards = Array.from(cards).filter(c => /grid-column.*4/.test(c.getAttribute('style') || ''));
         if (opCards.length >= 2) {
@@ -1464,9 +1170,9 @@ function _repaintOpColors() {
 }
 
 function _patchProduzione(newAttivi, allProd, allArch) {
-    if (!_attiviProd) return;
+    if (!prodState.attiviProd) return;
 
-    const oldIds = new Set(_attiviProd.map(r => String(r.id_riga)));
+    const oldIds = new Set(prodState.attiviProd.map(r => String(r.id_riga)));
     const newIds = new Set(newAttivi.map(r => String(r.id_riga)));
     let structural = oldIds.size !== newIds.size;
     if (!structural) { for (const id of oldIds) { if (!newIds.has(id)) { structural = true; break; } } }
@@ -1483,7 +1189,7 @@ function _patchProduzione(newAttivi, allProd, allArch) {
 
     newAttivi.forEach(newRow => {
         const idStr = String(newRow.id_riga);
-        const oldRow = _attiviProd.find(r => String(r.id_riga) === idStr);
+        const oldRow = prodState.attiviProd.find(r => String(r.id_riga) === idStr);
         if (!oldRow) return;
 
         // Skip rows with optimistic-pending (save in-flight)
@@ -1533,7 +1239,7 @@ function _patchProduzione(newAttivi, allProd, allArch) {
     });
 
     if (anyChange) {
-        _attiviProd = newAttivi;
+        prodState.attiviProd = newAttivi;
         delete cacheContenuti['PROGRAMMA PRODUZIONE DEL MESE'];
         cacheFetchTime['PROGRAMMA PRODUZIONE DEL MESE'] = Date.now();
         _repaintOpColors();
@@ -1548,12 +1254,12 @@ function _backgroundRefreshProduzione(allProd, allArch) {
         if (w.querySelector('.riga-ordine.open')) openSet.add(w.dataset.ordine);
     });
     const attivi = (allProd || []).filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE');
-    _attiviProd = attivi;
+    prodState.attiviProd = attivi;
     const htmlAttivi    = generaBloccoOrdiniUnificato(allProd, false);
     const htmlArchiviati = generaBloccoOrdiniUnificato(allArch, true);
     const isMobileOv   = window.innerWidth <= 600;
     const ovContent    = isMobileOv ? '<div class="ov-lazy-placeholder"><i class="fas fa-spinner fa-spin"></i></div>' : _buildOverviewInnerHtml(attivi);
-    const numInFocus   = attivi.filter(r => _getOvStatiAll().includes((r.stato||'').toUpperCase().trim())).length;
+    const numInFocus   = attivi.filter(r => getOvStatiAll().includes((r.stato||'').toUpperCase().trim())).length;
 
     contenitore.innerHTML = `
         <details class="ov-accordion" id="ov-accordion"${isMobileOv ? '' : ' open'}>
@@ -1630,647 +1336,6 @@ function _syncKanbanFromStato(idRiga, newStato) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  G) OVERVIEW / KANBAN
-// ═══════════════════════════════════════════════════════════════════
-
-/**
- * Ricostruisce l'intera overview a partire da _attiviProd (già aggiornato ottimisticamente).
- * Usata dopo ogni cambio di stato per aggiornare il kanban con creazione/rimozione di card.
- */
-function _refreshOverview() {
-    // Aggiorna sempre il contatore nel summary (visibile anche con accordion chiuso)
-    const STATI_OV = _getOvStatiAll();
-    const numInFocus = (_attiviProd || []).filter(r => STATI_OV.includes((r.stato || '').toUpperCase().trim())).length;
-    const summaryMeta = document.querySelector('#ov-accordion .ov-summary-meta');
-    if (summaryMeta) summaryMeta.textContent = `${numInFocus} art. in lavorazione`;
-
-    const ovContent = document.getElementById('ov-content');
-    if (!ovContent) return;
-    // Su mobile il contenuto è lazy: rimuovi placeholder e costruisci subito
-    if (ovContent.querySelector('.ov-lazy-placeholder')) {
-        // Solo se l'accordion è aperto ricostruiamo subito; altrimenti lascia fare a _ovLoadIfNeeded
-        const accordion = document.getElementById('ov-accordion');
-        if (!accordion || !accordion.open) return;
-        ovContent.innerHTML = _buildOverviewInnerHtml(_attiviProd);
-        requestAnimationFrame(_initKanbanDnd);
-        return;
-    }
-    ovContent.innerHTML = _buildOverviewInnerHtml(_attiviProd);
-    requestAnimationFrame(_initKanbanDnd);
-}
-
-function _ovLoadIfNeeded(summary) {
-    const details = summary.parentElement;
-    if (!details.open) {
-        const contentDiv = document.getElementById('ov-content');
-        if (contentDiv && contentDiv.querySelector('.ov-lazy-placeholder')) {
-            contentDiv.innerHTML = _buildOverviewInnerHtml(_attiviProd);
-            requestAnimationFrame(_initKanbanDnd);
-        }
-    }
-}
-
-function _apriArchivio(id) {
-    const det = document.getElementById(id);
-    if (!det) return;
-
-    // Lazy render: alla prima apertura inserisce il contenuto archivio nel DOM
-    const sezArch = det.querySelector('.sezione-archiviata');
-    const archData = _datiArchLazy || (_ultimiDatiProduzione && _ultimiDatiProduzione.archivio);
-    if (sezArch && archData && (_datiArchLazy || !sezArch.children.length)) {
-        const htmlArch = generaBloccoOrdiniUnificato(archData, true);
-        const archHtml = htmlArch || "<div class='empty-msg'>L'archivio \u00e8 vuoto.</div>"
-        sezArch.innerHTML = archHtml;
-        window.aggiornaListaFiltrabili?.();
-        if (!cacheContenuti['ARCHIVIO_ORDINI']) {
-            cacheContenuti['ARCHIVIO_ORDINI'] = archHtml;
-            cacheFetchTime['ARCHIVIO_ORDINI'] = Date.now();
-            _lsCacheSet('_html_ARCHIVIO_ORDINI', archHtml);
-        }
-        _datiArchLazy = null;
-    }
-
-    det.open = true;
-    requestAnimationFrame(() => {
-        det.querySelector('summary')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-}
-
-function _osservaArchivio(id) { /* disabilitato: apri solo col tasto */ }
-
-function _buildCaricoOperatoriHtml(attivi) {
-    const attiviOp = (attivi || []).filter(r => !_isStatoFinale_(r.stato));
-    const OPS_PROD = ['Riccardo', 'Fabio T.', 'Niccol\u00f2', 'Alessio'];
-    const map = new Map();
-    OPS_PROD.forEach(op => map.set(op, []));
-    const seenOrdine = new Map();
-    OPS_PROD.forEach(op => seenOrdine.set(op, new Set()));
-
-    function _findOp(nome) {
-        const nNorm = window._normNome(nome);
-        return OPS_PROD.find(o => o === nNorm || o.toUpperCase() === String(nome).trim().toUpperCase());
-    }
-
-    attiviOp.forEach(r => {
-        if (!r.assegna || r.assegna === '' || r.assegna === 'undefined') return;
-        const ordineKey = String(r.ordine || '').trim();
-        if (!ordineKey) return;
-        r.assegna.split(',').forEach(op => {
-            const nome = op.trim();
-            if (!nome) return;
-            const found = _findOp(nome);
-            if (found && !seenOrdine.get(found).has(ordineKey)) {
-                seenOrdine.get(found).add(ordineKey);
-                map.get(found).push(r);
-            }
-        });
-    });
-
-    const coloriStati = {};
-    (window.listaStati || []).forEach(s => { coloriStati[s.nome.toUpperCase()] = s.colore; });
-
-    function _clienteLabel(r) {
-        const cli = String(r.cliente || '').trim().toUpperCase();
-        if (!cli || cli === 'DA DEFINIRE') {
-            const rif = String(r.riferimento || '').trim();
-            return rif ? rif : '';
-        }
-        const w = r.cliente.trim().split(/\s+/).slice(0, 2).join(' ');
-        return w.length > 14 ? w.substring(0, 13) + '\u2026' : w;
-    }
-
-    const card1Body = OPS_PROD.map(nome => {
-        const items = map.get(nome) || [];
-        const col = window._getOpColor(nome);
-        const itemsHtml = items.length === 0
-            ? '<div class="ov-op-item ov-op-item-free"><span class="ov-op-item-cod" style="color:#475569">Libero</span></div>'
-            : items.map(r => {
-                const stato = (r.stato || 'IN ATTESA').toUpperCase().trim();
-                const colStato = coloriStati[stato] || '#94a3b8';
-                const ordine = String(r.ordine || '').trim();
-                const cli = _clienteLabel(r);
-                const ordLbl = ordine.length > 10 ? ordine.substring(0, 9) + '\u2026' : ordine;
-                return `<div class="ov-op-item">
-                    <span class="ov-op-item-dot" style="background:${colStato}"></span>
-                    <span class="ov-op-item-cod">${ordLbl}${cli ? ' <em style="color:#7c8fa8;font-style:italic">' + cli + '</em>' : ''}</span>
-                </div>`;
-            }).join('');
-        return `<div class="ov-op-row">
-            <div class="ov-op-header">
-                <span class="ov-op-badge" style="background:${col}">${nome.charAt(0).toUpperCase()}</span>
-                <span class="ov-op-nome">${nome}</span>
-                ${items.length > 0 ? `<span class="ov-op-count" style="background:${col}33;color:${col}">${items.length}</span>` : '<span class="ov-op-free-badge">Libero</span>'}
-            </div>
-            <div class="ov-op-items">${itemsHtml}</div>
-        </div>`;
-    }).join('');
-
-    const maxCount = Math.max(...OPS_PROD.map(n => (map.get(n) || []).length), 1);
-    const card2Body = OPS_PROD.map(nome => {
-        const count = (map.get(nome) || []).length;
-        const col = window._getOpColor(nome);
-        const pct = Math.round((count / maxCount) * 100);
-        const isLibero = count === 0;
-        return `<div class="ov-op-summary-row">
-            <span class="ov-op-badge" style="background:${isLibero ? '#374151' : col}">${nome.charAt(0).toUpperCase()}</span>
-            <div class="ov-op-summary-info">
-                <div class="ov-op-summary-top">
-                    <span class="ov-op-nome">${nome}</span>
-                    ${isLibero
-                        ? '<span class="ov-op-free-badge">Libero</span>'
-                        : `<span class="ov-op-count" style="background:${col}33;color:${col}">${count} art.</span>`}
-                </div>
-                ${isLibero ? '' : `<div class="ov-op-bar-track"><div class="ov-op-bar-fill" style="width:${pct}%;background:${col}"></div></div>`}
-            </div>
-        </div>`;
-    }).join('');
-
-    const card1 = `<details class="ov-stato-card" open style="grid-column:4;grid-row:1">
-        <summary class="ov-stato-header" style="--ov-col:#242424" onclick="if(window.innerWidth>600){event.preventDefault();return false;}">
-            <span class="ov-stato-dot" style="background:#242424"></span>
-            <span class="ov-stato-nome">Operatori</span>
-            <span class="ov-stato-tot" style="background:#24242422;color:#475569">${OPS_PROD.length} op.</span>
-            <i class="fas fa-chevron-down ov-sub-chevron"></i>
-        </summary>
-        <div class="ov-stato-body ov-op-card-body">${card1Body}</div>
-    </details>`;
-
-    const card2 = `<details class="ov-stato-card" open style="grid-column:4;grid-row:2">
-        <summary class="ov-stato-header" style="--ov-col:#f59e0b" onclick="if(window.innerWidth>600){event.preventDefault();return false;}">
-            <span class="ov-stato-dot" style="background:#f59e0b"></span>
-            <span class="ov-stato-nome">Carico operatori</span>
-            <span class="ov-stato-tot" style="background:#f59e0b33;color:#f59e0b">${OPS_PROD.length} tot.</span>
-            <i class="fas fa-chevron-down ov-sub-chevron"></i>
-        </summary>
-        <div class="ov-stato-body ov-op-card-body">${card2Body}</div>
-    </details>`;
-
-    return card1 + card2;
-}
-
-function _buildOverviewInnerHtml(attivi) {
-    const coloriStati = {};
-    (window.listaStati || []).forEach(s => { coloriStati[s.nome.toUpperCase()] = s.colore; });
-    const coloreDefault = '#94a3b8';
-
-    const cardsHtml = _getOvStatiAll().map(stato => {
-        const righe = attivi.filter(r => (r.stato || '').toUpperCase().trim() === stato.trim());
-        const colore = coloriStati[stato] || coloreDefault;
-        const isEmpty = righe.length === 0;
-
-        const isOrdMode = _ovStatiOrd.includes(stato);
-        let contenuto = '';
-        let totLabel  = '';
-
-        if (isOrdMode) {
-            const gruppiMap = new Map();
-            const gruppiOrd = [];
-            righe.forEach(r => {
-                const key = String(r.ordine || '\u2014').trim();
-                if (gruppiMap.has(key)) { gruppiMap.get(key).push(r); }
-                else { gruppiMap.set(key, [r]); gruppiOrd.push({ ordine: key, rows: gruppiMap.get(key) }); }
-            });
-            gruppiOrd.sort((a, b) => {
-                const _cliA = (a.rows[0].cliente || '').trim().toUpperCase();
-                const _nA   = (!_cliA || _cliA === 'DA DEFINIRE') ? (a.rows[0].riferimento || a.ordine).toUpperCase() : _cliA;
-                const _cliB = (b.rows[0].cliente || '').trim().toUpperCase();
-                const _nB   = (!_cliB || _cliB === 'DA DEFINIRE') ? (b.rows[0].riferimento || b.ordine).toUpperCase() : _cliB;
-                return _nA < _nB ? -1 : _nA > _nB ? 1 : 0;
-            });
-            contenuto = gruppiOrd.map(({ ordine, rows }) => {
-                const ids = rows.map(r => String(r.id_riga)).join(',');
-                const primaRiga = rows[0];
-                function _abbr(s) {
-                    const w = (s || '').trim().split(/\s+/).slice(0, 2).join(' ');
-                    return w.length > 18 ? w.substring(0, 17) + '\u2026' : w;
-                }
-                const cli      = String(primaRiga.cliente || '').trim().toUpperCase();
-                const cliLabel = (!cli || cli === 'DA DEFINIRE') ? _abbr(primaRiga.riferimento || '') || ordine : _abbr(primaRiga.cliente);
-                const ordLabel = ordine.length > 12 ? ordine.substring(0, 12) + '\u2026' : ordine;
-                const artCount = rows.length;
-                const qtyTot   = rows.reduce((s, r) => s + (parseInt(r.qty) || 1), 0);
-                return `<div class="ov-stato-row ov-kanban-item"
-                    data-id-riga="${primaRiga.id_riga}"
-                    data-id-righe="${ids}"
-                    data-count="${artCount}"
-                    data-codice="${ordine.replace(/"/g, '&quot;')}"
-                    data-ordine="${rows.map(r => r.ordine || '').join(',')}"
-                    data-stato-corrente="${stato}"
-                    title="Doppio clic \u2192 vai all'ordine nella lista">
-                    <span class="ov-drag-handle"><i class="fas fa-grip-vertical"></i></span>
-                    <span class="ov-row-main">
-                        <span class="ov-row-label" title="${ordine}">${ordLabel} <em>${cliLabel}</em></span>
-                        <span class="ov-row-sub">${artCount} art. \u00b7 ${qtyTot} pz</span>
-                    </span>
-                </div>`;
-            }).join('');
-            totLabel = gruppiOrd.length + ' ord.';
-
-        } else {
-            const gruppiMap = new Map();
-            const gruppiOrd = [];
-            righe.forEach(r => {
-                const codice = String(r.codice && r.codice !== 'false' ? r.codice : r.riferimento || '\u2014').trim();
-                if (gruppiMap.has(codice)) { gruppiMap.get(codice).push(r); }
-                else { gruppiMap.set(codice, [r]); gruppiOrd.push({ codice, rows: gruppiMap.get(codice) }); }
-            });
-            gruppiOrd.sort((a, b) => a.codice < b.codice ? -1 : a.codice > b.codice ? 1 : 0);
-            contenuto = gruppiOrd.map(({ codice, rows }) => {
-                const lbl = codice.length > 24 ? codice.substring(0, 24) + '\u2026' : codice;
-                const ids = rows.map(r => String(r.id_riga)).join(',');
-                function _abbr(s) {
-                    const w = (s || '').trim().split(/\s+/).slice(0, 2).join(' ');
-                    return w.length > 14 ? w.substring(0, 13) + '\u2026' : w;
-                }
-                function _cliLabel(r) {
-                    const cli = String(r.cliente || '').trim().toUpperCase();
-                    if (!cli || cli === 'DA DEFINIRE') return _abbr(r.riferimento || '') || '';
-                    return _abbr(r.cliente);
-                }
-                const cliGroupMap = new Map(); const cliGroupOrd = [];
-                rows.forEach(r => {
-                    const key = _cliLabel(r);
-                    if (cliGroupMap.has(key)) { cliGroupMap.get(key).push(r); }
-                    else { cliGroupMap.set(key, [r]); cliGroupOrd.push(key); }
-                });
-                const subParts = cliGroupOrd.map(cliKey => {
-                    const grp = cliGroupMap.get(cliKey);
-                    const ordsStr = grp.map(r => { const o = String(r.ordine || '').trim(); return o.length > 12 ? o.substring(0, 12) + '\u2026' : o; }).filter(Boolean).join(' / ');
-                    if (!ordsStr && !cliKey) return '';
-                    return ordsStr + (cliKey ? ' <em>' + cliKey + '</em>' : '');
-                }).filter(Boolean);
-                const subLine = subParts.join(' \u00b7 ');
-                const qtyStr  = rows.length > 1 ? rows.map(r => (r.qty || 1) + 'pz').join('+') : (rows[0].qty || 1) + ' pz';
-                return `<div class="ov-stato-row ov-kanban-item"
-                    data-id-riga="${rows[0].id_riga}"
-                    data-id-righe="${ids}"
-                    data-count="${rows.length}"
-                    data-codice="${codice.replace(/"/g, '&quot;')}"
-                    data-ordine="${rows.map(r => r.ordine || '').join(',')}"
-                    data-stato-corrente="${stato}"
-                    title="Doppio clic \u2192 vai all'ordine nella lista">
-                    <span class="ov-drag-handle"><i class="fas fa-grip-vertical"></i></span>
-                    <span class="ov-row-main">
-                        <span class="ov-row-label" title="${codice}">${lbl}</span>
-                        ${subLine ? `<span class="ov-row-sub">${subLine}</span>` : ''}
-                    </span>
-                    <span class="ov-badge-qty">${qtyStr}</span>
-                </div>`;
-            }).join('');
-            totLabel = righe.length + ' art.';
-        }
-
-        return `<details class="ov-stato-card${isEmpty ? ' ov-stato-card-empty' : ''}" open>
-            <summary class="ov-stato-header" style="--ov-col:${colore}" onclick="if(window.innerWidth>600){event.preventDefault();return false;}">
-                <span class="ov-stato-dot" style="background:${colore}"></span>
-                <span class="ov-stato-nome">${stato}</span>
-                <span class="ov-stato-tot" style="background:${colore}22;color:${colore}" data-stato-count="${stato}">${totLabel}</span>
-                <i class="fas fa-chevron-down ov-sub-chevron"></i>
-            </summary>
-            <div class="ov-stato-body" data-stato-drop="${stato}">${isEmpty ? '<span class="ov-empty-lbl">\u2014 nessun articolo</span>' : contenuto}</div>
-        </details>`;
-    }).join('');
-
-    return `<div class="ov-board-wrapper">
-        <div class="ov-stati-grid" id="ov-kanban-grid">${cardsHtml}</div>
-        <div class="ov-operatori-panel">${_buildCaricoOperatoriHtml(attivi)}</div>
-    </div>`;
-}
-
-function _buildOverviewChart() { /* non più usato */ }
-
-function _scrollToOrdineList(ordine) {
-    if (!ordine) return;
-    const wrapper = [...document.querySelectorAll('.ordine-wrapper')].find(el => el.dataset.ordine === ordine);
-    if (!wrapper) return;
-    const riga = wrapper.querySelector('.riga-ordine');
-    const det  = wrapper.querySelector('.dettagli-container');
-    if (riga && !riga.classList.contains('open')) {
-        riga.classList.add('open');
-        if (det) det.style.display = 'block';
-    }
-    setTimeout(() => { wrapper.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 60);
-    wrapper.style.transition = 'box-shadow 0.2s ease';
-    wrapper.style.boxShadow = '0 0 0 3px #f59e0b99, 0 4px 24px #f59e0b33';
-    setTimeout(() => { wrapper.style.transition = 'box-shadow 0.7s ease'; wrapper.style.boxShadow = ''; }, 1800);
-}
-
-// ═══════════════════════════════════════════════════════════════════
-//  KANBAN DRAG & DROP
-// ═══════════════════════════════════════════════════════════════════
-
-function _initKanbanDnd() {
-    const isMobileKanban = window.innerWidth <= 600;
-    const grid = document.getElementById('ov-kanban-grid');
-    if (!grid || grid._dndInit) return;
-    grid._dndInit = true;
-
-    grid.addEventListener('click', e => {
-        const summary = e.target.closest('.ov-stato-header');
-        if (!isMobileKanban && summary) e.preventDefault();
-    }, true);
-
-    let dragEl     = null;
-    let ghost      = null;
-    let srcStato   = null;
-    let activeBody = null;
-    let dragPointerId = null;
-    let pendingTouchDrag = null;
-    const TOUCH_HOLD_MS = 380;
-    const TOUCH_MOVE_CANCEL_PX = 10;
-    let offX = 0, offY = 0;
-
-    function _bodyAtPoint(x, y) {
-        if (ghost) ghost.style.visibility = 'hidden';
-        const el = document.elementFromPoint(x, y);
-        if (ghost) ghost.style.visibility = '';
-        if (!el) return null;
-        const body = el.closest('.ov-stato-body');
-        if (body) return body;
-        const header = el.closest('.ov-stato-header, .ov-stato-card > summary');
-        if (header) {
-            const card = header.closest('.ov-stato-card');
-            if (card) return card.querySelector('.ov-stato-body');
-        }
-        return null;
-    }
-
-    function _highlight(body) {
-        if (body === activeBody) return;
-        grid.querySelectorAll('.ov-stato-body').forEach(b => b.classList.remove('ov-drop-over'));
-        activeBody = body;
-        if (body && body.dataset.statoDrop !== srcStato) {
-            body.classList.add('ov-drop-over');
-        }
-    }
-
-    function _cleanup() {
-        if (pendingTouchDrag && pendingTouchDrag.pressTimer) {
-            clearTimeout(pendingTouchDrag.pressTimer);
-            if (pendingTouchDrag.item) pendingTouchDrag.item.classList.remove('ov-touch-hold-pending');
-            pendingTouchDrag = null;
-        }
-        if (dragEl && dragPointerId != null) {
-            try {
-                if (dragEl.hasPointerCapture && dragEl.hasPointerCapture(dragPointerId)) {
-                    dragEl.releasePointerCapture(dragPointerId);
-                }
-            } catch (_) {}
-        }
-        if (ghost) { removeGhost(ghost); ghost = null; }
-        if (dragEl) { 
-            dragEl.classList.remove('ov-drag-active');
-            dragEl.style.userSelect = '';
-            dragEl = null;
-        }
-        grid.querySelectorAll('.ov-stato-body').forEach(b => b.classList.remove('ov-drop-over'));
-        srcStato = null;
-        activeBody = null;
-        dragPointerId = null;
-    }
-
-    let _lastPointerDownTime = 0;
-    let _lastPointerDownItem = null;
-
-    function _startDrag(item, clientX, clientY, pointerId) {
-        dragEl = item;
-        srcStato = item.dataset.statoCorrente;
-        dragPointerId = pointerId;
-
-        const g = createGhost(item, clientX, clientY, {
-            opacity: 0.92,
-            scale: '1.05',
-            rotate: '-1.2deg',
-            borderRadius: '8px',
-            shadow: '0 10px 32px rgba(0,0,0,0.55)',
-            background: '#1e2d3d',
-            border: '1.5px solid #475569',
-            transition: 'transform 0.1s'
-        });
-        ghost = g.ghost;
-        offX = g.offX;
-        offY = g.offY;
-
-        item.style.userSelect = 'none';
-        dragEl.classList.add('ov-drag-active');
-
-        try {
-            if (dragEl.setPointerCapture) dragEl.setPointerCapture(pointerId);
-            else if (grid.setPointerCapture) grid.setPointerCapture(pointerId);
-        } catch (_) {}
-    }
-
-    grid.addEventListener('pointerdown', e => {
-        if (e.pointerType === 'mouse' && e.button !== 0) return;
-        const item = e.target.closest('.ov-kanban-item');
-        if (!item) return;
-
-        const now = Date.now();
-        if (_lastPointerDownItem === item && now - _lastPointerDownTime < 280) {
-            _lastPointerDownTime = 0;
-            _lastPointerDownItem = null;
-            const ordine = (item.dataset.ordine || '').split(',')[0].trim();
-            if (ordine) _scrollToOrdineList(ordine);
-            return;
-        }
-        _lastPointerDownTime = now;
-        _lastPointerDownItem = item;
-
-        if (e.pointerType === 'touch') {
-            if (pendingTouchDrag && pendingTouchDrag.pressTimer) {
-                clearTimeout(pendingTouchDrag.pressTimer);
-                if (pendingTouchDrag.item) pendingTouchDrag.item.classList.remove('ov-touch-hold-pending');
-            }
-            item.classList.add('ov-touch-hold-pending');
-            pendingTouchDrag = {
-                item,
-                pointerId: e.pointerId,
-                startX: e.clientX,
-                startY: e.clientY,
-                pressTimer: setTimeout(() => {
-                    if (!pendingTouchDrag || pendingTouchDrag.pointerId !== e.pointerId || dragEl) return;
-                    pendingTouchDrag.item.classList.remove('ov-touch-hold-pending');
-                    _startDrag(item, pendingTouchDrag.startX, pendingTouchDrag.startY, e.pointerId);
-                    pendingTouchDrag = null;
-                }, TOUCH_HOLD_MS)
-            };
-            return;
-        }
-
-        e.preventDefault();
-        _startDrag(item, e.clientX, e.clientY, e.pointerId);
-    });
-
-    function _onPointerMove(e) {
-        if (pendingTouchDrag && !dragEl && e.pointerId === pendingTouchDrag.pointerId) {
-            const dx = Math.abs(e.clientX - pendingTouchDrag.startX);
-            const dy = Math.abs(e.clientY - pendingTouchDrag.startY);
-            if (dx > TOUCH_MOVE_CANCEL_PX || dy > TOUCH_MOVE_CANCEL_PX) {
-                clearTimeout(pendingTouchDrag.pressTimer);
-                pendingTouchDrag.item.classList.remove('ov-touch-hold-pending');
-                pendingTouchDrag = null;
-            }
-        }
-        if (!dragEl || !ghost) return;
-        moveGhost(ghost, e.clientX, e.clientY, offX, offY);
-        _highlight(_bodyAtPoint(e.clientX, e.clientY));
-    }
-    grid.addEventListener('pointermove', _onPointerMove);
-    window.addEventListener('pointermove', _onPointerMove, { passive: true });
-
-    function _onPointerUp(e) {
-        if (pendingTouchDrag && !dragEl && e.pointerId === pendingTouchDrag.pointerId) {
-            clearTimeout(pendingTouchDrag.pressTimer);
-            pendingTouchDrag.item.classList.remove('ov-touch-hold-pending');
-            pendingTouchDrag = null;
-            return;
-        }
-        if (!dragEl) return;
-        const body     = _bodyAtPoint(e.clientX, e.clientY);
-        const newStato = body?.dataset?.statoDrop;
-        const elDrop   = dragEl;
-        const oldStato = srcStato;
-
-        _cleanup();
-
-        if (!newStato || newStato === oldStato || !body) return;
-
-        const idRiga  = elDrop.dataset.idRiga;
-        const idRighe = (elDrop.dataset.idRighe || idRiga).split(',').map(s => s.trim()).filter(Boolean);
-        const colore = (window.listaStati.find(s => s.nome === newStato) || {}).colore || '#94a3b8';
-
-        body.querySelectorAll('.ov-empty-lbl').forEach(el => el.remove());
-        elDrop.dataset.statoCorrente = newStato;
-        body.appendChild(elDrop);
-
-        const destCard = body.closest('.ov-stato-card');
-        if (destCard) destCard.open = true;
-
-        _aggiornaKanbanCount(grid);
-        _checkKanbanEmpty(grid);
-
-        elDrop.style.transition = 'transform 0.18s, opacity 0.18s';
-        elDrop.style.transform  = 'scale(1.04)';
-        elDrop.style.opacity    = '0.6';
-        requestAnimationFrame(() => {
-            elDrop.style.transform = '';
-            elDrop.style.opacity   = '';
-            setTimeout(() => { elDrop.style.transition = ''; }, 200);
-        });
-
-        const _kanbanStatiPrec = {};
-        idRighe.forEach(id => {
-            const r = _attiviProd ? _attiviProd.find(x => String(x.id_riga) === id) : null;
-            _kanbanStatiPrec[id] = r ? r.stato : oldStato;
-        });
-
-        idRighe.forEach(id => {
-            if (_attiviProd) {
-                const r = _attiviProd.find(x => String(x.id_riga) === id);
-                if (r) r.stato = newStato;
-            }
-        });
-
-        elDrop.classList.add('optimistic-pending');
-        elDrop.style.transition = 'opacity 0.3s';
-
-        _lastKanbanDragTs = Date.now();
-        (async () => {
-            let anyFailed = false;
-            for (const id of idRighe) {
-                const ok = await aggiornaDato(null, id, 'stato', newStato);
-                if (!ok) anyFailed = true;
-            }
-            elDrop.classList.remove('optimistic-pending'); elDrop.style.opacity = '';
-            if (anyFailed) {
-                const srcBody = grid.querySelector(`.ov-stato-body[data-stato-drop="${oldStato}"]`);
-                if (srcBody) {
-                    elDrop.dataset.statoCorrente = oldStato;
-                    srcBody.querySelectorAll('.ov-empty-lbl').forEach(el => el.remove());
-                    srcBody.appendChild(elDrop);
-                }
-                idRighe.forEach(id => {
-                    const prev = _kanbanStatiPrec[id] || oldStato;
-                    if (_attiviProd) {
-                        const r = _attiviProd.find(x => String(x.id_riga) === id);
-                        if (r) r.stato = prev;
-                    }
-                    const prevCol = (window.listaStati.find(s => s.nome === prev) || {}).colore || '#94a3b8';
-                    _syncStatoItemCard(id, prev, prevCol);
-                });
-                _aggiornaKanbanCount(grid);
-                _checkKanbanEmpty(grid);
-                notificaElegante('\u26a0\ufe0f Modifica non salvata \u2013 riprova', 'error');
-                console.error('[Kanban DnD] Rollback', { idRighe, newStato, oldStato });
-            } else {
-                _invalidateProduzioneCache();
-            }
-        })();
-        idRighe.forEach(id => _syncStatoItemCard(id, newStato, colore));
-        notificaElegante(`\u2714 Stato \u2192 ${newStato}`);
-    }
-    grid.addEventListener('pointerup', _onPointerUp);
-    window.addEventListener('pointerup', _onPointerUp, { passive: true });
-
-    grid.addEventListener('pointercancel', _cleanup);
-    window.addEventListener('pointercancel', _cleanup, { passive: true });
-
-    grid.addEventListener('dragstart', e => e.preventDefault());
-}
-
-function _aggiornaKanbanCount(grid) {
-    grid.querySelectorAll('.ov-stato-body').forEach(body => {
-        const stato = body.dataset.statoDrop;
-        const isOrd = _ovStatiOrd.includes(stato);
-        const items = body.querySelectorAll('.ov-kanban-item');
-        let count = 0;
-        if (isOrd) {
-            count = items.length;
-        } else {
-            items.forEach(item => { count += parseInt(item.dataset.count || '1', 10); });
-        }
-        const badge = grid.querySelector(`[data-stato-count="${stato}"]`);
-        if (badge) badge.textContent = count + (isOrd ? ' ord.' : ' art.');
-        const card = body.closest('.ov-stato-card');
-        if (card) card.classList.toggle('ov-stato-card-empty', count === 0);
-    });
-}
-
-function _checkKanbanEmpty(grid) {
-    grid.querySelectorAll('.ov-stato-body').forEach(body => {
-        const hasItems = body.querySelectorAll('.ov-kanban-item').length > 0;
-        if (!hasItems && !body.querySelector('.ov-empty-lbl')) {
-            const lbl = document.createElement('span');
-            lbl.className = 'ov-empty-lbl';
-            lbl.textContent = '\u2014 nessun articolo';
-            body.appendChild(lbl);
-        }
-    });
-}
-
-function _syncStatoItemCard(idRiga, newStato, colore) {
-    const dropdown = document.querySelector(`.stato-dropdown[data-id-riga="${idRiga}"]`);
-    if (!dropdown) return;
-    const trigger = dropdown.querySelector('.stato-trigger');
-    if (!trigger) return;
-    const dot = trigger.querySelector('.stato-dot');
-    const lbl = trigger.querySelector('.stato-label-txt');
-    if (dot) dot.style.background = colore;
-    if (lbl) lbl.textContent = newStato;
-    dropdown.querySelectorAll('.stato-option').forEach(o => {
-        const oName = o.querySelector('span:not(.stato-opt-dot)')?.textContent.trim();
-        o.classList.toggle('is-selected', oName === newStato);
-        const existing = o.querySelector('.stato-check-icon');
-        if (existing) existing.remove();
-        if (oName === newStato) {
-            const chk = document.createElement('i');
-            chk.className = 'fas fa-check stato-check-icon';
-            o.appendChild(chk);
-        }
-    });
-}
-
-// ═══════════════════════════════════════════════════════════════════
 //  H) FILTRO ARTICOLI
 // ═══════════════════════════════════════════════════════════════════
 
@@ -2327,8 +1392,8 @@ async function csvReviewResolve(idRiga, btnEl) {
                 if (banner) banner.remove();
             }
             // aggiorna anche dati locali
-            if (_attiviProd) {
-                const row = _attiviProd.find(x => String(x.id_riga) === String(idRiga));
+            if (prodState.attiviProd) {
+                const row = prodState.attiviProd.find(x => String(x.id_riga) === String(idRiga));
                 if (row) row.last_modified_by = (utenteAttuale && utenteAttuale.nome) ? utenteAttuale.nome.toUpperCase() : '';
             }
             // rimuovi classe ordine se non ci sono più righe review
@@ -2390,6 +1455,7 @@ function registerGlobals() {
     window._syncKanbanFromStato = _syncKanbanFromStato;
     window._setAssegnaLocalByOrdine = _setAssegnaLocalByOrdine;
     window._refreshOverview = _refreshOverview;
+    window._invalidateProduzioneCache = _invalidateProduzioneCache;
     window.csvReviewResolve = csvReviewResolve;
 }
 

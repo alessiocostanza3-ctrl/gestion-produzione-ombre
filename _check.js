@@ -124,6 +124,24 @@ ok('F9.9 CSP upgrade-insecure-requests',           idx.includes('upgrade-insecur
 ok('F9.10 CSP base-uri self',                      idx.includes("base-uri 'self'"));
 ok('F9.11 CSP form-action self',                   idx.includes("form-action 'self'"));
 
+// ── FASE 10: Split produzione.js ────────────────────────────
+ok('F10.1 produzione-state.js esiste',             fs.existsSync('modules/features/produzione-state.js'));
+ok('F10.2 produzione-cards.js esiste',             fs.existsSync('modules/features/produzione-cards.js'));
+ok('F10.3 produzione-overview.js esiste',          fs.existsSync('modules/features/produzione-overview.js'));
+const pState = fs.readFileSync('modules/features/produzione-state.js', 'utf8');
+const pCards = fs.readFileSync('modules/features/produzione-cards.js', 'utf8');
+const pOver  = fs.readFileSync('modules/features/produzione-overview.js', 'utf8');
+ok('F10.4 state exports prodState',                pState.includes('export const prodState'));
+ok('F10.5 cards importa da state',                 pCards.includes("from './produzione-state.js'"));
+ok('F10.6 overview importa da state',              pOver.includes("from './produzione-state.js'"));
+ok('F10.7 overview importa da cards',              pOver.includes("from './produzione-cards.js'"));
+ok('F10.8 produzione importa da state',            prod.includes("from './produzione-state.js'"));
+ok('F10.9 produzione importa da cards',            prod.includes("from './produzione-cards.js'"));
+ok('F10.10 produzione importa da overview',        prod.includes("from './produzione-overview.js'"));
+ok('F10.11 no generaCardArticolo in produzione',   !prod.includes('function generaCardArticolo'));
+ok('F10.12 no _refreshOverview def in produzione', !prod.includes('function _refreshOverview'));
+ok('F10.13 produzione < 1600 righe',               prod.split('\n').length < 1600);
+
 const ver = (idx.match(/\?v=(\d{8}[a-z])/) || [])[1];
 const swv = (sw.match(/prod-shell-(v\d+)/) || [])[1];
 const gasVer = (gas.match(/@(\d+)/) || [])[1] || '?';
