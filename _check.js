@@ -13,6 +13,7 @@ const api  = fs.readFileSync('modules/core/api.js', 'utf8');
 const repo = fs.readFileSync('modules/core/repository.js', 'utf8');
 const bun  = fs.readFileSync('dist/script.bundle.js', 'utf8');
 const man  = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
+const qrp  = fs.readFileSync('qr-postazioni.html', 'utf8');
 const rich = fs.readFileSync('modules/features/richieste.js', 'utf8');
 const imp  = fs.readFileSync('modules/features/impostazioni.js', 'utf8');
 
@@ -106,6 +107,22 @@ ok('F8.8 GitHub Actions CI workflow',              fs.existsSync('.github/workfl
 ok('F8.9 CI runs lint step',                       fs.readFileSync('.github/workflows/ci.yml', 'utf8').includes('eslint'));
 ok('F8.10 CI runs check step',                     fs.readFileSync('.github/workflows/ci.yml', 'utf8').includes('_check.js'));
 ok('F8.11 CI runs build step',                     fs.readFileSync('.github/workflows/ci.yml', 'utf8').includes('build.mjs'));
+
+// ═══════════════════════════════════════════════════════════════════════
+//  FASE 9 — SRI integrity + CSP hardening
+// ═══════════════════════════════════════════════════════════════════════
+
+ok('F9.1 FA preload ha SRI integrity',             idx.includes('font-awesome') && idx.includes('integrity="sha384-3B6NwesSXE7'));
+ok('F9.2 FA noscript ha SRI integrity',            /noscript>.*integrity="sha384-/.test(idx));
+ok('F9.3 jsQR ha SRI integrity',                   idx.includes('jsQR') && idx.includes('integrity="sha384-b5Ya4'));
+ok('F9.4 qrcode (index) ha SRI integrity',         idx.includes('qrcode@1.4.4') && idx.includes('integrity="sha384-0RsG1'));
+ok('F9.5 qr-postazioni usa qrcode SRI',            qrp.includes('integrity="sha384-') && qrp.includes('crossorigin'));
+ok('F9.6 qr-postazioni qrcode URL funzionante',    qrp.includes('qrcode@1.4.4/build/qrcode.min.js'));
+ok('F9.7 CSP object-src none',                     idx.includes("object-src 'none'"));
+ok('F9.8 CSP frame-src none',                      idx.includes("frame-src 'none'"));
+ok('F9.9 CSP upgrade-insecure-requests',           idx.includes('upgrade-insecure-requests'));
+ok('F9.10 CSP base-uri self',                      idx.includes("base-uri 'self'"));
+ok('F9.11 CSP form-action self',                   idx.includes("form-action 'self'"));
 
 const ver = (idx.match(/\?v=(\d{8}[a-z])/) || [])[1];
 const swv = (sw.match(/prod-shell-(v\d+)/) || [])[1];
