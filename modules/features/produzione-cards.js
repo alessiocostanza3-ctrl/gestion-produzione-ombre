@@ -189,7 +189,7 @@ export function generaCardArticolo(art, nOrd, cliente) {
     }
 
     return `
-    <div class="item-card ${TW.card}${_csvBlinkCls}" data-codice="${codicePrincipale.toLowerCase().replace(/"/g, '')}">
+    <div class="item-card ${TW.card}${_csvBlinkCls}" data-id-riga="${art.id_riga}" data-codice="${codicePrincipale.toLowerCase().replace(/"/g, '')}">
         ${_csvBanner}
         <div><span class="label-sm ${TW.label}">Codice Prodotto</span><b class="${TW.value}">${codicePrincipale}</b></div>
         <div class="qty-cell">

@@ -623,6 +623,7 @@ function selezionaStato(optBtn, idRiga, colore) {
     const card = dropdown.closest('.item-card');
     if (card) card.classList.remove('stato-aperto');
     if (prodState.attiviProd && prevProd) prevProd.stato = nuovoStato;
+    _syncStatoOrdineDropdown(dropdown.closest('.ordine-wrapper')?.dataset.ordine || '');
     _refreshOverview();
     _persistProduzioneHtmlSnapshot();
 
@@ -645,6 +646,7 @@ function selezionaStato(optBtn, idRiga, colore) {
                 statoPrec.selectedBtn.appendChild(ic);
             }
             if (prodState.attiviProd && prevProd && prevStatoProd !== null) prevProd.stato = prevStatoProd;
+            _syncStatoOrdineDropdown(dropdown.closest('.ordine-wrapper')?.dataset.ordine || '');
             _refreshOverview();
             _persistProduzioneHtmlSnapshot();
             notificaElegante('\u26a0\ufe0f Modifica non salvata \u2013 riprova', 'error');
@@ -655,11 +657,31 @@ function selezionaStato(optBtn, idRiga, colore) {
         if (dot) dot.style.background = statoPrec.colore;
         labelEl.textContent = statoPrec.testo;
         if (prodState.attiviProd && prevProd && prevStatoProd !== null) prevProd.stato = prevStatoProd;
+        _syncStatoOrdineDropdown(dropdown.closest('.ordine-wrapper')?.dataset.ordine || '');
         _refreshOverview();
         _persistProduzioneHtmlSnapshot();
         notificaElegante('\u26a0\ufe0f Modifica non salvata \u2013 riprova', 'error');
         console.error('[selezionaStato] Errore + Rollback', err, { idRiga, nuovoStato });
     });
+}
+
+// Aggiorna il dropdown generale dell'ordine (.stato-dropdown-ord) in base allo stato
+// attuale di tutte le sue righe in prodState.attiviProd.
+function _syncStatoOrdineDropdown(nOrd) {
+    if (!nOrd) return;
+    const ddOrd = document.querySelector(`.stato-dropdown-ord[data-nord="${CSS.escape(nOrd)}"]`);
+    if (!ddOrd) return;
+    const righeOrd = (prodState.attiviProd || []).filter(r => (r.ordine || '') === nOrd);
+    if (!righeOrd.length) return;
+    const statiDistinct = [...new Set(righeOrd.map(r => (r.stato || 'IN ATTESA').toUpperCase().trim()))];
+    const label  = statiDistinct.length === 1 ? statiDistinct[0] : `${statiDistinct.length} Stati`;
+    const colore = statiDistinct.length === 1
+        ? ((window.listaStati || []).find(s => s.nome === statiDistinct[0]) || { colore: '#e2e8f0' }).colore
+        : '#e2e8f0';
+    const lbl = ddOrd.querySelector('.stato-label-txt');
+    const dot = ddOrd.querySelector('.stato-dot');
+    if (lbl) lbl.textContent = label;
+    if (dot) dot.style.background = colore;
 }
 
 function selezionaStatoOrdine(optBtn, nOrdine, nuovoStato, nuovoColore) {
@@ -1219,6 +1241,7 @@ function _patchProduzione(newAttivi, allProd, allArch) {
             }
             oldRow.stato = newStato;
             _syncKanbanFromStato(idStr, newStato);
+            _syncStatoOrdineDropdown(newRow.ordine || '');
         }
 
         const newAssegna = String(newRow.assegna || '').trim();
