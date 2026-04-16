@@ -619,6 +619,9 @@ async function importaListaDiCaricoDaFile(input) {
         if (risultato) {
             if (json.status === 'ok') {
                 let msg = `<strong>✅ Import completato</strong><br>Nuovi: <strong>${json.nuove || 0}</strong> · Aggiornati: <strong>${json.aggiornate || 0}</strong> · Invariati: <strong>${json.invariate || 0}</strong>`;
+                if (json.corrette > 0) {
+                    msg += `<br><span style="color:#b45309"><i class="fas fa-exclamation-triangle"></i> ${json.corrette} righe corrette automaticamente (campi con separatore nel testo)</span>`;
+                }
                 risultato.innerHTML = `<div style="background:#dcfce7;border:1px solid #86efac;border-radius:10px;padding:12px 16px;font-size:0.88rem;color:#166534">${msg}</div>`;
                 // Invalida cache ordini fornitori
                 if (typeof window.invalidateOFCache === 'function') window.invalidateOFCache();
