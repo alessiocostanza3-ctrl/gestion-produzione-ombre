@@ -63,7 +63,7 @@ function _renderOrdiniFornitori(righe) {
         const nOrdBadge = nOrd.length > 14 ? nOrd.substring(0, 14) + '\u2026' : nOrd;
 
         html += `<div class="ordine-wrapper of-ordine-wrapper">
-            <div class="riga-ordine of-riga-ordine" onclick="this.nextElementSibling.classList.toggle('collapsed')">
+            <div class="riga-ordine of-riga-ordine" onclick="toggleAccordion(this)">
                 <div class="riga-ordine-left">
                     <span class="ordine-badge">${_esc(nOrdBadge)}</span>
                     <span class="cliente-nome" style="color:inherit"><i class="fas fa-truck" style="font-size:.75rem;opacity:.5;margin-right:4px"></i>${_esc(fornitore)}</span>
@@ -77,7 +77,7 @@ function _renderOrdiniFornitori(righe) {
                     <i class="fas fa-chevron-down dettagli-chevron"></i>
                 </div>
             </div>
-            <div class="dettagli-container collapsed">
+            <div class="dettagli-container" style="display:none">
                 ${items.map(art => _renderCardArticoloOF(art)).join('')}
             </div>
         </div>`;
