@@ -120,13 +120,16 @@ async function eliminaNotificaApp(rid, titoloEnc, corpoEnc, btnEl) {
     try {
         const uname = (utenteAttuale && utenteAttuale.nome) ? utenteAttuale.nome.toUpperCase() : '';
         if (!uname) return;
-        const url = URL_GOOGLE
-            + '?azione=eliminaNotifica'
-            + '&username=' + encodeURIComponent(uname)
-            + '&rid=' + encodeURIComponent(rowId)
-            + '&titolo=' + encodeURIComponent(titolo)
-            + '&corpo=' + encodeURIComponent(corpo);
-        const res = await fetch(url);
+        const res = await fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify({
+                azione: 'eliminaNotifica',
+                username: uname,
+                rid: rowId,
+                titolo: titolo,
+                corpo: corpo
+            })
+        });
         const data = await res.json().catch(() => ({}));
         if (data.status !== 'ok' && data.status !== 'not_found') {
             console.warn('[notifiche] eliminaNotifica non ok:', data);
@@ -232,11 +235,14 @@ function renderNotificheList() {
     list.innerHTML = _notifHtml_(arr);
     // Aggiorna dal server lo storico degli ultimi 7 giorni (non marca lette)
     if (utenteAttuale && utenteAttuale.nome) {
-        fetch(
-            URL_GOOGLE
-            + '?azione=getStoricoNotifiche&username=' + encodeURIComponent(utenteAttuale.nome.toUpperCase())
-            + '&days=' + encodeURIComponent(String(NOTIF_RETENTION_DAYS))
-        )
+        fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify({
+                azione: 'getStoricoNotifiche',
+                username: utenteAttuale.nome.toUpperCase(),
+                days: NOTIF_RETENTION_DAYS
+            })
+        })
             .then(function(r) { return r.json(); })
             .then(function(d) {
                 if (d && d.status === 'ok' && d.all && d.all.length) {
