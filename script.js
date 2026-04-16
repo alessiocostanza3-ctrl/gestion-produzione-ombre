@@ -14,6 +14,7 @@ import RevisionPoller, { configurePoller } from './modules/core/revision-poller.
 // pipistrelli.js: lazy-loaded dinamicamente in cambiaPagina → NON importare staticamente
 import { notificaElegante, applicaFade, mostraModalConflitto, mostraConferma, registerUIGlobals } from './modules/core/ui.js';
 import { caricaAcquisti, registerGlobals as registerAcquistiGlobals } from './modules/features/acquisti.js';
+import { registerGlobals as registerOFGlobals } from './modules/features/ordini-fornitori.js';
 import { caricaRichieste, _fetchDatiRichieste, _renderDatiRichieste, init as initRichieste, registerGlobals as registerRichiesteGlobals } from './modules/features/richieste.js';
 import { caricaManuali, init as initManuali, registerGlobals as registerManualiGlobals } from './modules/features/manuali.js';
 import { caricaInterfacciaImpostazioni, caricaDatiIniziali, registerGlobals as registerImpostazioniGlobals, init as initImpostazioni } from './modules/features/impostazioni.js';
@@ -1240,6 +1241,7 @@ registerSessionUIGlobals();
 //   Ora esposti subito così gli onclick inline funzionano durante il boot.
 registerUIGlobals();
 registerAcquistiGlobals();
+registerOFGlobals();
 registerRichiesteGlobals();
 registerManualiGlobals();
 registerImpostazioniGlobals();

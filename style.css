@@ -8310,3 +8310,165 @@ body.page-pip #rotate-overlay { display: none !important; }
     font-size: 13px;
 }
 
+
+/* ============================================================
+   ORDINI FORNITORI – Dashboard Acquisti da CSV
+   ============================================================ */
+
+/* --- Riga header ordine --- */
+.of-riga-ordine .riga-ordine-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+}
+.of-riga-ordine .riga-ordine-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.of-data-badge {
+    font-size: .8rem;
+    color: #64748b;
+    white-space: nowrap;
+}
+.of-data-badge i {
+    margin-right: 3px;
+    opacity: .6;
+}
+
+.of-count-badge {
+    font-size: .78rem;
+    color: #94a3b8;
+    white-space: nowrap;
+}
+
+/* Mini progress bar nella riga header */
+.of-progress-mini {
+    width: 60px;
+    height: 6px;
+    background: #e2e8f0;
+    border-radius: 3px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+.of-progress-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width .4s ease;
+}
+
+/* --- Card articolo OF --- */
+.of-item-card {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.of-card-main {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+.of-card-codice b {
+    font-size: .92rem;
+    color: #1e293b;
+}
+.of-card-prodotto span {
+    font-size: .84rem;
+    color: #475569;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+}
+
+.of-card-qty {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+}
+.of-qty-group {
+    text-align: center;
+    min-width: 52px;
+}
+.of-qty-group b {
+    font-size: .92rem;
+    display: block;
+}
+.of-importo-group b {
+    color: #3b82f6;
+}
+
+/* --- Modal dettaglio OF --- */
+.of-modal-content {
+    max-width: 480px;
+    padding: 24px 28px;
+}
+.of-modal-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px 20px;
+}
+.of-modal-field {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.of-modal-field-wide {
+    grid-column: 1 / -1;
+}
+.of-modal-label {
+    font-size: .72rem;
+    text-transform: uppercase;
+    color: #94a3b8;
+    letter-spacing: .5px;
+}
+.of-modal-value {
+    font-size: .92rem;
+    color: #1e293b;
+}
+.of-modal-sep {
+    grid-column: 1 / -1;
+    height: 1px;
+    background: #e2e8f0;
+    margin: 4px 0;
+}
+.of-modal-qty {
+    text-align: center;
+}
+.of-modal-big {
+    font-size: 1.3rem;
+    font-weight: 700;
+}
+
+/* --- Mobile responsive --- */
+@media (max-width: 768px) {
+    .of-item-card {
+        grid-template-columns: 1fr;
+    }
+    .of-card-qty {
+        justify-content: flex-start;
+    }
+    .of-riga-ordine .riga-ordine-right {
+        gap: 8px;
+    }
+    .of-data-badge {
+        display: none;
+    }
+    .of-modal-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+    .of-modal-content {
+        padding: 18px 16px;
+    }
+}
+

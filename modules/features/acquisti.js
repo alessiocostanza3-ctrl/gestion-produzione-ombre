@@ -13,6 +13,7 @@ import ProdCache from '../core/cache.js';
 // ─── Stato interno ────────────────────────────────────────────────────────────
 let carrelloLocale = [];
 let _acquistTabAttivo = 'catalogo';
+window._acquistTabAttivo = 'catalogo';
 let sezioniMateriali = JSON.parse(localStorage.getItem('sezioniMateriali') || '["Strumenti","Bombolette","Rifiuti"]');
 
 // Visual Viewport handler per gestire la tastiera mobile nel modal articolo
@@ -106,15 +107,25 @@ function fetchJson(pagina, signal) {
 function _aggiornaTabAcquisti() {
     const tc = document.getElementById('acq-tab-catalogo');
     const to = document.getElementById('acq-tab-ordini');
+    const tf = document.getElementById('acq-tab-fornitori');
     if (tc) tc.classList.toggle('active', _acquistTabAttivo === 'catalogo');
     if (to) to.classList.toggle('active', _acquistTabAttivo === 'ordini');
+    if (tf) tf.classList.toggle('active', _acquistTabAttivo === 'fornitori');
 }
 
 export function _switchAcquistiTab(tab) {
     _acquistTabAttivo = tab;
+    window._acquistTabAttivo = tab;
     _aggiornaTabAcquisti();
     const contenitore = document.getElementById('contenitore-dati');
     if (!contenitore) return;
+
+    if (tab === 'fornitori') {
+        if (typeof window.caricaOrdiniFornitori === 'function') {
+            window.caricaOrdiniFornitori(null, null, false);
+        }
+        return;
+    }
 
     if (tab === 'ordini') {
         const _cached = _acqCache['_acq_ordini'];
@@ -692,6 +703,7 @@ async function inviaOrdineAcquisti() {
             delete _acqCacheTs['_acq_ordini'];
             _lsCacheDel('_html__acq_ordini');
             _acquistTabAttivo = 'ordini';
+            window._acquistTabAttivo = 'ordini';
             setTimeout(() => window.cambiaPagina?.('MATERIALE DA ORDINARE', null), 800);
         } else {
             throw new Error(result.message);
@@ -1164,8 +1176,12 @@ async function eliminaSelezionati() {
  * @param {AbortSignal|null} signal         AbortSignal dal navController di cambiaPagina
  */
 export async function caricaAcquisti(tab = null, expectedRequestId = null, signal = null, silenzioso = false) {
-    if (tab !== null) _acquistTabAttivo = tab;
+    if (tab !== null) { _acquistTabAttivo = tab; window._acquistTabAttivo = tab; }
     _aggiornaTabAcquisti();
+    if (_acquistTabAttivo === 'fornitori') {
+        await window.caricaOrdiniFornitori?.(expectedRequestId, signal, silenzioso);
+        return;
+    }
     if (_acquistTabAttivo === 'ordini') {
         await caricaOrdiniAcquisti(expectedRequestId, signal);
     } else {

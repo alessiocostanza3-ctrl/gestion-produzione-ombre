@@ -583,6 +583,58 @@ function _csvImportErrorHtml_(msg) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+//  LISTA DI CARICO CSV IMPORT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function importaListaDiCaricoDaFile(input) {
+    const file = input && input.files && input.files[0];
+    const labelNome = document.getElementById('ldc-upload-filename');
+    const risultato = document.getElementById('ldc-upload-result');
+    if (!file) return;
+
+    if (labelNome) labelNome.textContent = file.name;
+    if (risultato) { risultato.style.display = 'none'; risultato.innerHTML = ''; }
+
+    const csvText = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result);
+        reader.onerror = reject;
+        reader.readAsText(file, 'UTF-8');
+    });
+
+    const primaRiga = csvText.split('\n')[0] || '';
+    const separatore = (primaRiga.split(';').length >= primaRiga.split(',').length) ? ';' : ',';
+
+    if (risultato) {
+        risultato.style.display = 'block';
+        risultato.innerHTML = `<div style="display:flex;align-items:center;gap:8px;color:#64748b;font-size:0.88rem"><i class="fas fa-spinner fa-spin"></i> Import Lista di Carico in corso…</div>`;
+    }
+
+    try {
+        const res = await fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify({ azione: 'importaListaDiCarico', csvText, separatore })
+        });
+        const json = await res.json().catch(() => ({}));
+        if (risultato) {
+            if (json.status === 'ok') {
+                let msg = `<strong>✅ Import completato</strong><br>Nuovi: <strong>${json.nuove || 0}</strong> · Aggiornati: <strong>${json.aggiornate || 0}</strong> · Invariati: <strong>${json.invariate || 0}</strong>`;
+                risultato.innerHTML = `<div style="background:#dcfce7;border:1px solid #86efac;border-radius:10px;padding:12px 16px;font-size:0.88rem;color:#166534">${msg}</div>`;
+                // Invalida cache ordini fornitori
+                if (typeof window.invalidateOFCache === 'function') window.invalidateOFCache();
+            } else {
+                risultato.innerHTML = _csvImportErrorHtml_(json.msg || json.message || 'Errore sconosciuto');
+            }
+        }
+    } catch (err) {
+        if (risultato) {
+            risultato.innerHTML = _csvImportErrorHtml_(err.message);
+        }
+    }
+    input.value = '';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 //  PAGINA IMPOSTAZIONI
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1064,6 +1116,35 @@ function caricaInterfacciaImpostazioni() {
             </div>
             ` : ''}
 
+            <!-- ROW: Importa Lista di Carico (solo MASTER) -->
+            ${utenteAttuale.ruolo === "MASTER" ? `
+            <div class="settings-row" onclick="toggleSettingsSection('section-importa-ldc', this)">
+                <div class="settings-row-left">
+                    <div class="settings-row-icon"><i class="fas fa-truck-loading"></i></div>
+                    <div>
+                        <div class="settings-row-title">Importa Lista di Carico</div>
+                        <div class="settings-row-sub">Carica il CSV della lista di carico (ordini fornitori)</div>
+                    </div>
+                </div>
+                <i class="fas fa-chevron-down settings-row-arrow"></i>
+            </div>
+            <div id="section-importa-ldc" class="settings-section-body" style="display:none">
+                <div class="card-settings">
+                    <h3 style="margin:0 0 8px 0">Importa Lista di Carico</h3>
+                    <p style="margin:0 0 14px 0;font-size:0.85rem;color:#64748b">Seleziona il file CSV "Lista di Carico" esportato dal gestionale (separatore <strong>;</strong>). Le righe esistenti vengono aggiornate automaticamente.</p>
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                        <label style="display:flex;align-items:center;gap:8px;padding:10px 16px;background:#f1f5f9;border:2px dashed #94a3b8;border-radius:10px;cursor:pointer;font-size:0.88rem;font-weight:600;color:#334155;transition:background 0.15s" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
+                            <i class="fas fa-folder-open" style="color:#3b82f6"></i>
+                            Scegli file CSV
+                            <input type="file" id="ldc-upload-input" accept=".csv,text/csv" style="display:none" onchange="importaListaDiCaricoDaFile(this)">
+                        </label>
+                        <span id="ldc-upload-filename" style="font-size:0.82rem;color:#64748b;font-style:italic">Nessun file selezionato</span>
+                    </div>
+                    <div id="ldc-upload-result" style="margin-top:14px;display:none"></div>
+                </div>
+            </div>
+            ` : ''}
+
             <!-- ROW: Postazioni QR -->
             <div class="settings-row" onclick="toggleSettingsSection('section-qr-postazioni', this)">
                 <div class="settings-row-left">
@@ -1450,6 +1531,7 @@ export function registerGlobals() {
     window._getNotifPrefs          = _getNotifPrefs;
     // CSV Import
     window.importaCSVDaFile        = importaCSVDaFile;
+    window.importaListaDiCaricoDaFile = importaListaDiCaricoDaFile;
     // Pagina Impostazioni
     window.caricaInterfacciaImpostazioni = caricaInterfacciaImpostazioni;
     window.caricaDatiIniziali      = caricaDatiIniziali;
