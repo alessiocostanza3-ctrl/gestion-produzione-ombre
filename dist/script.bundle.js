@@ -172,13 +172,12 @@ import{a as j,b as Ma,c as _,d as ue,e as it,f as S,g as h,h as M,i as li,j as Y
             <span style="font-size:.85rem">Carica un CSV "Lista di Carico" dalle Impostazioni.</span>
         </div>`;let e={};t.forEach(n=>{let a=n.n_ordine||"N.D.";e[a]||(e[a]=[]),e[a].push(n)});let o=Object.keys(e).sort((n,a)=>{let s=(e[n][0].fornitore||"").toUpperCase(),r=(e[a][0].fornitore||"").toUpperCase();return s<r?-1:s>r?1:n<a?-1:n>a?1:0}),i="";return o.forEach(n=>{let a=e[n],s=a[0].fornitore||"-",r=a[0].data_consegna||"-",c=a.reduce((u,f)=>u+f.quantita,0),l=a.reduce((u,f)=>u+f.qta_evasa,0),d=c>0?Math.round(l/c*100):0,p=d===100?"#22c55e":d>0?"#f59e0b":"#e2e8f0",m=n.length>14?n.substring(0,14)+"\u2026":n;i+=`<div class="ordine-wrapper of-ordine-wrapper">
             <div class="riga-ordine of-riga-ordine" onclick="toggleAccordion(this)">
-                <div class="riga-ordine-left">
-                    <span class="ordine-badge">${S(m)}</span>
-                    <span class="cliente-nome" style="color:inherit"><i class="fas fa-truck" style="font-size:.75rem;opacity:.5;margin-right:4px"></i>${S(s)}</span>
+                <div class="flex-grow">
+                    <span class="order-title"><i class="fas fa-truck" style="font-size:.75rem;opacity:.5;margin-right:6px"></i>${S(s)}</span>
                 </div>
-                <div class="riga-ordine-right">
+                <div class="order-info">
+                    <div class="badge-count"><span class="badge-ord-num">${S(m)}</span><span class="badge-sep">\xB7</span>${a.length} ART.</div>
                     <span class="of-data-badge" title="Data consegna"><i class="far fa-calendar-alt"></i> ${S(r)}</span>
-                    <span class="of-count-badge">${a.length} art.</span>
                     <div class="of-progress-mini" title="${d}% evaso">
                         <div class="of-progress-bar" style="width:${d}%;background:${p}"></div>
                     </div>
@@ -189,24 +188,12 @@ import{a as j,b as Ma,c as _,d as ue,e as it,f as S,g as h,h as M,i as li,j as Y
                 ${a.map(u=>As(u)).join("")}
             </div>
         </div>`}),i}function As(t){let e=S(t.codice||"-"),o=S(Os(t.prodotto,60)),i=S(t.prodotto||"-"),n=S(t.fornitore||"-"),a=S(t.n_ordine||"-"),s=S(t.data_consegna||"-"),r=t.quantita||0,c=t.qta_evasa||0,l=t.qta_da_consegnare||0,d=Cs(t.importo),p=r>0?Math.round(c/r*100):0,m=p===100?"#22c55e":p>0?"#f59e0b":"#94a3b8";return`<div class="item-card of-item-card" onclick="_apriDettaglioOF(this)" ${`data-codice="${e}" data-prodotto="${i}" data-fornitore="${n}" data-ordine="${a}" data-data="${s}" data-qty="${r}" data-evasa="${c}" data-daconsegnare="${l}" data-importo="${d}"`}>
-        <div class="of-card-main">
-            <div class="of-card-codice"><span class="label-sm">Codice</span><b>${e}</b></div>
-            <div class="of-card-prodotto"><span class="label-sm">Prodotto</span><span>${o}</span></div>
-        </div>
-        <div class="of-card-qty">
-            <div class="of-qty-group">
-                <span class="label-sm">Ordinata</span><b>${r}</b>
-            </div>
-            <div class="of-qty-group">
-                <span class="label-sm">Evasa</span><b style="color:${m}">${c}</b>
-            </div>
-            <div class="of-qty-group">
-                <span class="label-sm">Da consegnare</span><b>${l}</b>
-            </div>
-            <div class="of-qty-group of-importo-group">
-                <span class="label-sm">Importo</span><b>${d}</b>
-            </div>
-        </div>
+        <div><span class="label-sm">Codice</span><b>${e}</b></div>
+        <div class="of-cell-prodotto"><span class="label-sm">Prodotto</span><span class="of-prodotto-text">${o}</span></div>
+        <div><span class="label-sm">Ordinata</span><b>${r}</b></div>
+        <div><span class="label-sm">Evasa</span><b style="color:${m}">${c}</b></div>
+        <div><span class="label-sm">Da consegnare</span><b>${l}</b></div>
+        <div class="of-cell-importo"><span class="label-sm">Importo</span><b style="color:#3b82f6">${d}</b></div>
     </div>`}function xs(t){let e=document.getElementById("modal-of-dettaglio");e&&e.remove();let o=t.dataset,i=document.createElement("div");i.id="modal-of-dettaglio",i.className="modal-overlay active",i.onclick=n=>{n.target===i&&Mi()},i.innerHTML=`<div class="modal-content of-modal-content">
         <h2 style="margin:0 0 16px 0;font-size:1.1rem;display:flex;align-items:center;gap:8px">
             <i class="fas fa-box-open" style="color:#3b82f6"></i> Dettaglio Articolo

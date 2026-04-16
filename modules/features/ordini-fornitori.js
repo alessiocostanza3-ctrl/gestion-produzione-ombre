@@ -64,13 +64,12 @@ function _renderOrdiniFornitori(righe) {
 
         html += `<div class="ordine-wrapper of-ordine-wrapper">
             <div class="riga-ordine of-riga-ordine" onclick="toggleAccordion(this)">
-                <div class="riga-ordine-left">
-                    <span class="ordine-badge">${_esc(nOrdBadge)}</span>
-                    <span class="cliente-nome" style="color:inherit"><i class="fas fa-truck" style="font-size:.75rem;opacity:.5;margin-right:4px"></i>${_esc(fornitore)}</span>
+                <div class="flex-grow">
+                    <span class="order-title"><i class="fas fa-truck" style="font-size:.75rem;opacity:.5;margin-right:6px"></i>${_esc(fornitore)}</span>
                 </div>
-                <div class="riga-ordine-right">
+                <div class="order-info">
+                    <div class="badge-count"><span class="badge-ord-num">${_esc(nOrdBadge)}</span><span class="badge-sep">\u00b7</span>${items.length} ART.</div>
                     <span class="of-data-badge" title="Data consegna"><i class="far fa-calendar-alt"></i> ${_esc(dataCons)}</span>
-                    <span class="of-count-badge">${items.length} art.</span>
                     <div class="of-progress-mini" title="${pct}% evaso">
                         <div class="of-progress-bar" style="width:${pct}%;background:${barColor}"></div>
                     </div>
@@ -105,24 +104,12 @@ function _renderCardArticoloOF(art) {
     const dataAttrs = `data-codice="${codice}" data-prodotto="${prodottoFull}" data-fornitore="${fornitore}" data-ordine="${nOrdine}" data-data="${dataCons}" data-qty="${qty}" data-evasa="${qtaEvasa}" data-daconsegnare="${qtaDaCons}" data-importo="${importo}"`;
 
     return `<div class="item-card of-item-card" onclick="_apriDettaglioOF(this)" ${dataAttrs}>
-        <div class="of-card-main">
-            <div class="of-card-codice"><span class="label-sm">Codice</span><b>${codice}</b></div>
-            <div class="of-card-prodotto"><span class="label-sm">Prodotto</span><span>${prodotto}</span></div>
-        </div>
-        <div class="of-card-qty">
-            <div class="of-qty-group">
-                <span class="label-sm">Ordinata</span><b>${qty}</b>
-            </div>
-            <div class="of-qty-group">
-                <span class="label-sm">Evasa</span><b style="color:${evColor}">${qtaEvasa}</b>
-            </div>
-            <div class="of-qty-group">
-                <span class="label-sm">Da consegnare</span><b>${qtaDaCons}</b>
-            </div>
-            <div class="of-qty-group of-importo-group">
-                <span class="label-sm">Importo</span><b>${importo}</b>
-            </div>
-        </div>
+        <div><span class="label-sm">Codice</span><b>${codice}</b></div>
+        <div class="of-cell-prodotto"><span class="label-sm">Prodotto</span><span class="of-prodotto-text">${prodotto}</span></div>
+        <div><span class="label-sm">Ordinata</span><b>${qty}</b></div>
+        <div><span class="label-sm">Evasa</span><b style="color:${evColor}">${qtaEvasa}</b></div>
+        <div><span class="label-sm">Da consegnare</span><b>${qtaDaCons}</b></div>
+        <div class="of-cell-importo"><span class="label-sm">Importo</span><b style="color:#3b82f6">${importo}</b></div>
     </div>`;
 }
 

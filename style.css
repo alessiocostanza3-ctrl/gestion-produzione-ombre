@@ -8315,40 +8315,24 @@ body.page-pip #rotate-overlay { display: none !important; }
    ORDINI FORNITORI – Dashboard Acquisti da CSV
    ============================================================ */
 
-/* --- Riga header ordine --- */
-.of-riga-ordine .riga-ordine-left {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-width: 0;
-    flex: 1;
-}
-.of-riga-ordine .riga-ordine-right {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-shrink: 0;
-}
-
+/* --- Badge data consegna nell'header ordine --- */
 .of-data-badge {
-    font-size: .8rem;
+    font-size: 11px;
+    font-weight: 600;
     color: #64748b;
     white-space: nowrap;
+    background: #f1f5f9;
+    padding: 2px 8px;
+    border-radius: 20px;
 }
 .of-data-badge i {
     margin-right: 3px;
     opacity: .6;
 }
 
-.of-count-badge {
-    font-size: .78rem;
-    color: #94a3b8;
-    white-space: nowrap;
-}
-
-/* Mini progress bar nella riga header */
+/* Mini progress bar nell'header ordine */
 .of-progress-mini {
-    width: 60px;
+    width: 70px;
     height: 6px;
     background: #e2e8f0;
     border-radius: 3px;
@@ -8361,50 +8345,37 @@ body.page-pip #rotate-overlay { display: none !important; }
     transition: width .4s ease;
 }
 
-/* --- Card articolo OF --- */
-.of-item-card {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    cursor: pointer;
+/* Chevron di espansione */
+.dettagli-chevron {
+    font-size: 11px;
+    color: #94a3b8;
+    transition: transform 0.3s ease;
+    margin-left: 2px;
+}
+.riga-ordine.open .dettagli-chevron {
+    transform: rotate(180deg);
 }
 
-.of-card-main {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    min-width: 0;
+/* --- Card articolo OF: stessa griglia delle card produzione --- */
+.of-item-card {
+    grid-template-columns: 1.1fr 2.2fr 0.7fr 0.7fr 0.8fr 0.9fr !important;
+    cursor: pointer;
 }
-.of-card-codice b {
-    font-size: .92rem;
+.of-item-card b {
+    font-size: 0.92rem;
     color: #1e293b;
+    font-weight: 600;
 }
-.of-card-prodotto span {
-    font-size: .84rem;
+.of-prodotto-text {
+    font-size: 0.84rem;
     color: #475569;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     display: block;
 }
-
-.of-card-qty {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    justify-content: flex-end;
-    flex-wrap: wrap;
-}
-.of-qty-group {
-    text-align: center;
-    min-width: 52px;
-}
-.of-qty-group b {
-    font-size: .92rem;
-    display: block;
-}
-.of-importo-group b {
-    color: #3b82f6;
+.of-cell-importo b {
+    color: #3b82f6 !important;
 }
 
 /* --- Modal dettaglio OF --- */
@@ -8449,19 +8420,21 @@ body.page-pip #rotate-overlay { display: none !important; }
     font-weight: 700;
 }
 
-/* --- Mobile responsive --- */
+/* --- Mobile responsive OF --- */
 @media (max-width: 768px) {
     .of-item-card {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr 1fr 1fr !important;
+        gap: 8px !important;
     }
-    .of-card-qty {
-        justify-content: flex-start;
-    }
-    .of-riga-ordine .riga-ordine-right {
-        gap: 8px;
+    .of-cell-prodotto {
+        grid-column: 1 / -1;
     }
     .of-data-badge {
-        display: none;
+        font-size: 9px;
+        padding: 2px 6px;
+    }
+    .of-progress-mini {
+        width: 50px;
     }
     .of-modal-grid {
         grid-template-columns: 1fr 1fr;
