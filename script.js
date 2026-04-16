@@ -93,12 +93,12 @@ function _checkSessionExpiryWarning_() {
     if (!expMs) return;
     const remain = expMs - Date.now();
     if (remain <= 0) return;
-    if (remain > 10 * 60 * 1000) return;
+    if (remain > 24 * 60 * 60 * 1000) return; // avvisa solo nell'ultimo giorno
     // Evita spam: massimo una notifica ogni 3 minuti.
     if (Date.now() - _lastSessionWarnTs < 3 * 60 * 1000) return;
     _lastSessionWarnTs = Date.now();
-    const mins = Math.max(1, Math.floor(remain / 60000));
-    notificaElegante('Sessione in scadenza tra circa ' + mins + ' min. Salva eventuali modifiche.', 'warning');
+    const hours = Math.max(1, Math.floor(remain / 3600000));
+    notificaElegante('Sessione in scadenza tra circa ' + hours + ' ore. Rientra per rinnovarla.', 'warning');
 }
 
 function _fmtHealthTime_(ts) {

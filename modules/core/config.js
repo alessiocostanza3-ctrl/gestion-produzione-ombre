@@ -10,7 +10,7 @@ export const URL_GOOGLE =
 export const APP_URL = 'https://alessiocostanza3-ctrl.github.io/gestion-produzione-ombre/';
 
 // ── Sessione ──────────────────────────────────────────────────────────────────
-export const SESSION_DURATION_MS = 8 * 60 * 60 * 1000;   // 8 ore
+export const SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000;   // 30 giorni
 
 // ── Cache ─────────────────────────────────────────────────────────────────────
 export const CACHE_TTL_MS = 5 * 60 * 1000;   // 5 minuti
