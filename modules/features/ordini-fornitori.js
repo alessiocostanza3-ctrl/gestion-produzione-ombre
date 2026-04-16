@@ -50,7 +50,19 @@ function _renderOrdiniFornitori(righe) {
         return a < b ? -1 : a > b ? 1 : 0;
     });
 
-    let html = '';
+    const totArticoli = righe.length;
+    const totOrdini = ordKeys.length;
+    const totEvasi = righe.reduce((s, r) => s + r.qta_evasa, 0);
+    const totQtyAll = righe.reduce((s, r) => s + r.quantita, 0);
+    const pctGlobal = totQtyAll > 0 ? Math.round((totEvasi / totQtyAll) * 100) : 0;
+
+    let html = `<div class="acquisti-header header-flex">
+        <div>
+            <h3 class="acquisti-title">Ordini Fornitori</h3>
+            <p class="acquisti-subtitle">${totOrdini} ordini \u00b7 ${totArticoli} articoli \u00b7 ${pctGlobal}% evaso</p>
+        </div>
+    </div>`;
+
     ordKeys.forEach(nOrd => {
         const items = gruppi[nOrd];
         const fornitore = items[0].fornitore || '-';
