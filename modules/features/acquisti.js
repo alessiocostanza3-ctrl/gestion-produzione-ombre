@@ -15,6 +15,9 @@ let carrelloLocale = [];
 let _acquistTabAttivo = 'catalogo';
 let sezioniMateriali = JSON.parse(localStorage.getItem('sezioniMateriali') || '["Strumenti","Bombolette","Rifiuti"]');
 
+// Visual Viewport handler per gestire la tastiera mobile nel modal articolo
+let _artModalVpHandler = null;
+
 // ─── Cache locale (sostituisce cacheContenuti[] per questa sezione) ───────────
 const _acqCache   = {};  // { 'MATERIALE DA ORDINARE': html, '_acq_ordini': html }
 const _acqCacheTs = {};  // { chiave: timestamp }
@@ -794,6 +797,8 @@ function apriModalNuovo() {
     modal.style.display = 'flex';
     modal.offsetHeight;
     modal.classList.add('active');
+    _bindArtModalViewport();
+    setTimeout(() => { document.getElementById('edit-nome')?.focus(); }, 180);
 }
 
 function apriModalModifica(id, nome, fornitore, codice) {
@@ -806,12 +811,46 @@ function apriModalModifica(id, nome, fornitore, codice) {
     modal.style.display = 'flex';
     modal.offsetHeight;
     modal.classList.add('active');
+    _bindArtModalViewport();
 }
 
 function chiudiModalArticolo() {
     const modal = document.getElementById('modal-gestione-articolo');
     modal.classList.remove('active');
+    _unbindArtModalViewport();
     setTimeout(() => { if (!modal.classList.contains('active')) modal.style.display = 'none'; }, 300);
+}
+
+// ─── Visual Viewport API: sposta il modal sopra la tastiera su mobile ─────────
+function _bindArtModalViewport() {
+    if (!window.visualViewport) return;
+    _unbindArtModalViewport(); // rimuovi eventuali handler precedenti
+    _artModalVpHandler = function () {
+        const overlay = document.getElementById('modal-gestione-articolo');
+        if (!overlay || overlay.style.display === 'none') return;
+        const vv = window.visualViewport;
+        // Altezza tastiera = spazio fra fondo del visual viewport e fondo del layout viewport
+        const kbH = Math.max(0, window.innerHeight - vv.offsetTop - vv.height);
+        const box = overlay.querySelector('.modal-articoli-box');
+        if (box) box.style.marginBottom = kbH > 0 ? kbH + 'px' : '';
+        // Mantieni l'overlay agganciato al visual viewport (evita lo spostamento su iOS)
+        overlay.style.top    = vv.offsetTop + 'px';
+        overlay.style.height = vv.height + 'px';
+    };
+    window.visualViewport.addEventListener('resize', _artModalVpHandler);
+    window.visualViewport.addEventListener('scroll', _artModalVpHandler);
+}
+function _unbindArtModalViewport() {
+    if (!window.visualViewport || !_artModalVpHandler) return;
+    window.visualViewport.removeEventListener('resize', _artModalVpHandler);
+    window.visualViewport.removeEventListener('scroll', _artModalVpHandler);
+    _artModalVpHandler = null;
+    const overlay = document.getElementById('modal-gestione-articolo');
+    if (!overlay) return;
+    overlay.style.top = '';
+    overlay.style.height = '';
+    const box = overlay.querySelector('.modal-articoli-box');
+    if (box) box.style.marginBottom = '';
 }
 
 async function salvaArticolo() {

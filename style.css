@@ -4649,8 +4649,8 @@ button.menu-item-opt {
 .modal-articoli-overlay {
     position: fixed !important;
     top: 0; left: 0;
-    width: 100vw; height: 100vh;
-    background: rgba(15, 23, 42, 0.7) !important; /* PiÃ¹ scuro ed elegante */
+    width: 100vw; height: 100dvh;
+    background: rgba(15, 23, 42, 0.7) !important; /* Più scuro ed elegante */
     display: none;
     justify-content: center;
     align-items: center;
@@ -4664,6 +4664,8 @@ button.menu-item-opt {
     border-radius: 16px;
     width: 90%;
     max-width: 400px;
+    max-height: 90dvh;
+    overflow-y: auto;
     box-shadow: 0 20px 50px rgba(0,0,0,0.2);
 }
 
@@ -5401,8 +5403,8 @@ button.menu-item-opt {
         width: 100% !important;
         max-width: 100% !important;
         border-radius: 20px 20px 0 0 !important;
-        padding: 8px 20px 32px !important;
-        max-height: 88dvh !important;
+        padding: 8px 20px calc(24px + env(safe-area-inset-bottom, 0px)) !important;
+        max-height: 75dvh !important;
         overflow-y: auto !important;
     }
 
