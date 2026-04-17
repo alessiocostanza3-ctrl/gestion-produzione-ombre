@@ -6,6 +6,7 @@ import { gasRequestWithTimeout } from '../core/api.js';
 import { notificaElegante, applicaFade, _esc } from '../core/ui.js';
 import { lsCacheGet as _lsCacheGet, lsCacheSet as _lsCacheSet } from '../core/ls-cache.js';
 import ProdCache from '../core/cache.js';
+import { utenteAttuale } from '../core/session.js';
 
 // ─── Cache locale ─────────────────────────────────────────────────────────────
 const _ofCache   = {};  // { 'ORDINI_FORNITORI': html }
@@ -108,20 +109,21 @@ function _renderCardArticoloOF(art) {
     const qtaEvasa = art.qta_evasa || 0;
     const qtaDaCons = art.qta_da_consegnare || 0;
     const importo = _formatImporto(art.importo);
+    const isAlessio = utenteAttuale?.nome?.toUpperCase().trim() === 'ALESSIO';
 
     const evPct = qty > 0 ? Math.round((qtaEvasa / qty) * 100) : 0;
     const evColor = evPct === 100 ? '#22c55e' : evPct > 0 ? '#f59e0b' : '#94a3b8';
 
-    // Encode data as attributes for the modal
-    const dataAttrs = `data-codice="${codice}" data-prodotto="${prodottoFull}" data-fornitore="${fornitore}" data-ordine="${nOrdine}" data-data="${dataCons}" data-qty="${qty}" data-evasa="${qtaEvasa}" data-daconsegnare="${qtaDaCons}" data-importo="${importo}"`;
+    // Encode data as attributes for the modal (importo solo se Alessio)
+    const dataAttrs = `data-codice="${codice}" data-prodotto="${prodottoFull}" data-fornitore="${fornitore}" data-ordine="${nOrdine}" data-data="${dataCons}" data-qty="${qty}" data-evasa="${qtaEvasa}" data-daconsegnare="${qtaDaCons}"${isAlessio ? ` data-importo="${importo}"` : ''}`;
 
-    return `<div class="item-card of-item-card" onclick="_apriDettaglioOF(this)" ${dataAttrs}>
+    return `<div class="item-card of-item-card${isAlessio ? '' : ' of-item-card-no-importo'}" onclick="_apriDettaglioOF(this)" ${dataAttrs}>
         <div><span class="label-sm">Codice</span><b>${codice}</b></div>
         <div class="of-cell-prodotto"><span class="label-sm">Prodotto</span><span class="of-prodotto-text">${prodotto}</span></div>
         <div><span class="label-sm">Ordinata</span><b>${qty}</b></div>
         <div><span class="label-sm">Evasa</span><b style="color:${evColor}">${qtaEvasa}</b></div>
         <div><span class="label-sm">Da consegnare</span><b>${qtaDaCons}</b></div>
-        <div class="of-cell-importo"><span class="label-sm">Importo</span><b style="color:#3b82f6">${importo}</b></div>
+        ${isAlessio ? `<div class="of-cell-importo"><span class="label-sm">Importo</span><b style="color:#3b82f6">${importo}</b></div>` : ''}
     </div>`;
 }
 
@@ -175,10 +177,11 @@ function _apriDettaglioOF(el) {
                 <span class="of-modal-label">Da Consegnare</span>
                 <span class="of-modal-value of-modal-big" style="color:#f59e0b">${d.daconsegnare}</span>
             </div>
+            ${utenteAttuale?.nome?.toUpperCase().trim() === 'ALESSIO' ? `
             <div class="of-modal-field of-modal-qty">
                 <span class="of-modal-label">Importo</span>
                 <span class="of-modal-value of-modal-big">${d.importo}</span>
-            </div>
+            </div>` : ''}
         </div>
         <div style="text-align:right;margin-top:18px">
             <button class="btn-modal-cancel" onclick="_chiudiDettaglioOF()">Chiudi</button>
