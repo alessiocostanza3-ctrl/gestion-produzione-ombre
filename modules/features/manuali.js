@@ -704,7 +704,12 @@ async function salvaManualeCorrente() {
         await caricaManuali(null, null, false);
         notificaElegante('Manuale salvato correttamente.', 'success');
     } catch (e) {
-        notificaElegante((e && e.message) || 'Errore durante il salvataggio.', 'error');
+        const msg = (e && e.name === 'TimeoutError')
+            ? 'Il salvataggio sta impiegando troppo tempo. Riprova con meno immagini.'
+            : (e && e.name === 'AbortError')
+                ? 'Richiesta interrotta. Controlla la connessione e riprova.'
+                : (e && e.message) || 'Errore durante il salvataggio.';
+        notificaElegante(msg, 'error');
     }
 }
 

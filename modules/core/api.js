@@ -68,9 +68,9 @@ export function gasRequest(params) {
  * @param {number} [timeoutMs=8000]
  * @returns {Promise<any>}
  */
-export function gasRequestWithTimeout(params, timeoutMs = 8000, { signal, retries = 0 } = {}) {
-    if (signal) {
-        return _withRetry(() => _gasRequestWithTimeoutRaw(params, timeoutMs, signal), retries, 500, signal);
+export function gasRequestWithTimeout(params, timeoutMs = 8000, { signal, retries = 0, noDedupe = false } = {}) {
+    if (signal || noDedupe) {
+        return _withRetry(() => _gasRequestWithTimeoutRaw(params, timeoutMs, signal || null), retries, 500, signal);
     }
     const key = JSON.stringify(params) + '|' + timeoutMs;
     return _dedup(key, () => _withRetry(() => _gasRequestWithTimeoutRaw(params, timeoutMs, null), retries, 500));
@@ -78,7 +78,7 @@ export function gasRequestWithTimeout(params, timeoutMs = 8000, { signal, retrie
 
 async function _gasRequestWithTimeoutRaw(params, timeoutMs, signal) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const timer = setTimeout(() => controller.abort(new DOMException('Timeout: il server non ha risposto entro ' + Math.round(timeoutMs / 1000) + 's', 'TimeoutError')), timeoutMs);
     if (signal) {
         if (signal.aborted) { clearTimeout(timer); throw new DOMException('Aborted', 'AbortError'); }
         signal.addEventListener('abort', () => controller.abort(), { once: true });
