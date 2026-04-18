@@ -186,16 +186,27 @@ function _makeOccorrenteItem(item, idx) {
 }
 
 function _makeProcStep(proc, idx) {
-    const foto = _safeImgSrc((proc && proc.foto) || '');
+    const foto  = _safeImgSrc((proc && proc.foto)  || '');
+    const foto2 = _safeImgSrc((proc && proc.foto2) || '');
     return `
-    <div class="proc-step border border-slate-200 rounded-xl p-3 bg-white" data-step-idx="${idx}"${foto ? ` data-foto="${_esc(foto)}"` : ''}>
+    <div class="proc-step border border-slate-200 rounded-xl p-3 bg-white" data-step-idx="${idx}">
         <div class="flex items-center justify-between" style="margin-bottom:8px">
             <h4 class="text-sm font-semibold text-slate-800">Step ${idx + 1}</h4>
             <button type="button" class="${window.TW?.btnDanger || ''}" onclick="rimuoviProcStep(${idx})"><i class="fas fa-trash"></i></button>
         </div>
-        ${_imgPreviewHtml(foto, `proc-${idx}`, 'eliminaFotoProcedimento(this)')}
-        ${_fileInputHtml(`cambiaFotoProcedimento(this, ${idx})`)}
-        <textarea class="input-field-modern" data-field="descrizione" rows="3" style="margin-top:8px" placeholder="Descrizione del passaggio...">${_esc((proc && proc.descrizione) || '')}</textarea>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px">
+            <div class="proc-foto-slot" data-slot="1"${foto ? ` data-foto="${_esc(foto)}"` : ''}>
+                <div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Foto 1</div>
+                ${_imgPreviewHtml(foto, `proc-${idx}-1`, 'eliminaFotoProcedimento(this)')}
+                ${_fileInputHtml(`cambiaFotoProcedimento(this,${idx},1)`)}
+            </div>
+            <div class="proc-foto-slot" data-slot="2"${foto2 ? ` data-foto="${_esc(foto2)}"` : ''}>
+                <div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Foto 2 <span style="opacity:.6">(opzionale)</span></div>
+                ${_imgPreviewHtml(foto2, `proc-${idx}-2`, 'eliminaFotoProcedimento(this)')}
+                ${_fileInputHtml(`cambiaFotoProcedimento(this,${idx},2)`)}
+            </div>
+        </div>
+        <textarea class="input-field-modern" data-field="descrizione" rows="3" placeholder="Descrizione del passaggio...">${_esc((proc && proc.descrizione) || '')}</textarea>
     </div>`;
 }
 
@@ -349,8 +360,12 @@ function _collectSectionsFromDom() {
     const procedimenti = [];
     document.querySelectorAll('#manuali-proc-edit .proc-step').forEach(function(step) {
         const descrizione = String(step.querySelector('[data-field="descrizione"]')?.value || '').trim();
-        const foto = String(step.getAttribute('data-foto') || '').trim();
-        if (descrizione || foto) procedimenti.push({ descrizione: descrizione, foto: foto });
+        const slot1 = step.querySelector('.proc-foto-slot[data-slot="1"]');
+        const slot2 = step.querySelector('.proc-foto-slot[data-slot="2"]');
+        // fallback a data-foto sul wrapper per retrocompatibilità
+        const foto  = String(slot1?.getAttribute('data-foto') || step.getAttribute('data-foto') || '').trim();
+        const foto2 = String(slot2?.getAttribute('data-foto') || '').trim();
+        if (descrizione || foto || foto2) procedimenti.push({ descrizione, foto, foto2 });
     });
 
     // Disegno Tecnico
@@ -481,12 +496,14 @@ async function cambiaFotoOccorrente(inputEl, idx) {
     });
 }
 
-async function cambiaFotoProcedimento(inputEl, idx) {
+async function cambiaFotoProcedimento(inputEl, idx, slot) {
     const file = inputEl?.files && inputEl.files[0];
     if (!file) return;
     await _handleImageUpload(file, function(resized) {
         const step = document.querySelector(`.proc-step[data-step-idx="${idx}"]`);
-        if (step) _setFotoOnWrap(step, resized, 'eliminaFotoProcedimento(this)');
+        if (!step) return;
+        const slotEl = step.querySelector(`.proc-foto-slot[data-slot="${slot || 1}"]`) || step;
+        _setFotoOnWrap(slotEl, resized, 'eliminaFotoProcedimento(this)');
     });
 }
 
@@ -508,7 +525,8 @@ function eliminaFotoOccorrente(btn) {
 
 function eliminaFotoProcedimento(btn) {
     _chiediConferma('Rimuovere la foto da questo step?', function() {
-        const wrap = btn.closest('.proc-step');
+        // Preferisce il .proc-foto-slot, fallback al .proc-step per retrocompatibilità
+        const wrap = btn.closest('.proc-foto-slot') || btn.closest('.proc-step');
         if (wrap) _clearFotoOnWrap(wrap);
     });
 }
@@ -734,11 +752,18 @@ function apriManuale(id) {
 
         // ── Procedimento ──
         const procHtml = (sections.procedimenti || []).map(function(p, i) {
-            const fotoSafe = _safeImgSrc(p.foto || '');
+            const fotoSafe  = _safeImgSrc(p.foto  || '');
+            const foto2Safe = _safeImgSrc(p.foto2 || '');
+            const fotos = [fotoSafe, foto2Safe].filter(Boolean);
+            const imgsHtml = fotos.length
+                ? `<div style="display:grid;grid-template-columns:repeat(${fotos.length},1fr);gap:6px;margin-bottom:6px">${
+                    fotos.map(src => `<img src="${src}" style="width:100%;border-radius:10px;border:1px solid #e2e8f0">`).join('')
+                  }</div>`
+                : '';
             return `<details class="border border-slate-200 rounded-xl p-3 bg-white" ${i === 0 ? 'open' : ''}>
                 <summary class="cursor-pointer font-semibold text-slate-800">Step ${i + 1}</summary>
                 <div class="mt-2 grid gap-2">
-                    ${fotoSafe ? `<img src="${fotoSafe}" alt="step-${i + 1}" style="max-width:100%;border-radius:10px;border:1px solid #e2e8f0">` : ''}
+                    ${imgsHtml}
                     <p class="text-sm text-slate-700">${_esc(p.descrizione || '-')}</p>
                 </div>
             </details>`;
@@ -1251,7 +1276,8 @@ function _pptxSplitProceduralSlide(textBlocks, images) {
     function flushStep() {
         const desc = descParts.join(' ').trim();
         const img  = stepImgs[0] || null;
-        if (desc || img) steps.push({ descrizione: desc, imageBase64: img });
+        const img2 = stepImgs[1] || null;
+        if (desc || img) steps.push({ descrizione: desc, imageBase64: img, imageBase642: img2 });
         descParts = [];
         stepImgs  = [];
     }
@@ -1269,7 +1295,8 @@ function _pptxSplitProceduralSlide(textBlocks, images) {
     if (!steps.length) {
         const desc = textBlocks.map(b => b.text).join(' ').trim();
         const img  = images.length ? images[0].dataUrl : null;
-        if (desc || img) steps.push({ descrizione: desc, imageBase64: img });
+        const img2 = images.length > 1 ? images[1].dataUrl : null;
+        if (desc || img) steps.push({ descrizione: desc, imageBase64: img, imageBase642: img2 });
     }
     return steps;
 }
@@ -1496,8 +1523,10 @@ async function _confermImportPptx() {
     const procedimenti = [];
     for (const p of (src.procedimenti || [])) {
         // eslint-disable-next-line no-await-in-loop
-        const foto = await resizeIfNeeded(p.imageBase64);
-        procedimenti.push({ descrizione: p.descrizione || '', foto });
+        const foto  = await resizeIfNeeded(p.imageBase64);
+        // eslint-disable-next-line no-await-in-loop
+        const foto2 = await resizeIfNeeded(p.imageBase642);
+        procedimenti.push({ descrizione: p.descrizione || '', foto, foto2 });
     }
 
     const occorrente = [];
