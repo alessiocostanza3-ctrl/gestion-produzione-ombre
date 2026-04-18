@@ -402,6 +402,28 @@ async function _resizeFotoBase64(base64, maxPx = 1200) {
     });
 }
 
+// Crop center-square + resize for PPTX import
+async function _cropSquareAndResize(base64, maxPx = 800) {
+    return new Promise(function(resolve) {
+        const img = new Image();
+        img.onload = function() {
+            const side = Math.min(img.width, img.height);
+            const sx = Math.round((img.width - side) / 2);
+            const sy = Math.round((img.height - side) / 2);
+            const outSide = Math.min(side, maxPx);
+            const canvas = document.createElement('canvas');
+            canvas.width = outSide;
+            canvas.height = outSide;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return resolve(base64);
+            ctx.drawImage(img, sx, sy, side, side, 0, 0, outSide, outSide);
+            resolve(canvas.toDataURL('image/jpeg', 0.80));
+        };
+        img.onerror = function() { resolve(base64); };
+        img.src = base64;
+    });
+}
+
 async function cambiaCopertina(inputEl) {
     try {
         const file = inputEl?.files && inputEl.files[0];
@@ -1141,7 +1163,8 @@ function _pptxGetEmuPos(el) {
 }
 
 // Return ALL images in a slide, sorted top→bottom, left→right
-function _pptxGetSlideImages(slideDoc, rIdMap, files) {
+// excludeMedia: Set of media filenames to skip (logos/watermarks)
+function _pptxGetSlideImages(slideDoc, rIdMap, files, excludeMedia) {
     let pics = [...slideDoc.getElementsByTagNameNS(_PPTX_NS_PRES, 'pic')];
     if (!pics.length) pics = [...slideDoc.getElementsByTagName('p:pic')];
     const result = [];
@@ -1151,7 +1174,10 @@ function _pptxGetSlideImages(slideDoc, rIdMap, files) {
         if (!blip) continue;
         const rId = blip.getAttributeNS(_PPTX_NS_RELS_R, 'embed') || blip.getAttribute('r:embed') || '';
         if (!rId || !rIdMap[rId]) continue;
-        const dataUrl = _pptxMediaToDataUrl(rIdMap[rId], files);
+        const target = rIdMap[rId];
+        const mediaFile = target.split('/').pop();
+        if (excludeMedia && excludeMedia.has(mediaFile)) continue;
+        const dataUrl = _pptxMediaToDataUrl(target, files);
         if (!dataUrl) continue;
         const pos = _pptxGetEmuPos(pic);
         result.push({ dataUrl, x: pos.x, y: pos.y });
@@ -1263,10 +1289,14 @@ function _pptxParseOccSlide(textBlocks, images, occorrente) {
 
 // Split a procedimento slide into individual steps: (testo + immagine) pairs
 function _pptxSplitProceduralSlide(textBlocks, images) {
-    // Filtra header/label all-caps (es. "MANUALE BRANDY GLASS", "PROCEDIMENTO", "O-1")
+    // Filtra header/label all-caps (es. "MANUALE BRANDY GLASS", "PROCEDIMENTO", "O-1", "REVISIONE 2022")
     const stepBlocks = textBlocks.filter(b => {
         const t = b.text.trim();
-        return !(t === t.toUpperCase() && t.length < 60 && /^[A-Z\s\d\-:;./]+$/.test(t));
+        if (/^REVISIONE\s/i.test(t)) return false;
+        if (/^\d+$/.test(t)) return false;                     // numeri di pagina
+        if (/^[<>]$/.test(t)) return false;                    // frecce navigazione
+        if (t === t.toUpperCase() && t.length < 60 && /^[A-Z\s\d\-:;./]+$/.test(t)) return false;
+        return true;
     });
     // Combina testi e immagini ordinati per Y
     const all = [
@@ -1304,7 +1334,7 @@ function _pptxSplitProceduralSlide(textBlocks, images) {
     return steps;
 }
 
-// Main structured parser — returns {titolo, copertina, schedaTecnica[], occorrente[], procedimenti[], disegnoTecnico}
+// Main structured parser — returns {titolo, copertina, categoria, schedaTecnica[], occorrente[], procedimenti[], disegnoTecnico}
 async function _parsePptxStructured(arrayBuffer) {
     const uint8 = new Uint8Array(arrayBuffer);
     const files = await _pptxUnzip(uint8);
@@ -1319,7 +1349,27 @@ async function _parsePptxStructured(arrayBuffer) {
                 return na - nb;
             });
     }
+    // ── Pre-scan: rileva immagini logo/watermark ricorrenti su più del 40% delle slide ──
+    const _mediaCount = {};
+    for (const p of paths) {
+        const sf = p.split('/').pop();
+        const rd = files[`ppt/slides/_rels/${sf}.rels`];
+        if (!rd) continue;
+        const seenHere = new Set();
+        for (const r of _pptxGetRels(_pptxParseXml(rd))) {
+            if (!r.type.includes('image')) continue;
+            const mf = r.target.split('/').pop();
+            if (!seenHere.has(mf)) { seenHere.add(mf); _mediaCount[mf] = (_mediaCount[mf] || 0) + 1; }
+        }
+    }
+    const excludeMedia = new Set();
+    const threshold = Math.max(2, Math.ceil(paths.length * 0.4));
+    for (const [mf, cnt] of Object.entries(_mediaCount)) {
+        if (cnt >= threshold) excludeMedia.add(mf);
+    }
+    // ── Parsing slide per slide ──
     let titolo = '';
+    let categoria = '';
     let copertina = '';
     const schedaTecnica  = [];
     const occorrente     = [];
@@ -1333,23 +1383,27 @@ async function _parsePptxStructured(arrayBuffer) {
         const rIdMap    = _pptxBuildRIdMap(files[`ppt/slides/_rels/${slideFile}.rels`]);
         const table     = _pptxGetSlideTable(slideDoc);
         const textBlocks= _pptxGetTextBlocks(slideDoc);
-        const images    = _pptxGetSlideImages(slideDoc, rIdMap, files);
+        const images    = _pptxGetSlideImages(slideDoc, rIdMap, files, excludeMedia);
         const type      = _pptxClassifySlide(table, textBlocks, images, idx, !!titolo);
         if (type === 'intro') {
             // Slide generica senza immagine (es. copertina manuale aziendale) — skip
         } else if (type === 'title') {
             if (!copertina && images.length) copertina = images[0].dataUrl;
             if (!titolo && textBlocks.length) {
-                // Cerca l'ultimo blocco di testo PRIMA dell'immagine (il nome prodotto)
-                const imgY = images[0].y;
+                const imgY = images.length ? images[0].y : Infinity;
                 const candidates = textBlocks
                     .filter(b => b.y <= imgY && b.text.length > 3)
-                    .filter(b => !/^[A-Z0-9\-]+$/.test(b.text))  // scarta codici come "O-1"
-                    .filter(b => !/^REVISIONE\s/i.test(b.text));  // scarta revisioni
-                titolo = (candidates.length
-                    ? candidates[candidates.length - 1].text
-                    : textBlocks[0].text
-                ).slice(0, 120).trim();
+                    .filter(b => !/^[A-Z0-9\-]+$/.test(b.text))
+                    .filter(b => !/^REVISIONE\s/i.test(b.text));
+                if (candidates.length >= 2) {
+                    // Prima riga = categoria (es. "LAMPADE A PICCHETTO"), ultima = titolo prodotto
+                    categoria = candidates[0].text.slice(0, 80).trim();
+                    titolo    = candidates[candidates.length - 1].text.slice(0, 120).trim();
+                } else if (candidates.length === 1) {
+                    titolo = candidates[0].text.slice(0, 120).trim();
+                } else {
+                    titolo = textBlocks[0].text.slice(0, 120).trim();
+                }
             }
         } else if (type === 'scheda') {
             table.forEach(r => {
@@ -1360,14 +1414,13 @@ async function _parsePptxStructured(arrayBuffer) {
         } else if (type === 'disegno') {
             if (!disegnoTecnico.foto && images.length) disegnoTecnico = { foto: images[0].dataUrl };
         } else {
-            // Procedimento: può contenere più step nella stessa slide
             const steps = _pptxSplitProceduralSlide(textBlocks, images);
             for (const s of steps) {
                 if (s.descrizione || s.imageBase64) procedimenti.push(s);
             }
         }
     }
-    return { titolo, copertina, schedaTecnica, occorrente, procedimenti, disegnoTecnico };
+    return { titolo, categoria, copertina, schedaTecnica, occorrente, procedimenti, disegnoTecnico };
 }
 
 // ─── UI: flusso import PPTX ──────────────────────────────────────────────────
@@ -1472,6 +1525,8 @@ function _mostraAnteprImportPptx(result) {
             <div style="flex:1;min-width:0">
                 <label class="modal-label">Titolo manuale *</label>
                 <input id="pptx-titolo" class="input-field-modern" type="text" value="${_esc(result.titolo)}" placeholder="Inserisci titolo manuale">
+                <label class="modal-label" style="margin-top:6px">Categoria</label>
+                <input id="pptx-categoria" class="input-field-modern" type="text" value="${_esc(result.categoria || '')}" placeholder="Es. Lampade a Picchetto">
             </div>
         </div>
 
@@ -1503,6 +1558,8 @@ function _mostraAnteprImportPptx(result) {
 async function _confermImportPptx() {
     const titolo = String(document.getElementById('pptx-titolo')?.value || '').trim();
     if (!titolo) { notificaElegante('Inserisci un titolo per il manuale.', 'warning'); return; }
+    const categoriaEl = document.getElementById('pptx-categoria');
+    const categoriaVal = String(categoriaEl?.value || '').trim();
     const btn = document.getElementById('pptx-btn-crea');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Elaborazione immagini…'; }
 
@@ -1516,7 +1573,7 @@ async function _confermImportPptx() {
     async function resizeIfNeeded(dataUrl) {
         if (!dataUrl) return '';
         try {
-            const r = await _resizeFotoBase64(dataUrl, 800);
+            const r = await _cropSquareAndResize(dataUrl, 800);
             return (r && r.length <= MAX_IMG_DATA_LEN) ? r : '';
         } catch (_) { return ''; }
     }
@@ -1541,7 +1598,7 @@ async function _confermImportPptx() {
 
     const prefill = {
         titolo,
-        categoria: '',
+        categoria: categoriaVal,
         copertina,
         sections: {
             _v: 2,
