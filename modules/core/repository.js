@@ -130,7 +130,7 @@ export async function fetchManuali() {
  * @returns {Promise<{status:string, manuale?:object}>}
  */
 export async function createManuale(payload) {
-    return gasRequestWithTimeout({ azione: 'salvaManualeNuovo', ...payload }, 15000);
+    return gasRequestWithTimeout({ azione: 'salvaManualeNuovo', ...payload }, 60000);
 }
 
 /**
@@ -139,7 +139,7 @@ export async function createManuale(payload) {
  * @returns {Promise<{status:string, manuale?:object}>}
  */
 export async function updateManuale(payload) {
-    return gasRequestWithTimeout({ azione: 'aggiornaManuale', ...payload }, 15000);
+    return gasRequestWithTimeout({ azione: 'aggiornaManuale', ...payload }, 60000);
 }
 
 /**
