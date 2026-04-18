@@ -1174,16 +1174,23 @@ function _pptxGetTextBlocks(slideDoc) {
     return blocks.sort((a, b) => a.y !== b.y ? a.y - b.y : a.x - b.x);
 }
 
-// Classify slide: 'title' | 'scheda' | 'occorrente' | 'procedimento'
-function _pptxClassifySlide(table, textBlocks, images, slideIdx) {
-    if (table && table.length >= 2) return 'scheda';
+// Classify slide: 'intro' | 'title' | 'scheda' | 'occorrente' | 'procedimento' | 'disegno'
+function _pptxClassifySlide(table, textBlocks, images, slideIdx, hasTitleAlready) {
     const allText = textBlocks.map(b => b.text).join(' ');
-    if (slideIdx === 0 && images.length <= 1 && allText.length < 200) return 'title';
-    // Occorrente: ≥2 blocks starting with "A", "B ", "A –" etc.
+    // Disegno tecnico: keyword esplicito + almeno un'immagine
+    if (/disegno\s+tecnico/i.test(allText) && images.length >= 1) return 'disegno';
+    // Scheda tecnica: tabella con ≥2 righe
+    if (table && table.length >= 2) return 'scheda';
+    // Occorrente: pattern lettere (calcolato prima per evitare falsi 'title')
     const occPat = /^[A-Z][\s\-–\.\:]|^[A-Z]$/;
     const occBlocks = textBlocks.filter(b => occPat.test(b.text.trim()));
+    // Titolo prodotto: prima slide con esattamente 1 immagine, testo corto, nessun pattern lettera
+    if (!hasTitleAlready && slideIdx < 4 && images.length === 1 && !table
+        && allText.length < 300 && occBlocks.length === 0) return 'title';
+    // Intro/copertina generica: slide iniziale senza immagine e senza pattern lettera
+    if (slideIdx < 3 && images.length === 0 && !table && occBlocks.length === 0) return 'intro';
+    // Occorrente: ≥2 blocchi "A.", "B " ecc.
     if (occBlocks.length >= 2) return 'occorrente';
-    // Single bold letter + image = one occorrente item
     if (occBlocks.length === 1 && /^[A-Z]$/.test(occBlocks[0].text.trim()) && images.length >= 1) return 'occorrente';
     return 'procedimento';
 }
@@ -1226,7 +1233,7 @@ function _pptxParseOccSlide(textBlocks, images, occorrente) {
     }
 }
 
-// Main structured parser — returns {titolo, copertina, schedaTecnica[], occorrente[], procedimenti[]}
+// Main structured parser — returns {titolo, copertina, schedaTecnica[], occorrente[], procedimenti[], disegnoTecnico}
 async function _parsePptxStructured(arrayBuffer) {
     const uint8 = new Uint8Array(arrayBuffer);
     const files = await _pptxUnzip(uint8);
@@ -1243,9 +1250,10 @@ async function _parsePptxStructured(arrayBuffer) {
     }
     let titolo = '';
     let copertina = '';
-    const schedaTecnica = [];
-    const occorrente    = [];
-    const procedimenti  = [];
+    const schedaTecnica  = [];
+    const occorrente     = [];
+    const procedimenti   = [];
+    let   disegnoTecnico = { foto: '' };
     for (let idx = 0; idx < paths.length; idx++) {
         const slideData = files[paths[idx]];
         if (!slideData) continue;
@@ -1255,23 +1263,40 @@ async function _parsePptxStructured(arrayBuffer) {
         const table     = _pptxGetSlideTable(slideDoc);
         const textBlocks= _pptxGetTextBlocks(slideDoc);
         const images    = _pptxGetSlideImages(slideDoc, rIdMap, files);
-        const type      = _pptxClassifySlide(table, textBlocks, images, idx);
-        if (type === 'title') {
-            if (!titolo && textBlocks.length)  titolo    = textBlocks[0].text.slice(0, 120).trim();
-            if (!copertina && images.length)   copertina = images[0].dataUrl;
+        const type      = _pptxClassifySlide(table, textBlocks, images, idx, !!titolo);
+        if (type === 'intro') {
+            // Slide generica senza immagine (es. copertina manuale aziendale) — skip
+        } else if (type === 'title') {
+            if (!copertina && images.length) copertina = images[0].dataUrl;
+            if (!titolo && textBlocks.length) {
+                // Cerca l'ultimo blocco di testo PRIMA dell'immagine (il nome prodotto)
+                const imgY = images[0].y;
+                const candidates = textBlocks
+                    .filter(b => b.y <= imgY && b.text.length > 3)
+                    .filter(b => !/^[A-Z0-9\-]+$/.test(b.text))  // scarta codici come "O-1"
+                    .filter(b => !/^REVISIONE\s/i.test(b.text));  // scarta revisioni
+                titolo = (candidates.length
+                    ? candidates[candidates.length - 1].text
+                    : textBlocks[0].text
+                ).slice(0, 120).trim();
+            }
         } else if (type === 'scheda') {
             table.forEach(r => {
                 if (!schedaTecnica.find(x => x.voce === r.voce)) schedaTecnica.push(r);
             });
         } else if (type === 'occorrente') {
             _pptxParseOccSlide(textBlocks, images, occorrente);
+        } else if (type === 'disegno') {
+            if (!disegnoTecnico.foto && images.length) disegnoTecnico = { foto: images[0].dataUrl };
         } else {
-            const desc = textBlocks.map(b => b.text).join(' ').trim();
-            const img  = images.length ? images[0].dataUrl : null;
-            if (desc || img) procedimenti.push({ descrizione: desc, imageBase64: img });
+            // Procedimento: può contenere più step nella stessa slide
+            const steps = _pptxSplitProceduralSlide(textBlocks, images);
+            for (const s of steps) {
+                if (s.descrizione || s.imageBase64) procedimenti.push(s);
+            }
         }
     }
-    return { titolo, copertina, schedaTecnica, occorrente, procedimenti };
+    return { titolo, copertina, schedaTecnica, occorrente, procedimenti, disegnoTecnico };
 }
 
 // ─── UI: flusso import PPTX ──────────────────────────────────────────────────
@@ -1450,7 +1475,7 @@ async function _confermImportPptx() {
             schedaTecnica: src.schedaTecnica || [],
             occorrente,
             procedimenti,
-            disegnoTecnico: { foto: '' },
+            disegnoTecnico: src.disegnoTecnico || { foto: '' },
         },
     };
 
