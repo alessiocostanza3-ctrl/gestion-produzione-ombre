@@ -742,7 +742,7 @@ function apriManuale(id) {
                         ${o.codice ? `<br><span class="text-xs text-slate-400">${_esc(o.codice)}</span>` : ''}
                     </div>
                 </div>
-                ${fotoSafe ? `<img src="${fotoSafe}" alt="occ" style="max-width:100%;max-height:140px;border-radius:8px;border:1px solid #e2e8f0;pointer-events:none">` : ''}
+                ${fotoSafe ? `<img src="${fotoSafe}" alt="occ" style="width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;pointer-events:none">` : ''}
             </div>`;
         }).join('');
         if (occItems) {
@@ -1206,9 +1206,12 @@ function _pptxClassifySlide(table, textBlocks, images, slideIdx, hasTitleAlready
     if (/disegno\s+tecnico/i.test(allText) && images.length >= 1) return 'disegno';
     // Scheda tecnica: tabella con ≥2 righe
     if (table && table.length >= 2) return 'scheda';
-    // Occorrente: pattern lettere (calcolato prima per evitare falsi 'title')
-    const occPat = /^[A-Z][\s\-–\.\:]|^[A-Z]$/;
-    const occBlocks = textBlocks.filter(b => occPat.test(b.text.trim()));
+    // Occorrente keyword esplicito ("MATERIALE OCCORRENTE")
+    if (/materiale\s+occorrente/i.test(allText)) return 'occorrente';
+    // Pattern lettere per occorrente  — escludi codici prodotto (es. "O-1") e header
+    const _isProductCode = t => /^[A-Z]-?\d/.test(t);  // "O-1", "O1" ecc.
+    const _isOccLetter = t => (/^[A-Z][\s\-–\.\:]/.test(t) || /^[A-Z]$/.test(t)) && !_isProductCode(t);
+    const occBlocks = textBlocks.filter(b => _isOccLetter(b.text.trim()));
     // Titolo prodotto: prima slide con esattamente 1 immagine, testo corto, nessun pattern lettera
     if (!hasTitleAlready && slideIdx < 4 && images.length === 1 && !table
         && allText.length < 300 && occBlocks.length === 0) return 'title';
