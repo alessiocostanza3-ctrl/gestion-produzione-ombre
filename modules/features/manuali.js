@@ -10,6 +10,7 @@ import {
     updateManuale,
     fetchStoricoManuale
 } from '../core/repository.js';
+import { utenteAttuale } from '../core/session.js';
 
 const CACHE_KEY = 'MANUALI_PRODOTTI';
 const MAX_PROC_STEPS = 20;
@@ -39,6 +40,7 @@ let _manuali = [];
 let _manualiById = {};
 let _activeModalId = null;
 let _occLightboxItems = []; // foto items per lightbox occorrente
+let _pptxPendingSlides = []; // slide estratte dal PPTX in attesa di conferma
 
 function _formatTs(ts) {
     if (!ts) return '-';
@@ -116,6 +118,7 @@ function _renderLista() {
     if (!contenitore) return;
 
     const cards = _manuali.map(_buildManualeCard).join('');
+    const _isAlessio = utenteAttuale?.nome?.toUpperCase().trim() === 'ALESSIO';
     contenitore.innerHTML = `
     <section class="manuali-page">
         <div class="acquisti-header header-flex">
@@ -123,9 +126,14 @@ function _renderLista() {
                 <h3 class="acquisti-title">Manuali Prodotti</h3>
                 <p class="acquisti-subtitle">Procedure operative interne con step fotografici</p>
             </div>
-            <button type="button" class="btn-nuovo-fisso ${window.TW?.btnPrimaryLg || ''}" onclick="apriFormManuale()">
-                <i class="fas fa-plus"></i><span class="btn-label-nuovo"> Nuovo manuale</span>
-            </button>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                ${_isAlessio ? `<button type="button" onclick="importaPptx()" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:#7c3aed;color:#fff;border:none;border-radius:8px;font-size:.82rem;font-weight:700;cursor:pointer;white-space:nowrap;line-height:1.2">
+                    <i class="fas fa-file-powerpoint"></i><span class="btn-label-nuovo"> Importa PPTX</span>
+                </button>` : ''}
+                <button type="button" class="btn-nuovo-fisso ${window.TW?.btnPrimaryLg || ''}" onclick="apriFormManuale()">
+                    <i class="fas fa-plus"></i><span class="btn-label-nuovo"> Nuovo manuale</span>
+                </button>
+            </div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
@@ -963,8 +971,298 @@ function _apriLightboxOcc_(startIdx) {
     _mostra(startIdx);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// PPTX IMPORT — parser ZIP/PPTX client-side (no dipendenze npm)
+// Usa browser DecompressionStream per inflate dei blocchi deflate-raw ZIP.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function _pptxR16(d, o) { return d[o] | (d[o + 1] << 8); }
+function _pptxR32(d, o) { return ((d[o] | (d[o+1] << 8) | (d[o+2] << 16) | (d[o+3] << 24)) >>> 0); }
+
+async function _pptxInflate(compData) {
+    const ds = new DecompressionStream('deflate-raw');
+    const writer = ds.writable.getWriter();
+    const reader = ds.readable.getReader();
+    writer.write(compData);
+    writer.close();
+    const chunks = [];
+    let total = 0;
+    for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        total += value.length;
+    }
+    const out = new Uint8Array(total);
+    let off = 0;
+    for (const c of chunks) { out.set(c, off); off += c.length; }
+    return out;
+}
+
+async function _pptxUnzip(uint8) {
+    let eocd = -1;
+    const minScan = Math.max(0, uint8.length - 65558);
+    for (let i = uint8.length - 22; i >= minScan; i--) {
+        if (uint8[i] === 0x50 && uint8[i+1] === 0x4B && uint8[i+2] === 0x05 && uint8[i+3] === 0x06) {
+            eocd = i; break;
+        }
+    }
+    if (eocd < 0) throw new Error('File ZIP non valido (EOCD non trovato)');
+    const cdCount  = _pptxR16(uint8, eocd + 10);
+    const cdOffset = _pptxR32(uint8, eocd + 16);
+    const files    = Object.create(null);
+    const dec      = new TextDecoder('utf-8', { fatal: false });
+    let pos        = cdOffset;
+    for (let i = 0; i < cdCount; i++) {
+        if (_pptxR32(uint8, pos) !== 0x02014B50) break;
+        const compression = _pptxR16(uint8, pos + 10);
+        const compSize    = _pptxR32(uint8, pos + 20);
+        const fnLen       = _pptxR16(uint8, pos + 28);
+        const extraLen    = _pptxR16(uint8, pos + 30);
+        const commentLen  = _pptxR16(uint8, pos + 32);
+        const localOff    = _pptxR32(uint8, pos + 42);
+        const filename    = dec.decode(uint8.slice(pos + 46, pos + 46 + fnLen));
+        pos += 46 + fnLen + extraLen + commentLen;
+        if (filename.endsWith('/') || filename.endsWith('\\')) continue;
+        const lFnLen    = _pptxR16(uint8, localOff + 26);
+        const lExLen    = _pptxR16(uint8, localOff + 28);
+        const dataStart = localOff + 30 + lFnLen + lExLen;
+        const compData  = uint8.slice(dataStart, dataStart + compSize);
+        if (compression === 0) {
+            files[filename] = compData;
+        } else if (compression === 8) {
+            // eslint-disable-next-line no-await-in-loop
+            files[filename] = await _pptxInflate(compData);
+        }
+    }
+    return files;
+}
+
+const _PPTX_NS_DRAW   = 'http://schemas.openxmlformats.org/drawingml/2006/main';
+const _PPTX_NS_RELS_R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+const _PPTX_NS_PRES   = 'http://schemas.openxmlformats.org/presentationml/2006/main';
+
+function _pptxParseXml(uint8) {
+    const s = new TextDecoder('utf-8', { fatal: false }).decode(uint8);
+    return new DOMParser().parseFromString(s, 'text/xml');
+}
+function _pptxGetRels(doc) {
+    return [...doc.getElementsByTagName('Relationship')].map(el => ({
+        id:     el.getAttribute('Id')     || '',
+        type:   el.getAttribute('Type')   || '',
+        target: el.getAttribute('Target') || '',
+    }));
+}
+
+function _pptxSlideOrder(files) {
+    const presData = files['ppt/presentation.xml'];
+    const relData  = files['ppt/_rels/presentation.xml.rels'];
+    if (!presData || !relData) return null;
+    const rIdMap = {};
+    _pptxGetRels(_pptxParseXml(relData)).forEach(r => { rIdMap[r.id] = r.target; });
+    const presDoc = _pptxParseXml(presData);
+    let sldIds = [...presDoc.getElementsByTagNameNS(_PPTX_NS_PRES, 'sldId')];
+    if (!sldIds.length) sldIds = [...presDoc.getElementsByTagName('p:sldId')];
+    const paths = []; const seen = new Set();
+    sldIds.forEach(el => {
+        const rId    = el.getAttributeNS(_PPTX_NS_RELS_R, 'id') || el.getAttribute('r:id') || '';
+        const target = rIdMap[rId];
+        if (!target) return;
+        const clean = 'ppt/' + target.replace(/^\.\.\//, '');
+        if (!seen.has(clean)) { seen.add(clean); paths.push(clean); }
+    });
+    return paths.length ? paths : null;
+}
+
+function _pptxExtractText(slideData) {
+    const doc = _pptxParseXml(slideData);
+    let els = [...doc.getElementsByTagNameNS(_PPTX_NS_DRAW, 't')];
+    if (!els.length) els = [...doc.getElementsByTagName('a:t')];
+    return els.map(el => String(el.textContent || '').trim()).filter(Boolean).join(' ');
+}
+
+const _PPTX_IMG_RE   = /\.(jpe?g|png|gif|webp)$/i;
+const _PPTX_MIME_MAP = { jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', gif:'image/gif', webp:'image/webp' };
+
+function _pptxExtractImage(relsData, files) {
+    if (!relsData) return null;
+    for (const rel of _pptxGetRels(_pptxParseXml(relsData))) {
+        if (!rel.type.includes('image')) continue;
+        const fname = rel.target.split('/').pop();
+        if (!_PPTX_IMG_RE.test(fname)) continue;
+        const data = files['ppt/media/' + fname];
+        if (!data) continue;
+        const mime = _PPTX_MIME_MAP[fname.split('.').pop().toLowerCase()];
+        if (!mime) continue;
+        let bin = '';
+        for (let i = 0; i < data.length; i += 8192)
+            bin += String.fromCharCode(...data.subarray(i, Math.min(i + 8192, data.length)));
+        return `data:${mime};base64,${btoa(bin)}`;
+    }
+    return null;
+}
+
+async function _parsePptx(arrayBuffer) {
+    const uint8 = new Uint8Array(arrayBuffer);
+    const files = await _pptxUnzip(uint8);
+    if (!files['ppt/presentation.xml']) throw new Error('File non valido: manca ppt/presentation.xml');
+    let paths = _pptxSlideOrder(files);
+    if (!paths || !paths.length) {
+        paths = Object.keys(files)
+            .filter(k => /^ppt\/slides\/slide\d+\.xml$/.test(k))
+            .sort((a, b) => {
+                const na = parseInt(a.match(/(\d+)\.xml$/)?.[1] || '0', 10);
+                const nb = parseInt(b.match(/(\d+)\.xml$/)?.[1] || '0', 10);
+                return na - nb;
+            });
+    }
+    let suggestedTitle = '';
+    const slides = [];
+    for (const path of paths) {
+        const data = files[path];
+        if (!data) continue;
+        const text = _pptxExtractText(data);
+        if (!suggestedTitle && text) suggestedTitle = text.slice(0, 80);
+        const slideFile   = path.split('/').pop();
+        const imageBase64 = _pptxExtractImage(files[`ppt/slides/_rels/${slideFile}.rels`], files);
+        slides.push({ text, imageBase64 });
+    }
+    return { suggestedTitle, slides };
+}
+
+// ─── UI: flusso import PPTX ──────────────────────────────────────────────────
+
+function importaPptx() {
+    if (utenteAttuale?.nome?.toUpperCase().trim() !== 'ALESSIO') return;
+    let inp = document.getElementById('_pptx-file-inp');
+    if (!inp) {
+        inp = document.createElement('input');
+        inp.type = 'file';
+        inp.id = '_pptx-file-inp';
+        inp.accept = '.pptx';
+        inp.style.display = 'none';
+        inp.addEventListener('change', function() { _onPptxSelected(inp); });
+        document.body.appendChild(inp);
+    }
+    inp.value = '';
+    inp.click();
+}
+
+async function _onPptxSelected(inputEl) {
+    const file = inputEl?.files?.[0];
+    if (!file) return;
+    notificaElegante('Analisi PPTX in corso...', 'info');
+    try {
+        const buf    = await file.arrayBuffer();
+        const result = await _parsePptx(buf);
+        if (!result.slides.length) {
+            notificaElegante('Nessuna slide trovata nel file.', 'warning');
+            return;
+        }
+        if (!result.suggestedTitle)
+            result.suggestedTitle = file.name.replace(/\.pptx$/i, '').replace(/[-_]/g, ' ');
+        _pptxPendingSlides = result.slides;
+        _mostraAnteprImportPptx(result.suggestedTitle, result.slides);
+    } catch (e) {
+        console.error('[PPTX]', e);
+        notificaElegante('Errore nel parsing PPTX: ' + (e?.message || 'file non valido'), 'error');
+    }
+}
+
+function _mostraAnteprImportPptx(suggestedTitle, slides) {
+    const host = document.getElementById('manuali-modal-host');
+    if (!host) return;
+
+    const slidesHtml = slides.map(function(s, i) {
+        const thumbHtml = s.imageBase64
+            ? `<img src="${s.imageBase64}" style="width:72px;height:54px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;flex-shrink:0">`
+            : `<div style="width:72px;height:54px;background:#e2e8f0;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:9px;text-align:center;flex-shrink:0;padding:4px">No<br>img</div>`;
+        return `<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 10px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0">
+            <input type="checkbox" id="pptx-cb-${i}" checked style="margin-top:16px;flex-shrink:0">
+            ${thumbHtml}
+            <div style="flex:1;min-width:0">
+                <div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Slide ${i + 1}</div>
+                <textarea class="input-field-modern _pptx-step-txt" data-idx="${i}" rows="2" style="width:100%;font-size:12px;resize:vertical;padding:5px 8px;box-sizing:border-box">${_esc(s.text || '')}</textarea>
+            </div>
+        </div>`;
+    }).join('');
+
+    host.innerHTML = `
+    <div id="manuali-modal" class="modal-overlay active" style="display:flex;z-index:4500">
+      <div class="modal-content" style="width:92vw;max-width:780px;max-height:90vh;overflow-y:auto">
+        <h2 style="margin-bottom:4px;display:flex;align-items:center;gap:10px">
+            <i class="fas fa-file-powerpoint" style="color:#7c3aed"></i> Importa da PPTX
+        </h2>
+        <p style="font-size:.85rem;color:#64748b;margin-bottom:18px">${slides.length} slide trovate. Seleziona quelle da importare come step del procedimento e modifica il testo se necessario.</p>
+        <div style="margin-bottom:16px">
+            <label class="modal-label">Titolo manuale *</label>
+            <input id="pptx-titolo" class="input-field-modern" type="text" value="${_esc(suggestedTitle)}" placeholder="Inserisci titolo manuale">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:22px">
+            ${slidesHtml}
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end">
+            <button class="btn-modal-cancel" onclick="chiudiFormManuale()">Annulla</button>
+            <button id="pptx-btn-crea" class="btn-modal-ok" onclick="_confermImportPptx()">
+                <i class="fas fa-check"></i> Crea manuale
+            </button>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function _confermImportPptx() {
+    const titolo = String(document.getElementById('pptx-titolo')?.value || '').trim();
+    if (!titolo) { notificaElegante('Inserisci un titolo per il manuale.', 'warning'); return; }
+    const btn = document.getElementById('pptx-btn-crea');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Elaborazione...'; }
+
+    const procedimenti = [];
+    let copertina = '';
+
+    for (let i = 0; i < _pptxPendingSlides.length; i++) {
+        const cb = document.getElementById(`pptx-cb-${i}`);
+        if (!cb?.checked) continue;
+        const s    = _pptxPendingSlides[i];
+        const txEl = document.querySelector(`._pptx-step-txt[data-idx="${i}"]`);
+        const descrizione = String(txEl?.value || s.text || '').trim();
+        let foto = '';
+        if (s.imageBase64) {
+            try {
+                const resized = await _resizeFotoBase64(s.imageBase64, 800);
+                if (resized && resized.length <= MAX_IMG_DATA_LEN) {
+                    foto = resized;
+                    if (!copertina) copertina = foto;
+                }
+            } catch (_) { /* skip resize errors */ }
+        }
+        procedimenti.push({ descrizione, foto });
+    }
+
+    if (!procedimenti.length) {
+        notificaElegante('Seleziona almeno una slide.', 'warning');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check"></i> Crea manuale'; }
+        return;
+    }
+
+    const prefill = {
+        titolo,
+        categoria: '',
+        copertina,
+        sections: {
+            _v: 2,
+            schedaTecnica: [],
+            occorrente: [],
+            procedimenti,
+            disegnoTecnico: { foto: '' },
+        },
+    };
+
+    _pptxPendingSlides = [];
+    _renderModalForm('new', prefill);
+}
+
 export function registerGlobals() {
-    window.caricaManuali = caricaManuali;
     window.apriManuale = apriManuale;
     window._apriLightboxOcc_ = _apriLightboxOcc_;
     window.apriFormManuale = apriFormManuale;
@@ -992,6 +1290,9 @@ export function registerGlobals() {
     // Storico
     window.apriStoricoManuale = apriStoricoManuale;
     window.chiudiStoricoManuale = chiudiStoricoManuale;
+    // Import PPTX (solo Alessio)
+    window.importaPptx = importaPptx;
+    window._confermImportPptx = _confermImportPptx;
 }
 
 export function init() {
