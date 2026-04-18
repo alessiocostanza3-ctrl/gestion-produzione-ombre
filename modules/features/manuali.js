@@ -972,8 +972,12 @@ function _apriLightboxOcc_(startIdx) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// PPTX IMPORT — parser ZIP/PPTX client-side (no dipendenze npm)
-// Usa browser DecompressionStream per inflate dei blocchi deflate-raw ZIP.
+// PPTX IMPORT — parser ZIP/PPTX strutturato, client-side (no dipendenze npm)
+// Classifica le slide per tipo e mappa su tutte le sezioni del manuale PROD:
+//   slide titolo    → titolo + copertina
+//   slide con tabella → scheda tecnica (voce | valore)
+//   slide con A/B/C   → materiale occorrente (lettera + nome + foto)
+//   altre slide       → step del procedimento (testo + foto)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function _pptxR16(d, o) { return d[o] | (d[o + 1] << 8); }
@@ -1074,35 +1078,156 @@ function _pptxSlideOrder(files) {
     return paths.length ? paths : null;
 }
 
-function _pptxExtractText(slideData) {
-    const doc = _pptxParseXml(slideData);
-    let els = [...doc.getElementsByTagNameNS(_PPTX_NS_DRAW, 't')];
-    if (!els.length) els = [...doc.getElementsByTagName('a:t')];
-    return els.map(el => String(el.textContent || '').trim()).filter(Boolean).join(' ');
-}
+// ─── Structured extraction helpers ───────────────────────────────────────────
 
 const _PPTX_IMG_RE   = /\.(jpe?g|png|gif|webp)$/i;
 const _PPTX_MIME_MAP = { jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', gif:'image/gif', webp:'image/webp' };
 
-function _pptxExtractImage(relsData, files) {
-    if (!relsData) return null;
-    for (const rel of _pptxGetRels(_pptxParseXml(relsData))) {
-        if (!rel.type.includes('image')) continue;
-        const fname = rel.target.split('/').pop();
-        if (!_PPTX_IMG_RE.test(fname)) continue;
-        const data = files['ppt/media/' + fname];
-        if (!data) continue;
-        const mime = _PPTX_MIME_MAP[fname.split('.').pop().toLowerCase()];
-        if (!mime) continue;
-        let bin = '';
-        for (let i = 0; i < data.length; i += 8192)
-            bin += String.fromCharCode(...data.subarray(i, Math.min(i + 8192, data.length)));
-        return `data:${mime};base64,${btoa(bin)}`;
-    }
-    return null;
+// Build rId → image target map from a .rels Uint8Array
+function _pptxBuildRIdMap(relsData) {
+    if (!relsData) return {};
+    const map = {};
+    _pptxGetRels(_pptxParseXml(relsData)).forEach(r => {
+        if (r.type.includes('image')) map[r.id] = r.target;
+    });
+    return map;
 }
 
-async function _parsePptx(arrayBuffer) {
+// Convert media file bytes → base64 data URL
+function _pptxMediaToDataUrl(target, files) {
+    const fname = target.split('/').pop();
+    if (!_PPTX_IMG_RE.test(fname)) return null;
+    const data = files['ppt/media/' + fname];
+    if (!data) return null;
+    const mime = _PPTX_MIME_MAP[fname.split('.').pop().toLowerCase()];
+    if (!mime) return null;
+    let bin = '';
+    for (let i = 0; i < data.length; i += 8192)
+        bin += String.fromCharCode(...data.subarray(i, Math.min(i + 8192, data.length)));
+    return `data:${mime};base64,${btoa(bin)}`;
+}
+
+// Get EMU offset position from an element's xfrm descendant
+function _pptxGetEmuPos(el) {
+    const off = el.getElementsByTagNameNS(_PPTX_NS_DRAW, 'off')[0]
+             || el.getElementsByTagName('a:off')[0];
+    if (!off) return { x: 0, y: 0 };
+    return { x: parseInt(off.getAttribute('x') || '0', 10), y: parseInt(off.getAttribute('y') || '0', 10) };
+}
+
+// Return ALL images in a slide, sorted top→bottom, left→right
+function _pptxGetSlideImages(slideDoc, rIdMap, files) {
+    let pics = [...slideDoc.getElementsByTagNameNS(_PPTX_NS_PRES, 'pic')];
+    if (!pics.length) pics = [...slideDoc.getElementsByTagName('p:pic')];
+    const result = [];
+    for (const pic of pics) {
+        const blip = pic.getElementsByTagNameNS(_PPTX_NS_DRAW, 'blip')[0]
+                  || pic.getElementsByTagName('a:blip')[0];
+        if (!blip) continue;
+        const rId = blip.getAttributeNS(_PPTX_NS_RELS_R, 'embed') || blip.getAttribute('r:embed') || '';
+        if (!rId || !rIdMap[rId]) continue;
+        const dataUrl = _pptxMediaToDataUrl(rIdMap[rId], files);
+        if (!dataUrl) continue;
+        const pos = _pptxGetEmuPos(pic);
+        result.push({ dataUrl, x: pos.x, y: pos.y });
+    }
+    return result.sort((a, b) => a.y !== b.y ? a.y - b.y : a.x - b.x);
+}
+
+// Extract table rows [{voce, valore}] from slide, or null if no table
+function _pptxGetSlideTable(slideDoc) {
+    let tbls = [...slideDoc.getElementsByTagNameNS(_PPTX_NS_DRAW, 'tbl')];
+    if (!tbls.length) tbls = [...slideDoc.getElementsByTagName('a:tbl')];
+    if (!tbls.length) return null;
+    let rows = [...tbls[0].getElementsByTagNameNS(_PPTX_NS_DRAW, 'tr')];
+    if (!rows.length) rows = [...tbls[0].getElementsByTagName('a:tr')];
+    const result = [];
+    for (const row of rows) {
+        let cells = [...row.getElementsByTagNameNS(_PPTX_NS_DRAW, 'tc')];
+        if (!cells.length) cells = [...row.getElementsByTagName('a:tc')];
+        if (cells.length < 2) continue;
+        const cellText = (c) => {
+            let ts = [...c.getElementsByTagNameNS(_PPTX_NS_DRAW, 't')];
+            if (!ts.length) ts = [...c.getElementsByTagName('a:t')];
+            return ts.map(t => (t.textContent || '').trim()).filter(Boolean).join(' ');
+        };
+        const voce = cellText(cells[0]);
+        const valore = cellText(cells[1]);
+        if (voce) result.push({ voce, valore: valore || '' });
+    }
+    return result.length >= 2 ? result : null;
+}
+
+// Text blocks with EMU position, sorted top→bottom
+function _pptxGetTextBlocks(slideDoc) {
+    let sps = [...slideDoc.getElementsByTagNameNS(_PPTX_NS_PRES, 'sp')];
+    if (!sps.length) sps = [...slideDoc.getElementsByTagName('p:sp')];
+    const blocks = [];
+    for (const sp of sps) {
+        let ts = [...sp.getElementsByTagNameNS(_PPTX_NS_DRAW, 't')];
+        if (!ts.length) ts = [...sp.getElementsByTagName('a:t')];
+        const text = ts.map(t => (t.textContent || '').trim()).filter(Boolean).join(' ').trim();
+        if (!text) continue;
+        const pos = _pptxGetEmuPos(sp);
+        blocks.push({ text, x: pos.x, y: pos.y });
+    }
+    return blocks.sort((a, b) => a.y !== b.y ? a.y - b.y : a.x - b.x);
+}
+
+// Classify slide: 'title' | 'scheda' | 'occorrente' | 'procedimento'
+function _pptxClassifySlide(table, textBlocks, images, slideIdx) {
+    if (table && table.length >= 2) return 'scheda';
+    const allText = textBlocks.map(b => b.text).join(' ');
+    if (slideIdx === 0 && images.length <= 1 && allText.length < 200) return 'title';
+    // Occorrente: ≥2 blocks starting with "A", "B ", "A –" etc.
+    const occPat = /^[A-Z][\s\-–\.\:]|^[A-Z]$/;
+    const occBlocks = textBlocks.filter(b => occPat.test(b.text.trim()));
+    if (occBlocks.length >= 2) return 'occorrente';
+    // Single bold letter + image = one occorrente item
+    if (occBlocks.length === 1 && /^[A-Z]$/.test(occBlocks[0].text.trim()) && images.length >= 1) return 'occorrente';
+    return 'procedimento';
+}
+
+// Parse occorrente items from a slide, building on the shared `occorrente` array
+function _pptxParseOccSlide(textBlocks, images, occorrente) {
+    const occPat    = /^([A-Z])[\s\-–\.\:]*(.*)/s;
+    const letBlocks = textBlocks.filter(b => /^[A-Z][\s\-–\.\:]|^[A-Z]$/.test(b.text.trim()));
+    for (const block of letBlocks) {
+        const m = block.text.trim().match(occPat);
+        if (!m) continue;
+        const letter = m[1];
+        const rest   = (m[2] || '').trim();
+        const parts  = rest.split(/\s{2,}|\s+[-–]\s+/);
+        const nome   = (parts[0] || '').trim().slice(0, 80);
+        const codice = (parts[1] || '').trim().slice(0, 40);
+        const existing = occorrente.find(o => o.lettera === letter);
+        if (existing) {
+            if (!existing.nome && nome) existing.nome = nome;
+            if (!existing.codice && codice) existing.codice = codice;
+        } else {
+            occorrente.push({ lettera: letter, nome, codice, foto: '' });
+        }
+    }
+    if (!images.length) return;
+    // Assign images to letter items by proximity
+    if (images.length === 1 && letBlocks.length === 1) {
+        const letter = letBlocks[0].text.trim()[0];
+        const item = occorrente.find(o => o.lettera === letter);
+        if (item && !item.foto) item.foto = images[0].dataUrl;
+    } else {
+        const sorted = [...letBlocks].sort((a, b) => a.y !== b.y ? a.y - b.y : a.x - b.x);
+        images.forEach((img, i) => {
+            if (i < sorted.length) {
+                const letter = sorted[i].text.trim()[0];
+                const item = occorrente.find(o => o.lettera === letter);
+                if (item && !item.foto) item.foto = img.dataUrl;
+            }
+        });
+    }
+}
+
+// Main structured parser — returns {titolo, copertina, schedaTecnica[], occorrente[], procedimenti[]}
+async function _parsePptxStructured(arrayBuffer) {
     const uint8 = new Uint8Array(arrayBuffer);
     const files = await _pptxUnzip(uint8);
     if (!files['ppt/presentation.xml']) throw new Error('File non valido: manca ppt/presentation.xml');
@@ -1116,18 +1241,37 @@ async function _parsePptx(arrayBuffer) {
                 return na - nb;
             });
     }
-    let suggestedTitle = '';
-    const slides = [];
-    for (const path of paths) {
-        const data = files[path];
-        if (!data) continue;
-        const text = _pptxExtractText(data);
-        if (!suggestedTitle && text) suggestedTitle = text.slice(0, 80);
-        const slideFile   = path.split('/').pop();
-        const imageBase64 = _pptxExtractImage(files[`ppt/slides/_rels/${slideFile}.rels`], files);
-        slides.push({ text, imageBase64 });
+    let titolo = '';
+    let copertina = '';
+    const schedaTecnica = [];
+    const occorrente    = [];
+    const procedimenti  = [];
+    for (let idx = 0; idx < paths.length; idx++) {
+        const slideData = files[paths[idx]];
+        if (!slideData) continue;
+        const slideDoc  = _pptxParseXml(slideData);
+        const slideFile = paths[idx].split('/').pop();
+        const rIdMap    = _pptxBuildRIdMap(files[`ppt/slides/_rels/${slideFile}.rels`]);
+        const table     = _pptxGetSlideTable(slideDoc);
+        const textBlocks= _pptxGetTextBlocks(slideDoc);
+        const images    = _pptxGetSlideImages(slideDoc, rIdMap, files);
+        const type      = _pptxClassifySlide(table, textBlocks, images, idx);
+        if (type === 'title') {
+            if (!titolo && textBlocks.length)  titolo    = textBlocks[0].text.slice(0, 120).trim();
+            if (!copertina && images.length)   copertina = images[0].dataUrl;
+        } else if (type === 'scheda') {
+            table.forEach(r => {
+                if (!schedaTecnica.find(x => x.voce === r.voce)) schedaTecnica.push(r);
+            });
+        } else if (type === 'occorrente') {
+            _pptxParseOccSlide(textBlocks, images, occorrente);
+        } else {
+            const desc = textBlocks.map(b => b.text).join(' ').trim();
+            const img  = images.length ? images[0].dataUrl : null;
+            if (desc || img) procedimenti.push({ descrizione: desc, imageBase64: img });
+        }
     }
-    return { suggestedTitle, slides };
+    return { titolo, copertina, schedaTecnica, occorrente, procedimenti };
 }
 
 // ─── UI: flusso import PPTX ──────────────────────────────────────────────────
@@ -1154,57 +1298,106 @@ async function _onPptxSelected(inputEl) {
     notificaElegante('Analisi PPTX in corso...', 'info');
     try {
         const buf    = await file.arrayBuffer();
-        const result = await _parsePptx(buf);
-        if (!result.slides.length) {
-            notificaElegante('Nessuna slide trovata nel file.', 'warning');
-            return;
-        }
-        if (!result.suggestedTitle)
-            result.suggestedTitle = file.name.replace(/\.pptx$/i, '').replace(/[-_]/g, ' ');
-        _pptxPendingSlides = result.slides;
-        _mostraAnteprImportPptx(result.suggestedTitle, result.slides);
+        const result = await _parsePptxStructured(buf);
+        const isEmpty = !result.titolo && !result.procedimenti.length
+                     && !result.schedaTecnica.length && !result.occorrente.length;
+        if (isEmpty) { notificaElegante('Nessun contenuto riconosciuto nel file.', 'warning'); return; }
+        if (!result.titolo) result.titolo = file.name.replace(/\.pptx$/i, '').replace(/[-_]/g, ' ');
+        _pptxPendingSlides = result;
+        _mostraAnteprImportPptx(result);
     } catch (e) {
         console.error('[PPTX]', e);
         notificaElegante('Errore nel parsing PPTX: ' + (e?.message || 'file non valido'), 'error');
     }
 }
 
-function _mostraAnteprImportPptx(suggestedTitle, slides) {
+function _mostraAnteprImportPptx(result) {
     const host = document.getElementById('manuali-modal-host');
     if (!host) return;
 
-    const slidesHtml = slides.map(function(s, i) {
-        const thumbHtml = s.imageBase64
-            ? `<img src="${s.imageBase64}" style="width:72px;height:54px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;flex-shrink:0">`
-            : `<div style="width:72px;height:54px;background:#e2e8f0;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:9px;text-align:center;flex-shrink:0;padding:4px">No<br>img</div>`;
-        return `<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 10px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0">
-            <input type="checkbox" id="pptx-cb-${i}" checked style="margin-top:16px;flex-shrink:0">
-            ${thumbHtml}
-            <div style="flex:1;min-width:0">
-                <div style="font-size:10px;color:#94a3b8;margin-bottom:3px">Slide ${i + 1}</div>
-                <textarea class="input-field-modern _pptx-step-txt" data-idx="${i}" rows="2" style="width:100%;font-size:12px;resize:vertical;padding:5px 8px;box-sizing:border-box">${_esc(s.text || '')}</textarea>
-            </div>
-        </div>`;
-    }).join('');
+    const covHtml = result.copertina
+        ? `<img src="${result.copertina}" style="width:80px;height:60px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;flex-shrink:0">`
+        : `<div style="width:80px;height:60px;background:#f1f5f9;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#cbd5e1;font-size:10px;flex-shrink:0">nessuna</div>`;
+
+    const schedaHtml = result.schedaTecnica.length
+        ? result.schedaTecnica.slice(0, 6).map(r =>
+            `<tr><td style="padding:3px 8px;color:#475569;font-size:11px;border-bottom:1px solid #f1f5f9">${_esc(r.voce)}</td><td style="padding:3px 8px;font-size:11px;color:#1e293b;border-bottom:1px solid #f1f5f9">${_esc(r.valore)}</td></tr>`
+          ).join('') + (result.schedaTecnica.length > 6
+            ? `<tr><td colspan="2" style="padding:3px 8px;color:#94a3b8;font-size:10px">+ altre ${result.schedaTecnica.length - 6} voci…</td></tr>` : '')
+        : `<tr><td colspan="2" style="padding:6px 8px;color:#94a3b8;font-size:11px">Nessuna voce riconosciuta</td></tr>`;
+
+    const occHtml = result.occorrente.length
+        ? result.occorrente.slice(0, 8).map(o => {
+            const thumb = o.foto
+                ? `<img src="${o.foto}" style="width:36px;height:36px;object-fit:cover;border-radius:5px;border:1px solid #e2e8f0;flex-shrink:0">`
+                : `<div style="width:36px;height:36px;background:#f1f5f9;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#94a3b8;flex-shrink:0">–</div>`;
+            return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #f8fafc">
+                <b style="font-size:13px;color:#3b82f6;flex-shrink:0;width:18px">${_esc(o.lettera)}</b>
+                ${thumb}
+                <span style="font-size:11px;color:#475569;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${_esc(o.nome || '—')}</span>
+                ${o.codice ? `<span style="font-size:10px;color:#94a3b8;flex-shrink:0">${_esc(o.codice)}</span>` : ''}
+            </div>`;
+          }).join('') + (result.occorrente.length > 8
+            ? `<div style="font-size:10px;color:#94a3b8;padding:4px 0">+ altri ${result.occorrente.length - 8}…</div>` : '')
+        : `<div style="font-size:11px;color:#94a3b8;padding:6px 0">Nessun componente riconosciuto</div>`;
+
+    const procHtml = result.procedimenti.length
+        ? result.procedimenti.slice(0, 4).map((p, i) => {
+            const thumb = p.imageBase64
+                ? `<img src="${p.imageBase64}" style="width:52px;height:40px;object-fit:cover;border-radius:5px;border:1px solid #e2e8f0;flex-shrink:0">`
+                : `<div style="width:52px;height:40px;background:#f1f5f9;border-radius:5px;flex-shrink:0"></div>`;
+            const desc = (p.descrizione || '').slice(0, 70) + ((p.descrizione || '').length > 70 ? '…' : '');
+            return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f1f5f9">
+                <span style="font-size:10px;color:#94a3b8;flex-shrink:0;width:18px">${i + 1}.</span>
+                ${thumb}
+                <span style="font-size:11px;color:#475569;overflow:hidden;min-width:0">${_esc(desc) || '<em style="color:#cbd5e1">nessun testo</em>'}</span>
+            </div>`;
+          }).join('') + (result.procedimenti.length > 4
+            ? `<div style="font-size:10px;color:#94a3b8;padding:4px 0">+ altri ${result.procedimenti.length - 4} step…</div>` : '')
+        : `<div style="font-size:11px;color:#94a3b8;padding:6px 0">Nessuno step riconosciuto</div>`;
+
+    const sec = (icon, label, count) =>
+        `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;font-size:.72rem;font-weight:700;text-transform:uppercase;color:#64748b;letter-spacing:.04em">
+            <i class="${icon}"></i> ${label}
+            <span style="background:#e2e8f0;border-radius:99px;padding:1px 7px;font-size:10px">${count}</span>
+         </div>`;
+    const box = 'margin-bottom:12px;padding:12px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0';
 
     host.innerHTML = `
     <div id="manuali-modal" class="modal-overlay active" style="display:flex;z-index:4500">
-      <div class="modal-content" style="width:92vw;max-width:780px;max-height:90vh;overflow-y:auto">
+      <div class="modal-content" style="width:92vw;max-width:820px;max-height:90vh;overflow-y:auto">
         <h2 style="margin-bottom:4px;display:flex;align-items:center;gap:10px">
-            <i class="fas fa-file-powerpoint" style="color:#7c3aed"></i> Importa da PPTX
+            <i class="fas fa-file-powerpoint" style="color:#7c3aed"></i> Anteprima PPTX
         </h2>
-        <p style="font-size:.85rem;color:#64748b;margin-bottom:18px">${slides.length} slide trovate. Seleziona quelle da importare come step del procedimento e modifica il testo se necessario.</p>
-        <div style="margin-bottom:16px">
-            <label class="modal-label">Titolo manuale *</label>
-            <input id="pptx-titolo" class="input-field-modern" type="text" value="${_esc(suggestedTitle)}" placeholder="Inserisci titolo manuale">
+        <p style="font-size:.83rem;color:#64748b;margin-bottom:16px">Verifica il contenuto riconosciuto. Potrai modificare tutto nell'editor dopo l'importazione.</p>
+
+        <div style="${box};display:flex;gap:14px;align-items:flex-start">
+            ${covHtml}
+            <div style="flex:1;min-width:0">
+                <label class="modal-label">Titolo manuale *</label>
+                <input id="pptx-titolo" class="input-field-modern" type="text" value="${_esc(result.titolo)}" placeholder="Inserisci titolo manuale">
+            </div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:22px">
-            ${slidesHtml}
+
+        <div style="${box}">
+            ${sec('fas fa-table', 'Scheda Tecnica', result.schedaTecnica.length + ' voci')}
+            <table style="width:100%;border-collapse:collapse">${schedaHtml}</table>
         </div>
-        <div style="display:flex;gap:10px;justify-content:flex-end">
+
+        <div style="${box}">
+            ${sec('fas fa-boxes-stacked', 'Materiale Occorrente', result.occorrente.length)}
+            ${occHtml}
+        </div>
+
+        <div style="${box}">
+            ${sec('fas fa-list-ol', 'Procedimento', result.procedimenti.length + ' step')}
+            ${procHtml}
+        </div>
+
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:6px">
             <button class="btn-modal-cancel" onclick="chiudiFormManuale()">Annulla</button>
             <button id="pptx-btn-crea" class="btn-modal-ok" onclick="_confermImportPptx()">
-                <i class="fas fa-check"></i> Crea manuale
+                <i class="fas fa-arrow-right"></i> Apri nell'editor
             </button>
         </div>
       </div>
@@ -1215,34 +1408,37 @@ async function _confermImportPptx() {
     const titolo = String(document.getElementById('pptx-titolo')?.value || '').trim();
     if (!titolo) { notificaElegante('Inserisci un titolo per il manuale.', 'warning'); return; }
     const btn = document.getElementById('pptx-btn-crea');
-    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Elaborazione...'; }
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Elaborazione immagini…'; }
 
-    const procedimenti = [];
-    let copertina = '';
-
-    for (let i = 0; i < _pptxPendingSlides.length; i++) {
-        const cb = document.getElementById(`pptx-cb-${i}`);
-        if (!cb?.checked) continue;
-        const s    = _pptxPendingSlides[i];
-        const txEl = document.querySelector(`._pptx-step-txt[data-idx="${i}"]`);
-        const descrizione = String(txEl?.value || s.text || '').trim();
-        let foto = '';
-        if (s.imageBase64) {
-            try {
-                const resized = await _resizeFotoBase64(s.imageBase64, 800);
-                if (resized && resized.length <= MAX_IMG_DATA_LEN) {
-                    foto = resized;
-                    if (!copertina) copertina = foto;
-                }
-            } catch (_) { /* skip resize errors */ }
-        }
-        procedimenti.push({ descrizione, foto });
+    const src = _pptxPendingSlides;
+    if (!src || typeof src !== 'object' || Array.isArray(src)) {
+        notificaElegante('Nessun risultato da importare.', 'error');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-arrow-right"></i> Apri nell\'editor'; }
+        return;
     }
 
-    if (!procedimenti.length) {
-        notificaElegante('Seleziona almeno una slide.', 'warning');
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check"></i> Crea manuale'; }
-        return;
+    async function resizeIfNeeded(dataUrl) {
+        if (!dataUrl) return '';
+        try {
+            const r = await _resizeFotoBase64(dataUrl, 800);
+            return (r && r.length <= MAX_IMG_DATA_LEN) ? r : '';
+        } catch (_) { return ''; }
+    }
+
+    const copertina = await resizeIfNeeded(src.copertina);
+
+    const procedimenti = [];
+    for (const p of (src.procedimenti || [])) {
+        // eslint-disable-next-line no-await-in-loop
+        const foto = await resizeIfNeeded(p.imageBase64);
+        procedimenti.push({ descrizione: p.descrizione || '', foto });
+    }
+
+    const occorrente = [];
+    for (const o of (src.occorrente || [])) {
+        // eslint-disable-next-line no-await-in-loop
+        const foto = await resizeIfNeeded(o.foto);
+        occorrente.push({ lettera: o.lettera, nome: o.nome || '', codice: o.codice || '', foto });
     }
 
     const prefill = {
@@ -1251,8 +1447,8 @@ async function _confermImportPptx() {
         copertina,
         sections: {
             _v: 2,
-            schedaTecnica: [],
-            occorrente: [],
+            schedaTecnica: src.schedaTecnica || [],
+            occorrente,
             procedimenti,
             disegnoTecnico: { foto: '' },
         },
