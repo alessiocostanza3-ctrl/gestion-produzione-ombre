@@ -1233,6 +1233,47 @@ function _pptxParseOccSlide(textBlocks, images, occorrente) {
     }
 }
 
+// Split a procedimento slide into individual steps: (testo + immagine) pairs
+function _pptxSplitProceduralSlide(textBlocks, images) {
+    // Filtra header/label all-caps (es. "MANUALE BRANDY GLASS", "PROCEDIMENTO", "O-1")
+    const stepBlocks = textBlocks.filter(b => {
+        const t = b.text.trim();
+        return !(t === t.toUpperCase() && t.length < 60 && /^[A-Z\s\d\-:;./]+$/.test(t));
+    });
+    // Combina testi e immagini ordinati per Y
+    const all = [
+        ...stepBlocks.map(b => ({ kind: 'text', y: b.y, x: b.x || 0, v: b.text })),
+        ...images.map(img => ({ kind: 'img',  y: img.y, x: img.x || 0, v: img.dataUrl }))
+    ].sort((a, b) => a.y !== b.y ? a.y - b.y : a.x - b.x);
+    const steps = [];
+    let descParts = [];
+    let stepImgs  = [];
+    function flushStep() {
+        const desc = descParts.join(' ').trim();
+        const img  = stepImgs[0] || null;
+        if (desc || img) steps.push({ descrizione: desc, imageBase64: img });
+        descParts = [];
+        stepImgs  = [];
+    }
+    for (const item of all) {
+        if (item.kind === 'text') {
+            // Nuovo testo dopo immagini → chiudi step precedente
+            if (stepImgs.length > 0) flushStep();
+            descParts.push(item.v);
+        } else {
+            stepImgs.push(item.v);
+        }
+    }
+    flushStep();
+    // Fallback: se non si riesce a splittare, crea un unico step
+    if (!steps.length) {
+        const desc = textBlocks.map(b => b.text).join(' ').trim();
+        const img  = images.length ? images[0].dataUrl : null;
+        if (desc || img) steps.push({ descrizione: desc, imageBase64: img });
+    }
+    return steps;
+}
+
 // Main structured parser — returns {titolo, copertina, schedaTecnica[], occorrente[], procedimenti[], disegnoTecnico}
 async function _parsePptxStructured(arrayBuffer) {
     const uint8 = new Uint8Array(arrayBuffer);
