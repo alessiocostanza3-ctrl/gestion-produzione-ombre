@@ -219,6 +219,10 @@ function _makeDisegnoSection(foto) {
     </div>`;
 }
 
+function _manualiModalCloseBtn(closeFnName) {
+    return `<button type="button" class="manuali-modal-close" onclick="${closeFnName}" aria-label="Chiudi" title="Chiudi"><i class="fas fa-times"></i></button>`;
+}
+
 function _renderModalForm(mode, data) {
     const host = document.getElementById('manuali-modal-host');
     if (!host) return;
@@ -270,7 +274,8 @@ function _renderModalForm(mode, data) {
 
     host.innerHTML = `
     <div id="manuali-modal" class="modal-overlay active" style="display:flex;z-index:4500">
-      <div class="modal-content" style="width:90vw;max-width:1280px;max-height:90vh;overflow-y:auto;">
+            <div class="modal-content manuali-modal-box" style="width:90vw;max-width:1280px;max-height:90vh;overflow-y:auto;">
+                ${_manualiModalCloseBtn('chiudiFormManuale()')}
         <h2 style="margin-bottom:20px">${mode === 'edit' ? 'Modifica manuale' : 'Nuovo manuale'}</h2>
 
         <!-- ① COPERTINA E INFO -->
@@ -327,7 +332,6 @@ function _renderModalForm(mode, data) {
         </div>
 
         <div class="modal-actions" style="margin-top:14px;display:flex;gap:10px;justify-content:flex-end;">
-          <button type="button" class="btn-modal-cancel" onclick="chiudiFormManuale()">Annulla</button>
           <button type="button" class="btn-modal-send" onclick="salvaManualeCorrente()"><i class="fas fa-save"></i> Salva manuale</button>
         </div>
       </div>
@@ -827,14 +831,12 @@ function apriManuale(id) {
 
     host.innerHTML = `
     <div id="manuali-modal" class="modal-overlay active" style="display:flex;z-index:4500">
-      <div class="modal-content" style="width:90vw;max-width:1200px;max-height:90vh;overflow:auto;">
+            <div class="modal-content manuali-modal-box" style="width:90vw;max-width:1200px;max-height:90vh;overflow:auto;">
+                ${_manualiModalCloseBtn('chiudiFormManuale()')}
         <h2>${_esc(m.titolo || '(Senza titolo)')}</h2>
         <p class="text-xs text-slate-500 mb-3">${_esc(m.categoria || 'Generale')} · v${Number(m.version || 1)} · aggiornato ${_esc(_formatTs(m.updatedAt))}</p>
         ${coverHtml}
         <div>${contentHtml || '<div class="empty-msg">Nessun contenuto disponibile.</div>'}</div>
-        <div class="modal-actions" style="margin-top:14px;display:flex;gap:10px;justify-content:flex-end;">
-            <button type="button" class="btn-modal-cancel" onclick="chiudiFormManuale()">Chiudi</button>
-        </div>
       </div>
     </div>`;
 }
@@ -844,7 +846,8 @@ async function apriStoricoManuale(id) {
     if (!host) return;
     host.innerHTML = `
     <div id="manuali-storico-modal" class="modal-overlay active" style="display:flex;z-index:4501">
-      <div class="modal-content" style="max-width:980px;max-height:90vh;overflow:auto;">
+            <div class="modal-content manuali-modal-box" style="max-width:980px;max-height:90vh;overflow:auto;">
+                ${_manualiModalCloseBtn('chiudiStoricoManuale()')}
         <h2>Storico versioni</h2>
         <div class="centered-msg">Caricamento storico...</div>
       </div>
@@ -873,23 +876,19 @@ async function apriStoricoManuale(id) {
 
         host.innerHTML = `
         <div id="manuali-storico-modal" class="modal-overlay active" style="display:flex;z-index:4501">
-          <div class="modal-content" style="max-width:980px;max-height:90vh;overflow:auto;">
+                    <div class="modal-content manuali-modal-box" style="max-width:980px;max-height:90vh;overflow:auto;">
+                        ${_manualiModalCloseBtn('chiudiStoricoManuale()')}
             <h2>Storico versioni</h2>
             <div class="grid gap-2">${rows || '<div class="empty-msg">Nessuna versione trovata.</div>'}</div>
-            <div class="modal-actions" style="margin-top:14px;display:flex;gap:10px;justify-content:flex-end;">
-                <button type="button" class="btn-modal-cancel" onclick="chiudiStoricoManuale()">Chiudi</button>
-            </div>
           </div>
         </div>`;
     } catch (e) {
         host.innerHTML = `
         <div id="manuali-storico-modal" class="modal-overlay active" style="display:flex;z-index:4501">
-          <div class="modal-content" style="max-width:760px;max-height:90vh;overflow:auto;">
+                    <div class="modal-content manuali-modal-box" style="max-width:760px;max-height:90vh;overflow:auto;">
+                        ${_manualiModalCloseBtn('chiudiStoricoManuale()')}
             <h2>Storico versioni</h2>
             <div class="centered-error-bold">Errore nel caricamento storico.</div>
-            <div class="modal-actions" style="margin-top:14px;display:flex;gap:10px;justify-content:flex-end;">
-                <button type="button" class="btn-modal-cancel" onclick="chiudiStoricoManuale()">Chiudi</button>
-            </div>
           </div>
         </div>`;
     }
@@ -1519,7 +1518,8 @@ function _mostraAnteprImportPptx(result) {
 
     host.innerHTML = `
     <div id="manuali-modal" class="modal-overlay active" style="display:flex;z-index:4500">
-      <div class="modal-content" style="width:92vw;max-width:820px;max-height:90vh;overflow-y:auto">
+            <div class="modal-content manuali-modal-box" style="width:92vw;max-width:820px;max-height:90vh;overflow-y:auto">
+                ${_manualiModalCloseBtn('chiudiFormManuale()')}
         <h2 style="margin-bottom:4px;display:flex;align-items:center;gap:10px">
             <i class="fas fa-file-powerpoint" style="color:#7c3aed"></i> Anteprima PPTX
         </h2>
@@ -1551,7 +1551,6 @@ function _mostraAnteprImportPptx(result) {
         </div>
 
         <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:6px">
-            <button class="btn-modal-cancel" onclick="chiudiFormManuale()">Annulla</button>
             <button id="pptx-btn-crea" class="btn-modal-ok" onclick="_confermImportPptx()">
                 <i class="fas fa-arrow-right"></i> Apri nell'editor
             </button>
@@ -1652,12 +1651,7 @@ export function registerGlobals() {
 }
 
 export function init() {
-    document.addEventListener('click', function(e) {
-        const modal = document.getElementById('manuali-modal');
-        if (modal && e.target === modal) chiudiFormManuale();
-        const storico = document.getElementById('manuali-storico-modal');
-        if (storico && e.target === storico) chiudiStoricoManuale();
-    });
+    // Chiusura esplicita via pulsante X: niente chiusura su click fuori dal modal.
 }
 
 export default caricaManuali;
