@@ -10,6 +10,7 @@ import { notificaElegante, applicaFade, _esc } from '../core/ui.js';
 // ─── LS keys ──────────────────────────────────────────────────────────────────
 const _KIT_LS_KEY  = '_mlKitData';        // { kits: [...], ts: number }
 const _KIT_LS_TS   = '_mlKitDataTs';      // timestamp locale
+const _KIT_DRAFT_LS_KEY = '_mlKitOrderDrafts'; // bozze ordine locali, non sincronizzate
 const _KIT_SCHEMA_VERSION = 2;
 
 // ─── fetch flag ───────────────────────────────────────────────────────────────
@@ -285,6 +286,137 @@ function _kitGetComponentQty(comp, vKey) {
     return _kitIsSegnalazione(comp) ? (rawQty > 0 ? 1 : 0) : rawQty;
 }
 
+function _kitLoadOrderDrafts() {
+    try {
+        const raw = localStorage.getItem(_KIT_DRAFT_LS_KEY);
+        const parsed = raw ? JSON.parse(raw) : {};
+        return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+        return {};
+    }
+}
+
+function _kitSaveOrderDrafts(drafts) {
+    try {
+        localStorage.setItem(_KIT_DRAFT_LS_KEY, JSON.stringify(drafts || {}));
+    } catch {}
+}
+
+function _kitGetOrderDraft(kit) {
+    const drafts = _kitLoadOrderDrafts();
+    const rawDraft = drafts?.[kit?.id] && typeof drafts[kit.id] === 'object' ? drafts[kit.id] : {};
+    const normalized = {};
+    for (const variante of _kitGetVariantiEffettive(kit)) {
+        const fallbackQty = rawDraft[variante.key];
+        normalized[variante.key] = Math.max(0, Number.parseInt(fallbackQty, 10) || 0);
+    }
+    return normalized;
+}
+
+function _kitMutateOrderDraft(kitId, mutator) {
+    const { kits } = _kitLoad();
+    const kit = kits.find(entry => entry.id === kitId);
+    if (!kit) return;
+    const drafts = _kitLoadOrderDrafts();
+    const currentDraft = _kitGetOrderDraft(kit);
+    mutator(currentDraft, kit);
+
+    const cleanedDraft = {};
+    let hasValues = false;
+    for (const variante of _kitGetVariantiEffettive(kit)) {
+        const qty = Math.max(0, Number.parseInt(currentDraft[variante.key], 10) || 0);
+        cleanedDraft[variante.key] = qty;
+        if (qty > 0) hasValues = true;
+    }
+
+    if (hasValues) drafts[kitId] = cleanedDraft;
+    else delete drafts[kitId];
+    _kitSaveOrderDrafts(drafts);
+
+    if (_kitViewId === kitId) _kitRenderView();
+}
+
+function _kitCountOrderPieces(orderDraft) {
+    return Object.values(orderDraft || {}).reduce((sum, qty) => sum + (Number.parseInt(qty, 10) || 0), 0);
+}
+
+function _kitBuildDistintaBase(kit, orderDraft) {
+    const selectedVarianti = _kitGetVariantiEffettive(kit).filter(variante => (Number.parseInt(orderDraft?.[variante.key], 10) || 0) > 0);
+    const sezioni = [];
+    const avvisi = [];
+
+    for (const sezione of (kit.sezioni || [])) {
+        const righe = [];
+        for (const comp of (sezione.componenti || [])) {
+            let totalQty = 0;
+            const activeVariants = [];
+
+            for (const variante of selectedVarianti) {
+                const pezziOrdine = Number.parseInt(orderDraft?.[variante.key], 10) || 0;
+                const coeff = _kitGetComponentQty(comp, variante.key);
+                if (!pezziOrdine || !coeff) continue;
+
+                if (_kitIsSegnalazione(comp)) totalQty += pezziOrdine;
+                else totalQty += pezziOrdine * coeff;
+
+                activeVariants.push({
+                    nome: variante.nome,
+                    pezziOrdine,
+                    coeff
+                });
+            }
+
+            if (!activeVariants.length) continue;
+
+            const variantiLabel = activeVariants.length === 1
+                ? activeVariants[0].nome
+                : activeVariants.length + ' configurazioni';
+
+            if (_kitIsSegnalazione(comp)) {
+                avvisi.push({
+                    id: 'alert-' + comp.id,
+                    tipo: 'alert',
+                    nome: comp.nome,
+                    dettaglio: comp.noteConfig || 'Requisito da verificare in fase di approvvigionamento.',
+                    totaleCoinvolto: totalQty,
+                    variantiLabel
+                });
+                continue;
+            }
+
+            righe.push({
+                id: comp.id,
+                nome: comp.nome,
+                totale: totalQty,
+                unita: comp.unitaMisura || 'pz',
+                dettaglio: variantiLabel,
+                noteConfig: comp.noteConfig || ''
+            });
+
+            if (comp.noteConfig) {
+                avvisi.push({
+                    id: 'note-' + comp.id,
+                    tipo: 'nota',
+                    nome: comp.nome,
+                    dettaglio: comp.noteConfig,
+                    totaleCoinvolto: totalQty,
+                    variantiLabel
+                });
+            }
+        }
+
+        if (righe.length) sezioni.push({ id: sezione.id, nome: sezione.nome, righe });
+    }
+
+    return {
+        selectedVarianti,
+        sezioni,
+        avvisi,
+        totalePezzi: _kitCountOrderPieces(orderDraft),
+        totaleRighe: sezioni.reduce((sum, sezione) => sum + sezione.righe.length, 0)
+    };
+}
+
 // ─── localStorage helpers ─────────────────────────────────────────────────────
 function _kitLoad() {
     try {
@@ -449,8 +581,6 @@ export function caricaKitProdotti() {
         const nVarianti = variantiEffettive.length;
         const nAssi     = (kit.assiConfigurazione || []).length;
         const nComp    = (kit.sezioni || []).reduce((s, z) => s + (z.componenti || []).length, 0);
-        const nSA      = (kit.sottoAssembly || []).length;
-        const totPronti = Object.values(kit.pronti || {}).reduce((s, v) => s + (Number.parseInt(v, 10) || 0), 0);
         return `
         <div class="kit-card" onclick="_kitOpenView('${_esc(kit.id)}')">
             <div class="kit-card-header">
@@ -459,10 +589,8 @@ export function caricaKitProdotti() {
             </div>
             <div class="kit-card-meta">
                 <span class="kit-meta-pill"><i class="fas fa-sliders"></i> ${nAssi} ass${nAssi===1?'e':'i'}</span>
-                <span class="kit-meta-pill"><i class="fas fa-layer-group"></i> ${nVarianti} combinaz.${nVarianti===1?'ione':'ioni'}</span>
-                <span class="kit-meta-pill"><i class="fas fa-list"></i> ${nComp} comp.</span>
-                ${nSA ? `<span class="kit-meta-pill"><i class="fas fa-puzzle-piece"></i> ${nSA} sub-asm.</span>` : ''}
-                ${totPronti ? `<span class="kit-meta-pill kit-meta-pill--pronti"><i class="fas fa-check"></i> ${totPronti} pronti</span>` : ''}
+                <span class="kit-meta-pill"><i class="fas fa-layer-group"></i> ${nVarianti} configuraz.${nVarianti===1?'ione':'ioni'}</span>
+                <span class="kit-meta-pill"><i class="fas fa-list"></i> ${nComp} voci BOM</span>
             </div>
         </div>`;
     }).join('');
@@ -491,11 +619,11 @@ export function caricaKitProdotti() {
 // ═════════════════════════════════════════════════════════════════════════════
 
 let _kitViewId   = null;
-let _kitViewTab  = 'bom';
+let _kitViewTab  = 'ordine';
 
 function _kitOpenView(id) {
     _kitViewId  = id;
-    _kitViewTab = 'bom';
+    _kitViewTab = 'ordine';
     _kitRenderView();
 }
 
@@ -505,111 +633,70 @@ function _kitRenderView() {
     if (!kit) { caricaKitProdotti(); return; }
 
     const contenitore = document.getElementById('contenitore-dati');
-    const fab  = _kitCalcFabbisogno(kit);
-    const imp  = _kitCalcImpegnati(kit);
-    const sped = _kitCalcSpedizionabili(kit);
-
     const varsList = _kitGetVariantiEffettive(kit);
-    const varCols  = varsList.map(v => `<th class="kit-col-coeff" title="${_esc(v.nome)}">× ${_esc(v.key)}</th>`).join('');
+    const orderDraft = _kitGetOrderDraft(kit);
+    const distinta = _kitBuildDistintaBase(kit, orderDraft);
 
-    // ─── Tab BOM ─────────────────────────────────────────────────────────────
-    let righeHtml = '';
-    for (const sez of (kit.sezioni || [])) {
-        const comps = sez.componenti || [];
-        if (!comps.length) continue;
-        righeHtml += `<tr class="kit-bom-sez-row"><td colspan="${6 + varsList.length}" class="kit-bom-sez-cell">${_esc(sez.nome)}</td></tr>`;
-        for (const comp of comps) {
-            const isSegnalazione = _kitIsSegnalazione(comp);
-            const isTracciabile = _kitIsTracciabile(comp);
-            const fabI = fab[comp.id] || 0;
-            const car  = isTracciabile ? (Number.parseInt(comp.caricato, 10) || 0) : 0;
-            const impI = imp[comp.id] || 0;
-            const lib  = Math.max(0, car - impI);
-            const ord  = Math.max(0, fabI - car);
-            let ordCls = 'kit-ord-zero';
-            if (!isSegnalazione && fabI > 0) ordCls = ord > 0 ? 'kit-ord-manca' : 'kit-ord-ok';
+    const ordineBadgesHtml = distinta.selectedVarianti.length
+        ? distinta.selectedVarianti.map(variante => `<span class="kit-meta-pill"><strong>${orderDraft[variante.key] || 0}</strong> × ${_esc(variante.nome)}</span>`).join('')
+        : '<span class="kit-leg-item" style="color:#94a3b8">Nessuna configurazione selezionata.</span>';
 
-            const coeffCells = varsList.map(v => {
-                const c = _kitGetComponentQty(comp, v.key);
-                if (isSegnalazione) {
-                    return c > 0
-                        ? `<td class="kit-coeff kit-coeff-on">flag</td>`
-                        : `<td class="kit-coeff kit-coeff-off">—</td>`;
-                }
-                return c > 0
-                    ? `<td class="kit-coeff kit-coeff-on">${c}</td>`
-                    : `<td class="kit-coeff kit-coeff-off">—</td>`;
-            }).join('');
-
-            const tipoBadge = isSegnalazione
-                ? `<span class="kit-meta-pill" style="margin-left:8px">Segnala</span>`
-                : (!isTracciabile ? `<span class="kit-meta-pill" style="margin-left:8px">No mag.</span>` : '');
-            const fabDisplay = isSegnalazione ? 'Segnala' : (fabI > 0 ? fabI : '—');
-            const carCell = isTracciabile
-                ? `<input class="kit-car-input" type="number" min="0" value="${car}"
-                           data-cid="${_esc(comp.id)}" data-sid="${_esc(sez.id)}"
-                           oninput="_kitAggiornaCar(this)" onchange="_kitAggiornaCar(this)">
-                    <span class="kit-car-liberi" ${impI>0?'':'style="display:none"'}>${lib} lib.</span>`
-                : `<span class="kit-fab-zero">n/d</span>`;
-            const ordDisplay = isSegnalazione ? '—' : (fabI === 0 ? '—' : ord);
-
-            righeHtml += `<tr data-cid="${_esc(comp.id)}" data-sid="${_esc(sez.id)}">
-                <td class="kit-mat">${_esc(comp.nome)}${tipoBadge}</td>
-                ${coeffCells}
-                <td class="kit-fab${fabI===0 && !isSegnalazione?' kit-fab-zero':''}">${fabDisplay}</td>
-                <td class="kit-car-cell">${carCell}</td>
-                <td class="${ordCls}">${ordDisplay}</td>
-            </tr>`;
-        }
-    }
-
-    const matOptions = [];
-    for (const sez of (kit.sezioni || [])) {
-        for (const comp of (sez.componenti || [])) {
-            if (!_kitIsTracciabile(comp)) continue;
-            matOptions.push(`<option value="${_esc(comp.id)}" data-sid="${_esc(sez.id)}">[${_esc(sez.nome)}] ${_esc(comp.nome)}</option>`);
-        }
-    }
-
-    // ─── Tab QTÀ ─────────────────────────────────────────────────────────────
-    const qtyInputs = varsList.map(v => {
-        const q = Number.parseInt(kit.qtaDaProdurre?.[v.key], 10) || 0;
-        return `<div class="kit-qty-item">
-            <label>${_esc(v.nome)}</label>
-            <input class="kit-qty-input" id="kit-qty-${_esc(v.key)}" type="number" min="0" value="${q}"
-                   data-vkey="${_esc(v.key)}"
-                   oninput="_kitAggiornaQty('${_esc(kit.id)}')" onchange="_kitAggiornaQty('${_esc(kit.id)}')">
+    const orderCardsHtml = varsList.length
+        ? varsList.map(variante => {
+            const qty = Number.parseInt(orderDraft[variante.key], 10) || 0;
+            const selectionPills = Array.isArray(variante.selections) && variante.selections.length
+                ? variante.selections.map(selection => `<span class="kit-order-pill">${_esc(selection.opzioneNome)}</span>`).join('')
+                : `<span class="kit-order-pill">${_esc(variante.key)}</span>`;
+            return `<div class="kit-order-card ${qty > 0 ? 'kit-order-card--active' : ''}">
+                <div class="kit-order-card-head">
+                    <div>
+                        <div class="kit-order-card-title">${_esc(variante.nome)}</div>
+                        <div class="kit-order-card-sub">${selectionPills}</div>
+                    </div>
+                    <span class="kit-order-card-key">${_esc(variante.key)}</span>
+                </div>
+                <div class="kit-order-stepper">
+                    <button class="kit-order-stepper-btn" onclick="_kitOrdineDelta('${_esc(kit.id)}','${_esc(variante.key)}',-1)">−</button>
+                    <input class="kit-order-stepper-input" type="number" min="0" value="${qty}"
+                           onchange="_kitOrdineSet('${_esc(kit.id)}','${_esc(variante.key)}',this.value)"
+                           oninput="_kitOrdineSet('${_esc(kit.id)}','${_esc(variante.key)}',this.value)">
+                    <button class="kit-order-stepper-btn" onclick="_kitOrdineDelta('${_esc(kit.id)}','${_esc(variante.key)}',1)">+</button>
+                </div>
+            </div>`;
+        }).join('')
+        : `<div class="kit-empty-state" style="padding:30px 20px">
+            <i class="fas fa-sliders" style="font-size:1.8rem;color:#cbd5e1;margin-bottom:10px"></i>
+            <p>Configura prima gli assi del prodotto per comporre un ordine.</p>
+            <button class="kit-btn-secondary" onclick="_kitOpenConfig('${_esc(kit.id)}')">Configura prodotto</button>
         </div>`;
-    }).join('');
-    const totProd = Object.values(kit.qtaDaProdurre || {}).reduce((s, v) => s + (Number.parseInt(v, 10)||0), 0);
 
-    // ─── Tab SPEDIZIONE ───────────────────────────────────────────────────────
-    const saRows = (kit.sottoAssembly || []).map(sa => {
-        const pronti  = Number.parseInt(kit.pronti?.[sa.id], 10) || 0;
-        const maxSped = sped[sa.id] || 0;
-        const vLabel  = _kitVarianteLabel(kit, sa.varianteKey);
-        return `<div class="kit-sped-sa-row">
-            <div class="kit-sped-sa-label"><i class="fas fa-puzzle-piece"></i> ${_esc(sa.nome)} <span class="kit-sped-var-pill">${vLabel}</span></div>
-            <div class="kit-sped-sa-stats">
-                <span class="kit-sped-pronti-cnt">${pronti} pronti</span>
-                <span class="kit-sped-max ${maxSped>0?'kit-sped-max--ok':'kit-sped-max--zero'}">${maxSped} assemb.</span>
-            </div>
-            <div class="kit-pronti-ctrl">
-                <button class="kit-pronti-btn" onclick="_kitAggiornaPronti('${_esc(kit.id)}','${_esc(sa.id)}',-1)">−</button>
-                <input class="kit-pronti-input${pronti>0?' kit-pronti-val-on':''}" type="number" min="0"
-                       value="${pronti}" data-said="${_esc(sa.id)}"
-                       oninput="_kitSetPronti('${_esc(kit.id)}','${_esc(sa.id)}',this.value)"
-                       onchange="_kitSetPronti('${_esc(kit.id)}','${_esc(sa.id)}',this.value)">
-                <button class="kit-pronti-btn" onclick="_kitAggiornaPronti('${_esc(kit.id)}','${_esc(sa.id)}',1)">+</button>
-            </div>
+    const distintaHtml = distinta.totalePezzi
+        ? distinta.sezioni.map(sezione => `
+            <div class="kit-distinta-section">
+                <div class="kit-distinta-section-title">${_esc(sezione.nome)}</div>
+                ${sezione.righe.map(riga => `
+                    <div class="kit-distinta-row">
+                        <div class="kit-distinta-row-main">
+                            <div class="kit-distinta-row-name">${_esc(riga.nome)}</div>
+                            <div class="kit-distinta-row-meta">${_esc(riga.dettaglio)}</div>
+                            ${riga.noteConfig ? `<div class="kit-distinta-row-note">${_esc(riga.noteConfig)}</div>` : ''}
+                        </div>
+                        <div class="kit-distinta-row-qty">${riga.totale} ${_esc(riga.unita)}</div>
+                    </div>`).join('')}
+            </div>`).join('')
+        : `<div class="kit-empty-state" style="padding:34px 20px">
+            <i class="fas fa-file-circle-plus" style="font-size:1.8rem;color:#cbd5e1;margin-bottom:10px"></i>
+            <p>Seleziona le configurazioni ordinate per generare la distinta base.</p>
         </div>`;
-    }).join('');
 
-    const hasPronti = (kit.sottoAssembly || []).some(sa => (Number.parseInt(kit.pronti?.[sa.id], 10) || 0) > 0);
-
-    // ─── Tab MOVIMENTI ────────────────────────────────────────────────────────
-    const canEdit = _kitCanEdit();
-    const movHtml = _kitRenderMovimentiHtml(kit, canEdit);
+    const avvisiHtml = distinta.avvisi.length
+        ? distinta.avvisi.map(avviso => `
+            <div class="kit-distinta-alert ${avviso.tipo === 'alert' ? 'kit-distinta-alert--warning' : ''}">
+                <div class="kit-distinta-alert-title">${_esc(avviso.nome)}</div>
+                <div class="kit-distinta-alert-body">${_esc(avviso.dettaglio)}</div>
+                <div class="kit-distinta-alert-meta">Coinvolto su ${avviso.totaleCoinvolto} pz · ${_esc(avviso.variantiLabel)}</div>
+            </div>`).join('')
+        : '<div class="kit-cfg-help">Nessun avviso particolare per l’ordine attuale.</div>';
 
     contenitore.innerHTML = `
     <div class="kit-page">
@@ -619,109 +706,35 @@ function _kitRenderView() {
             <button class="kit-gear-btn-inline" onclick="_kitOpenConfig('${_esc(kit.id)}')" title="Configura"><i class="fas fa-gear"></i></button>
         </div>
 
-        <!-- Tabs -->
-        <div class="kit-tabs">
-            <button class="kit-tab ${_kitViewTab==='bom'?'kit-tab--active':''}" onclick="_kitSwitchTab('bom')"><i class="fas fa-list"></i> BOM</button>
-            <button class="kit-tab ${_kitViewTab==='qty'?'kit-tab--active':''}" onclick="_kitSwitchTab('qty')"><i class="fas fa-hashtag"></i> Quantità</button>
-            <button class="kit-tab ${_kitViewTab==='sped'?'kit-tab--active':''}" onclick="_kitSwitchTab('sped')">
-                <i class="fas fa-truck"></i> Parti pronte
-                ${hasPronti?'<span class="kit-tab-badge"></span>':''}
-            </button>
-            <button class="kit-tab ${_kitViewTab==='mov'?'kit-tab--active':''}" onclick="_kitSwitchTab('mov')"><i class="fas fa-boxes-stacked"></i> Mov. materie</button>
-        </div>
-
-        <!-- TAB BOM -->
-        <div class="kit-tab-panel ${_kitViewTab==='bom'?'kit-tab-panel--active':''}">
-            <div class="kit-table-wrap">
-                <table class="kit-table">
-                    <thead>
-                        <tr>
-                            <th>MATERIALE</th>
-                            ${varCols}
-                            <th>NECESSARIO</th>
-                            <th>DISPONIBILE</th>
-                            <th>DA REINTEGRARE</th>
-                        </tr>
-                    </thead>
-                    <tbody id="kit-tbody-${_esc(kit.id)}">${righeHtml}</tbody>
-                </table>
-            </div>
-            <div class="kit-legend">
-                <span class="kit-leg-item kit-ord-manca" style="padding:2px 7px;border-radius:5px">● mancante</span>
-                <span class="kit-leg-item kit-ord-ok" style="padding:2px 7px;border-radius:5px">● disponibile</span>
-                <span class="kit-leg-item" style="color:#475569">flag = requisito solo segnalato</span>
-                <span class="kit-leg-item" style="color:#9ca3af">— = non necessario</span>
-            </div>
-        </div>
-
-        <!-- TAB QUANTITÀ -->
-        <div class="kit-tab-panel ${_kitViewTab==='qty'?'kit-tab-panel--active':''}">
-            <div class="kit-qty-card">
-                <div class="kit-qty-label">QTÀ DA PRODURRE</div>
-                <div class="kit-qty-inputs">${qtyInputs}
-                    <div class="kit-qty-total-box">
-                        <div class="kit-qty-total-label">TOTALE</div>
-                        <div class="kit-qty-total-val" id="kit-tot-${_esc(kit.id)}">${totProd}</div>
-                    </div>
+        <div class="kit-order-summary">
+            <div class="kit-order-summary-top">
+                <div>
+                    <div class="kit-order-summary-label">Ordine in composizione</div>
+                    <div class="kit-order-summary-total">${distinta.totalePezzi} pezzi</div>
                 </div>
+                <button class="kit-btn-secondary" onclick="_kitOrdineReset('${_esc(kit.id)}')"><i class="fas fa-rotate-left"></i> Azzera ordine</button>
             </div>
+            <div class="kit-order-summary-note">Questa bozza ordine resta locale sul dispositivo e serve solo per generare la distinta base di approvvigionamento.</div>
+            <div class="kit-order-summary-badges">${ordineBadgesHtml}</div>
         </div>
 
-        <!-- TAB PRONTI / SPEDIZIONE -->
-        <div class="kit-tab-panel ${_kitViewTab==='sped'?'kit-tab-panel--active':''}">
-            ${(kit.sottoAssembly||[]).length === 0
-                ? `<div class="kit-empty-state" style="padding:40px 20px">
-                    <i class="fas fa-puzzle-piece" style="font-size:2rem;color:#cbd5e1;margin-bottom:12px"></i>
-                    <p>Nessun sub-assembly configurato.</p>
-                    <button class="kit-btn-secondary" onclick="_kitOpenConfig('${_esc(kit.id)}')">Configura sub-assembly</button>
-                   </div>`
-                : `<div class="kit-sped-section">
-                    <div class="kit-sped-title"><i class="fas fa-truck"></i> PARTI PRONTE DA CONTARE</div>
-                    <div class="kit-sped-sa-list">${saRows}</div>
-                    <div class="kit-sped-footer">
-                        <input type="text" id="kit-sped-nota-${_esc(kit.id)}" class="kit-sped-nota-input"
-                               placeholder="Note spedizione…" maxlength="80">
-                        <button class="kit-spedisci-btn" onclick="_kitApriModalSped('${_esc(kit.id)}')">
-                            <i class="fas fa-truck"></i> Registra Spedizione
-                        </button>
-                    </div>
-                   </div>`
-            }
-        </div>
+        <div class="kit-order-layout">
+            <section class="kit-order-section">
+                <div class="kit-order-section-title"><i class="fas fa-hand-pointer"></i> Componi ordine</div>
+                <div class="kit-cfg-help">Seleziona le configurazioni richieste dal cliente. Appena cambi quantità, la distinta base qui sotto si aggiorna subito con componenti e avvisi.</div>
+                <div class="kit-order-grid">${orderCardsHtml}</div>
+            </section>
 
-        <!-- TAB MOVIMENTI -->
-        <div class="kit-tab-panel ${_kitViewTab==='mov'?'kit-tab-panel--active':''}">
-            <div class="kit-mov-form">
-                <div class="kit-mov-form-field" style="grid-column:1/3">
-                    <label class="kit-mov-form-label">Materiale tracciato</label>
-                    <select id="kit-mov-mat-${_esc(kit.id)}">${matOptions.join('')}</select>
-                </div>
-                <div class="kit-mov-form-field">
-                    <label class="kit-mov-form-label">Numero pezzi</label>
-                    <input type="number" id="kit-mov-qty-${_esc(kit.id)}" min="1" value="1">
-                </div>
-                <div class="kit-mov-form-field">
-                    <label class="kit-mov-form-label">Riferimento / Note</label>
-                    <input type="text" id="kit-mov-nota-${_esc(kit.id)}" placeholder="es. DDT 123…" maxlength="60">
-                </div>
-                <button class="kit-mov-btn-carico" onclick="_kitSalvaMovimento('${_esc(kit.id)}','carico')">
-                    <i class="fas fa-arrow-down"></i> Carico
-                </button>
-                <button class="kit-mov-btn-scarico" onclick="_kitSalvaMovimento('${_esc(kit.id)}','scarico')">
-                    <i class="fas fa-arrow-up"></i> Scarico
-                </button>
-            </div>
-            <div id="kit-mov-list-${_esc(kit.id)}" class="kit-mov-list">${movHtml}</div>
-        </div>
+            <section class="kit-order-section">
+                <div class="kit-order-section-title"><i class="fas fa-list-check"></i> Distinta base generata</div>
+                <div class="kit-order-distinta-meta">${distinta.totaleRighe} righe materiali · ${distinta.avvisi.length} avvisi</div>
+                ${distintaHtml}
+            </section>
 
-        <!-- Pulsanti azione globale -->
-        <div class="kit-actions-bar">
-            <button class="kit-reso-btn" onclick="_kitApriModalReso('${_esc(kit.id)}')">
-                <i class="fas fa-rotate-left"></i> Reso
-            </button>
-            <button class="kit-save-btn" id="kit-save-btn" onclick="_kitSalvaManuale('${_esc(kit.id)}')">
-                <i class="fas fa-cloud-arrow-up"></i> <span id="kit-save-label">Salva</span>
-            </button>
+            <section class="kit-order-section">
+                <div class="kit-order-section-title"><i class="fas fa-triangle-exclamation"></i> Attenzioni operative</div>
+                ${avvisiHtml}
+            </section>
         </div>
     </div>`;
 
@@ -740,19 +753,31 @@ function _kitSwitchTab(tab) {
 
 // ─── Aggiorna quantità da produrre ───────────────────────────────────────────
 function _kitAggiornaQty(kitId) {
-    const { kits } = _kitLoad();
-    const kit = kits.find(k => k.id === kitId);
-    if (!kit) return;
-    if (!kit.qtaDaProdurre) kit.qtaDaProdurre = {};
-    for (const v of _kitGetVariantiEffettive(kit)) {
-        const inp = document.getElementById('kit-qty-' + v.key);
-        if (inp) kit.qtaDaProdurre[v.key] = Math.max(0, Number.parseInt(inp.value, 10) || 0);
-    }
-    const tot = Object.values(kit.qtaDaProdurre).reduce((s, v) => s + v, 0);
-    const totEl = document.getElementById('kit-tot-' + kitId);
-    if (totEl) totEl.textContent = tot;
-    _kitSave(kits);
-    _kitRefreshBomTotals(kit);
+    _kitMutateOrderDraft(kitId, function(orderDraft, kit) {
+        for (const variante of _kitGetVariantiEffettive(kit)) {
+            const inp = document.getElementById('kit-qty-' + variante.key);
+            if (inp) orderDraft[variante.key] = Math.max(0, Number.parseInt(inp.value, 10) || 0);
+        }
+    });
+}
+
+function _kitOrdineSet(kitId, vKey, value) {
+    _kitMutateOrderDraft(kitId, function(orderDraft) {
+        orderDraft[vKey] = Math.max(0, Number.parseInt(value, 10) || 0);
+    });
+}
+
+function _kitOrdineDelta(kitId, vKey, delta) {
+    _kitMutateOrderDraft(kitId, function(orderDraft) {
+        const currentQty = Math.max(0, Number.parseInt(orderDraft[vKey], 10) || 0);
+        orderDraft[vKey] = Math.max(0, currentQty + delta);
+    });
+}
+
+function _kitOrdineReset(kitId) {
+    _kitMutateOrderDraft(kitId, function(orderDraft) {
+        for (const key of Object.keys(orderDraft)) orderDraft[key] = 0;
+    });
 }
 
 function _kitRefreshBomTotals(kit) {
@@ -2140,6 +2165,9 @@ export function registerGlobals() {
     window._kitBack                  = _kitBack;
     window._kitSwitchTab             = _kitSwitchTab;
     window._kitAggiornaQty           = _kitAggiornaQty;
+    window._kitOrdineSet             = _kitOrdineSet;
+    window._kitOrdineDelta           = _kitOrdineDelta;
+    window._kitOrdineReset           = _kitOrdineReset;
     window._kitAggiornaCar           = _kitAggiornaCar;
     window._kitAggiornaPronti        = _kitAggiornaPronti;
     window._kitSetPronti             = _kitSetPronti;
