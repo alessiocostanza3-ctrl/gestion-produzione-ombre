@@ -3882,6 +3882,16 @@ h1 {
     transition: opacity 0.15s ease, transform 0.15s ease, visibility 0s linear 0s;
     pointer-events: auto;
 }
+.op-assign-inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+.op-assign-inline .op-dropdown {
+    flex: 1 1 auto;
+    min-width: 0;
+}
 .op-option {
     display: flex;
     align-items: center;
@@ -3929,6 +3939,15 @@ h1 {
     white-space: nowrap;
 }
 .btn-assegnami:hover { background: #1d4ed8; }
+.btn-assegnami-inline {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    margin-top: 0;
+    border-radius: 12px;
+    justify-content: center;
+    flex: 0 0 34px;
+}
 .btn-assegnami-ord {
     padding: 5px 10px;
     border-radius: 14px;

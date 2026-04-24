@@ -175,7 +175,10 @@ export function generaCardArticolo(art, nOrd, cliente) {
             return `<button type="button" class="op-option${_sel ? ' is-selected' : ''}" onclick="selezionaOpAssegna(this,'${art.id_riga}','${nOrd}','${_ns}')"><span class="op-opt-dot" style="background:${_col}"></span><span>${window._normNome(op.nome)}</span>${_sel ? '<i class="fas fa-check op-check-icon"></i>' : ''}</button>`;
         }).join('');
         const _mioMasterNorm = window._normNome(utenteAttuale?.nome||'').toUpperCase().trim();
-        opZoneCard = `<div class="op-dropdown" data-id-riga="${art.id_riga}" data-assegna="${(art.assegna||'').replace(/"/g,'&quot;')}" data-nord="${nOrd}"><button type="button" class="op-trigger" onclick="toggleOpDropdown(this)"><i class="fas fa-user-tag op-icon"></i><span class="op-trigger-label">${_lbl}</span><i class="fas fa-chevron-down op-chevron"></i></button><div class="op-popup">${_opts}</div></div>${!_assegnatiCard.some(n => n.toUpperCase() === _mioMasterNorm) ? `<button class="btn-assegnami" onclick="autoAssegnami('${art.id_riga}','${nOrd}',this)" title="Assegnami"><i class="fas fa-user-plus"></i></button>` : ''}`;
+        const _btnAutoAssign = !_assegnatiCard.some(n => n.toUpperCase() === _mioMasterNorm)
+            ? `<button class="btn-assegnami btn-assegnami-inline" onclick="autoAssegnami('${art.id_riga}','${nOrd}',this)" title="Assegnami"><i class="fas fa-user-plus"></i></button>`
+            : '';
+        opZoneCard = `<div class="op-assign-inline"><div class="op-dropdown" data-id-riga="${art.id_riga}" data-assegna="${(art.assegna||'').replace(/"/g,'&quot;')}" data-nord="${nOrd}"><button type="button" class="op-trigger" onclick="toggleOpDropdown(this)"><i class="fas fa-user-tag op-icon"></i><span class="op-trigger-label">${_lbl}</span><i class="fas fa-chevron-down op-chevron"></i></button><div class="op-popup">${_opts}</div></div>${_btnAutoAssign}</div>`;
     } else {
         const _mio = window._normNome(utenteAttuale?.nome || '').toUpperCase().trim();
         const _bdg = _assegnatiCard.map(n => {
