@@ -1,5 +1,5 @@
 ﻿import {
-  URL_GOOGLE, CACHE_TTL_MS
+  URL_GOOGLE, CACHE_TTL_MS, SESSION_DURATION_MS
 } from './modules/core/config.js';
 import ProdCache, { caricaSezioneConCache } from './modules/core/cache.js';
 import {
@@ -270,7 +270,7 @@ async function _refreshSessionSilenzioso_() {
             if (!utenteAttuale) setUtenteAttuale({});
             utenteAttuale.sessionToken = r.sessionToken;
             utenteAttuale.sessionExpiresAt = r.sessionExpiresAt || '';
-            utenteAttuale.expiresAt = Date.now() + (8 * 60 * 60 * 1000);
+            utenteAttuale.expiresAt = Date.now() + SESSION_DURATION_MS;
             if (!utenteAttuale.nome && r.nome) utenteAttuale.nome = r.nome;
             if (!utenteAttuale.email && r.email) utenteAttuale.email = r.email;
             if (!utenteAttuale.ruolo && r.ruolo) utenteAttuale.ruolo = r.ruolo;
@@ -768,7 +768,7 @@ document.addEventListener('DOMContentLoaded', initSidebarState);
 async function salvaEApriDashboard() {
     // Blocco orario: impedisce l'accesso fuori dalle 08:30-19:30 (tranne esenti)
     if (!_checkOrarioAccesso(true)) return;
-    if (utenteAttuale) utenteAttuale.expiresAt = Date.now() + (8 * 60 * 60 * 1000);
+    if (utenteAttuale) utenteAttuale.expiresAt = Date.now() + SESSION_DURATION_MS;
     try { localStorage.setItem('sessioneUtente', JSON.stringify(utenteAttuale)); } catch (e) {}
     try { sessionStorage.setItem('sessioneUtente', JSON.stringify(utenteAttuale)); } catch (e) {}
     _startSessionRefreshTicker_();
