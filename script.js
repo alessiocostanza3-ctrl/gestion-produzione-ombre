@@ -561,6 +561,17 @@ function _prefetchBackground() {
     prefetch.ordiniPromise.then(function(b) { if (b) prefetch.ordiniBundle = b; });
 }
 
+function _invalidateSavedPageHtmlCache_() {
+    let paginaSalvata = null;
+    try { paginaSalvata = localStorage.getItem('ultimaPaginaProduzione'); } catch (_e) {}
+    if (!paginaSalvata || paginaSalvata === 'undefined' || paginaSalvata === 'null') {
+        paginaSalvata = 'PROGRAMMA PRODUZIONE DEL MESE';
+    }
+    delete cacheContenuti[paginaSalvata];
+    cacheFetchTime[paginaSalvata] = 0;
+    _lsCacheDel('_html_' + paginaSalvata);
+}
+
 
 
 // utenteAttuale importato da modules/core/session.js (live binding)
@@ -800,6 +811,10 @@ async function salvaEApriDashboard() {
     _initBadgeNotifiche(); // Mostra badge se ci sono notifiche non lette
     // Colori avatar: idle callback (non compete con fetch dati)
     (window.requestIdleCallback || function(cb) { setTimeout(cb, 3000); })(function() { _caricaColoriAvatarDaServer(); });
+
+    // Evita di ripristinare HTML già renderizzato male nella sessione precedente:
+    // il tasto "Aggiorna" risolve perché cancella proprio questa snapshot locale.
+    _invalidateSavedPageHtmlCache_();
 
     // Inizializza moduli, configura poller, naviga all'ultima pagina
     _initModuliENaviga_();
