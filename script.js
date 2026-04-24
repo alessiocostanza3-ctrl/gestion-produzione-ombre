@@ -76,6 +76,9 @@ let _fetchSessionPatchDone = false;
 let _sessionRefreshTimer = null;
 let _sessionWarnTimer = null;
 let _refreshAuthFailCount_ = 0; // conta auth_error consecutivi dal refresh silenzioso
+let _backgroundAuthErrorCount_ = 0;
+let _lastBackgroundAuthErrorAt_ = 0;
+let _authRecoveryInFlight_ = false;
 let _healthBadgeEl = null;
 let _lastDataRefreshAt = 0;
 let _lastSessionWarnTs = 0;
@@ -244,7 +247,7 @@ _patchFetchWithSession_();
 
 async function _refreshSessionSilenzioso_() {
     const token = _getSessionToken_();
-    if (!token) return;
+    if (!token) return false;
 
     let profilo = utenteAttuale || null;
     if (!profilo) {
@@ -267,6 +270,7 @@ async function _refreshSessionSilenzioso_() {
         const r = await res.json();
         if (r && r.status === 'success' && r.sessionToken) {
             _refreshAuthFailCount_ = 0; // reset contatore su successo
+            _backgroundAuthErrorCount_ = 0;
             if (!utenteAttuale) setUtenteAttuale({});
             utenteAttuale.sessionToken = r.sessionToken;
             utenteAttuale.sessionExpiresAt = r.sessionExpiresAt || '';
@@ -277,7 +281,7 @@ async function _refreshSessionSilenzioso_() {
             try { localStorage.setItem('sessioneUtente', JSON.stringify(utenteAttuale)); } catch (e) {}
             try { sessionStorage.setItem('sessioneUtente', JSON.stringify(utenteAttuale)); } catch (e) {}
             // window.storage event: propaga expiresAt aggiornato alle altre tab
-            return;
+            return true;
         }
         if (r && r.status === 'auth_error') {
             _refreshAuthFailCount_++;
@@ -286,10 +290,12 @@ async function _refreshSessionSilenzioso_() {
                 _refreshAuthFailCount_ = 0;
                 logout();
             }
+            return false;
         }
     } catch (e) {
         // rete momentaneamente assente: riproverÃ  al prossimo ciclo
     }
+    return false;
 }
 
 function _startSessionRefreshTicker_() {
@@ -319,11 +325,30 @@ document.addEventListener('visibilitychange', function() {
  * Mostra un messaggio e forza il re-login dopo 2 secondi.
  */
 let _authErrorLogoutScheduled_ = false;
-function _gestisciAuthError_(messaggio) {
+async function _gestisciAuthError_(messaggio) {
     // Se il logout Ã¨ giÃ  schedulato o siamo sulla pagina di login, non ripetere
     if (_authErrorLogoutScheduled_) return;
     var ov = document.getElementById('login-overlay');
     if (ov && ov.style.display !== 'none') return;
+
+    const now = Date.now();
+    if ((now - _lastBackgroundAuthErrorAt_) > 30000) _backgroundAuthErrorCount_ = 0;
+    _lastBackgroundAuthErrorAt_ = now;
+    _backgroundAuthErrorCount_++;
+
+    if (_backgroundAuthErrorCount_ === 1 && !_authRecoveryInFlight_) {
+        _authRecoveryInFlight_ = true;
+        try {
+            const recovered = await _refreshSessionSilenzioso_();
+            if (recovered) {
+                _backgroundAuthErrorCount_ = 0;
+                return;
+            }
+        } finally {
+            _authRecoveryInFlight_ = false;
+        }
+    }
+
     _authErrorLogoutScheduled_ = true;
     notificaElegante(
         messaggio || 'Sessione scaduta. Effettua nuovamente il login.',
