@@ -8888,6 +8888,12 @@ details[open] .kit-assemb-chev { transform: rotate(180deg); }
     flex-shrink: 0;
 }
 .kit-cfg-del-btn:hover { color: #ef4444; background: #fee2e2; }
+.kit-cfg-copy-btn {
+    background: #eff6ff; border: 1px solid #bfdbfe; color: #2563eb; cursor: pointer;
+    font-size: 0.82rem; padding: 6px 9px; border-radius: 8px; transition: background .15s, border-color .15s, color .15s;
+    flex-shrink: 0;
+}
+.kit-cfg-copy-btn:hover { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; }
 .kit-cfg-add-btn {
     display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px;
     background: #f8fafc; color: #475569; border: 1px dashed #cbd5e1;
@@ -8980,6 +8986,136 @@ details[open] .kit-assemb-chev { transform: rotate(180deg); }
 }
 .kit-reso-bom-empty { font-size: 0.78rem; color: #94a3b8; text-align: center; padding: 10px 0; }
 
+/* Modal import / copia sezioni kit */
+.kit-import-modal-box {
+    width: min(940px, calc(100vw - 28px));
+    max-height: min(88vh, 820px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.kit-import-mode-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 0 20px 12px;
+}
+.kit-import-mode-btn {
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    color: #475569;
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background .15s, border-color .15s, color .15s;
+}
+.kit-import-mode-btn--active {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+    color: #ffffff;
+}
+.kit-import-search-wrap { padding: 0 20px 12px; }
+.kit-import-columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 14px;
+    padding: 0 20px;
+}
+.kit-import-col,
+.kit-import-target-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.kit-import-col-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: #64748b;
+}
+.kit-import-list {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    min-height: 120px;
+    max-height: 240px;
+    overflow: auto;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.kit-import-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    background: #ffffff;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+}
+.kit-import-option--active {
+    border-color: #93c5fd;
+    background: #eff6ff;
+}
+.kit-import-option input {
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+.kit-import-option-body {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+.kit-import-option-title {
+    font-size: 0.84rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+.kit-import-option-meta {
+    font-size: 0.74rem;
+    color: #64748b;
+    line-height: 1.4;
+}
+.kit-import-source-card {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.kit-import-target-wrap {
+    padding: 12px 20px 0;
+}
+.kit-import-target-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.kit-import-target-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.kit-import-preview {
+    margin: 12px 20px 0;
+}
+.kit-import-empty {
+    font-size: 0.78rem;
+    color: #94a3b8;
+    text-align: center;
+    padding: 16px 10px;
+}
+
 /* Responsive */
 @media (max-width: 600px) {
     .kit-grid { grid-template-columns: 1fr; }
@@ -8988,5 +9124,7 @@ details[open] .kit-assemb-chev { transform: rotate(180deg); }
     .kit-tab { font-size: 0.72rem; padding: 6px 10px; }
     .kit-sped-sa-row { flex-direction: column; align-items: flex-start; }
     .kit-cfg-comp-row { flex-direction: column; align-items: flex-start; }
+    .kit-import-columns { grid-template-columns: 1fr; }
+    .kit-import-target-head { align-items: flex-start; }
 }
 

@@ -1008,6 +1008,48 @@
     </div>
   </div>
 
+  <!-- ===== MODAL: IMPORT / COPIA SEZIONI KIT PRODOTTI ===== -->
+  <div id="modal-kit-import" class="modal-overlay" style="display:none" onclick="if(event.target===this)_kitCfgCloseImportModal()">
+    <div class="modal-content kit-import-modal-box">
+      <h2 class="pip-sped-modal-title"><i class="fas fa-copy"></i> Riusa sezione</h2>
+      <p id="kit-import-subtitle" class="pip-sped-modal-sub"></p>
+      <div class="kit-import-mode-tabs">
+        <button type="button" id="kit-import-mode-import" class="kit-import-mode-btn" onclick="_kitCfgSetImportMode('import')">Importa in questo kit</button>
+        <button type="button" id="kit-import-mode-copy" class="kit-import-mode-btn" onclick="_kitCfgSetImportMode('copy')">Copia in altri kit</button>
+      </div>
+      <div class="kit-import-search-wrap">
+        <input type="text" id="kit-import-search" class="pip-edit-mov-input" placeholder="Cerca kit…" oninput="_kitCfgSetImportSearch(this.value)">
+      </div>
+      <div class="kit-import-columns">
+        <div class="kit-import-col">
+          <div id="kit-import-left-title" class="kit-import-col-title">Kit sorgente</div>
+          <div id="kit-import-kit-list" class="kit-import-list"></div>
+        </div>
+        <div class="kit-import-col">
+          <div id="kit-import-right-title" class="kit-import-col-title">Sezione</div>
+          <div id="kit-import-section-list" class="kit-import-list"></div>
+        </div>
+      </div>
+      <div id="kit-import-target-wrap" class="kit-import-target-wrap" style="display:none">
+        <div class="kit-import-target-head">
+          <div class="kit-import-col-title">Kit destinazione</div>
+          <div class="kit-import-target-actions">
+            <button type="button" class="kit-cfg-add-comp-btn" onclick="_kitCfgSelectAllImportTargets()"><i class="fas fa-check-double"></i> Seleziona filtrati</button>
+            <button type="button" class="kit-cfg-add-comp-btn" onclick="_kitCfgClearImportTargets()"><i class="fas fa-eraser"></i> Svuota</button>
+          </div>
+        </div>
+        <div id="kit-import-target-list" class="kit-import-list"></div>
+      </div>
+      <div id="kit-import-preview" class="kit-cfg-help kit-import-preview"></div>
+      <div class="modal-footer" style="margin-top:18px">
+        <button type="button" onclick="_kitCfgCloseImportModal()" class="btn-modal-cancel">Annulla</button>
+        <button type="button" id="kit-import-confirm-btn" class="btn-modal-send" onclick="_kitCfgConfirmImport()">
+          <i class="fas fa-copy"></i> Conferma
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== MODAL: NOTIFICHE PUSH ===== -->
   <div id="modal-notifiche">
     <div class="notifiche-modal-content" onclick="event.stopPropagation()">
