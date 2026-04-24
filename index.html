@@ -313,6 +313,10 @@
             <div class="menu-content"><span>🦇</span><span class="menu-label"> Pipistrello</span></div>
         </button>
 
+        <button type="button" class="menu-item" title="Kit Prodotti" data-page="KIT_PRODOTTI" onclick="cambiaPagina('KIT_PRODOTTI', this)">
+            <div class="menu-content"><span>🧰</span><span class="menu-label"> Kit Prodotti</span></div>
+        </button>
+
         <button type="button" class="menu-item" title="Manuali" data-page="MANUALI_PRODOTTI" onclick="cambiaPagina('MANUALI_PRODOTTI', this)">
           <div class="menu-content"><span>📚</span><span class="menu-label"> Manuali</span></div>
         </button>
@@ -917,6 +921,87 @@
       <div class="modal-footer" style="margin-top:18px">
         <button type="button" onclick="_pipChiudiModalReso()" class="btn-modal-cancel">Annulla</button>
         <button type="button" onclick="_pipConfermaReso()" class="btn-modal-send pip-reso-ok-btn">
+          <i class="fas fa-rotate-left"></i> Registra
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: CONFERMA SPEDIZIONE KIT PRODOTTI ===== -->
+  <div id="modal-kit-sped" class="modal-overlay" style="display:none" onclick="if(event.target===this) _kitChiudiModalSped()">
+    <div class="modal-content pip-sped-modal-box">
+      <h2 class="pip-sped-modal-title"><i class="fas fa-truck"></i> Conferma Spedizione</h2>
+      <p class="pip-sped-modal-sub">Seleziona i sub-assembly da spedire:</p>
+      <div id="kit-sped-items-list" class="pip-sped-items-list"></div>
+      <div style="padding:0 0 8px">
+        <input type="text" id="kit-sped-modal-nota" class="kit-sped-nota-input" placeholder="Note spedizione…" maxlength="80">
+      </div>
+      <div class="modal-footer" style="margin-top:12px">
+        <button type="button" onclick="_kitChiudiModalSped()" class="btn-modal-cancel">Annulla</button>
+        <button type="button" class="btn-modal-send pip-sped-ok-btn" onclick="_kitConfermaSpedizione()">
+          <i class="fas fa-truck"></i> Spedisci
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: MODIFICA MOVIMENTO KIT PRODOTTI ===== -->
+  <div id="modal-kit-edit-mov" class="modal-overlay" style="display:none" onclick="if(event.target===this) _kitChiudiModalEditMov()">
+    <div class="modal-content pip-edit-mov-box">
+      <h2 class="pip-sped-modal-title"><i class="fas fa-pencil"></i> Modifica movimento</h2>
+      <div class="pip-edit-mov-mat" id="kit-edit-mov-mat"></div>
+      <div class="pip-edit-mov-fields">
+        <label class="pip-edit-mov-label">Quantità</label>
+        <input type="number" id="kit-edit-mov-qty" class="pip-edit-mov-input" min="1">
+        <label class="pip-edit-mov-label">Descrizione / Note</label>
+        <input type="text" id="kit-edit-mov-nota" class="pip-edit-mov-input" maxlength="80" placeholder="(nessuna nota)">
+      </div>
+      <div class="modal-footer" style="margin-top:18px">
+        <button type="button" onclick="_kitChiudiModalEditMov()" class="btn-modal-cancel">Annulla</button>
+        <button type="button" onclick="_kitConfermaModificaMov()" class="btn-modal-send">
+          <i class="fas fa-check"></i> Salva
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: CONFERMA ELIMINA MOVIMENTO KIT PRODOTTI ===== -->
+  <div id="modal-kit-del-mov" class="modal-overlay" style="display:none" onclick="if(event.target===this) _kitChiudiModalDelMov()">
+    <div class="modal-content pip-del-mov-box">
+      <h2 class="pip-sped-modal-title" style="color:#ef4444"><i class="fas fa-trash"></i> Elimina movimento</h2>
+      <div class="pip-del-mov-desc" id="kit-del-mov-desc"></div>
+      <p class="pip-del-mov-warn">⚠️ Il caricato verrà ripristinato. L'operazione non è reversibile.</p>
+      <div class="modal-footer" style="margin-top:18px">
+        <button type="button" onclick="_kitChiudiModalDelMov()" class="btn-modal-cancel">Annulla</button>
+        <button type="button" id="btn-kit-del-ok" class="btn-modal-send" style="background:#ef4444">
+          <i class="fas fa-trash"></i> Elimina
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: REGISTRA RESO KIT PRODOTTI ===== -->
+  <div id="modal-kit-reso" class="modal-overlay" style="display:none" onclick="if(event.target===this)_kitChiudiModalReso()">
+    <div class="modal-content pip-reso-modal-box">
+      <h2 class="pip-sped-modal-title"><i class="fas fa-rotate-left"></i> Registra Reso</h2>
+      <p class="pip-sped-modal-sub">Quantità articoli rientrati, poi seleziona i componenti da recuperare:</p>
+      <div class="pip-reso-items-list" id="kit-reso-items-list"></div>
+      <div class="pip-reso-bom-section">
+        <div class="pip-reso-bom-title">
+          <i class="fas fa-list-check"></i> Componenti recuperati in magazzino
+          <span class="pip-reso-bom-hint">— deseleziona quelli da scartare</span>
+        </div>
+        <div id="kit-reso-bom-list" class="pip-reso-bom-list">
+          <div class="pip-reso-bom-empty">Inserisci le quantità sopra per vedere i componenti da recuperare.</div>
+        </div>
+      </div>
+      <div style="padding: 0 20px 4px">
+        <label class="pip-edit-mov-label">Note</label>
+        <input type="text" id="kit-reso-nota" class="pip-edit-mov-input" maxlength="80" placeholder="(es. lotto cliente, motivo reso…)">
+      </div>
+      <div class="modal-footer" style="margin-top:18px">
+        <button type="button" onclick="_kitChiudiModalReso()" class="btn-modal-cancel">Annulla</button>
+        <button type="button" onclick="_kitConfermaReso()" class="btn-modal-send pip-reso-ok-btn">
           <i class="fas fa-rotate-left"></i> Registra
         </button>
       </div>

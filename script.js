@@ -403,6 +403,7 @@ let _latestNavRequest = 0;
 let _navAbortController = null; // annulla fetch in-volo a ogni cambio pagina
 let _lastNavClickTime = 0;     // debounce click rapidissimi (<80ms)
 let _pipModule = null;   // lazy-loaded: modules/features/pipistrelli.js
+let _kitModule = null;   // lazy-loaded: modules/features/kit-prodotti.js
 
 /*******************************************************************************
 * NOTIFICHE PUSH  â€“  VAPID native (nessun servizio di terze parti)
@@ -615,6 +616,7 @@ function _initModuliENaviga_() {
     _patchFetchWithSession_();
     _startSessionRefreshTicker_();
     if (_pipModule) _pipModule.registerGlobals();
+    if (_kitModule) _kitModule.registerGlobals();
     // registerXxxGlobals() già chiamati al boot (modulo top-level)
     initRichieste();
     initManuali();
@@ -986,6 +988,7 @@ async function cambiaPagina(nomeFoglio, elementoMenu) {
     document.body.classList.toggle('page-pip', nomeFoglio === 'PIPISTRELLI');
     // Reset flag fetch pip quando si lascia la pagina (cosÃ¬ al prossimo accesso rilegge dal server)
     if (nomeFoglio !== 'PIPISTRELLI' && _pipModule) _pipModule.resetPipFetch();
+    if (nomeFoglio !== 'KIT_PRODOTTI' && _kitModule) _kitModule.resetKitFetch();
 
     // Mostra/nasconde la tab bar Acquisti
     // Se si naviga su Acquisti da sidebar/tab (elementoMenu != null) â†’ reset a catalogo
@@ -1014,7 +1017,8 @@ async function cambiaPagina(nomeFoglio, elementoMenu) {
         'MANUALI_PRODOTTI': "Manuali Prodotti",
 
         'PROGRAMMA PRODUZIONE DEL MESE': "Dashboard Produzione",
-        'PIPISTRELLI': "ðŸ¦‡ Pipistrelli"
+        'PIPISTRELLI': "ðŸ¦‡ Pipistrelli",
+        'KIT_PRODOTTI': "ðŸ§° Kit Prodotti"
     };
     const titolo = document.getElementById('titolo-pagina');
     if (titolo) titolo.innerText = titoli[nomeFoglio] || nomeFoglio;
@@ -1167,6 +1171,24 @@ async function cambiaPagina(nomeFoglio, elementoMenu) {
                     applicaFade(_pipCont);
                 }
                 _pipModule = null;
+            }
+            break;
+        case 'KIT_PRODOTTI':
+            try {
+                if (!_kitModule) {
+                    _kitModule = await import('./modules/features/kit-prodotti.js');
+                    _kitModule.registerGlobals();
+                }
+                _kitModule.caricaKitProdotti();
+            } catch (e) {
+                if (e && e.name === 'AbortError') return;
+                console.warn('[KIT_PRODOTTI] Errore caricamento modulo:', e);
+                const _kitCont = document.getElementById('contenitore-dati');
+                if (_kitCont) {
+                    _kitCont.innerHTML = "<div class='centered-error-bold'>Errore nel caricamento. <button onclick=\"cambiaPagina('KIT_PRODOTTI',null)\" style=\"margin-left:8px;padding:4px 12px;background:#242424;color:#fff;border:none;border-radius:6px;cursor:pointer\">Riprova</button></div>";
+                    applicaFade(_kitCont);
+                }
+                _kitModule = null;
             }
             break;
         default: {
