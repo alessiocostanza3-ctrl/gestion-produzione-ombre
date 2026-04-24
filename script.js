@@ -778,12 +778,17 @@ async function salvaEApriDashboard() {
     overlay.style.transition = "opacity 0.4s ease";
     overlay.style.opacity = '0';
 
-    // Avvia prefetch GAS e impostazioni SUBITO (non bloccano la navigazione)
+    // Avvia prefetch GAS SUBITO (fire-and-forget)
     _prefetchBackground();
-    caricaDatiIniziali().catch(e => console.warn("caricaDatiIniziali post-login:", e));
 
-    // Aspetta solo il fade visivo (400ms), non la risposta GAS
-    await new Promise(r => setTimeout(r, 400));
+    // Aspetta sia il fade visivo (400ms) sia il caricamento di stati/operatori in parallelo.
+    // Se la cache è disponibile caricaDatiIniziali() risolve in <1ms e il totale rimane 400ms.
+    // Se la cache è vuota (es. post-logout) aspettiamo il fetch GAS così _initModuliENaviga_
+    // riceve sempre listaStati e listaOperatori già pronti.
+    await Promise.all([
+        caricaDatiIniziali().catch(e => console.warn("caricaDatiIniziali post-login:", e)),
+        new Promise(r => setTimeout(r, 400))
+    ]);
 
     overlay.style.display = 'none';
     document.documentElement.classList.add('has-session');
