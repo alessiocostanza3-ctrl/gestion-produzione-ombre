@@ -112,7 +112,11 @@ function _kitNormalizeComp(comp) {
         modoComponente: modo,
         tracciabile,
         noteConfig: String(comp?.noteConfig || '').trim(),
-        unitaMisura: String(comp?.unitaMisura || defaultUnita).trim() || 'pz'
+        unitaMisura: String(comp?.unitaMisura || defaultUnita).trim() || 'pz',
+        applicazioneTipo: String(comp?.applicazioneTipo || '').trim(),
+        applicazioneAsseId: String(comp?.applicazioneAsseId || '').trim(),
+        applicazioneOpzioneIds: Array.isArray(comp?.applicazioneOpzioneIds) ? comp.applicazioneOpzioneIds.map(String) : [],
+        qtaBase: Math.max(0, Number.parseInt(comp?.qtaBase, 10) || 0)
     };
 }
 
@@ -122,6 +126,108 @@ function _kitNormalizeSezione(sez) {
         nome: String(sez?.nome || 'Nuova sezione').trim() || 'Nuova sezione',
         componenti: Array.isArray(sez?.componenti) ? sez.componenti.map(_kitNormalizeComp) : []
     };
+}
+
+function _kitSetEquals(left, right) {
+    if (left.size !== right.size) return false;
+    for (const item of left) if (!right.has(item)) return false;
+    return true;
+}
+
+function _kitInferCompRule(comp, kit) {
+    const baseRule = {
+        tipo: 'sempre',
+        asseId: '',
+        opzioneIds: [],
+        qtyBase: Math.max(0, Number.parseInt(comp?.qtaBase, 10) || 0)
+    };
+
+    if (comp?.applicazioneTipo === 'sempre' || comp?.applicazioneTipo === 'gruppo') {
+        return {
+            tipo: comp.applicazioneTipo,
+            asseId: String(comp.applicazioneAsseId || ''),
+            opzioneIds: Array.isArray(comp.applicazioneOpzioneIds) ? comp.applicazioneOpzioneIds.map(String) : [],
+            qtyBase: baseRule.qtyBase || Math.max(0, Number.parseInt(Object.values(comp?.qtaPerVariante || {})[0], 10) || 0)
+        };
+    }
+
+    const varianti = _kitGetVariantiEffettive(kit);
+    if (!varianti.length) return baseRule;
+
+    const positiveVarianti = varianti.filter(variante => _kitGetComponentQty(comp, variante.key) > 0);
+    if (!positiveVarianti.length) return baseRule;
+
+    const qtySet = new Set(positiveVarianti.map(variante => _kitGetComponentQty(comp, variante.key)));
+    if (qtySet.size !== 1) {
+        return {
+            tipo: 'manuale',
+            asseId: '',
+            opzioneIds: [],
+            qtyBase: Math.max(...positiveVarianti.map(variante => _kitGetComponentQty(comp, variante.key)))
+        };
+    }
+
+    const qtyBase = [...qtySet][0];
+    if (positiveVarianti.length === varianti.length) {
+        return { tipo: 'sempre', asseId: '', opzioneIds: [], qtyBase };
+    }
+
+    const positiveKeys = new Set(positiveVarianti.map(variante => variante.key));
+    for (const asse of (kit.assiConfigurazione || [])) {
+        const selectedOptionIds = [];
+        for (const opzione of (asse.opzioni || [])) {
+            const optionKeys = new Set(varianti
+                .filter(variante => (variante.selections || []).some(selection => selection.asseId === asse.id && selection.opzioneId === opzione.id))
+                .map(variante => variante.key));
+            if (!optionKeys.size) continue;
+            const allPositive = [...optionKeys].every(key => _kitGetComponentQty(comp, key) === qtyBase);
+            if (allPositive) selectedOptionIds.push(opzione.id);
+        }
+
+        if (!selectedOptionIds.length) continue;
+
+        const coveredKeys = new Set(varianti
+            .filter(variante => (variante.selections || []).some(selection => selection.asseId === asse.id && selectedOptionIds.includes(selection.opzioneId)))
+            .map(variante => variante.key));
+
+        if (_kitSetEquals(coveredKeys, positiveKeys)) {
+            return { tipo: 'gruppo', asseId: asse.id, opzioneIds: selectedOptionIds, qtyBase };
+        }
+    }
+
+    return { tipo: 'manuale', asseId: '', opzioneIds: [], qtyBase };
+}
+
+function _kitCompileCompQtyMap(comp, kit, rule) {
+    if (!rule || rule.tipo === 'manuale') return { ...(comp?.qtaPerVariante || {}) };
+    const qtyMap = {};
+    const qtyBase = Math.max(0, Number.parseInt(rule.qtyBase, 10) || 0);
+    if (!qtyBase) return qtyMap;
+
+    for (const variante of _kitGetVariantiEffettive(kit)) {
+        let include = rule.tipo === 'sempre';
+        if (rule.tipo === 'gruppo') {
+            include = (variante.selections || []).some(selection => selection.asseId === rule.asseId && rule.opzioneIds.includes(selection.opzioneId));
+        }
+        if (include) qtyMap[variante.key] = qtyBase;
+    }
+    return qtyMap;
+}
+
+function _kitNormalizeSezioneForKit(sez, kit) {
+    const normalizedSezione = _kitNormalizeSezione(sez);
+    normalizedSezione.componenti = normalizedSezione.componenti.map(function(comp) {
+        const rule = _kitInferCompRule(comp, kit);
+        return {
+            ...comp,
+            applicazioneTipo: rule.tipo,
+            applicazioneAsseId: rule.asseId,
+            applicazioneOpzioneIds: rule.opzioneIds,
+            qtaBase: rule.qtyBase,
+            qtaPerVariante: _kitCompileCompQtyMap(comp, kit, rule)
+        };
+    });
+    return normalizedSezione;
 }
 
 function _kitGetUniformComponentQty(comp, kit) {
@@ -261,7 +367,7 @@ function _kitNormalizeKit(rawKit) {
         schemaVersion: _KIT_SCHEMA_VERSION,
         assiConfigurazione,
         varianti,
-        sezioni: Array.isArray(kit.sezioni) ? kit.sezioni.map(_kitNormalizeSezione) : [],
+        sezioni: Array.isArray(kit.sezioni) ? kit.sezioni.map(sezione => _kitNormalizeSezioneForKit(sezione, { assiConfigurazione, varianti })) : [],
         sottoAssembly,
         qtaDaProdurre,
         pronti,
@@ -284,6 +390,10 @@ function _kitIsTracciabile(comp) {
 function _kitGetComponentQty(comp, vKey) {
     const rawQty = Number.parseInt(comp?.qtaPerVariante?.[vKey], 10) || 0;
     return _kitIsSegnalazione(comp) ? (rawQty > 0 ? 1 : 0) : rawQty;
+}
+
+function _kitGetCompRuleUi(comp, kit) {
+    return _kitInferCompRule(comp, kit);
 }
 
 function _kitLoadOrderDrafts() {
@@ -338,6 +448,42 @@ function _kitMutateOrderDraft(kitId, mutator) {
 
 function _kitCountOrderPieces(orderDraft) {
     return Object.values(orderDraft || {}).reduce((sum, qty) => sum + (Number.parseInt(qty, 10) || 0), 0);
+}
+
+const _kitComposeState = {};
+
+function _kitGetComposeState(kit) {
+    const current = _kitComposeState[kit.id] && typeof _kitComposeState[kit.id] === 'object' ? _kitComposeState[kit.id] : {};
+    const next = {};
+    for (const asse of (kit.assiConfigurazione || [])) {
+        const validOptionIds = new Set((asse.opzioni || []).map(opzione => opzione.id));
+        next[asse.id] = validOptionIds.has(current[asse.id]) ? current[asse.id] : (asse.opzioni?.[0]?.id || '');
+    }
+    _kitComposeState[kit.id] = next;
+    return next;
+}
+
+function _kitFindVariantFromComposeState(kit, composeState) {
+    const assi = kit.assiConfigurazione || [];
+    if (!assi.length) return _kitGetVariantiEffettive(kit)[0] || null;
+
+    const selections = [];
+    for (const asse of assi) {
+        const optionId = composeState?.[asse.id];
+        const opzione = (asse.opzioni || []).find(item => item.id === optionId);
+        if (!opzione) return null;
+        selections.push({
+            asseId: asse.id,
+            asseKey: asse.key,
+            asseNome: asse.nome,
+            opzioneId: opzione.id,
+            opzioneKey: opzione.key,
+            opzioneNome: opzione.nome
+        });
+    }
+
+    const variantKey = _kitVariantKeyFromSelections(selections);
+    return _kitGetVariantiEffettive(kit).find(variante => variante.key === variantKey) || null;
 }
 
 function _kitBuildDistintaBase(kit, orderDraft) {
@@ -641,19 +787,27 @@ function _kitRenderView() {
         ? distinta.selectedVarianti.map(variante => `<span class="kit-meta-pill"><strong>${orderDraft[variante.key] || 0}</strong> × ${_esc(variante.nome)}</span>`).join('')
         : '<span class="kit-leg-item" style="color:#94a3b8">Nessuna configurazione selezionata.</span>';
 
-    const orderCardsHtml = varsList.length
-        ? varsList.map(variante => {
+    const composeState = _kitGetComposeState(kit);
+    const composedVariant = _kitFindVariantFromComposeState(kit, composeState);
+    const composeGroupsHtml = (kit.assiConfigurazione || []).length
+        ? (kit.assiConfigurazione || []).map(asse => `
+            <div class="kit-compose-group">
+                <div class="kit-compose-group-title">${_esc(asse.nome)}</div>
+                <div class="kit-compose-options">${(asse.opzioni || []).map(opzione => `
+                    <button class="kit-compose-option ${composeState[asse.id] === opzione.id ? 'kit-compose-option--active' : ''}"
+                            onclick="_kitComposeSelect('${_esc(kit.id)}','${_esc(asse.id)}','${_esc(opzione.id)}')">
+                        ${_esc(opzione.nome)}
+                    </button>`).join('')}</div>
+            </div>`).join('')
+        : `<div class="kit-cfg-help">Questo prodotto non ha elettronica selezionabile: puoi usarlo come prodotto fisso.</div>`;
+
+    const orderLinesHtml = distinta.selectedVarianti.length
+        ? distinta.selectedVarianti.map(variante => {
             const qty = Number.parseInt(orderDraft[variante.key], 10) || 0;
-            const selectionPills = Array.isArray(variante.selections) && variante.selections.length
-                ? variante.selections.map(selection => `<span class="kit-order-pill">${_esc(selection.opzioneNome)}</span>`).join('')
-                : `<span class="kit-order-pill">${_esc(variante.key)}</span>`;
-            return `<div class="kit-order-card ${qty > 0 ? 'kit-order-card--active' : ''}">
-                <div class="kit-order-card-head">
-                    <div>
-                        <div class="kit-order-card-title">${_esc(variante.nome)}</div>
-                        <div class="kit-order-card-sub">${selectionPills}</div>
-                    </div>
-                    <span class="kit-order-card-key">${_esc(variante.key)}</span>
+            return `<div class="kit-order-line">
+                <div class="kit-order-line-main">
+                    <div class="kit-order-line-name">${_esc(variante.nome)}</div>
+                    <div class="kit-order-line-meta">${Array.isArray(variante.selections) && variante.selections.length ? variante.selections.map(selection => _esc(selection.opzioneNome)).join(' · ') : _esc(variante.key)}</div>
                 </div>
                 <div class="kit-order-stepper">
                     <button class="kit-order-stepper-btn" onclick="_kitOrdineDelta('${_esc(kit.id)}','${_esc(variante.key)}',-1)">−</button>
@@ -661,14 +815,11 @@ function _kitRenderView() {
                            onchange="_kitOrdineSet('${_esc(kit.id)}','${_esc(variante.key)}',this.value)"
                            oninput="_kitOrdineSet('${_esc(kit.id)}','${_esc(variante.key)}',this.value)">
                     <button class="kit-order-stepper-btn" onclick="_kitOrdineDelta('${_esc(kit.id)}','${_esc(variante.key)}',1)">+</button>
+                    <button class="kit-cfg-del-btn" style="font-size:1rem" onclick="_kitOrdineResetVoce('${_esc(kit.id)}','${_esc(variante.key)}')"><i class="fas fa-times"></i></button>
                 </div>
             </div>`;
         }).join('')
-        : `<div class="kit-empty-state" style="padding:30px 20px">
-            <i class="fas fa-sliders" style="font-size:1.8rem;color:#cbd5e1;margin-bottom:10px"></i>
-            <p>Configura prima gli assi del prodotto per comporre un ordine.</p>
-            <button class="kit-btn-secondary" onclick="_kitOpenConfig('${_esc(kit.id)}')">Configura prodotto</button>
-        </div>`;
+        : `<div class="kit-empty-state" style="padding:26px 20px"><p>Nessuna configurazione aggiunta all'ordine.</p></div>`;
 
     const distintaHtml = distinta.totalePezzi
         ? distinta.sezioni.map(sezione => `
@@ -721,8 +872,21 @@ function _kitRenderView() {
         <div class="kit-order-layout">
             <section class="kit-order-section">
                 <div class="kit-order-section-title"><i class="fas fa-hand-pointer"></i> Componi ordine</div>
-                <div class="kit-cfg-help">Seleziona le configurazioni richieste dal cliente. Appena cambi quantità, la distinta base qui sotto si aggiorna subito con componenti e avvisi.</div>
-                <div class="kit-order-grid">${orderCardsHtml}</div>
+                <div class="kit-cfg-help">Scegli i pulsanti dell'elettronica, inserisci la quantità e aggiungi quella configurazione all'ordine.</div>
+                <div class="kit-compose-builder">
+                    ${composeGroupsHtml}
+                    <div class="kit-compose-footer">
+                        <div class="kit-compose-selected">
+                            <div class="kit-compose-selected-label">Configurazione pronta</div>
+                            <div class="kit-compose-selected-name">${composedVariant ? _esc(composedVariant.nome) : 'Completa prima tutte le scelte'}</div>
+                        </div>
+                        <div class="kit-order-stepper">
+                            <input class="kit-order-stepper-input" id="kit-compose-qty-${_esc(kit.id)}" type="number" min="1" value="1">
+                            <button class="kit-spedisci-btn" onclick="_kitComposeAdd('${_esc(kit.id)}')"><i class="fas fa-plus"></i> Aggiungi all'ordine</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="kit-order-lines">${orderLinesHtml}</div>
             </section>
 
             <section class="kit-order-section">
@@ -778,6 +942,47 @@ function _kitOrdineReset(kitId) {
     _kitMutateOrderDraft(kitId, function(orderDraft) {
         for (const key of Object.keys(orderDraft)) orderDraft[key] = 0;
     });
+}
+
+function _kitOrdineResetVoce(kitId, vKey) {
+    _kitMutateOrderDraft(kitId, function(orderDraft) {
+        orderDraft[vKey] = 0;
+    });
+}
+
+function _kitComposeSelect(kitId, asseId, opzioneId) {
+    const { kits } = _kitLoad();
+    const kit = kits.find(entry => entry.id === kitId);
+    if (!kit) return;
+    const nextState = _kitGetComposeState(kit);
+    nextState[asseId] = opzioneId;
+    _kitComposeState[kitId] = nextState;
+    if (_kitViewId === kitId) _kitRenderView();
+}
+
+function _kitComposeAdd(kitId) {
+    const { kits } = _kitLoad();
+    const kit = kits.find(entry => entry.id === kitId);
+    if (!kit) return;
+
+    const variant = _kitFindVariantFromComposeState(kit, _kitGetComposeState(kit));
+    if (!variant) {
+        notificaElegante('Completa prima le scelte elettroniche ⚠️');
+        return;
+    }
+
+    const qty = Math.max(0, Number.parseInt(document.getElementById('kit-compose-qty-' + kitId)?.value, 10) || 0);
+    if (!qty) {
+        notificaElegante('Inserisci una quantità valida ⚠️');
+        return;
+    }
+
+    _kitMutateOrderDraft(kitId, function(orderDraft) {
+        orderDraft[variant.key] = (Number.parseInt(orderDraft[variant.key], 10) || 0) + qty;
+    });
+
+    const qtyInput = document.getElementById('kit-compose-qty-' + kitId);
+    if (qtyInput) qtyInput.value = 1;
 }
 
 function _kitRefreshBomTotals(kit) {
@@ -1727,19 +1932,19 @@ function _kitRenderConfig() {
     // migra eventuale vecchia chiave tab
     if (_kitConfigTab === 'sezioni') _kitConfigTab = 'bom';
 
-    const tabs = ['info', 'varianti', 'bom', 'sa'];
-    const tabLabels = { info: 'Info', varianti: 'Assi di configurazione', bom: 'Componenti e materiali', sa: 'Parti tracciabili' };
+    if (_kitConfigTab === 'sa') _kitConfigTab = 'bom';
+    const tabs = ['info', 'varianti', 'bom'];
+    const tabLabels = { info: 'Prodotto', varianti: 'Elettronica selezionabile', bom: 'Parti del prodotto' };
 
     // ─── Tab Info ───
     const nA  = assi.length;
     const nV  = variantiEffettive.length;
     const nC  = (kit.sezioni||[]).reduce((a,s) => a + (s.componenti||[]).length, 0);
-    const nSA = (kit.sottoAssembly||[]).length;
     const recapHtml = nV ? `
         <div class="kit-cfg-recap">
             <div class="kit-cfg-recap-row">
-                <i class="fas fa-sliders"></i>
-                <div><strong>${nA}</strong> ass${nA===1?'e':'i'} di configurazione e <strong>${nV}</strong> combinazioni attive</div>
+                <i class="fas fa-bolt"></i>
+                <div><strong>${nA}</strong> grupp${nA===1?'o':'i'} elettronici e <strong>${nV}</strong> configurazioni pronte da usare</div>
             </div>
             <div class="kit-cfg-recap-row">
                 <i class="fas fa-layer-group"></i>
@@ -1750,13 +1955,9 @@ function _kitRenderConfig() {
             </div>
             <div class="kit-cfg-recap-row">
                 <i class="fas fa-cubes"></i>
-                <div><strong>${nC}</strong> componenti in <strong>${(kit.sezioni||[]).length}</strong> sezioni</div>
+                <div><strong>${nC}</strong> parti prodotto da usare nella distinta base</div>
             </div>
-            <div class="kit-cfg-recap-row">
-                <i class="fas fa-hammer"></i>
-                <div><strong>${nSA}</strong> parti tracciabili per il tab Pronti</div>
-            </div>
-        </div>` : `<div class="kit-cfg-help">💡 Inizia dalla tab <strong>Assi di configurazione</strong> per definire le scelte che cambiano il prodotto, ad esempio <strong>LED</strong> e <strong>Lente</strong>.</div>`;
+        </div>` : `<div class="kit-cfg-help">💡 Inizia dalla tab <strong>Elettronica selezionabile</strong> per definire le scelte del faretto, per esempio <strong>LED</strong>, <strong>Lente</strong> o <strong>Alimentazione</strong>.</div>`;
 
     const infoHtml = `
         <div class="kit-cfg-section">
@@ -1769,28 +1970,24 @@ function _kitRenderConfig() {
             <button class="kit-btn-danger" onclick="_kitElimina('${_esc(kit.id)}')"><i class="fas fa-trash"></i> Elimina kit</button>
         </div>`;
 
-    // ─── Tab Assi di configurazione ───
+    // ─── Tab Elettronica selezionabile ───
     const assiHtml = assi.map((asse, axisIndex) => {
         const opzioniHtml = (asse.opzioni || []).map((opt, optIndex) => `
             <div class="kit-cfg-row kit-cfg-sarow">
-                <input class="kit-cfg-input kit-cfg-input-small" value="${_esc(opt.key)}" maxlength="20" placeholder="codice"
-                       onchange="_kitCfgUpdateOpzione('${_esc(kit.id)}','${_esc(asse.id)}','${_esc(opt.id)}','key',this.value)">
-                <input class="kit-cfg-input" value="${_esc(opt.nome)}" maxlength="50" placeholder="nome opzione"
+                <input class="kit-cfg-input" value="${_esc(opt.nome)}" maxlength="50" placeholder="Nome scelta elettronica"
                        onchange="_kitCfgUpdateOpzione('${_esc(kit.id)}','${_esc(asse.id)}','${_esc(opt.id)}','nome',this.value)">
                 <button class="kit-cfg-del-btn" onclick="_kitCfgDelOpzione('${_esc(kit.id)}','${_esc(asse.id)}','${_esc(opt.id)}')"><i class="fas fa-times"></i></button>
             </div>`).join('');
 
         return `<div class="kit-cfg-sez-block" data-ai="${axisIndex}">
             <div class="kit-cfg-sez-header">
-                <input class="kit-cfg-input kit-cfg-input-sez" value="${_esc(asse.nome)}" maxlength="40" placeholder="Nome asse (es. LED)"
+                <input class="kit-cfg-input kit-cfg-input-sez" value="${_esc(asse.nome)}" maxlength="40" placeholder="Gruppo elettronico (es. LED)"
                        onchange="_kitCfgUpdateAsse('${_esc(kit.id)}','${_esc(asse.id)}','nome',this.value)">
-                <input class="kit-cfg-input kit-cfg-input-small" value="${_esc(asse.key)}" maxlength="20" placeholder="codice"
-                       onchange="_kitCfgUpdateAsse('${_esc(kit.id)}','${_esc(asse.id)}','key',this.value)">
                 <button class="kit-cfg-del-btn kit-cfg-del-sez" onclick="_kitCfgDelAsse('${_esc(kit.id)}','${_esc(asse.id)}')"><i class="fas fa-times"></i></button>
             </div>
-            <div class="kit-cfg-help">Ogni opzione di questo asse verrà combinata con le opzioni degli altri assi.</div>
+            <div class="kit-cfg-help">Qui metti solo i nomi delle scelte che il cliente può richiedere per questo gruppo.</div>
             ${opzioniHtml || '<div class="kit-cfg-sa-empty">Nessuna opzione ancora.</div>'}
-            <button class="kit-cfg-add-comp-btn" onclick="_kitCfgAddOpzione('${_esc(kit.id)}','${_esc(asse.id)}')"><i class="fas fa-plus"></i> Aggiungi opzione</button>
+            <button class="kit-cfg-add-comp-btn" onclick="_kitCfgAddOpzione('${_esc(kit.id)}','${_esc(asse.id)}')"><i class="fas fa-plus"></i> Aggiungi scelta</button>
         </div>`;
     }).join('');
 
@@ -1798,7 +1995,7 @@ function _kitRenderConfig() {
         ? `<div class="kit-cfg-recap" style="margin-top:12px">
             <div class="kit-cfg-recap-row">
                 <i class="fas fa-diagram-project"></i>
-                <div><strong>Combinazioni generate automaticamente</strong></div>
+                <div><strong>Configurazioni che il prodotto potrà comporre</strong></div>
             </div>
             <div class="kit-cfg-row">${variantiEffettive.slice(0, 12).map(v => `<span class="kit-cfg-sa-var-badge" title="${_esc(v.key)}">${_esc(v.nome)}</span>`).join(' ')}${variantiEffettive.length > 12 ? `<span class="kit-cfg-sa-count">+${variantiEffettive.length - 12} altre</span>` : ''}</div>
         </div>`
@@ -1807,88 +2004,99 @@ function _kitRenderConfig() {
     const variantiHtml = `
         <div class="kit-cfg-section">
             <div class="kit-cfg-help">
-                Gli <strong>assi di configurazione</strong> descrivono le scelte indipendenti del prodotto.<br>
-                Per Shinino puoi creare per esempio <strong>LED</strong> e <strong>Lente</strong>: il sistema genera da solo tutte le combinazioni.<br>
-                Se hai un solo asse, il comportamento resta identico ai vecchi kit lineari.
+                Qui definisci solo l'<strong>elettronica selezionabile</strong> del prodotto.<br>
+                Esempio: un gruppo <strong>LED</strong>, uno <strong>Lente</strong>, uno <strong>Alimentazione</strong>.<br>
+                Tu inserisci i nomi, il sistema userà queste scelte per costruire l'ordine e la distinta base.
             </div>
-            ${assiHtml || '<div style="color:#94a3b8;padding:6px 0;font-size:0.82rem">Nessun asse ancora. Aggiungi il primo asse per iniziare.</div>'}
-            <button class="kit-cfg-add-btn" onclick="_kitCfgAddAsse('${_esc(kit.id)}')"><i class="fas fa-plus"></i> Aggiungi asse</button>
+            ${assiHtml || '<div style="color:#94a3b8;padding:6px 0;font-size:0.82rem">Nessun gruppo elettronico ancora. Aggiungi il primo per iniziare.</div>'}
+            <button class="kit-cfg-add-btn" onclick="_kitCfgAddAsse('${_esc(kit.id)}')"><i class="fas fa-plus"></i> Aggiungi gruppo elettronico</button>
             ${comboPreview}
         </div>`;
 
-    // ─── Tab Componenti e materiali ───
+    // ─── Tab Parti del prodotto ───
     const sezioniHtml = (kit.sezioni||[]).map((sez,si) => {
         const compRows = (sez.componenti||[]).map((comp) => {
             const isSegnalazione = _kitIsSegnalazione(comp);
-            const isTracciabile = _kitIsTracciabile(comp);
-            const varInputs = variantiEffettive.map(v => {
-                const displayName = v.nome.length > 18 ? v.nome.substring(0, 16) + '…' : v.nome;
-                const currentQty = _kitGetComponentQty(comp, v.key);
-                if (isSegnalazione) {
-                    return `<label class="kit-meta-pill" title="${_esc(v.nome)}">
-                        <input type="checkbox" ${currentQty > 0 ? 'checked' : ''}
-                               onchange="_kitCfgUpdateComp('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}','flag','${_esc(v.key)}',this.checked ? 1 : 0)">
-                        ${_esc(displayName)}
+            const rule = _kitGetCompRuleUi(comp, kit);
+            const selectedAsse = (assi || []).find(item => item.id === rule.asseId) || null;
+            const optionsHtml = rule.tipo === 'gruppo' && selectedAsse
+                ? `<div class="kit-cfg-row">${(selectedAsse.opzioni || []).map(option => {
+                    const checked = rule.opzioneIds.includes(option.id);
+                    return `<label class="kit-meta-pill">
+                        <input type="checkbox" ${checked ? 'checked' : ''}
+                               onchange="_kitCfgToggleCompOption('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}','${_esc(option.id)}',this.checked)">
+                        ${_esc(option.nome)}
                     </label>`;
-                }
-                return `<label class="kit-cfg-var-field" title="${_esc(v.nome)}">
-                    <span class="kit-cfg-label" style="margin:0">${_esc(displayName)}</span>
-                    <input class="kit-cfg-coeff" type="number" min="0" value="${currentQty}"
-                           onchange="_kitCfgUpdateComp('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}','coeff','${_esc(v.key)}',this.value)">
-                </label>`;
-            }).join('');
+                }).join('')}</div>`
+                : '';
+            const asseSelectHtml = assi.length
+                ? `<select class="kit-cfg-select" style="max-width:240px"
+                           onchange="_kitCfgUpdateCompRule('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}','asseId',this.value)">
+                        ${assi.map(asseItem => `<option value="${_esc(asseItem.id)}" ${rule.asseId === asseItem.id ? 'selected' : ''}>${_esc(asseItem.nome)}</option>`).join('')}
+                   </select>`
+                : '';
+            const advancedWarning = rule.tipo === 'manuale'
+                ? `<div class="kit-cfg-warn">Questa parte usa ancora una configurazione avanzata precedente. Appena la modifichi verrà convertita nel nuovo schema semplice.</div>`
+                : '';
 
             return `<div class="kit-cfg-sa-group" style="padding:12px 14px">
                 <div class="kit-cfg-row">
-                    <input class="kit-cfg-input kit-cfg-input-comp" value="${_esc(comp.nome)}" maxlength="60" placeholder="es. Star led"
+                    <input class="kit-cfg-input kit-cfg-input-comp" value="${_esc(comp.nome)}" maxlength="60" placeholder="Nome parte"
                            onchange="_kitCfgUpdateComp('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}','nome','',this.value)">
                     <select class="kit-cfg-select" style="max-width:210px"
                             onchange="_kitCfgUpdateComp('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}','modo','',this.value)">
-                        <option value="quantificato" ${!isSegnalazione ? 'selected' : ''}>Quantificato nel BOM</option>
-                        <option value="segnalazione" ${isSegnalazione ? 'selected' : ''}>Solo segnalazione</option>
+                        <option value="quantificato" ${!isSegnalazione ? 'selected' : ''}>Materiale da contare</option>
+                        <option value="segnalazione" ${isSegnalazione ? 'selected' : ''}>Solo avviso</option>
                     </select>
-                    <label class="kit-meta-pill" title="Movimentabile a magazzino">
-                        <input type="checkbox" ${isTracciabile ? 'checked' : ''} ${isSegnalazione ? 'disabled' : ''}
-                               onchange="_kitCfgToggleCompTracked('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}',this.checked)">
-                        Magazzino
-                    </label>
                     <button class="kit-cfg-del-btn" onclick="_kitCfgDelComp('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}')"><i class="fas fa-times"></i></button>
                 </div>
-                <input class="kit-cfg-input" value="${_esc(comp.noteConfig || '')}" maxlength="100" placeholder="Nota configurazione (es. presente solo se c'è il driver)"
+                <div class="kit-cfg-row">
+                    <label class="kit-cfg-label" style="margin:0">Quantità per faretto</label>
+                    <input class="kit-cfg-coeff" type="number" min="0" value="${rule.qtyBase}"
+                           onchange="_kitCfgUpdateCompRule('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}','qtyBase',this.value)">
+                    <select class="kit-cfg-select" style="max-width:260px"
+                            onchange="_kitCfgUpdateCompRule('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}','tipo',this.value)">
+                        <option value="sempre" ${rule.tipo === 'sempre' ? 'selected' : ''}>Sempre presente</option>
+                        <option value="gruppo" ${rule.tipo === 'gruppo' ? 'selected' : ''}>Solo per scelte elettroniche</option>
+                    </select>
+                    ${rule.tipo === 'gruppo' ? asseSelectHtml : ''}
+                </div>
+                ${rule.tipo === 'gruppo' ? optionsHtml : ''}
+                <input class="kit-cfg-input" value="${_esc(comp.noteConfig || '')}" maxlength="100" placeholder="Nota o avviso approvvigionamento"
                        onchange="_kitCfgUpdateComp('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}','noteConfig','',this.value)">
                 <div class="kit-cfg-help" style="margin:0">
                     ${isSegnalazione
-                        ? 'Usa i flag per indicare dove il requisito va mostrato senza entrare nei calcoli di stock o fabbisogno.'
-                        : 'Inserisci la quantità per ciascuna combinazione. Usa 0 dove il componente non serve e 1 per gli optional/fissi presenti.'}
+                        ? 'Usa questo tipo per promemoria come resina, cavo neoprene o stampa 3D: verrà mostrato come avviso nella distinta.'
+                        : 'Qui dici solo quanta parte serve per singolo faretto e se vale sempre o solo per certe scelte elettroniche.'}
                 </div>
-                <div class="kit-cfg-row" style="align-items:flex-start">${varInputs || '<span class="kit-cfg-sa-empty">Configura prima almeno un asse con opzioni.</span>'}</div>
+                ${advancedWarning}
             </div>`;
         }).join('');
 
         return `<div class="kit-cfg-sez-block" data-si="${si}">
             <div class="kit-cfg-sez-header">
-                <input class="kit-cfg-input kit-cfg-input-sez" value="${_esc(sez.nome)}" maxlength="40" placeholder="Nome sezione (es. TESTA)"
+                <input class="kit-cfg-input kit-cfg-input-sez" value="${_esc(sez.nome)}" maxlength="40" placeholder="Gruppo di parti (es. Meccanica)"
                        onchange="_kitCfgUpdateSez('${_esc(kit.id)}','${_esc(sez.id)}','nome',this.value)">
                 <button class="kit-cfg-copy-btn" onclick="_kitCfgOpenCopySezModal('${_esc(kit.id)}','${_esc(sez.id)}')" title="Copia questa sezione in altri kit"><i class="fas fa-copy"></i></button>
                 <button class="kit-cfg-del-btn kit-cfg-del-sez" onclick="_kitCfgDelSez('${_esc(kit.id)}','${_esc(sez.id)}')"><i class="fas fa-times"></i></button>
             </div>
             ${compRows}
-            <button class="kit-cfg-add-comp-btn" onclick="_kitCfgAddComp('${_esc(kit.id)}','${_esc(sez.id)}')"><i class="fas fa-plus"></i> Aggiungi componente</button>
+            <button class="kit-cfg-add-comp-btn" onclick="_kitCfgAddComp('${_esc(kit.id)}','${_esc(sez.id)}')"><i class="fas fa-plus"></i> Aggiungi parte</button>
         </div>`;
     }).join('');
 
     const sezioniPanelHtml = `
         <div class="kit-cfg-section">
             <div class="kit-cfg-help">
-                Qui definisci il <strong>BOM reale</strong> del prodotto.<br>
-                Usa <strong>Quantificato nel BOM</strong> per i materiali che entrano nei conti di fabbisogno e magazzino.<br>
-                Usa <strong>Solo segnalazione</strong> per requisiti come la resina: il sistema li mostra ma non li movimenta.
+                Qui definisci le <strong>parti del prodotto</strong> che finiranno nella distinta base.<br>
+                Puoi usare un gruppo come <strong>Meccanica</strong> per le parti sempre presenti e altri gruppi se ti aiutano a organizzarti.<br>
+                Se una voce non è da contare ma solo da ricordare, impostala come <strong>Solo avviso</strong>.
             </div>
-            ${!variantiEffettive.length ? `<div class="kit-cfg-warn">⚠️ Aggiungi prima almeno un asse con opzioni nella tab <strong>Assi di configurazione</strong>.</div>` : ''}
+            ${!variantiEffettive.length ? `<div class="kit-cfg-warn">⚠️ Aggiungi prima almeno un gruppo nella tab <strong>Elettronica selezionabile</strong>.</div>` : ''}
             ${sezioniHtml}
             <div class="kit-cfg-row">
-                <button class="kit-cfg-add-btn" onclick="_kitCfgAddSez('${_esc(kit.id)}')"><i class="fas fa-plus"></i> Aggiungi sezione</button>
-                <button class="kit-cfg-add-btn" onclick="_kitCfgOpenImportModal('${_esc(kit.id)}')"><i class="fas fa-copy"></i> Importa da altro kit</button>
+                <button class="kit-cfg-add-btn" onclick="_kitCfgAddSez('${_esc(kit.id)}')"><i class="fas fa-plus"></i> Aggiungi gruppo parti</button>
+                <button class="kit-cfg-add-btn" onclick="_kitCfgOpenImportModal('${_esc(kit.id)}')"><i class="fas fa-copy"></i> Importa gruppo da altro kit</button>
             </div>
         </div>`;
 
@@ -2109,6 +2317,58 @@ function _kitCfgUpdateComp(kitId, sid, cid, field, vKey, val) {
     }, field !== 'nome' && field !== 'noteConfig');
 }
 
+function _kitCfgUpdateCompRule(kitId, sid, cid, field, value) {
+    _kitCfgMutate(kitId, function(kit) {
+        const sez  = (kit.sezioni||[]).find(s => s.id === sid);
+        const comp = sez && (sez.componenti||[]).find(c => c.id === cid);
+        if (!comp) return;
+
+        const rule = _kitGetCompRuleUi(comp, kit);
+        if (field === 'tipo') {
+            rule.tipo = value === 'gruppo' ? 'gruppo' : 'sempre';
+            if (rule.tipo === 'gruppo' && !rule.asseId) {
+                rule.asseId = kit.assiConfigurazione?.[0]?.id || '';
+                const asse = (kit.assiConfigurazione || []).find(item => item.id === rule.asseId);
+                rule.opzioneIds = asse?.opzioni?.length ? [asse.opzioni[0].id] : [];
+            }
+        } else if (field === 'qtyBase') {
+            rule.qtyBase = Math.max(0, Number.parseInt(value, 10) || 0);
+        } else if (field === 'asseId') {
+            rule.asseId = String(value || '');
+            const asse = (kit.assiConfigurazione || []).find(item => item.id === rule.asseId);
+            rule.opzioneIds = asse?.opzioni?.length ? [asse.opzioni[0].id] : [];
+            rule.tipo = 'gruppo';
+        }
+
+        comp.applicazioneTipo = rule.tipo;
+        comp.applicazioneAsseId = rule.asseId;
+        comp.applicazioneOpzioneIds = rule.opzioneIds;
+        comp.qtaBase = rule.qtyBase;
+        comp.qtaPerVariante = _kitCompileCompQtyMap(comp, kit, rule);
+    });
+}
+
+function _kitCfgToggleCompOption(kitId, sid, cid, optionId, checked) {
+    _kitCfgMutate(kitId, function(kit) {
+        const sez  = (kit.sezioni||[]).find(s => s.id === sid);
+        const comp = sez && (sez.componenti||[]).find(c => c.id === cid);
+        if (!comp) return;
+
+        const rule = _kitGetCompRuleUi(comp, kit);
+        const optionIds = new Set(rule.opzioneIds || []);
+        if (checked) optionIds.add(optionId);
+        else optionIds.delete(optionId);
+        rule.tipo = 'gruppo';
+        rule.opzioneIds = [...optionIds];
+
+        comp.applicazioneTipo = rule.tipo;
+        comp.applicazioneAsseId = rule.asseId;
+        comp.applicazioneOpzioneIds = rule.opzioneIds;
+        comp.qtaBase = rule.qtyBase;
+        comp.qtaPerVariante = _kitCompileCompQtyMap(comp, kit, rule);
+    });
+}
+
 function _kitCfgToggleCompTracked(kitId, sid, cid, checked) {
     _kitCfgMutate(kitId, function(kit) {
         const sez  = (kit.sezioni||[]).find(s => s.id === sid);
@@ -2168,6 +2428,9 @@ export function registerGlobals() {
     window._kitOrdineSet             = _kitOrdineSet;
     window._kitOrdineDelta           = _kitOrdineDelta;
     window._kitOrdineReset           = _kitOrdineReset;
+    window._kitOrdineResetVoce       = _kitOrdineResetVoce;
+    window._kitComposeSelect         = _kitComposeSelect;
+    window._kitComposeAdd            = _kitComposeAdd;
     window._kitAggiornaCar           = _kitAggiornaCar;
     window._kitAggiornaPronti        = _kitAggiornaPronti;
     window._kitSetPronti             = _kitSetPronti;
@@ -2215,6 +2478,8 @@ export function registerGlobals() {
     window._kitCfgDelSez             = _kitCfgDelSez;
     window._kitCfgAddComp            = _kitCfgAddComp;
     window._kitCfgUpdateComp         = _kitCfgUpdateComp;
+    window._kitCfgUpdateCompRule     = _kitCfgUpdateCompRule;
+    window._kitCfgToggleCompOption   = _kitCfgToggleCompOption;
     window._kitCfgToggleCompTracked  = _kitCfgToggleCompTracked;
     window._kitCfgDelComp            = _kitCfgDelComp;
     window._kitCfgAddSA              = _kitCfgAddSA;
