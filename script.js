@@ -717,10 +717,10 @@ window.onload = async function() {
         }
     }
 
-    // 2. caricaDatiIniziali: stale-while-revalidate (impl. in impostazioni.js).
-    // - Cache disponibile (anche scaduta): ritorna subito con listaStati pronto, aggiorna GAS in background.
-    // - Nessun dato: await bloccante solo alla prima apertura assoluta.
-    if (typeof caricaDatiIniziali === 'function') {
+    // 2. caricaDatiIniziali: solo se c'è una sessione attiva.
+    // Senza sessione il fetch GAS fallirebbe (auth_error) e salverebbe colori di default grigi
+    // in cache, che poi verrebbero riusati al login successivo.
+    if (sessione && typeof caricaDatiIniziali === 'function') {
         await caricaDatiIniziali().catch(e => console.warn('[Boot] caricaDatiIniziali:', e));
     }
 
@@ -781,10 +781,13 @@ async function salvaEApriDashboard() {
     // Avvia prefetch GAS SUBITO (fire-and-forget)
     _prefetchBackground();
 
+    // Cancella qualsiasi cache impostazioni precedente (potrebbe contenere dati grigi/default
+    // salvati da window.onload prima del login, quando GAS rispondeva auth_error).
+    _lsCacheDel('_impostazioni_cache');
+
     // Aspetta sia il fade visivo (400ms) sia il caricamento di stati/operatori in parallelo.
-    // Se la cache è disponibile caricaDatiIniziali() risolve in <1ms e il totale rimane 400ms.
-    // Se la cache è vuota (es. post-logout) aspettiamo il fetch GAS così _initModuliENaviga_
-    // riceve sempre listaStati e listaOperatori già pronti.
+    // Con la cache appena cancellata, caricaDatiIniziali() esegue sempre un fetch GAS fresco
+    // con il sessionToken del nuovo login → listaStati e listaOperatori sempre corretti.
     await Promise.all([
         caricaDatiIniziali().catch(e => console.warn("caricaDatiIniziali post-login:", e)),
         new Promise(r => setTimeout(r, 400))
