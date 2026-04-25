@@ -19,6 +19,8 @@ const _KIT_UNITA_MISURA_OPTIONS = ['pz', 'mt', 'cm', 'mm', 'kg', 'g', 'lt', 'ml'
 let _fetched = false;
 let _kitOrderAutocompleteCache = [];
 let _kitOrderAutocompletePromise = null;
+// Lock per evitare chiamate duplicate rapide a _kitComposeAdd
+const _kitComposeAddLock = {};
 
 export function resetKitFetch() { _fetched = false; }
 
@@ -564,6 +566,7 @@ function _kitMutateOrderDraft(kitId, mutator) {
     if (!kit) return;
     const drafts = _kitLoadOrderDrafts();
     const currentDraft = _kitGetOrderDraft(kit);
+    try { console.debug('[kit-prodotti] _kitMutateOrderDraft START', { kitId, currentDraft: JSON.parse(JSON.stringify(currentDraft || {})) }); } catch(e) {}
     mutator(currentDraft, kit);
 
     const cleanedDraft = {};
@@ -580,6 +583,8 @@ function _kitMutateOrderDraft(kitId, mutator) {
         if (!normalizedMeta.documento) normalizedMeta.documento = _kitGetNextDocumentNumber();
         cleanedDraft._meta = normalizedMeta;
     }
+
+    try { console.debug('[kit-prodotti] _kitMutateOrderDraft END', { kitId, cleanedDraft }); } catch(e) {}
 
     if (hasValues || hasMetaValues) drafts[kitId] = cleanedDraft;
     else delete drafts[kitId];
@@ -1670,7 +1675,8 @@ function _kitComposeAdd(kitId) {
     const { kits } = _kitLoad();
     const kit = kits.find(entry => entry.id === kitId);
     if (!kit) return;
-
+    try { console.debug('[kit-prodotti] _kitComposeAdd CLICK', { kitId, time: new Date().toISOString() }); } catch(e) {}
+    
     const variant = _kitFindVariantFromComposeState(kit, _kitGetComposeState(kit));
     if (!variant) {
         notificaElegante('Completa prima le scelte elettroniche ⚠️');
@@ -1678,10 +1684,19 @@ function _kitComposeAdd(kitId) {
     }
 
     const qty = Math.max(0, Number.parseInt(document.getElementById('kit-compose-qty-' + kitId)?.value, 10) || 0);
+    try { console.debug('[kit-prodotti] _kitComposeAdd variant/qty', { kitId, variantKey: variant?.key || null, qty }); } catch(e) {}
     if (!qty) {
         notificaElegante('Inserisci una quantità valida ⚠️');
         return;
     }
+
+    // Protezione anti-duplica: ignora chiamate ripetute ravvicinate
+    if (_kitComposeAddLock[kitId]) {
+        try { console.debug('[kit-prodotti] _kitComposeAdd SKIPPED duplicate', { kitId, variantKey: variant?.key || null, qty, since: Date.now() - _kitComposeAddLock[kitId] }); } catch(e) {}
+        return;
+    }
+    _kitComposeAddLock[kitId] = Date.now();
+    setTimeout(function() { try { delete _kitComposeAddLock[kitId]; } catch(e) {} }, 600);
 
     _kitMutateOrderDraft(kitId, function(orderDraft) {
         orderDraft[variant.key] = _kitGetOrderQty(orderDraft, variant.key) + qty;
