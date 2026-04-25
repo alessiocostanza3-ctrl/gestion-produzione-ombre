@@ -379,6 +379,14 @@ html {
     60%  { opacity: 1; transform: scale(1.025) translateY(-4px); }
     100% { opacity: 1; transform: scale(1) translateY(0); }
 }
+
+/* Temporary: disable page-enter/fade for the main content container to avoid
+   micro-refresh visual flicker during interactive UI updates (componi ordine).
+   We'll keep this until we find the exact caller and apply a precise fix. */
+#contenitore-dati.fade-in {
+    animation: none !important;
+    transition: none !important;
+}
 @keyframes toastSlide {
     from { opacity: 0; transform: translateX(28px) scale(0.93); }
     to   { opacity: 1; transform: translateX(0) scale(1); }
