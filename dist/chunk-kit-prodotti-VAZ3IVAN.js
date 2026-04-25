@@ -317,7 +317,7 @@ import{a as oi,c as ut,e as si,f as r,g as A,h as at,l as ai,m as F,q as ri,r as
         <div class="kit-card" onclick="_kitOpenView('${r(e.id)}')">
             <div class="kit-card-header">
                 <span class="kit-card-nome">${r(e.nome)}</span>
-                <button class="kit-card-gear" onclick="event.stopPropagation();_kitOpenConfig('${r(e.id)}')" title="Configura kit"><i class="fas fa-gear"></i></button>
+                <button type="button" class="kit-card-gear" onclick="event.stopPropagation();_kitOpenConfig('${r(e.id)}')" title="Configura kit"><i class="fas fa-gear"></i></button>
             </div>
             <div class="kit-card-meta">
                 <span class="kit-meta-pill"><i class="fas fa-sliders"></i> ${a} ass${a===1?"e":"i"}</span>
@@ -328,12 +328,12 @@ import{a as oi,c as ut,e as si,f as r,g as A,h as at,l as ai,m as F,q as ri,r as
     <div class="kit-page">
         <div class="kit-page-header">
             <div class="kit-page-title"><i class="fas fa-boxes-stacked"></i> Kit Prodotti</div>
-            <button class="kit-nuovo-btn" onclick="_kitNuovoKit()"><i class="fas fa-plus"></i> Nuovo Kit</button>
+            <button type="button" class="kit-nuovo-btn" onclick="_kitNuovoKit()"><i class="fas fa-plus"></i> Nuovo Kit</button>
         </div>
         ${t.length===0?`<div class="kit-empty-state">
                 <i class="fas fa-box-open kit-empty-icon"></i>
                 <p>Nessun kit configurato.</p>
-                <button class="kit-nuovo-btn" onclick="_kitNuovoKit()"><i class="fas fa-plus"></i> Crea il primo kit</button>
+                <button type="button" class="kit-nuovo-btn" onclick="_kitNuovoKit()"><i class="fas fa-plus"></i> Crea il primo kit</button>
                </div>`:`<div class="kit-grid">${n}</div>`}
     </div>`,at(i)}function Bi(t){M=t,Qt="ordine",K()}function K(){let{kits:t}=C(),i=t.find(u=>u.id===M);if(!i){W();return}let n=document.getElementById("contenitore-dati"),e=S(i),o=dt(i),s=Y(o),a=jt(i,o),d=a.selectedVarianti.length?a.selectedVarianti.map(u=>`<span class="kit-meta-pill"><strong>${j(o,u.key)}</strong> \xD7 ${r(u.nome)}</span>`).join(""):'<span class="kit-leg-item" style="color:#94a3b8">Nessuna configurazione selezionata.</span>',c=s.ordiniCliente.length?s.ordiniCliente.map(u=>`<span class="kit-order-ref-chip">${r(u)}
                 <button type="button" class="kit-order-ref-chip-remove" onclick='_kitOrderRemoveRef(${JSON.stringify(i.id)}, ${JSON.stringify(u)})' aria-label="Rimuovi ordine ${r(u)}">
@@ -343,7 +343,7 @@ import{a as oi,c as ut,e as si,f as r,g as A,h as at,l as ai,m as F,q as ri,r as
             <div class="kit-compose-group">
                 <div class="kit-compose-group-title">${r(u.nome)}</div>
                 <div class="kit-compose-options">${(u.opzioni||[]).map(z=>`
-                    <button class="kit-compose-option ${l[u.id]===z.id?"kit-compose-option--active":""}"
+                        <button type="button" class="kit-compose-option ${l[u.id]===z.id?"kit-compose-option--active":""}"
                             onclick="_kitComposeSelect('${r(i.id)}','${r(u.id)}','${r(z.id)}')">
                         ${r(z.nome)}
                     </button>`).join("")}</div>
@@ -353,12 +353,12 @@ import{a as oi,c as ut,e as si,f as r,g as A,h as at,l as ai,m as F,q as ri,r as
                     <div class="kit-order-line-meta">${Array.isArray(u.selections)&&u.selections.length?u.selections.map(T=>r(T.opzioneNome)).join(" \xB7 "):r(u.key)}</div>
                 </div>
                 <div class="kit-order-stepper">
-                    <button class="kit-order-stepper-btn" onclick="_kitOrdineDelta('${r(i.id)}','${r(u.key)}',-1)">\u2212</button>
+                    <button type="button" class="kit-order-stepper-btn" onclick="_kitOrdineDelta('${r(i.id)}','${r(u.key)}',-1)">\u2212</button>
                     <input class="kit-order-stepper-input" type="number" min="0" value="${z}"
                            onchange="_kitOrdineSet('${r(i.id)}','${r(u.key)}',this.value)"
                            oninput="_kitOrdineSet('${r(i.id)}','${r(u.key)}',this.value)">
-                    <button class="kit-order-stepper-btn" onclick="_kitOrdineDelta('${r(i.id)}','${r(u.key)}',1)">+</button>
-                    <button class="kit-cfg-del-btn" style="font-size:1rem" onclick="_kitOrdineResetVoce('${r(i.id)}','${r(u.key)}')"><i class="fas fa-times"></i></button>
+                    <button type="button" class="kit-order-stepper-btn" onclick="_kitOrdineDelta('${r(i.id)}','${r(u.key)}',1)">+</button>
+                    <button type="button" class="kit-cfg-del-btn" style="font-size:1rem" onclick="_kitOrdineResetVoce('${r(i.id)}','${r(u.key)}')"><i class="fas fa-times"></i></button>
                 </div>
             </div>`}).join(""):`<div class="kit-empty-state" style="padding:26px 20px"><p>Nessuna configurazione aggiunta all'ordine.</p></div>`,g=a.totalePezzi?a.sezioni.map(u=>`
             <div class="kit-distinta-section">
@@ -382,10 +382,10 @@ import{a as oi,c as ut,e as si,f as r,g as A,h as at,l as ai,m as F,q as ri,r as
                 <div class="kit-distinta-alert-meta">Coinvolto su ${u.totaleCoinvolto} pz \xB7 ${r(u.variantiLabel)}</div>
             </div>`).join(""):'<div class="kit-cfg-help">Nessun avviso particolare per l\u2019ordine attuale.</div>';n.innerHTML=`
     <div class="kit-page">
-        <div class="kit-view-header">
-            <button class="kit-back-btn" onclick="_kitBack()"><i class="fas fa-arrow-left"></i></button>
+            <div class="kit-view-header">
+            <button type="button" class="kit-back-btn" onclick="_kitBack()"><i class="fas fa-arrow-left"></i></button>
             <span class="kit-view-nome">${r(i.nome)}</span>
-            <button class="kit-gear-btn-inline" onclick="_kitOpenConfig('${r(i.id)}')" title="Configura"><i class="fas fa-gear"></i></button>
+            <button type="button" class="kit-gear-btn-inline" onclick="_kitOpenConfig('${r(i.id)}')" title="Configura"><i class="fas fa-gear"></i></button>
         </div>
 
         <div class="kit-order-summary">
@@ -395,8 +395,8 @@ import{a as oi,c as ut,e as si,f as r,g as A,h as at,l as ai,m as F,q as ri,r as
                     <div class="kit-order-summary-total">${a.totalePezzi} pezzi</div>
                 </div>
                 <div class="kit-order-summary-actions">
-                    <button class="kit-btn-secondary" onclick="_kitOpenPrintPreview('${r(i.id)}')"><i class="fas fa-print"></i> Anteprima stampa</button>
-                    <button class="kit-btn-secondary" onclick="_kitOrdineReset('${r(i.id)}')"><i class="fas fa-rotate-left"></i> Azzera ordine</button>
+                    <button type="button" class="kit-btn-secondary" onclick="_kitOpenPrintPreview('${r(i.id)}')"><i class="fas fa-print"></i> Anteprima stampa</button>
+                    <button type="button" class="kit-btn-secondary" onclick="_kitOrdineReset('${r(i.id)}')"><i class="fas fa-rotate-left"></i> Azzera ordine</button>
                 </div>
             </div>
             <div class="kit-order-summary-note">Questa bozza ordine resta locale sul dispositivo e serve solo per generare la distinta base di approvvigionamento.</div>
@@ -435,7 +435,7 @@ import{a as oi,c as ut,e as si,f as r,g as A,h as at,l as ai,m as F,q as ri,r as
                         </div>
                         <div class="kit-order-stepper">
                             <input class="kit-order-stepper-input" id="kit-compose-qty-${r(i.id)}" type="number" min="1" value="1">
-                            <button class="kit-spedisci-btn" onclick="_kitComposeAdd('${r(i.id)}')"><i class="fas fa-plus"></i> Aggiungi all'ordine</button>
+                            <button type="button" class="kit-spedisci-btn" onclick="_kitComposeAdd('${r(i.id)}')"><i class="fas fa-plus"></i> Aggiungi all'ordine</button>
                         </div>
                     </div>
                 </div>
@@ -458,7 +458,7 @@ import{a as oi,c as ut,e as si,f as r,g as A,h as at,l as ai,m as F,q as ri,r as
             <span class="ac-ordine">ORD. ${r(e.ordine)}</span>
             <span class="ac-cliente">${r(e.cliente)}</span>
         </div>
-    `).join(""),n.style.display="block"}}function ji(t,i){let n=String(i||"").trim().toLowerCase();if(!n){lt(t,[]);return}Dt().then(function(e){let o=e.filter(s=>s.ordine.toLowerCase().includes(n)||s.cliente.toLowerCase().includes(n)).slice(0,8);lt(t,o)})}function Ui(t){setTimeout(function(){lt(t,[])},140)}function Qi(t,i,n){let e=J(i);if(!e)return;R(t,function(s){let a=Y(s);a.ordiniCliente=[...new Set(a.ordiniCliente.concat(e))],a.cliente=Vt(a.ordiniCliente,{[e]:n}),zt(s,a)});let o=document.getElementById("kit-order-ref-input-"+t);o&&(o.value=""),lt(t,[])}function Fi(t,i){let n=J(i);R(t,function(e){let o=Y(e);o.ordiniCliente=o.ordiniCliente.filter(s=>s!==n),o.cliente=Vt(o.ordiniCliente),zt(e,o)})}function Gi(t,i,n){let{kits:e}=C(),o=e.find(a=>a.id===t);if(!o)return;let s=Ct(o);s[i]=n,tt[t]=s,M===t&&K()}function Ji(t){let{kits:i}=C(),n=i.find(a=>a.id===t);if(!n)return;try{console.debug("[kit-prodotti] _kitComposeAdd CLICK",{kitId:t,time:new Date().toISOString()})}catch{}let e=Ht(n,Ct(n));if(!e){A("Completa prima le scelte elettroniche \u26A0\uFE0F");return}let o=Math.max(0,Number.parseInt(document.getElementById("kit-compose-qty-"+t)?.value,10)||0);try{console.debug("[kit-prodotti] _kitComposeAdd variant/qty",{kitId:t,variantKey:e?.key||null,qty:o})}catch{}if(!o){A("Inserisci una quantit\xE0 valida \u26A0\uFE0F");return}if(rt[t]){try{console.debug("[kit-prodotti] _kitComposeAdd SKIPPED duplicate",{kitId:t,variantKey:e?.key||null,qty:o,since:Date.now()-rt[t]})}catch{}return}rt[t]=Date.now(),setTimeout(function(){try{delete rt[t]}catch{}},600),R(t,function(a){a[e.key]=j(a,e.key)+o});let s=document.getElementById("kit-compose-qty-"+t);s&&(s.value=1)}function Ft(t){let i=t.dataset.cid,n=t.dataset.sid,e=Math.max(0,Number.parseInt(t.value,10)||0),{kits:o}=C(),s=o.find(z=>z.id===M);if(!s)return;let a=(s.sezioni||[]).find(z=>z.id===n),d=a&&(a.componenti||[]).find(z=>z.id===i);if(!d||!yt(d))return;d.caricato=e,O(o);let l=Ni(s)[i]||0,p=Math.max(0,l-e),k=Ti(s)[i]||0,g=t.closest("tr");if(!g)return;let b=g.querySelector(".kit-ord-zero,.kit-ord-manca,.kit-ord-ok");b&&(b.textContent=l===0?"\u2014":p,b.className=l===0?"kit-ord-zero":p>0?"kit-ord-manca":"kit-ord-ok");let u=g.querySelector(".kit-car-liberi");u&&(k>0?(u.textContent=Math.max(0,e-k)+" lib.",u.style.display=""):u.style.display="none")}function Yi(t,i,n){let{kits:e}=C(),o=e.find(s=>s.id===t);o&&(o.pronti||(o.pronti={}),o.pronti[i]=Math.max(0,(Number.parseInt(o.pronti[i],10)||0)+n),O(e),M===t&&K())}function Wi(t,i,n){let{kits:e}=C(),o=e.find(a=>a.id===t);if(!o)return;o.pronti||(o.pronti={}),o.pronti[i]=Math.max(0,Number.parseInt(n,10)||0),O(e);let s=document.querySelector(`.kit-pronti-input[data-said="${i}"]`);s&&(s.value=o.pronti[i],s.classList.toggle("kit-pronti-val-on",o.pronti[i]>0))}function Zi(t,i){let n=t.movimenti||[];return n.length?n.map(e=>{let o=i?`<button class="kit-mov-del" onclick="_kitEliminaMovimento('${r(t.id)}',${e.id})" title="Elimina">\u2715</button>`:'<span style="width:22px;flex-shrink:0"></span>',s=i&&(e.tipo==="carico"||e.tipo==="scarico")?`<button class="kit-mov-edit" onclick="_kitModificaMovimento('${r(t.id)}',${e.id})" title="Modifica">\u270E</button>`:'<span style="width:22px;flex-shrink:0"></span>';if(e.tipo==="spedizione"){let a=(e.righe||[]).reduce((l,p)=>l+p.qty,0),d=(e.righe||[]).map(l=>`<div class="kit-assemb-sub-row"><span class="kit-assemb-sub-mat" style="color:#94a3b8">${r(l.mat)}</span><span class="kit-mov-qty scarico">\u2212${l.qty}</span></div>`).join(""),c=(e.items||[]).map(l=>`<div class="kit-assemb-sub-row kit-sped-item-row"><span class="kit-assemb-sub-mat">${r(l.nome)}</span><span class="kit-mov-qty scarico">\xD7${l.qty}</span></div>`).join("");return`<details class="kit-mov-assemb-group">
+    `).join(""),n.style.display="block"}}function ji(t,i){let n=String(i||"").trim().toLowerCase();if(!n){lt(t,[]);return}Dt().then(function(e){let o=e.filter(s=>s.ordine.toLowerCase().includes(n)||s.cliente.toLowerCase().includes(n)).slice(0,8);lt(t,o)})}function Ui(t){setTimeout(function(){lt(t,[])},140)}function Qi(t,i,n){let e=J(i);if(!e)return;R(t,function(s){let a=Y(s);a.ordiniCliente=[...new Set(a.ordiniCliente.concat(e))],a.cliente=Vt(a.ordiniCliente,{[e]:n}),zt(s,a)});let o=document.getElementById("kit-order-ref-input-"+t);o&&(o.value=""),lt(t,[])}function Fi(t,i){let n=J(i);R(t,function(e){let o=Y(e);o.ordiniCliente=o.ordiniCliente.filter(s=>s!==n),o.cliente=Vt(o.ordiniCliente),zt(e,o)})}function Gi(t,i,n){let{kits:e}=C(),o=e.find(a=>a.id===t);if(!o)return;let s=Ct(o);s[i]=n,tt[t]=s,M===t&&K()}function Ji(t){let{kits:i}=C(),n=i.find(a=>a.id===t);if(!n)return;try{console.debug("[kit-prodotti] _kitComposeAdd CLICK",{kitId:t,time:new Date().toISOString()})}catch{}let e=Ht(n,Ct(n));if(!e){A("Completa prima le scelte elettroniche \u26A0\uFE0F");return}let o=Math.max(0,Number.parseInt(document.getElementById("kit-compose-qty-"+t)?.value,10)||0);try{console.debug("[kit-prodotti] _kitComposeAdd variant/qty",{kitId:t,variantKey:e?.key||null,qty:o})}catch{}if(!o){A("Inserisci una quantit\xE0 valida \u26A0\uFE0F");return}if(rt[t]){try{console.debug("[kit-prodotti] _kitComposeAdd SKIPPED duplicate",{kitId:t,variantKey:e?.key||null,qty:o,since:Date.now()-rt[t]})}catch{}return}rt[t]=Date.now(),setTimeout(function(){try{delete rt[t]}catch{}},600),R(t,function(a){a[e.key]=j(a,e.key)+o});let s=document.getElementById("kit-compose-qty-"+t);s&&(s.value=1)}function Ft(t){let i=t.dataset.cid,n=t.dataset.sid,e=Math.max(0,Number.parseInt(t.value,10)||0),{kits:o}=C(),s=o.find(z=>z.id===M);if(!s)return;let a=(s.sezioni||[]).find(z=>z.id===n),d=a&&(a.componenti||[]).find(z=>z.id===i);if(!d||!yt(d))return;d.caricato=e,O(o);let l=Ni(s)[i]||0,p=Math.max(0,l-e),k=Ti(s)[i]||0,g=t.closest("tr");if(!g)return;let b=g.querySelector(".kit-ord-zero,.kit-ord-manca,.kit-ord-ok");b&&(b.textContent=l===0?"\u2014":p,b.className=l===0?"kit-ord-zero":p>0?"kit-ord-manca":"kit-ord-ok");let u=g.querySelector(".kit-car-liberi");u&&(k>0?(u.textContent=Math.max(0,e-k)+" lib.",u.style.display=""):u.style.display="none")}function Yi(t,i,n){let{kits:e}=C(),o=e.find(s=>s.id===t);o&&(o.pronti||(o.pronti={}),o.pronti[i]=Math.max(0,(Number.parseInt(o.pronti[i],10)||0)+n),O(e),M===t&&K())}function Wi(t,i,n){let{kits:e}=C(),o=e.find(a=>a.id===t);if(!o)return;o.pronti||(o.pronti={}),o.pronti[i]=Math.max(0,Number.parseInt(n,10)||0),O(e);let s=document.querySelector(`.kit-pronti-input[data-said="${i}"]`);s&&(s.value=o.pronti[i],s.classList.toggle("kit-pronti-val-on",o.pronti[i]>0))}function Zi(t,i){let n=t.movimenti||[];return n.length?n.map(e=>{let o=i?`<button type="button" class="kit-mov-del" onclick="_kitEliminaMovimento('${r(t.id)}',${e.id})" title="Elimina">\u2715</button>`:'<span style="width:22px;flex-shrink:0"></span>',s=i&&(e.tipo==="carico"||e.tipo==="scarico")?`<button type="button" class="kit-mov-edit" onclick="_kitModificaMovimento('${r(t.id)}',${e.id})" title="Modifica">\u270E</button>`:'<span style="width:22px;flex-shrink:0"></span>';if(e.tipo==="spedizione"){let a=(e.righe||[]).reduce((l,p)=>l+p.qty,0),d=(e.righe||[]).map(l=>`<div class="kit-assemb-sub-row"><span class="kit-assemb-sub-mat" style="color:#94a3b8">${r(l.mat)}</span><span class="kit-mov-qty scarico">\u2212${l.qty}</span></div>`).join(""),c=(e.items||[]).map(l=>`<div class="kit-assemb-sub-row kit-sped-item-row"><span class="kit-assemb-sub-mat">${r(l.nome)}</span><span class="kit-mov-qty scarico">\xD7${l.qty}</span></div>`).join("");return`<details class="kit-mov-assemb-group">
               <summary class="kit-mov-assemb-summary">
                 <span class="kit-mov-badge spedizione">SPED.</span>
                 <span class="kit-mov-assemb-label">\u{1F69A} Spediz. \xD7${a} pz</span>
@@ -555,23 +555,23 @@ import{a as oi,c as ut,e as si,f as r,g as A,h as at,l as ai,m as F,q as ri,r as
         </div>
         ${p}
         <div class="kit-cfg-danger">
-            <button class="kit-btn-danger" onclick="_kitElimina('${r(i.id)}')"><i class="fas fa-trash"></i> Elimina kit</button>
+            <button type="button" class="kit-btn-danger" onclick="_kitElimina('${r(i.id)}')"><i class="fas fa-trash"></i> Elimina kit</button>
         </div>`,k=e.map((v,q)=>{let L=(v.opzioni||[]).map((y,w)=>`
             <div class="kit-cfg-row kit-cfg-sarow">
                 <input class="kit-cfg-input" value="${r(y.nome)}" maxlength="50" placeholder="Nome scelta elettronica"
                        onchange="_kitCfgUpdateOpzione('${r(i.id)}','${r(v.id)}','${r(y.id)}','nome',this.value)">
                 <input class="kit-cfg-input kit-cfg-input-code" value="${r(y.codice||"")}" maxlength="40" placeholder="Codice stampa opzionale"
                        onchange="_kitCfgUpdateOpzione('${r(i.id)}','${r(v.id)}','${r(y.id)}','codice',this.value)">
-                <button class="kit-cfg-del-btn" onclick="_kitCfgDelOpzione('${r(i.id)}','${r(v.id)}','${r(y.id)}')"><i class="fas fa-times"></i></button>
+                <button type="button" class="kit-cfg-del-btn" onclick="_kitCfgDelOpzione('${r(i.id)}','${r(v.id)}','${r(y.id)}')"><i class="fas fa-times"></i></button>
             </div>`).join("");return`<div class="kit-cfg-sez-block" data-ai="${q}">
             <div class="kit-cfg-sez-header">
                 <input class="kit-cfg-input kit-cfg-input-sez" value="${r(v.nome)}" maxlength="40" placeholder="Gruppo elettronico (es. LED)"
                        onchange="_kitCfgUpdateAsse('${r(i.id)}','${r(v.id)}','nome',this.value)">
-                <button class="kit-cfg-del-btn kit-cfg-del-sez" onclick="_kitCfgDelAsse('${r(i.id)}','${r(v.id)}')"><i class="fas fa-times"></i></button>
+                <button type="button" class="kit-cfg-del-btn kit-cfg-del-sez" onclick="_kitCfgDelAsse('${r(i.id)}','${r(v.id)}')"><i class="fas fa-times"></i></button>
             </div>
             <div class="kit-cfg-help">Qui metti solo i nomi delle scelte che il cliente pu\xF2 richiedere per questo gruppo.</div>
             ${L||'<div class="kit-cfg-sa-empty">Nessuna opzione ancora.</div>'}
-            <button class="kit-cfg-add-comp-btn" onclick="_kitCfgAddOpzione('${r(i.id)}','${r(v.id)}')"><i class="fas fa-plus"></i> Aggiungi scelta</button>
+            <button type="button" class="kit-cfg-add-comp-btn" onclick="_kitCfgAddOpzione('${r(i.id)}','${r(v.id)}')"><i class="fas fa-plus"></i> Aggiungi scelta</button>
         </div>`}).join(""),g=o.length?`<div class="kit-cfg-recap" style="margin-top:12px">
             <div class="kit-cfg-recap-row">
                 <i class="fas fa-diagram-project"></i>
@@ -586,7 +586,7 @@ import{a as oi,c as ut,e as si,f as r,g as A,h as at,l as ai,m as F,q as ri,r as
                 Tu inserisci i nomi, il sistema user\xE0 queste scelte per costruire l'ordine e la distinta base.
             </div>
             ${k||'<div style="color:#94a3b8;padding:6px 0;font-size:0.82rem">Nessun gruppo elettronico ancora. Aggiungi il primo per iniziare.</div>'}
-            <button class="kit-cfg-add-btn" onclick="_kitCfgAddAsse('${r(i.id)}')"><i class="fas fa-plus"></i> Aggiungi gruppo elettronico</button>
+            <button type="button" class="kit-cfg-add-btn" onclick="_kitCfgAddAsse('${r(i.id)}')"><i class="fas fa-plus"></i> Aggiungi gruppo elettronico</button>
             ${g}
         </div>`,u=(i.sezioni||[]).map((v,q)=>{let L=(v.componenti||[]).map(y=>{let w=N(y),f=ht(y,i),_=(e||[]).find(x=>x.id===f.asseId)||null,B=f.tipo==="gruppo"&&_?`<div class="kit-cfg-row">${(_.opzioni||[]).map(x=>`<label class="kit-meta-pill">
                         <input type="checkbox" ${f.opzioneIds.includes(x.id)?"checked":""}
@@ -606,7 +606,7 @@ import{a as oi,c as ut,e as si,f as r,g as A,h as at,l as ai,m as F,q as ri,r as
                         <option value="quantificato" ${w?"":"selected"}>Materiale da contare</option>
                         <option value="segnalazione" ${w?"selected":""}>Solo avviso</option>
                     </select>
-                    <button class="kit-cfg-del-btn" onclick="_kitCfgDelComp('${r(i.id)}','${r(v.id)}','${r(y.id)}')"><i class="fas fa-times"></i></button>
+                    <button type="button" class="kit-cfg-del-btn" onclick="_kitCfgDelComp('${r(i.id)}','${r(v.id)}','${r(y.id)}')"><i class="fas fa-times"></i></button>
                 </div>
                 <div class="kit-cfg-row">
                     <label class="kit-cfg-label" style="margin:0">Quantit\xE0 per faretto</label>
@@ -635,11 +635,11 @@ import{a as oi,c as ut,e as si,f as r,g as A,h as at,l as ai,m as F,q as ri,r as
             <div class="kit-cfg-sez-header">
                 <input class="kit-cfg-input kit-cfg-input-sez" value="${r(v.nome)}" maxlength="40" placeholder="Gruppo di parti (es. Meccanica)"
                        onchange="_kitCfgUpdateSez('${r(i.id)}','${r(v.id)}','nome',this.value)">
-                <button class="kit-cfg-copy-btn" onclick="_kitCfgOpenCopySezModal('${r(i.id)}','${r(v.id)}')" title="Copia questa sezione in altri kit"><i class="fas fa-copy"></i></button>
-                <button class="kit-cfg-del-btn kit-cfg-del-sez" onclick="_kitCfgDelSez('${r(i.id)}','${r(v.id)}')"><i class="fas fa-times"></i></button>
+                <button type="button" class="kit-cfg-copy-btn" onclick="_kitCfgOpenCopySezModal('${r(i.id)}','${r(v.id)}')" title="Copia questa sezione in altri kit"><i class="fas fa-copy"></i></button>
+                <button type="button" class="kit-cfg-del-btn kit-cfg-del-sez" onclick="_kitCfgDelSez('${r(i.id)}','${r(v.id)}')"><i class="fas fa-times"></i></button>
             </div>
             ${L}
-            <button class="kit-cfg-add-comp-btn" onclick="_kitCfgAddComp('${r(i.id)}','${r(v.id)}')"><i class="fas fa-plus"></i> Aggiungi parte</button>
+            <button type="button" class="kit-cfg-add-comp-btn" onclick="_kitCfgAddComp('${r(i.id)}','${r(v.id)}')"><i class="fas fa-plus"></i> Aggiungi parte</button>
         </div>`}).join(""),z=`
         <div class="kit-cfg-section">
             <div class="kit-cfg-help">
@@ -650,14 +650,14 @@ import{a as oi,c as ut,e as si,f as r,g as A,h as at,l as ai,m as F,q as ri,r as
             ${o.length?"":'<div class="kit-cfg-warn">\u26A0\uFE0F Aggiungi prima almeno un gruppo nella tab <strong>Elettronica selezionabile</strong>.</div>'}
             ${u}
             <div class="kit-cfg-row">
-                <button class="kit-cfg-add-btn" onclick="_kitCfgAddSez('${r(i.id)}')"><i class="fas fa-plus"></i> Aggiungi gruppo parti</button>
-                <button class="kit-cfg-add-btn" onclick="_kitCfgOpenImportModal('${r(i.id)}')"><i class="fas fa-copy"></i> Importa gruppo da altro kit</button>
+                <button type="button" class="kit-cfg-add-btn" onclick="_kitCfgAddSez('${r(i.id)}')"><i class="fas fa-plus"></i> Aggiungi gruppo parti</button>
+                <button type="button" class="kit-cfg-add-btn" onclick="_kitCfgOpenImportModal('${r(i.id)}')"><i class="fas fa-copy"></i> Importa gruppo da altro kit</button>
             </div>
         </div>`,T="";o.length?T=o.map(v=>{let q=(i.sottoAssembly||[]).map((y,w)=>({sa:y,i:w})).filter(({sa:y})=>y.varianteKey===v.key),L=q.map(({sa:y,i:w})=>`
                 <div class="kit-cfg-row kit-cfg-sarow">
                     <input class="kit-cfg-input" value="${r(y.nome)}" maxlength="60" placeholder="es. Testa"
                            onchange="_kitCfgUpdateSA('${r(i.id)}',${w},'nome',this.value)">
-                    <button class="kit-cfg-del-btn" onclick="_kitCfgDelSA('${r(i.id)}',${w})"><i class="fas fa-times"></i></button>
+                    <button type="button" class="kit-cfg-del-btn" onclick="_kitCfgDelSA('${r(i.id)}',${w})"><i class="fas fa-times"></i></button>
                 </div>`).join("");return`<div class="kit-cfg-sa-group">
                 <div class="kit-cfg-sa-group-header">
                     <span class="kit-cfg-sa-var-badge">${r(v.nome)}</span>
@@ -682,4 +682,4 @@ import{a as oi,c as ut,e as si,f as r,g as A,h as at,l as ai,m as F,q as ri,r as
         <div class="kit-tabs">${U}</div>
         <div class="kit-tab-panel kit-tab-panel--active kit-cfg-panel">${Z[D]}</div>
     </div>`,at(n)}function he(t){if(t&&M===t){K();return}M=t,K()}function ze(t){D=t,et()}function $(t,i,n=!0){let{kits:e}=C(),o=e.find(s=>s.id===t);o&&(i(o),O(e),n&&et())}function Ce(t,i){$(t,function(n){n.nome=i.trim()||"Kit senza nome"},!1)}function we(t){if(!confirm("Eliminare questo kit e tutti i suoi dati?"))return;let{kits:i}=C();O(i.filter(n=>n.id!==t)),St=null,M=null,W()}function ii(t){$(t,function(i){let n=(i.assiConfigurazione||[]).length+1;i.assiConfigurazione=i.assiConfigurazione||[],i.assiConfigurazione.push({id:I(),key:"asse"+n,nome:"Asse "+n,opzioni:[{id:I(),key:"opz1",nome:"Opzione 1"}]})})}function $e(t,i,n,e){$(t,function(o){let s=(o.assiConfigurazione||[]).find(a=>a.id===i);s&&(n==="key"?s.key=nt(e,s.key||"asse"):s[n]=e.trim())})}function _e(t,i){$(t,function(n){n.assiConfigurazione=(n.assiConfigurazione||[]).filter(e=>e.id!==i)})}function Se(t,i){$(t,function(n){let e=(n.assiConfigurazione||[]).find(s=>s.id===i);if(!e)return;let o=(e.opzioni||[]).length+1;e.opzioni=e.opzioni||[],e.opzioni.push({id:I(),key:"opz"+o,nome:"Opzione "+o,codice:""})})}function Ie(t,i,n,e,o){$(t,function(s){let a=(s.assiConfigurazione||[]).find(c=>c.id===i),d=a&&(a.opzioni||[]).find(c=>c.id===n);d&&(e==="key"?d.key=nt(o,d.key||"opzione"):d[e]=o.trim())})}function xe(t,i,n){$(t,function(e){let o=(e.assiConfigurazione||[]).find(s=>s.id===i);o&&(o.opzioni=(o.opzioni||[]).filter(s=>s.id!==n))})}function Ae(t){ii(t)}function Me(t){$(t,function(i){i.sezioni=i.sezioni||[],i.sezioni.push({id:I(),nome:"Nuova sezione",componenti:[]})})}function Oe(t){ti(t)}function qe(t,i,n,e){$(t,function(o){let s=(o.sezioni||[]).find(a=>a.id===i);s&&(s[n]=e.trim())},!1)}function Ee(t,i){confirm("Eliminare questa sezione e tutti i suoi componenti?")&&$(t,function(n){n.sezioni=(n.sezioni||[]).filter(e=>e.id!==i)})}function Ne(t,i){$(t,function(n){let e=(n.sezioni||[]).find(o=>o.id===i);e&&(e.componenti=e.componenti||[],e.componenti.push({id:I(),nome:"Nuovo componente",codice:"",qtaPerVariante:{},caricato:0,modoComponente:"quantificato",tracciabile:!0,noteConfig:"",unitaMisura:"pz"}))})}function Te(t,i,n,e,o,s){$(t,function(a){let d=(a.sezioni||[]).find(l=>l.id===i),c=d&&(d.componenti||[]).find(l=>l.id===n);if(c){if(e==="coeff"||e==="flag"){c.qtaPerVariante=c.qtaPerVariante||{},c.qtaPerVariante[o]=H(s);return}if(e==="modo"){c.modoComponente=s==="segnalazione"?"segnalazione":"quantificato",c.modoComponente==="segnalazione"?(c.tracciabile=!1,c.unitaMisura="flag"):c.unitaMisura==="flag"&&(c.unitaMisura="pz");return}if(e==="unitaMisura"){c.unitaMisura=c.modoComponente==="segnalazione"?"flag":mt(s,"pz");return}c[e]=s.trim()}},e!=="nome"&&e!=="noteConfig")}function Be(t,i,n,e,o){$(t,function(s){let a=(s.sezioni||[]).find(l=>l.id===i),d=a&&(a.componenti||[]).find(l=>l.id===n);if(!d)return;let c=ht(d,s);if(e==="tipo"){if(c.tipo=o==="gruppo"?"gruppo":"sempre",c.tipo==="gruppo"&&!c.asseId){c.asseId=s.assiConfigurazione?.[0]?.id||"";let l=(s.assiConfigurazione||[]).find(p=>p.id===c.asseId);c.opzioneIds=l?.opzioni?.length?[l.opzioni[0].id]:[]}}else if(e==="qtyBase")c.qtyBase=H(o);else if(e==="asseId"){c.asseId=String(o||"");let l=(s.assiConfigurazione||[]).find(p=>p.id===c.asseId);c.opzioneIds=l?.opzioni?.length?[l.opzioni[0].id]:[],c.tipo="gruppo"}d.applicazioneTipo=c.tipo,d.applicazioneAsseId=c.asseId,d.applicazioneOpzioneIds=c.opzioneIds,d.qtaBase=c.qtyBase,d.qtaPerVariante=bt(d,s,c)})}function Ke(t,i,n,e,o){$(t,function(s){let a=(s.sezioni||[]).find(p=>p.id===i),d=a&&(a.componenti||[]).find(p=>p.id===n);if(!d)return;let c=ht(d,s),l=new Set(c.opzioneIds||[]);o?l.add(e):l.delete(e),c.tipo="gruppo",c.opzioneIds=[...l],d.applicazioneTipo=c.tipo,d.applicazioneAsseId=c.asseId,d.applicazioneOpzioneIds=c.opzioneIds,d.qtaBase=c.qtyBase,d.qtaPerVariante=bt(d,s,c)})}function Le(t,i,n,e){$(t,function(o){let s=(o.sezioni||[]).find(d=>d.id===i),a=s&&(s.componenti||[]).find(d=>d.id===n);!a||N(a)||(a.tracciabile=!!e)},!1)}function Re(t,i,n){$(t,function(e){let o=(e.sezioni||[]).find(s=>s.id===i);o&&(o.componenti=(o.componenti||[]).filter(s=>s.id!==n))})}function Pe(t){$(t,function(i){i.sottoAssembly=i.sottoAssembly||[],i.sottoAssembly.push({id:I(),nome:"",varianteKey:S(i)[0]?.key||""})})}function De(t,i){$(t,function(n){n.sottoAssembly=n.sottoAssembly||[],n.sottoAssembly.push({id:I(),nome:"",varianteKey:i,noteConfig:""})})}function Ve(t,i,n,e){$(t,function(o){o.sottoAssembly[i]&&(o.sottoAssembly[i][n]=e.trim())},!1)}function He(t,i){$(t,function(n){n.sottoAssembly.splice(i,1)})}function We(){window._kitOpenView=Bi,window._kitOpenConfig=Xt,window._kitNuovoKit=le,window._kitBack=Ki,window._kitOpenPrintPreview=Oi,window._kitSwitchTab=Li,window._kitAggiornaQty=Ri,window._kitOrdineSet=Pi,window._kitOrdineDelta=Di,window._kitOrdineReset=Vi,window._kitOrdineResetVoce=Hi,window._kitOrderSearch=ji,window._kitOrderHideSearch=Ui,window._kitOrderPick=Qi,window._kitOrderRemoveRef=Fi,window._kitComposeSelect=Gi,window._kitComposeAdd=Ji,window._kitAggiornaCar=Ft,window._kitAggiornaPronti=Yi,window._kitSetPronti=Wi,window._kitApriModalSped=oe,window._kitChiudiModalSped=Wt,window._kitConfermaSpedizione=se,window._kitApriModalReso=ae,window._kitChiudiModalReso=Zt,window._kitResoQtyChange=re,window._kitResoAggiornaBOM=_t,window._kitConfermaReso=ce,window._kitSalvaMovimento=Xi,window._kitEliminaMovimento=te,window._kitModificaMovimento=ee,window._kitChiudiModalEditMov=Yt,window._kitConfermaModificaMov=ne,window._kitChiudiModalDelMov=Gt,window._kitConfermaEliminaMov=Jt,window._kitSalvaManuale=de,window._kitElimina=we,window._kitCfgBack=he,window._kitCfgSwitchTab=ze,window._kitCfgSaveNome=Ce,window._kitCfgAddVar=Ae,window._kitCfgOpenImportModal=ti,window._kitCfgOpenCopySezModal=pe,window._kitCfgCloseImportModal=pt,window._kitCfgSetImportMode=me,window._kitCfgSetImportSearch=ue,window._kitCfgSelectImportSource=fe,window._kitCfgSelectImportSection=ge,window._kitCfgToggleImportTarget=ke,window._kitCfgSelectAllImportTargets=ve,window._kitCfgClearImportTargets=be,window._kitCfgConfirmImport=ye,window._kitCfgAddAsse=ii,window._kitCfgUpdateAsse=$e,window._kitCfgDelAsse=_e,window._kitCfgAddOpzione=Se,window._kitCfgUpdateOpzione=Ie,window._kitCfgDelOpzione=xe,window._kitCfgAddSez=Me,window._kitCfgImportSez=Oe,window._kitCfgUpdateSez=qe,window._kitCfgDelSez=Ee,window._kitCfgAddComp=Ne,window._kitCfgUpdateComp=Te,window._kitCfgUpdateCompRule=Be,window._kitCfgToggleCompOption=Ke,window._kitCfgToggleCompTracked=Le,window._kitCfgDelComp=Re,window._kitCfgAddSA=Pe,window._kitCfgAddSAForVariant=De,window._kitCfgUpdateSA=Ve,window._kitCfgDelSA=He}var vt,ct,Et,At,Nt,di,gt,V,X,rt,tt,qt,M,Qt,St,D,h,Ze,je=oi(()=>{si();ri();ci();ai();vt="_mlKitData",ct="_mlKitDataTs",Et="_mlKitOrderDrafts",At="_mlKitOrderDraftSeq",Nt=2,di=["pz","mt","cm","mm","kg","g","lt","ml"],gt=!1,V=[],X=null,rt={};tt={};qt=null;M=null,Qt="ordine";St=null,D="info",h=null;Ze=W});je();export{W as caricaKitProdotti,Ze as default,We as registerGlobals,Ye as resetKitFetch};
-//# sourceMappingURL=chunk-kit-prodotti-HGXWECQ7.js.map
+//# sourceMappingURL=chunk-kit-prodotti-VAZ3IVAN.js.map

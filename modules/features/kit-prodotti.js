@@ -1341,7 +1341,7 @@ export function caricaKitProdotti() {
         <div class="kit-card" onclick="_kitOpenView('${_esc(kit.id)}')">
             <div class="kit-card-header">
                 <span class="kit-card-nome">${_esc(kit.nome)}</span>
-                <button class="kit-card-gear" onclick="event.stopPropagation();_kitOpenConfig('${_esc(kit.id)}')" title="Configura kit"><i class="fas fa-gear"></i></button>
+                <button type="button" class="kit-card-gear" onclick="event.stopPropagation();_kitOpenConfig('${_esc(kit.id)}')" title="Configura kit"><i class="fas fa-gear"></i></button>
             </div>
             <div class="kit-card-meta">
                 <span class="kit-meta-pill"><i class="fas fa-sliders"></i> ${nAssi} ass${nAssi===1?'e':'i'}</span>
@@ -1355,13 +1355,13 @@ export function caricaKitProdotti() {
     <div class="kit-page">
         <div class="kit-page-header">
             <div class="kit-page-title"><i class="fas fa-boxes-stacked"></i> Kit Prodotti</div>
-            <button class="kit-nuovo-btn" onclick="_kitNuovoKit()"><i class="fas fa-plus"></i> Nuovo Kit</button>
+            <button type="button" class="kit-nuovo-btn" onclick="_kitNuovoKit()"><i class="fas fa-plus"></i> Nuovo Kit</button>
         </div>
         ${kits.length === 0
-            ? `<div class="kit-empty-state">
+                ? `<div class="kit-empty-state">
                 <i class="fas fa-box-open kit-empty-icon"></i>
                 <p>Nessun kit configurato.</p>
-                <button class="kit-nuovo-btn" onclick="_kitNuovoKit()"><i class="fas fa-plus"></i> Crea il primo kit</button>
+                <button type="button" class="kit-nuovo-btn" onclick="_kitNuovoKit()"><i class="fas fa-plus"></i> Crea il primo kit</button>
                </div>`
             : `<div class="kit-grid">${cardsHtml}</div>`
         }
@@ -1413,7 +1413,7 @@ function _kitRenderView() {
             <div class="kit-compose-group">
                 <div class="kit-compose-group-title">${_esc(asse.nome)}</div>
                 <div class="kit-compose-options">${(asse.opzioni || []).map(opzione => `
-                    <button class="kit-compose-option ${composeState[asse.id] === opzione.id ? 'kit-compose-option--active' : ''}"
+                        <button type="button" class="kit-compose-option ${composeState[asse.id] === opzione.id ? 'kit-compose-option--active' : ''}"
                             onclick="_kitComposeSelect('${_esc(kit.id)}','${_esc(asse.id)}','${_esc(opzione.id)}')">
                         ${_esc(opzione.nome)}
                     </button>`).join('')}</div>
@@ -1429,12 +1429,12 @@ function _kitRenderView() {
                     <div class="kit-order-line-meta">${Array.isArray(variante.selections) && variante.selections.length ? variante.selections.map(selection => _esc(selection.opzioneNome)).join(' · ') : _esc(variante.key)}</div>
                 </div>
                 <div class="kit-order-stepper">
-                    <button class="kit-order-stepper-btn" onclick="_kitOrdineDelta('${_esc(kit.id)}','${_esc(variante.key)}',-1)">−</button>
+                    <button type="button" class="kit-order-stepper-btn" onclick="_kitOrdineDelta('${_esc(kit.id)}','${_esc(variante.key)}',-1)">−</button>
                     <input class="kit-order-stepper-input" type="number" min="0" value="${qty}"
                            onchange="_kitOrdineSet('${_esc(kit.id)}','${_esc(variante.key)}',this.value)"
                            oninput="_kitOrdineSet('${_esc(kit.id)}','${_esc(variante.key)}',this.value)">
-                    <button class="kit-order-stepper-btn" onclick="_kitOrdineDelta('${_esc(kit.id)}','${_esc(variante.key)}',1)">+</button>
-                    <button class="kit-cfg-del-btn" style="font-size:1rem" onclick="_kitOrdineResetVoce('${_esc(kit.id)}','${_esc(variante.key)}')"><i class="fas fa-times"></i></button>
+                    <button type="button" class="kit-order-stepper-btn" onclick="_kitOrdineDelta('${_esc(kit.id)}','${_esc(variante.key)}',1)">+</button>
+                    <button type="button" class="kit-cfg-del-btn" style="font-size:1rem" onclick="_kitOrdineResetVoce('${_esc(kit.id)}','${_esc(variante.key)}')"><i class="fas fa-times"></i></button>
                 </div>
             </div>`;
         }).join('')
@@ -1470,10 +1470,10 @@ function _kitRenderView() {
 
     contenitore.innerHTML = `
     <div class="kit-page">
-        <div class="kit-view-header">
-            <button class="kit-back-btn" onclick="_kitBack()"><i class="fas fa-arrow-left"></i></button>
+            <div class="kit-view-header">
+            <button type="button" class="kit-back-btn" onclick="_kitBack()"><i class="fas fa-arrow-left"></i></button>
             <span class="kit-view-nome">${_esc(kit.nome)}</span>
-            <button class="kit-gear-btn-inline" onclick="_kitOpenConfig('${_esc(kit.id)}')" title="Configura"><i class="fas fa-gear"></i></button>
+            <button type="button" class="kit-gear-btn-inline" onclick="_kitOpenConfig('${_esc(kit.id)}')" title="Configura"><i class="fas fa-gear"></i></button>
         </div>
 
         <div class="kit-order-summary">
@@ -1483,8 +1483,8 @@ function _kitRenderView() {
                     <div class="kit-order-summary-total">${distinta.totalePezzi} pezzi</div>
                 </div>
                 <div class="kit-order-summary-actions">
-                    <button class="kit-btn-secondary" onclick="_kitOpenPrintPreview('${_esc(kit.id)}')"><i class="fas fa-print"></i> Anteprima stampa</button>
-                    <button class="kit-btn-secondary" onclick="_kitOrdineReset('${_esc(kit.id)}')"><i class="fas fa-rotate-left"></i> Azzera ordine</button>
+                    <button type="button" class="kit-btn-secondary" onclick="_kitOpenPrintPreview('${_esc(kit.id)}')"><i class="fas fa-print"></i> Anteprima stampa</button>
+                    <button type="button" class="kit-btn-secondary" onclick="_kitOrdineReset('${_esc(kit.id)}')"><i class="fas fa-rotate-left"></i> Azzera ordine</button>
                 </div>
             </div>
             <div class="kit-order-summary-note">Questa bozza ordine resta locale sul dispositivo e serve solo per generare la distinta base di approvvigionamento.</div>
@@ -1523,7 +1523,7 @@ function _kitRenderView() {
                         </div>
                         <div class="kit-order-stepper">
                             <input class="kit-order-stepper-input" id="kit-compose-qty-${_esc(kit.id)}" type="number" min="1" value="1">
-                            <button class="kit-spedisci-btn" onclick="_kitComposeAdd('${_esc(kit.id)}')"><i class="fas fa-plus"></i> Aggiungi all'ordine</button>
+                            <button type="button" class="kit-spedisci-btn" onclick="_kitComposeAdd('${_esc(kit.id)}')"><i class="fas fa-plus"></i> Aggiungi all'ordine</button>
                         </div>
                     </div>
                 </div>
@@ -1787,10 +1787,10 @@ function _kitRenderMovimentiHtml(kit, canEdit) {
     if (!movimenti.length) return '<div class="kit-mov-empty">Nessun movimento registrato.</div>';
     return movimenti.map(m => {
         const delBtn = canEdit
-            ? `<button class="kit-mov-del" onclick="_kitEliminaMovimento('${_esc(kit.id)}',${m.id})" title="Elimina">✕</button>`
+                ? `<button type="button" class="kit-mov-del" onclick="_kitEliminaMovimento('${_esc(kit.id)}',${m.id})" title="Elimina">✕</button>`
             : '<span style="width:22px;flex-shrink:0"></span>';
-        const editBtn = (canEdit && (m.tipo==='carico'||m.tipo==='scarico'))
-            ? `<button class="kit-mov-edit" onclick="_kitModificaMovimento('${_esc(kit.id)}',${m.id})" title="Modifica">✎</button>`
+            const editBtn = (canEdit && (m.tipo==='carico'||m.tipo==='scarico'))
+                ? `<button type="button" class="kit-mov-edit" onclick="_kitModificaMovimento('${_esc(kit.id)}',${m.id})" title="Modifica">✎</button>`
             : '<span style="width:22px;flex-shrink:0"></span>';
 
         if (m.tipo === 'spedizione') {
@@ -2688,7 +2688,7 @@ function _kitRenderConfig() {
         </div>
         ${recapHtml}
         <div class="kit-cfg-danger">
-            <button class="kit-btn-danger" onclick="_kitElimina('${_esc(kit.id)}')"><i class="fas fa-trash"></i> Elimina kit</button>
+            <button type="button" class="kit-btn-danger" onclick="_kitElimina('${_esc(kit.id)}')"><i class="fas fa-trash"></i> Elimina kit</button>
         </div>`;
 
     // ─── Tab Elettronica selezionabile ───
@@ -2699,18 +2699,18 @@ function _kitRenderConfig() {
                        onchange="_kitCfgUpdateOpzione('${_esc(kit.id)}','${_esc(asse.id)}','${_esc(opt.id)}','nome',this.value)">
                 <input class="kit-cfg-input kit-cfg-input-code" value="${_esc(opt.codice || '')}" maxlength="40" placeholder="Codice stampa opzionale"
                        onchange="_kitCfgUpdateOpzione('${_esc(kit.id)}','${_esc(asse.id)}','${_esc(opt.id)}','codice',this.value)">
-                <button class="kit-cfg-del-btn" onclick="_kitCfgDelOpzione('${_esc(kit.id)}','${_esc(asse.id)}','${_esc(opt.id)}')"><i class="fas fa-times"></i></button>
+                <button type="button" class="kit-cfg-del-btn" onclick="_kitCfgDelOpzione('${_esc(kit.id)}','${_esc(asse.id)}','${_esc(opt.id)}')"><i class="fas fa-times"></i></button>
             </div>`).join('');
 
         return `<div class="kit-cfg-sez-block" data-ai="${axisIndex}">
             <div class="kit-cfg-sez-header">
                 <input class="kit-cfg-input kit-cfg-input-sez" value="${_esc(asse.nome)}" maxlength="40" placeholder="Gruppo elettronico (es. LED)"
                        onchange="_kitCfgUpdateAsse('${_esc(kit.id)}','${_esc(asse.id)}','nome',this.value)">
-                <button class="kit-cfg-del-btn kit-cfg-del-sez" onclick="_kitCfgDelAsse('${_esc(kit.id)}','${_esc(asse.id)}')"><i class="fas fa-times"></i></button>
+                <button type="button" class="kit-cfg-del-btn kit-cfg-del-sez" onclick="_kitCfgDelAsse('${_esc(kit.id)}','${_esc(asse.id)}')"><i class="fas fa-times"></i></button>
             </div>
             <div class="kit-cfg-help">Qui metti solo i nomi delle scelte che il cliente può richiedere per questo gruppo.</div>
             ${opzioniHtml || '<div class="kit-cfg-sa-empty">Nessuna opzione ancora.</div>'}
-            <button class="kit-cfg-add-comp-btn" onclick="_kitCfgAddOpzione('${_esc(kit.id)}','${_esc(asse.id)}')"><i class="fas fa-plus"></i> Aggiungi scelta</button>
+            <button type="button" class="kit-cfg-add-comp-btn" onclick="_kitCfgAddOpzione('${_esc(kit.id)}','${_esc(asse.id)}')"><i class="fas fa-plus"></i> Aggiungi scelta</button>
         </div>`;
     }).join('');
 
@@ -2732,7 +2732,7 @@ function _kitRenderConfig() {
                 Tu inserisci i nomi, il sistema userà queste scelte per costruire l'ordine e la distinta base.
             </div>
             ${assiHtml || '<div style="color:#94a3b8;padding:6px 0;font-size:0.82rem">Nessun gruppo elettronico ancora. Aggiungi il primo per iniziare.</div>'}
-            <button class="kit-cfg-add-btn" onclick="_kitCfgAddAsse('${_esc(kit.id)}')"><i class="fas fa-plus"></i> Aggiungi gruppo elettronico</button>
+            <button type="button" class="kit-cfg-add-btn" onclick="_kitCfgAddAsse('${_esc(kit.id)}')"><i class="fas fa-plus"></i> Aggiungi gruppo elettronico</button>
             ${comboPreview}
         </div>`;
 
@@ -2779,7 +2779,7 @@ function _kitRenderConfig() {
                         <option value="quantificato" ${!isSegnalazione ? 'selected' : ''}>Materiale da contare</option>
                         <option value="segnalazione" ${isSegnalazione ? 'selected' : ''}>Solo avviso</option>
                     </select>
-                    <button class="kit-cfg-del-btn" onclick="_kitCfgDelComp('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}')"><i class="fas fa-times"></i></button>
+                    <button type="button" class="kit-cfg-del-btn" onclick="_kitCfgDelComp('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}')"><i class="fas fa-times"></i></button>
                 </div>
                 <div class="kit-cfg-row">
                     <label class="kit-cfg-label" style="margin:0">Quantità per faretto</label>
@@ -2813,11 +2813,11 @@ function _kitRenderConfig() {
             <div class="kit-cfg-sez-header">
                 <input class="kit-cfg-input kit-cfg-input-sez" value="${_esc(sez.nome)}" maxlength="40" placeholder="Gruppo di parti (es. Meccanica)"
                        onchange="_kitCfgUpdateSez('${_esc(kit.id)}','${_esc(sez.id)}','nome',this.value)">
-                <button class="kit-cfg-copy-btn" onclick="_kitCfgOpenCopySezModal('${_esc(kit.id)}','${_esc(sez.id)}')" title="Copia questa sezione in altri kit"><i class="fas fa-copy"></i></button>
-                <button class="kit-cfg-del-btn kit-cfg-del-sez" onclick="_kitCfgDelSez('${_esc(kit.id)}','${_esc(sez.id)}')"><i class="fas fa-times"></i></button>
+                <button type="button" class="kit-cfg-copy-btn" onclick="_kitCfgOpenCopySezModal('${_esc(kit.id)}','${_esc(sez.id)}')" title="Copia questa sezione in altri kit"><i class="fas fa-copy"></i></button>
+                <button type="button" class="kit-cfg-del-btn kit-cfg-del-sez" onclick="_kitCfgDelSez('${_esc(kit.id)}','${_esc(sez.id)}')"><i class="fas fa-times"></i></button>
             </div>
             ${compRows}
-            <button class="kit-cfg-add-comp-btn" onclick="_kitCfgAddComp('${_esc(kit.id)}','${_esc(sez.id)}')"><i class="fas fa-plus"></i> Aggiungi parte</button>
+            <button type="button" class="kit-cfg-add-comp-btn" onclick="_kitCfgAddComp('${_esc(kit.id)}','${_esc(sez.id)}')"><i class="fas fa-plus"></i> Aggiungi parte</button>
         </div>`;
     }).join('');
 
@@ -2831,8 +2831,8 @@ function _kitRenderConfig() {
             ${!variantiEffettive.length ? `<div class="kit-cfg-warn">⚠️ Aggiungi prima almeno un gruppo nella tab <strong>Elettronica selezionabile</strong>.</div>` : ''}
             ${sezioniHtml}
             <div class="kit-cfg-row">
-                <button class="kit-cfg-add-btn" onclick="_kitCfgAddSez('${_esc(kit.id)}')"><i class="fas fa-plus"></i> Aggiungi gruppo parti</button>
-                <button class="kit-cfg-add-btn" onclick="_kitCfgOpenImportModal('${_esc(kit.id)}')"><i class="fas fa-copy"></i> Importa gruppo da altro kit</button>
+                <button type="button" class="kit-cfg-add-btn" onclick="_kitCfgAddSez('${_esc(kit.id)}')"><i class="fas fa-plus"></i> Aggiungi gruppo parti</button>
+                <button type="button" class="kit-cfg-add-btn" onclick="_kitCfgOpenImportModal('${_esc(kit.id)}')"><i class="fas fa-copy"></i> Importa gruppo da altro kit</button>
             </div>
         </div>`;
 
@@ -2850,7 +2850,7 @@ function _kitRenderConfig() {
                 <div class="kit-cfg-row kit-cfg-sarow">
                     <input class="kit-cfg-input" value="${_esc(sa.nome)}" maxlength="60" placeholder="es. Testa"
                            onchange="_kitCfgUpdateSA('${_esc(kit.id)}',${i},'nome',this.value)">
-                    <button class="kit-cfg-del-btn" onclick="_kitCfgDelSA('${_esc(kit.id)}',${i})"><i class="fas fa-times"></i></button>
+                    <button type="button" class="kit-cfg-del-btn" onclick="_kitCfgDelSA('${_esc(kit.id)}',${i})"><i class="fas fa-times"></i></button>
                 </div>`).join('');
 
             return `<div class="kit-cfg-sa-group">
