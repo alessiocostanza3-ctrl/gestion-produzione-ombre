@@ -1367,7 +1367,15 @@ export function caricaKitProdotti() {
         }
     </div>`;
 
-    applicaFade(contenitore);
+    try {
+        if (window && window._kitSuppressNextFade) {
+            try { delete window._kitSuppressNextFade; } catch(e) {}
+        } else {
+            applicaFade(contenitore);
+        }
+    } catch(e) {
+        applicaFade(contenitore);
+    }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -1568,12 +1576,14 @@ function _kitAggiornaQty(kitId) {
 }
 
 function _kitOrdineSet(kitId, vKey, value) {
+    try { window._kitSuppressNextFade = true; } catch(e) {}
     _kitMutateOrderDraft(kitId, function(orderDraft) {
         orderDraft[vKey] = Math.max(0, Number.parseInt(value, 10) || 0);
     });
 }
 
 function _kitOrdineDelta(kitId, vKey, delta) {
+    try { window._kitSuppressNextFade = true; } catch(e) {}
     _kitMutateOrderDraft(kitId, function(orderDraft) {
         const currentQty = Math.max(0, Number.parseInt(orderDraft[vKey], 10) || 0);
         orderDraft[vKey] = Math.max(0, currentQty + delta);
@@ -1639,6 +1649,7 @@ function _kitOrderPick(kitId, orderNumber, customerName) {
     const normalizedOrder = _kitNormalizeOrderNumber(orderNumber);
     if (!normalizedOrder) return;
 
+    try { window._kitSuppressNextFade = true; } catch(e) {}
     _kitMutateOrderDraft(kitId, function(orderDraft) {
         const meta = _kitGetOrderMeta(orderDraft);
         meta.ordiniCliente = [...new Set(meta.ordiniCliente.concat(normalizedOrder))];
@@ -1653,6 +1664,7 @@ function _kitOrderPick(kitId, orderNumber, customerName) {
 
 function _kitOrderRemoveRef(kitId, orderNumber) {
     const normalizedOrder = _kitNormalizeOrderNumber(orderNumber);
+    try { window._kitSuppressNextFade = true; } catch(e) {}
     _kitMutateOrderDraft(kitId, function(orderDraft) {
         const meta = _kitGetOrderMeta(orderDraft);
         meta.ordiniCliente = meta.ordiniCliente.filter(item => item !== normalizedOrder);
@@ -1668,7 +1680,11 @@ function _kitComposeSelect(kitId, asseId, opzioneId) {
     const nextState = _kitGetComposeState(kit);
     nextState[asseId] = opzioneId;
     _kitComposeState[kitId] = nextState;
-    if (_kitViewId === kitId) _kitRenderView();
+    // evitare la breve animazione/fade quando la selezione è un'interazione locale
+    if (_kitViewId === kitId) {
+        try { window._kitSuppressNextFade = true; } catch(e) {}
+        _kitRenderView();
+    }
 }
 
 function _kitComposeAdd(kitId) {
@@ -1698,6 +1714,7 @@ function _kitComposeAdd(kitId) {
     _kitComposeAddLock[kitId] = Date.now();
     setTimeout(function() { try { delete _kitComposeAddLock[kitId]; } catch(e) {} }, 600);
 
+    try { window._kitSuppressNextFade = true; } catch(e) {}
     _kitMutateOrderDraft(kitId, function(orderDraft) {
         orderDraft[variant.key] = _kitGetOrderQty(orderDraft, variant.key) + qty;
     });
