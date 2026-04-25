@@ -12,6 +12,7 @@ const _KIT_LS_KEY  = '_mlKitData';        // { kits: [...], ts: number }
 const _KIT_LS_TS   = '_mlKitDataTs';      // timestamp locale
 const _KIT_DRAFT_LS_KEY = '_mlKitOrderDrafts'; // bozze ordine locali, non sincronizzate
 const _KIT_SCHEMA_VERSION = 2;
+const _KIT_UNITA_MISURA_OPTIONS = ['pz', 'mt', 'cm', 'mm', 'kg', 'g', 'lt', 'ml'];
 
 // ─── fetch flag ───────────────────────────────────────────────────────────────
 let _fetched = false;
@@ -25,6 +26,27 @@ function _kitSanitizeKey(value, fallback) {
         .replace(/\s+/g, '_')
         .replace(/[^a-z0-9_-]/g, '');
     return cleaned || fallback;
+}
+
+function _kitParseQty(value) {
+    const normalized = String(value ?? '')
+        .trim()
+        .replace(',', '.');
+    const qty = Number.parseFloat(normalized);
+    return Number.isFinite(qty) ? Math.max(0, qty) : 0;
+}
+
+function _kitFormatQty(value) {
+    const qty = Number(value);
+    if (!Number.isFinite(qty)) return '0';
+    const rounded = Math.round(qty * 1000) / 1000;
+    if (Math.abs(rounded - Math.round(rounded)) < 1e-9) return String(Math.round(rounded));
+    return rounded.toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 3 });
+}
+
+function _kitNormalizeUnit(value, fallback = 'pz') {
+    const unit = String(value || fallback).trim().toLowerCase();
+    return unit || fallback;
 }
 
 function _kitNormalizeOption(opt, fallbackIndex) {
@@ -112,11 +134,11 @@ function _kitNormalizeComp(comp) {
         modoComponente: modo,
         tracciabile,
         noteConfig: String(comp?.noteConfig || '').trim(),
-        unitaMisura: String(comp?.unitaMisura || defaultUnita).trim() || 'pz',
+        unitaMisura: _kitNormalizeUnit(comp?.unitaMisura, defaultUnita),
         applicazioneTipo: String(comp?.applicazioneTipo || '').trim(),
         applicazioneAsseId: String(comp?.applicazioneAsseId || '').trim(),
         applicazioneOpzioneIds: Array.isArray(comp?.applicazioneOpzioneIds) ? comp.applicazioneOpzioneIds.map(String) : [],
-        qtaBase: Math.max(0, Number.parseInt(comp?.qtaBase, 10) || 0)
+        qtaBase: _kitParseQty(comp?.qtaBase)
     };
 }
 
@@ -139,7 +161,7 @@ function _kitInferCompRule(comp, kit) {
         tipo: 'sempre',
         asseId: '',
         opzioneIds: [],
-        qtyBase: Math.max(0, Number.parseInt(comp?.qtaBase, 10) || 0)
+        qtyBase: _kitParseQty(comp?.qtaBase)
     };
 
     if (comp?.applicazioneTipo === 'sempre' || comp?.applicazioneTipo === 'gruppo') {
@@ -147,7 +169,7 @@ function _kitInferCompRule(comp, kit) {
             tipo: comp.applicazioneTipo,
             asseId: String(comp.applicazioneAsseId || ''),
             opzioneIds: Array.isArray(comp.applicazioneOpzioneIds) ? comp.applicazioneOpzioneIds.map(String) : [],
-            qtyBase: baseRule.qtyBase || Math.max(0, Number.parseInt(Object.values(comp?.qtaPerVariante || {})[0], 10) || 0)
+            qtyBase: baseRule.qtyBase || _kitParseQty(Object.values(comp?.qtaPerVariante || {})[0])
         };
     }
 
@@ -201,7 +223,7 @@ function _kitInferCompRule(comp, kit) {
 function _kitCompileCompQtyMap(comp, kit, rule) {
     if (!rule || rule.tipo === 'manuale') return { ...(comp?.qtaPerVariante || {}) };
     const qtyMap = {};
-    const qtyBase = Math.max(0, Number.parseInt(rule.qtyBase, 10) || 0);
+    const qtyBase = _kitParseQty(rule.qtyBase);
     if (!qtyBase) return qtyMap;
 
     for (const variante of _kitGetVariantiEffettive(kit)) {
@@ -268,7 +290,7 @@ function _kitCloneComponentForKit(comp, sourceKit, targetKit) {
         modoComponente: comp?.modoComponente === 'segnalazione' ? 'segnalazione' : 'quantificato',
         tracciabile: _kitIsTracciabile(comp),
         noteConfig: String(comp?.noteConfig || '').trim(),
-        unitaMisura: String(comp?.unitaMisura || (_kitIsSegnalazione(comp) ? 'flag' : 'pz')).trim() || 'pz'
+        unitaMisura: _kitNormalizeUnit(comp?.unitaMisura, _kitIsSegnalazione(comp) ? 'flag' : 'pz')
     };
 }
 
@@ -388,7 +410,7 @@ function _kitIsTracciabile(comp) {
 }
 
 function _kitGetComponentQty(comp, vKey) {
-    const rawQty = Number.parseInt(comp?.qtaPerVariante?.[vKey], 10) || 0;
+    const rawQty = _kitParseQty(comp?.qtaPerVariante?.[vKey]);
     return _kitIsSegnalazione(comp) ? (rawQty > 0 ? 1 : 0) : rawQty;
 }
 
@@ -899,7 +921,7 @@ function _kitRenderView() {
                             ${riga.dettaglio ? `<div class="kit-distinta-row-meta">${_esc(riga.dettaglio)}</div>` : ''}
                             ${riga.noteConfig ? `<div class="kit-distinta-row-note">${_esc(riga.noteConfig)}</div>` : ''}
                         </div>
-                        <div class="kit-distinta-row-qty">${riga.totale} ${_esc(riga.unita)}</div>
+                        <div class="kit-distinta-row-qty">${_kitFormatQty(riga.totale)} ${_esc(riga.unita)}</div>
                     </div>`).join('')}
             </div>`).join('')
         : `<div class="kit-empty-state" style="padding:34px 20px">
@@ -2105,6 +2127,12 @@ function _kitRenderConfig() {
             const advancedWarning = rule.tipo === 'manuale'
                 ? `<div class="kit-cfg-warn">Questa parte usa ancora una configurazione avanzata precedente. Appena la modifichi verrà convertita nel nuovo schema semplice.</div>`
                 : '';
+            const unitValue = isSegnalazione ? 'flag' : _kitNormalizeUnit(comp.unitaMisura, 'pz');
+            const unitOptions = isSegnalazione
+                ? [{ value: 'flag', label: 'Solo avviso' }]
+                : [...new Set([unitValue, ..._KIT_UNITA_MISURA_OPTIONS])]
+                    .filter(Boolean)
+                    .map(unit => ({ value: unit, label: unit }));
 
             return `<div class="kit-cfg-sa-group" style="padding:12px 14px">
                 <div class="kit-cfg-row">
@@ -2119,8 +2147,13 @@ function _kitRenderConfig() {
                 </div>
                 <div class="kit-cfg-row">
                     <label class="kit-cfg-label" style="margin:0">Quantità per faretto</label>
-                    <input class="kit-cfg-coeff" type="number" min="0" value="${rule.qtyBase}"
+                    <input class="kit-cfg-coeff" type="number" min="0" step="0.001" value="${rule.qtyBase}"
                            onchange="_kitCfgUpdateCompRule('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}','qtyBase',this.value)">
+                    <select class="kit-cfg-select" style="max-width:120px"
+                            onchange="_kitCfgUpdateComp('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}','unitaMisura','',this.value)"
+                            ${isSegnalazione ? 'disabled' : ''}>
+                        ${unitOptions.map(unit => `<option value="${_esc(unit.value)}" ${unitValue === unit.value ? 'selected' : ''}>${_esc(unit.label)}</option>`).join('')}
+                    </select>
                     <select class="kit-cfg-select" style="max-width:260px"
                             onchange="_kitCfgUpdateCompRule('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}','tipo',this.value)">
                         <option value="sempre" ${rule.tipo === 'sempre' ? 'selected' : ''}>Sempre presente</option>
@@ -2133,8 +2166,8 @@ function _kitRenderConfig() {
                        onchange="_kitCfgUpdateComp('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}','noteConfig','',this.value)">
                 <div class="kit-cfg-help" style="margin:0">
                     ${isSegnalazione
-                        ? 'Usa questo tipo per promemoria come resina, cavo neoprene o stampa 3D: verrà mostrato come avviso nella distinta.'
-                        : 'Qui dici solo quanta parte serve per singolo faretto e se vale sempre o solo per certe scelte elettroniche.'}
+                        ? 'Usa questo tipo solo per cose da ricordare ma non da contare. Se vuoi vedere metri o pezzi in distinta, come cavo neoprene o scatolina 3D, lascia Materiale da contare.'
+                        : 'Qui dici quanta parte serve per singolo faretto, scegli l\'unità e se vale sempre o solo per certe scelte elettroniche.'}
                 </div>
                 ${advancedWarning}
             </div>`;
@@ -2157,7 +2190,7 @@ function _kitRenderConfig() {
             <div class="kit-cfg-help">
                 Qui definisci le <strong>parti del prodotto</strong> che finiranno nella distinta base.<br>
                 Puoi usare un gruppo come <strong>Meccanica</strong> per le parti sempre presenti e altri gruppi se ti aiutano a organizzarti.<br>
-                Se una voce non è da contare ma solo da ricordare, impostala come <strong>Solo avviso</strong>.
+                Se una voce va conteggiata scegli anche l'unità corretta, per esempio <strong>pz</strong> o <strong>mt</strong>. Usa <strong>Solo avviso</strong> solo per promemoria non quantificati.
             </div>
             ${!variantiEffettive.length ? `<div class="kit-cfg-warn">⚠️ Aggiungi prima almeno un gruppo nella tab <strong>Elettronica selezionabile</strong>.</div>` : ''}
             ${sezioniHtml}
@@ -2367,7 +2400,7 @@ function _kitCfgUpdateComp(kitId, sid, cid, field, vKey, val) {
         if (!comp) return;
         if (field === 'coeff' || field === 'flag') {
             comp.qtaPerVariante = comp.qtaPerVariante || {};
-            comp.qtaPerVariante[vKey] = Math.max(0, Number.parseInt(val, 10)||0);
+            comp.qtaPerVariante[vKey] = _kitParseQty(val);
             return;
         }
         if (field === 'modo') {
@@ -2378,6 +2411,12 @@ function _kitCfgUpdateComp(kitId, sid, cid, field, vKey, val) {
             } else if (comp.unitaMisura === 'flag') {
                 comp.unitaMisura = 'pz';
             }
+            return;
+        }
+        if (field === 'unitaMisura') {
+            comp.unitaMisura = comp.modoComponente === 'segnalazione'
+                ? 'flag'
+                : _kitNormalizeUnit(val, 'pz');
             return;
         }
         comp[field] = val.trim();
@@ -2399,7 +2438,7 @@ function _kitCfgUpdateCompRule(kitId, sid, cid, field, value) {
                 rule.opzioneIds = asse?.opzioni?.length ? [asse.opzioni[0].id] : [];
             }
         } else if (field === 'qtyBase') {
-            rule.qtyBase = Math.max(0, Number.parseInt(value, 10) || 0);
+            rule.qtyBase = _kitParseQty(value);
         } else if (field === 'asseId') {
             rule.asseId = String(value || '');
             const asse = (kit.assiConfigurazione || []).find(item => item.id === rule.asseId);
