@@ -486,10 +486,77 @@ function _kitFindVariantFromComposeState(kit, composeState) {
     return _kitGetVariantiEffettive(kit).find(variante => variante.key === variantKey) || null;
 }
 
+function _kitGetSelectionDistintaName(selection) {
+    const asseNome = String(selection?.asseNome || '').trim();
+    const opzioneNome = String(selection?.opzioneNome || '').trim();
+    if (!asseNome) return opzioneNome;
+    if (!opzioneNome) return asseNome;
+    if (opzioneNome.toLowerCase().includes(asseNome.toLowerCase()) || /\s/.test(opzioneNome)) return opzioneNome;
+    return `${asseNome} ${opzioneNome}`.trim();
+}
+
+function _kitSelectionCoveredByMaterial(kit, variante, selection) {
+    const asseId = String(selection?.asseId || '');
+    const opzioneId = String(selection?.opzioneId || '');
+    if (!asseId || !opzioneId) return false;
+
+    for (const sezione of (kit.sezioni || [])) {
+        for (const comp of (sezione.componenti || [])) {
+            if (_kitIsSegnalazione(comp)) continue;
+            if (_kitGetComponentQty(comp, variante.key) <= 0) continue;
+            if (comp.applicazioneTipo !== 'gruppo') continue;
+            if (String(comp.applicazioneAsseId || '') !== asseId) continue;
+            if (!(Array.isArray(comp.applicazioneOpzioneIds) && comp.applicazioneOpzioneIds.includes(opzioneId))) continue;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function _kitBuildSelectedOptionsRows(kit, selectedVarianti, orderDraft) {
+    const rows = [];
+    const rowsByKey = new Map();
+
+    for (const variante of selectedVarianti) {
+        const pezziOrdine = Number.parseInt(orderDraft?.[variante.key], 10) || 0;
+        if (!pezziOrdine) continue;
+
+        for (const selection of (variante.selections || [])) {
+            if (_kitSelectionCoveredByMaterial(kit, variante, selection)) continue;
+
+            const rowKey = `${selection.asseId || ''}::${selection.opzioneId || ''}`;
+            const existingRow = rowsByKey.get(rowKey);
+            if (existingRow) {
+                existingRow.totale += pezziOrdine;
+                continue;
+            }
+
+            const nextRow = {
+                id: 'sel-' + rowKey,
+                nome: _kitGetSelectionDistintaName(selection),
+                totale: pezziOrdine,
+                unita: 'pz',
+                dettaglio: '',
+                noteConfig: ''
+            };
+            rowsByKey.set(rowKey, nextRow);
+            rows.push(nextRow);
+        }
+    }
+
+    return rows;
+}
+
 function _kitBuildDistintaBase(kit, orderDraft) {
     const selectedVarianti = _kitGetVariantiEffettive(kit).filter(variante => (Number.parseInt(orderDraft?.[variante.key], 10) || 0) > 0);
     const sezioni = [];
     const avvisi = [];
+
+    const selectedOptionsRows = _kitBuildSelectedOptionsRows(kit, selectedVarianti, orderDraft);
+    if (selectedOptionsRows.length) {
+        sezioni.push({ id: 'kit-distinta-elettronica', nome: 'ELETTRONICA', righe: selectedOptionsRows });
+    }
 
     for (const sezione of (kit.sezioni || [])) {
         const righe = [];
@@ -535,7 +602,7 @@ function _kitBuildDistintaBase(kit, orderDraft) {
                 nome: comp.nome,
                 totale: totalQty,
                 unita: comp.unitaMisura || 'pz',
-                dettaglio: variantiLabel,
+                dettaglio: '',
                 noteConfig: comp.noteConfig || ''
             });
 
@@ -829,7 +896,7 @@ function _kitRenderView() {
                     <div class="kit-distinta-row">
                         <div class="kit-distinta-row-main">
                             <div class="kit-distinta-row-name">${_esc(riga.nome)}</div>
-                            <div class="kit-distinta-row-meta">${_esc(riga.dettaglio)}</div>
+                            ${riga.dettaglio ? `<div class="kit-distinta-row-meta">${_esc(riga.dettaglio)}</div>` : ''}
                             ${riga.noteConfig ? `<div class="kit-distinta-row-note">${_esc(riga.noteConfig)}</div>` : ''}
                         </div>
                         <div class="kit-distinta-row-qty">${riga.totale} ${_esc(riga.unita)}</div>
