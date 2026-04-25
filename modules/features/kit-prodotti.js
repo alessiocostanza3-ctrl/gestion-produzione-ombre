@@ -652,6 +652,440 @@ function _kitBuildDistintaBase(kit, orderDraft) {
     };
 }
 
+function _kitFormatDateTime(value, withTime = true) {
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+    return date.toLocaleString('it-IT', withTime
+        ? { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }
+        : { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function _kitBuildPrintRowRef(sezioneNome, rowIndex) {
+    const cleaned = String(sezioneNome || '')
+        .toUpperCase()
+        .replace(/[^A-Z0-9\s]/g, ' ')
+        .trim();
+    const words = cleaned.split(/\s+/).filter(Boolean);
+    let prefix = '';
+
+    if (words.length > 1) prefix = words.slice(0, 3).map(word => word[0]).join('');
+    else prefix = cleaned.replace(/\s+/g, '').slice(0, 3);
+
+    prefix = (prefix || 'MAT').padEnd(3, 'X').slice(0, 3);
+    return `${prefix}-${String(rowIndex + 1).padStart(2, '0')}`;
+}
+
+function _kitBuildPrintPreviewHtml(kit, distinta, orderDraft) {
+    const generatedAt = new Date();
+    const docRef = `DB-${generatedAt.toISOString().slice(0, 10).replace(/-/g, '')}-${String(kit.id || 'KIT').slice(-4).toUpperCase()}`;
+    const logoUrl = new URL('logo.png', window.location.href).href;
+    const selectedLinesHtml = distinta.selectedVarianti.length
+        ? distinta.selectedVarianti.map(variante => {
+            const qty = Number.parseInt(orderDraft?.[variante.key], 10) || 0;
+            return `<tr>
+                <td>${_esc(_kitFormatQty(qty))}</td>
+                <td>${_esc(variante.nome)}</td>
+                <td>${_esc(Array.isArray(variante.selections) && variante.selections.length ? variante.selections.map(selection => selection.opzioneNome).join(' · ') : variante.key)}</td>
+            </tr>`;
+        }).join('')
+        : `<tr><td colspan="3">Nessuna configurazione selezionata.</td></tr>`;
+
+    const rowsHtml = distinta.sezioni.map(sezione => {
+        const sectionRows = sezione.righe.map((riga, rowIndex) => {
+            const note = [riga.dettaglio, riga.noteConfig].filter(Boolean).join(' · ');
+            return `<tr>
+                <td class="db-print-cell-ref">${_esc(_kitBuildPrintRowRef(sezione.nome, rowIndex))}</td>
+                <td>
+                    <div class="db-print-row-name">${_esc(riga.nome)}</div>
+                    <div class="db-print-row-sub">${_esc(sezione.nome)}</div>
+                </td>
+                <td class="db-print-cell-unit">${_esc(riga.unita)}</td>
+                <td class="db-print-cell-qty">${_esc(_kitFormatQty(riga.totale))}</td>
+                <td class="db-print-cell-note">${note ? _esc(note) : '—'}</td>
+            </tr>`;
+        }).join('');
+
+        return `<tr class="db-print-section-row"><td colspan="5">${_esc(sezione.nome)}</td></tr>${sectionRows}`;
+    }).join('');
+
+    const avvisiHtml = distinta.avvisi.length
+        ? distinta.avvisi.map(avviso => `<div class="db-print-alert ${avviso.tipo === 'alert' ? 'db-print-alert--warning' : ''}">
+                <div class="db-print-alert-title">${_esc(avviso.nome)}</div>
+                <div>${_esc(avviso.dettaglio)}</div>
+                <div class="db-print-alert-meta">Coinvolto su ${_esc(_kitFormatQty(avviso.totaleCoinvolto))} pz · ${_esc(avviso.variantiLabel)}</div>
+            </div>`).join('')
+        : '<div class="db-print-empty">Nessun avviso operativo collegato a questa distinta.</div>';
+
+    return `<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Distinta base - ${_esc(kit.nome)}</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --ink: #111827;
+            --muted: #6b7280;
+            --line: #cbd5e1;
+            --paper: #ffffff;
+            --bg: #e5e7eb;
+            --accent: #0f172a;
+            --soft: #f8fafc;
+            --brand: #1e293b;
+            --warning-bg: #fffbeb;
+            --warning-line: #fcd34d;
+        }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; background: var(--bg); font-family: Arial, Helvetica, sans-serif; color: var(--ink); }
+        body { min-height: 100vh; }
+        .db-print-toolbar {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 18px;
+            background: rgba(15, 23, 42, 0.94);
+            color: #fff;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.22);
+        }
+        .db-print-toolbar-title { font-size: 13px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+        .db-print-toolbar-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .db-print-toolbar button {
+            border: 1px solid rgba(255,255,255,0.16);
+            background: #fff;
+            color: #0f172a;
+            border-radius: 999px;
+            padding: 10px 16px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .db-print-toolbar button.db-print-btn-secondary {
+            background: transparent;
+            color: #fff;
+        }
+        .db-print-stage { padding: 28px 18px 46px; }
+        .db-print-page {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
+            background: var(--paper);
+            box-shadow: 0 24px 50px rgba(15, 23, 42, 0.14);
+            padding: 18mm 16mm 14mm;
+        }
+        .db-print-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 18px;
+            margin-bottom: 14px;
+        }
+        .db-print-brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            min-width: 0;
+        }
+        .db-print-logo {
+            width: 52px;
+            height: 52px;
+            object-fit: contain;
+            border-radius: 14px;
+            border: 1px solid var(--line);
+            padding: 6px;
+            background: #fff;
+        }
+        .db-print-brand-name {
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            color: var(--brand);
+        }
+        .db-print-brand-sub {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+        .db-print-title-block {
+            text-align: right;
+            min-width: 240px;
+        }
+        .db-print-title {
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: var(--accent);
+        }
+        .db-print-subtitle {
+            margin-top: 4px;
+            font-size: 11px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+        .db-print-meta-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+        .db-print-meta-card {
+            border: 1px solid var(--line);
+            padding: 12px 14px;
+            background: var(--soft);
+        }
+        .db-print-meta-row {
+            display: grid;
+            grid-template-columns: 108px 1fr;
+            gap: 8px;
+            font-size: 12px;
+            padding: 3px 0;
+        }
+        .db-print-meta-label {
+            color: var(--muted);
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+        }
+        .db-print-meta-value {
+            color: var(--ink);
+            font-weight: 700;
+        }
+        .db-print-strip {
+            display: grid;
+            grid-template-columns: 1.05fr 1.8fr .75fr;
+            border: 1.5px solid #94a3b8;
+            margin-bottom: 14px;
+        }
+        .db-print-strip-cell {
+            padding: 10px 12px;
+            border-right: 1px solid #94a3b8;
+            min-height: 58px;
+        }
+        .db-print-strip-cell:last-child { border-right: none; }
+        .db-print-strip-label {
+            font-size: 10px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 6px;
+        }
+        .db-print-strip-value {
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--accent);
+        }
+        .db-print-config-title,
+        .db-print-materials-title,
+        .db-print-alerts-title {
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--brand);
+            margin: 16px 0 8px;
+        }
+        .db-print-config-table,
+        .db-print-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #94a3b8;
+        }
+        .db-print-config-table th,
+        .db-print-config-table td,
+        .db-print-table th,
+        .db-print-table td {
+            border: 1px solid #cbd5e1;
+            padding: 7px 8px;
+            font-size: 11px;
+            vertical-align: top;
+        }
+        .db-print-config-table th,
+        .db-print-table th {
+            background: #f8fafc;
+            text-align: left;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--muted);
+        }
+        .db-print-section-row td {
+            background: #eef2f7;
+            color: var(--brand);
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            padding-top: 9px;
+            padding-bottom: 9px;
+        }
+        .db-print-row-name { font-size: 12px; font-weight: 700; color: var(--ink); }
+        .db-print-row-sub { margin-top: 3px; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+        .db-print-cell-ref { width: 70px; font-weight: 700; color: var(--brand); white-space: nowrap; }
+        .db-print-cell-unit { width: 58px; text-align: center; font-weight: 700; }
+        .db-print-cell-qty { width: 90px; text-align: right; font-weight: 800; }
+        .db-print-cell-note { width: 28%; color: #475569; }
+        .db-print-alerts { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+        .db-print-alert {
+            border: 1px solid #cbd5e1;
+            background: var(--soft);
+            padding: 10px 12px;
+        }
+        .db-print-alert--warning {
+            border-color: var(--warning-line);
+            background: var(--warning-bg);
+        }
+        .db-print-alert-title { font-size: 12px; font-weight: 800; color: var(--ink); margin-bottom: 4px; }
+        .db-print-alert-meta { margin-top: 5px; font-size: 10px; color: var(--muted); }
+        .db-print-empty { color: var(--muted); font-size: 11px; padding: 12px; border: 1px dashed var(--line); }
+        .db-print-footer {
+            margin-top: 18px;
+            border-top: 1px solid var(--line);
+            padding-top: 10px;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            font-size: 10px;
+            color: var(--muted);
+        }
+        @page {
+            size: A4;
+            margin: 12mm;
+        }
+        @media print {
+            html, body { background: #fff; }
+            .db-print-toolbar { display: none !important; }
+            .db-print-stage { padding: 0; }
+            .db-print-page {
+                width: auto;
+                min-height: auto;
+                margin: 0;
+                box-shadow: none;
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="db-print-toolbar">
+        <div class="db-print-toolbar-title">Anteprima distinta base stampabile</div>
+        <div class="db-print-toolbar-actions">
+            <button type="button" onclick="window.print()">Stampa</button>
+            <button type="button" class="db-print-btn-secondary" onclick="window.close()">Chiudi</button>
+        </div>
+    </div>
+
+    <div class="db-print-stage">
+        <div class="db-print-page">
+            <div class="db-print-header">
+                <div class="db-print-brand">
+                    <img class="db-print-logo" src="${_esc(logoUrl)}" alt="Logo PROD">
+                    <div>
+                        <div class="db-print-brand-name">PROD</div>
+                        <div class="db-print-brand-sub">Dashboard Produzione · Distinta base approvvigionamento</div>
+                    </div>
+                </div>
+                <div class="db-print-title-block">
+                    <div class="db-print-title">Distinta Base</div>
+                    <div class="db-print-subtitle">Documento interno di produzione e approvvigionamento</div>
+                </div>
+            </div>
+
+            <div class="db-print-meta-grid">
+                <div class="db-print-meta-card">
+                    <div class="db-print-meta-row"><div class="db-print-meta-label">Prodotto</div><div class="db-print-meta-value">${_esc(kit.nome)}</div></div>
+                    <div class="db-print-meta-row"><div class="db-print-meta-label">Riferimento</div><div class="db-print-meta-value">${_esc(docRef)}</div></div>
+                    <div class="db-print-meta-row"><div class="db-print-meta-label">Data emissione</div><div class="db-print-meta-value">${_esc(_kitFormatDateTime(generatedAt))}</div></div>
+                </div>
+                <div class="db-print-meta-card">
+                    <div class="db-print-meta-row"><div class="db-print-meta-label">Generato da</div><div class="db-print-meta-value">${_esc(utenteAttuale?.nome || 'Sistema')}</div></div>
+                    <div class="db-print-meta-row"><div class="db-print-meta-label">Totale ordine</div><div class="db-print-meta-value">${_esc(_kitFormatQty(distinta.totalePezzi))} pz</div></div>
+                    <div class="db-print-meta-row"><div class="db-print-meta-label">Righe materiali</div><div class="db-print-meta-value">${_esc(_kitFormatQty(distinta.totaleRighe))}</div></div>
+                </div>
+            </div>
+
+            <div class="db-print-strip">
+                <div class="db-print-strip-cell">
+                    <div class="db-print-strip-label">Documento</div>
+                    <div class="db-print-strip-value">${_esc(docRef)}</div>
+                </div>
+                <div class="db-print-strip-cell">
+                    <div class="db-print-strip-label">Prodotto</div>
+                    <div class="db-print-strip-value">${_esc(kit.nome)}</div>
+                </div>
+                <div class="db-print-strip-cell">
+                    <div class="db-print-strip-label">Um ordine</div>
+                    <div class="db-print-strip-value">N.</div>
+                </div>
+            </div>
+
+            <div class="db-print-config-title">Configurazioni incluse nell'ordine</div>
+            <table class="db-print-config-table">
+                <thead>
+                    <tr>
+                        <th style="width:72px">Q.tà</th>
+                        <th>Configurazione</th>
+                        <th>Riferimenti elettronici</th>
+                    </tr>
+                </thead>
+                <tbody>${selectedLinesHtml}</tbody>
+            </table>
+
+            <div class="db-print-materials-title">Materiali della distinta</div>
+            <table class="db-print-table">
+                <thead>
+                    <tr>
+                        <th style="width:72px">Rif.</th>
+                        <th>Descrizione</th>
+                        <th style="width:58px">Um</th>
+                        <th style="width:90px">Quantità</th>
+                        <th>Note</th>
+                    </tr>
+                </thead>
+                <tbody>${rowsHtml}</tbody>
+            </table>
+
+            <div class="db-print-alerts-title">Attenzioni operative</div>
+            <div class="db-print-alerts">${avvisiHtml}</div>
+
+            <div class="db-print-footer">
+                <div>Documento generato da PROD - Dashboard Produzione</div>
+                <div>Verifica quantità e avvisi prima della stampa definitiva</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>`;
+}
+
+function _kitOpenPrintPreview(kitId) {
+    const { kits } = _kitLoad();
+    const kit = kits.find(entry => entry.id === kitId);
+    if (!kit) return;
+
+    const orderDraft = _kitGetOrderDraft(kit);
+    const distinta = _kitBuildDistintaBase(kit, orderDraft);
+    if (!distinta.totalePezzi || !distinta.totaleRighe) {
+        notificaElegante('Componi prima un ordine per generare la distinta stampabile.', 'warning');
+        return;
+    }
+
+    const previewWindow = window.open('', '_blank');
+    if (!previewWindow) {
+        notificaElegante('Popup bloccato: abilita l\'anteprima di stampa per aprire il modello completo.', 'warning');
+        return;
+    }
+
+    previewWindow.document.open();
+    previewWindow.document.write(_kitBuildPrintPreviewHtml(kit, distinta, orderDraft));
+    previewWindow.document.close();
+    previewWindow.focus();
+}
+
 // ─── localStorage helpers ─────────────────────────────────────────────────────
 function _kitLoad() {
     try {
@@ -952,7 +1386,10 @@ function _kitRenderView() {
                     <div class="kit-order-summary-label">Ordine in composizione</div>
                     <div class="kit-order-summary-total">${distinta.totalePezzi} pezzi</div>
                 </div>
-                <button class="kit-btn-secondary" onclick="_kitOrdineReset('${_esc(kit.id)}')"><i class="fas fa-rotate-left"></i> Azzera ordine</button>
+                <div class="kit-order-summary-actions">
+                    <button class="kit-btn-secondary" onclick="_kitOpenPrintPreview('${_esc(kit.id)}')"><i class="fas fa-print"></i> Anteprima stampa</button>
+                    <button class="kit-btn-secondary" onclick="_kitOrdineReset('${_esc(kit.id)}')"><i class="fas fa-rotate-left"></i> Azzera ordine</button>
+                </div>
             </div>
             <div class="kit-order-summary-note">Questa bozza ordine resta locale sul dispositivo e serve solo per generare la distinta base di approvvigionamento.</div>
             <div class="kit-order-summary-badges">${ordineBadgesHtml}</div>
@@ -2529,6 +2966,7 @@ export function registerGlobals() {
     window._kitOpenConfig            = _kitOpenConfig;
     window._kitNuovoKit              = _kitNuovoKit;
     window._kitBack                  = _kitBack;
+    window._kitOpenPrintPreview      = _kitOpenPrintPreview;
     window._kitSwitchTab             = _kitSwitchTab;
     window._kitAggiornaQty           = _kitAggiornaQty;
     window._kitOrdineSet             = _kitOrdineSet;

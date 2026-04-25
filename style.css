@@ -8853,6 +8853,12 @@ details[open] .kit-assemb-chev { transform: rotate(180deg); }
     gap: 12px;
     flex-wrap: wrap;
 }
+.kit-order-summary-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
 .kit-order-summary-label {
     font-size: 0.72rem;
     font-weight: 700;
