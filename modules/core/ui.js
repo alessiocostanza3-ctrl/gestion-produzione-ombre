@@ -9,6 +9,32 @@ export function _esc(str) {
     return String(str).replace(/[&<>"']/g, c => _ESC_MAP[c]);
 }
 
+// DEV DEBUG: intercetta tutte le chiamate a classList.add/remove per "fade-in"
+(function() {
+    try {
+        const origAdd = DOMTokenList.prototype.add;
+        const origRemove = DOMTokenList.prototype.remove;
+        DOMTokenList.prototype.add = function(...args) {
+            try {
+                if (args.indexOf && args.indexOf('fade-in') >= 0) {
+                    console.debug('[DOMTokenList.add] adding fade-in', this);
+                    console.trace();
+                }
+            } catch (e) {}
+            return origAdd.apply(this, args);
+        };
+        DOMTokenList.prototype.remove = function(...args) {
+            try {
+                if (args.indexOf && args.indexOf('fade-in') >= 0) {
+                    console.debug('[DOMTokenList.remove] removing fade-in', this);
+                    console.trace();
+                }
+            } catch (e) {}
+            return origRemove.apply(this, args);
+        };
+    } catch (e) {}
+})();
+
 // ─── Toast notifica ───────────────────────────────────────────────────────────
 
 /**
