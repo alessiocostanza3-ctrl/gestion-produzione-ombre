@@ -42,6 +42,11 @@ export function notificaElegante(msg, tipo) {
  */
 export function applicaFade(elem) {
     if (elem) {
+        try {
+            // Debug: log caller stack to trace unexpected fade triggers
+            console.debug('[applicaFade] apply to element', elem.id || elem.className || elem.tagName);
+            console.trace();
+        } catch (e) {}
         elem.classList.add('fade-in');
         setTimeout(() => elem.classList.remove('fade-in'), 300);
     }
