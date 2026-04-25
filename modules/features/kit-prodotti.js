@@ -566,7 +566,6 @@ function _kitMutateOrderDraft(kitId, mutator) {
     if (!kit) return;
     const drafts = _kitLoadOrderDrafts();
     const currentDraft = _kitGetOrderDraft(kit);
-    try { console.debug('[kit-prodotti] _kitMutateOrderDraft START', { kitId, currentDraft: JSON.parse(JSON.stringify(currentDraft || {})) }); } catch(e) {}
     mutator(currentDraft, kit);
 
     const cleanedDraft = {};
@@ -584,7 +583,6 @@ function _kitMutateOrderDraft(kitId, mutator) {
         cleanedDraft._meta = normalizedMeta;
     }
 
-    try { console.debug('[kit-prodotti] _kitMutateOrderDraft END', { kitId, cleanedDraft }); } catch(e) {}
 
     if (hasValues || hasMetaValues) drafts[kitId] = cleanedDraft;
     else delete drafts[kitId];
@@ -1691,8 +1689,6 @@ function _kitComposeAdd(kitId) {
     const { kits } = _kitLoad();
     const kit = kits.find(entry => entry.id === kitId);
     if (!kit) return;
-    try { console.debug('[kit-prodotti] _kitComposeAdd CLICK', { kitId, time: new Date().toISOString() }); } catch(e) {}
-    
     const variant = _kitFindVariantFromComposeState(kit, _kitGetComposeState(kit));
     if (!variant) {
         notificaElegante('Completa prima le scelte elettroniche ⚠️');
@@ -1700,7 +1696,7 @@ function _kitComposeAdd(kitId) {
     }
 
     const qty = Math.max(0, Number.parseInt(document.getElementById('kit-compose-qty-' + kitId)?.value, 10) || 0);
-    try { console.debug('[kit-prodotti] _kitComposeAdd variant/qty', { kitId, variantKey: variant?.key || null, qty }); } catch(e) {}
+    
     if (!qty) {
         notificaElegante('Inserisci una quantità valida ⚠️');
         return;
@@ -1708,7 +1704,6 @@ function _kitComposeAdd(kitId) {
 
     // Protezione anti-duplica: ignora chiamate ripetute ravvicinate
     if (_kitComposeAddLock[kitId]) {
-        try { console.debug('[kit-prodotti] _kitComposeAdd SKIPPED duplicate', { kitId, variantKey: variant?.key || null, qty, since: Date.now() - _kitComposeAddLock[kitId] }); } catch(e) {}
         return;
     }
     _kitComposeAddLock[kitId] = Date.now();

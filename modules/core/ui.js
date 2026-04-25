@@ -9,31 +9,7 @@ export function _esc(str) {
     return String(str).replace(/[&<>"']/g, c => _ESC_MAP[c]);
 }
 
-// DEV DEBUG: intercetta tutte le chiamate a classList.add/remove per "fade-in"
-(function() {
-    try {
-        const origAdd = DOMTokenList.prototype.add;
-        const origRemove = DOMTokenList.prototype.remove;
-        DOMTokenList.prototype.add = function(...args) {
-            try {
-                if (args.indexOf && args.indexOf('fade-in') >= 0) {
-                    console.debug('[DOMTokenList.add] adding fade-in', this);
-                    console.trace();
-                }
-            } catch (e) {}
-            return origAdd.apply(this, args);
-        };
-        DOMTokenList.prototype.remove = function(...args) {
-            try {
-                if (args.indexOf && args.indexOf('fade-in') >= 0) {
-                    console.debug('[DOMTokenList.remove] removing fade-in', this);
-                    console.trace();
-                }
-            } catch (e) {}
-            return origRemove.apply(this, args);
-        };
-    } catch (e) {}
-})();
+// Debug instrumentation removed: was intercepting classList.add/remove for "fade-in"
 
 // ─── Toast notifica ───────────────────────────────────────────────────────────
 
@@ -68,11 +44,6 @@ export function notificaElegante(msg, tipo) {
  */
 export function applicaFade(elem) {
     if (elem) {
-        try {
-            // Debug: log caller stack to trace unexpected fade triggers
-            console.debug('[applicaFade] apply to element', elem.id || elem.className || elem.tagName);
-            console.trace();
-        } catch (e) {}
         elem.classList.add('fade-in');
         setTimeout(() => elem.classList.remove('fade-in'), 300);
     }
