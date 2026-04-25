@@ -665,6 +665,7 @@ async function caricaDatiIniziali() {
             if (parsed.stati && parsed.stati.length) {
                 window.listaStati     = parsed.stati;
                 window.listaOperatori = parsed.operatori || [];
+                window._distintaHeaderAzienda = String(parsed.distintaHeaderAzienda || '');
                 _applicaOverviewConfig(parsed.overviewStati);
                 // Se i dati sono scaduti: aggiorna in background senza bloccare la UI
                 if (!_lsCacheGet(LS_KEY, TTL_MS)) {
@@ -687,10 +688,12 @@ async function _fetchImpostazioniDaServer() {
         const settings = await res.json();
         window.listaStati     = (settings.stati && settings.stati.length) ? settings.stati : window._defaultListaStati_();
         window.listaOperatori = settings.operatori || [];
+        window._distintaHeaderAzienda = String(settings.distintaHeaderAzienda || '');
         _applicaOverviewConfig(settings.overviewStati);
         _lsCacheSet(LS_KEY, JSON.stringify({
             stati: window.listaStati, operatori: window.listaOperatori,
-            overviewStati: settings.overviewStati
+            overviewStati: settings.overviewStati,
+            distintaHeaderAzienda: window._distintaHeaderAzienda
         }));
     } catch(e) {
         console.warn('[Boot] _fetchImpostazioniDaServer:', e);
@@ -1024,6 +1027,25 @@ function caricaInterfacciaImpostazioni() {
                         `).join('')}
                     </div>
                     <button class="btn-add-dashed" onclick="azioneAggiungiStato()">+ Aggiungi Stato</button>
+                </div>
+            </div>
+
+            <div class="settings-row" onclick="toggleSettingsSection('section-distinta-stampa', this)">
+                <div class="settings-row-left">
+                    <div class="settings-row-icon"><i class="fas fa-print"></i></div>
+                    <div>
+                        <div class="settings-row-title">Distinta Base Stampabile</div>
+                        <div class="settings-row-sub">Intestazione azienda usata nella preview e nella stampa della distinta</div>
+                    </div>
+                </div>
+                <i class="fas fa-chevron-down settings-row-arrow"></i>
+            </div>
+            <div id="section-distinta-stampa" class="settings-section-body" style="display:none">
+                <div class="card-settings">
+                    <h3 style="margin:0 0 8px 0">Intestazione azienda</h3>
+                    <p style="margin:0 0 12px 0;font-size:0.85rem;color:#64748b">Questo testo compare in alto a sinistra nella distinta base. Se lo lasci vuoto, la stampa non mostra nessuna intestazione.</p>
+                    <textarea class="input-field-modern" rows="4" placeholder="Ragione sociale, indirizzo, contatti..." style="width:100%;resize:vertical;min-height:110px"
+                              oninput="window._distintaHeaderAzienda=this.value; segnaModifica();">${_esc(String(window._distintaHeaderAzienda || ''))}</textarea>
                 </div>
             </div>
 
@@ -1472,7 +1494,12 @@ async function salvaTutteImpostazioni() {
     try {
         const res = await fetch(URL_GOOGLE, {
             method: 'POST',
-            body: JSON.stringify({ azione: 'salva_impostazioni_globali', stati: window.listaStati || [], operatori: [] })
+            body: JSON.stringify({
+                azione: 'salva_impostazioni_globali',
+                stati: window.listaStati || [],
+                operatori: [],
+                distintaHeaderAzienda: String(window._distintaHeaderAzienda || '').trim()
+            })
         });
         const json = await res.json().catch(() => ({}));
         if (json.status === 'success') {

@@ -11,11 +11,14 @@ import { notificaElegante, applicaFade, _esc } from '../core/ui.js';
 const _KIT_LS_KEY  = '_mlKitData';        // { kits: [...], ts: number }
 const _KIT_LS_TS   = '_mlKitDataTs';      // timestamp locale
 const _KIT_DRAFT_LS_KEY = '_mlKitOrderDrafts'; // bozze ordine locali, non sincronizzate
+const _KIT_DRAFT_DOC_SEQ_KEY = '_mlKitOrderDraftSeq';
 const _KIT_SCHEMA_VERSION = 2;
 const _KIT_UNITA_MISURA_OPTIONS = ['pz', 'mt', 'cm', 'mm', 'kg', 'g', 'lt', 'ml'];
 
 // ─── fetch flag ───────────────────────────────────────────────────────────────
 let _fetched = false;
+let _kitOrderAutocompleteCache = [];
+let _kitOrderAutocompletePromise = null;
 
 export function resetKitFetch() { _fetched = false; }
 
@@ -55,7 +58,8 @@ function _kitNormalizeOption(opt, fallbackIndex) {
     return {
         id: String(opt?.id || _uid()),
         key,
-        nome: String(opt?.nome || key).trim() || key
+        nome: String(opt?.nome || key).trim() || key,
+        codice: String(opt?.codice || '').trim()
     };
 }
 
@@ -104,7 +108,8 @@ function _kitBuildVariantiFromAssi(assi) {
                         asseNome: asse.nome,
                         opzioneId: opzione.id,
                         opzioneKey: opzione.key,
-                        opzioneNome: opzione.nome
+                        opzioneNome: opzione.nome,
+                        opzioneCodice: String(opzione.codice || '').trim()
                     })
                 });
             }
@@ -129,6 +134,7 @@ function _kitNormalizeComp(comp) {
     return {
         id: String(comp?.id || _uid()),
         nome: String(comp?.nome || 'Nuovo componente').trim() || 'Nuovo componente',
+        codice: String(comp?.codice || '').trim(),
         qtaPerVariante: { ...(comp?.qtaPerVariante || {}) },
         caricato: Number(comp?.caricato || 0),
         modoComponente: modo,
@@ -434,6 +440,112 @@ function _kitSaveOrderDrafts(drafts) {
     } catch {}
 }
 
+function _kitNormalizeOrderNumber(value) {
+    return String(value || '').trim().toUpperCase();
+}
+
+function _kitNormalizeOrderMeta(meta) {
+    const ordiniCliente = Array.isArray(meta?.ordiniCliente)
+        ? [...new Set(meta.ordiniCliente.map(_kitNormalizeOrderNumber).filter(Boolean))]
+        : [];
+    return {
+        cliente: String(meta?.cliente || '').trim(),
+        ordiniCliente,
+        documento: String(meta?.documento || '').trim()
+    };
+}
+
+function _kitGetOrderMeta(orderDraft) {
+    return _kitNormalizeOrderMeta(orderDraft?._meta || {});
+}
+
+function _kitSetOrderMeta(orderDraft, meta) {
+    orderDraft._meta = _kitNormalizeOrderMeta(meta);
+    return orderDraft._meta;
+}
+
+function _kitGetOrderQty(orderDraft, varianteKey) {
+    return Math.max(0, Number.parseInt(orderDraft?.[varianteKey], 10) || 0);
+}
+
+function _kitGetNextDocumentNumber() {
+    let nextValue = 1;
+    try {
+        const currentValue = Number.parseInt(localStorage.getItem(_KIT_DRAFT_DOC_SEQ_KEY), 10) || 0;
+        nextValue = currentValue + 1;
+        localStorage.setItem(_KIT_DRAFT_DOC_SEQ_KEY, String(nextValue));
+    } catch {}
+    return `Distinta Base-${String(nextValue).padStart(4, '0')}`;
+}
+
+function _kitEnsureOrderDraftDocument(orderDraft) {
+    const meta = _kitGetOrderMeta(orderDraft);
+    if (!meta.documento) {
+        meta.documento = _kitGetNextDocumentNumber();
+        _kitSetOrderMeta(orderDraft, meta);
+    }
+    return meta.documento;
+}
+
+function _kitBuildOrderLookup(rows) {
+    const seen = new Set();
+    return (Array.isArray(rows) ? rows : [])
+        .filter(row => String(row?.archiviato || '').toUpperCase() !== 'TRUE')
+        .map(row => ({
+            ordine: _kitNormalizeOrderNumber(row?.ordine || ''),
+            cliente: String(row?.cliente || '').trim()
+        }))
+        .filter(item => {
+            if (!item.ordine || seen.has(item.ordine)) return false;
+            seen.add(item.ordine);
+            return true;
+        });
+}
+
+function _kitEnsureOrderLookupCache() {
+    if (_kitOrderAutocompleteCache.length) return Promise.resolve(_kitOrderAutocompleteCache);
+    if (Array.isArray(window._attiviProd) && window._attiviProd.length) {
+        _kitOrderAutocompleteCache = _kitBuildOrderLookup(window._attiviProd);
+        return Promise.resolve(_kitOrderAutocompleteCache);
+    }
+    if (_kitOrderAutocompletePromise) return _kitOrderAutocompletePromise;
+
+    _kitOrderAutocompletePromise = fetch(URL_GOOGLE, {
+        method: 'POST',
+        body: JSON.stringify({ pagina: 'PROGRAMMA PRODUZIONE DEL MESE' })
+    })
+        .then(response => response.json())
+        .then(rows => {
+            _kitOrderAutocompleteCache = _kitBuildOrderLookup(rows);
+            return _kitOrderAutocompleteCache;
+        })
+        .catch(function(error) {
+            console.warn('[kit-prodotti] autocomplete ordini non disponibile:', error);
+            return [];
+        })
+        .finally(function() {
+            _kitOrderAutocompletePromise = null;
+        });
+
+    return _kitOrderAutocompletePromise;
+}
+
+function _kitFindOrderLookup(orderNumber) {
+    const normalized = _kitNormalizeOrderNumber(orderNumber);
+    if (!normalized) return null;
+    return _kitOrderAutocompleteCache.find(item => item.ordine === normalized) || null;
+}
+
+function _kitResolveCustomerFromOrderRefs(orderNumbers, overrides = {}) {
+    const clienti = [...new Set((Array.isArray(orderNumbers) ? orderNumbers : []).map(function(orderNumber) {
+        const normalized = _kitNormalizeOrderNumber(orderNumber);
+        if (!normalized) return '';
+        if (overrides[normalized]) return String(overrides[normalized] || '').trim();
+        return String(_kitFindOrderLookup(normalized)?.cliente || '').trim();
+    }).filter(Boolean))];
+    return clienti.length === 1 ? clienti[0] : '';
+}
+
 function _kitGetOrderDraft(kit) {
     const drafts = _kitLoadOrderDrafts();
     const rawDraft = drafts?.[kit?.id] && typeof drafts[kit.id] === 'object' ? drafts[kit.id] : {};
@@ -442,6 +554,7 @@ function _kitGetOrderDraft(kit) {
         const fallbackQty = rawDraft[variante.key];
         normalized[variante.key] = Math.max(0, Number.parseInt(fallbackQty, 10) || 0);
     }
+    normalized._meta = _kitNormalizeOrderMeta(rawDraft._meta || {});
     return normalized;
 }
 
@@ -461,7 +574,14 @@ function _kitMutateOrderDraft(kitId, mutator) {
         if (qty > 0) hasValues = true;
     }
 
-    if (hasValues) drafts[kitId] = cleanedDraft;
+    const normalizedMeta = _kitNormalizeOrderMeta(currentDraft._meta || {});
+    const hasMetaValues = !!(normalizedMeta.cliente || normalizedMeta.ordiniCliente.length || normalizedMeta.documento);
+    if (hasValues || hasMetaValues) {
+        if (!normalizedMeta.documento) normalizedMeta.documento = _kitGetNextDocumentNumber();
+        cleanedDraft._meta = normalizedMeta;
+    }
+
+    if (hasValues || hasMetaValues) drafts[kitId] = cleanedDraft;
     else delete drafts[kitId];
     _kitSaveOrderDrafts(drafts);
 
@@ -469,7 +589,10 @@ function _kitMutateOrderDraft(kitId, mutator) {
 }
 
 function _kitCountOrderPieces(orderDraft) {
-    return Object.values(orderDraft || {}).reduce((sum, qty) => sum + (Number.parseInt(qty, 10) || 0), 0);
+    return Object.entries(orderDraft || {}).reduce(function(sum, entry) {
+        if (entry[0] === '_meta') return sum;
+        return sum + (Number.parseInt(entry[1], 10) || 0);
+    }, 0);
 }
 
 const _kitComposeState = {};
@@ -541,7 +664,7 @@ function _kitBuildSelectedOptionsRows(kit, selectedVarianti, orderDraft) {
     const rowsByKey = new Map();
 
     for (const variante of selectedVarianti) {
-        const pezziOrdine = Number.parseInt(orderDraft?.[variante.key], 10) || 0;
+        const pezziOrdine = _kitGetOrderQty(orderDraft, variante.key);
         if (!pezziOrdine) continue;
 
         for (const selection of (variante.selections || [])) {
@@ -557,6 +680,7 @@ function _kitBuildSelectedOptionsRows(kit, selectedVarianti, orderDraft) {
             const nextRow = {
                 id: 'sel-' + rowKey,
                 nome: _kitGetSelectionDistintaName(selection),
+                codice: String(selection?.opzioneCodice || '').trim(),
                 totale: pezziOrdine,
                 unita: 'pz',
                 dettaglio: '',
@@ -571,7 +695,7 @@ function _kitBuildSelectedOptionsRows(kit, selectedVarianti, orderDraft) {
 }
 
 function _kitBuildDistintaBase(kit, orderDraft) {
-    const selectedVarianti = _kitGetVariantiEffettive(kit).filter(variante => (Number.parseInt(orderDraft?.[variante.key], 10) || 0) > 0);
+    const selectedVarianti = _kitGetVariantiEffettive(kit).filter(variante => _kitGetOrderQty(orderDraft, variante.key) > 0);
     const sezioni = [];
     const avvisi = [];
 
@@ -587,7 +711,7 @@ function _kitBuildDistintaBase(kit, orderDraft) {
             const activeVariants = [];
 
             for (const variante of selectedVarianti) {
-                const pezziOrdine = Number.parseInt(orderDraft?.[variante.key], 10) || 0;
+                const pezziOrdine = _kitGetOrderQty(orderDraft, variante.key);
                 const coeff = _kitGetComponentQty(comp, variante.key);
                 if (!pezziOrdine || !coeff) continue;
 
@@ -622,6 +746,7 @@ function _kitBuildDistintaBase(kit, orderDraft) {
             righe.push({
                 id: comp.id,
                 nome: comp.nome,
+                codice: String(comp.codice || '').trim(),
                 totale: totalQty,
                 unita: comp.unitaMisura || 'pz',
                 dettaglio: '',
@@ -660,48 +785,39 @@ function _kitFormatDateTime(value, withTime = true) {
         : { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-function _kitBuildPrintRowRef(sezioneNome, rowIndex) {
-    const cleaned = String(sezioneNome || '')
-        .toUpperCase()
-        .replace(/[^A-Z0-9\s]/g, ' ')
-        .trim();
-    const words = cleaned.split(/\s+/).filter(Boolean);
-    let prefix = '';
-
-    if (words.length > 1) prefix = words.slice(0, 3).map(word => word[0]).join('');
-    else prefix = cleaned.replace(/\s+/g, '').slice(0, 3);
-
-    prefix = (prefix || 'MAT').padEnd(3, 'X').slice(0, 3);
-    return `${prefix}-${String(rowIndex + 1).padStart(2, '0')}`;
+function _kitGetPrintCompanyHeader() {
+    return String(window._distintaHeaderAzienda || '').trim();
 }
 
 function _kitBuildPrintPreviewHtml(kit, distinta, orderDraft) {
     const generatedAt = new Date();
-    const docRef = `DB-${generatedAt.toISOString().slice(0, 10).replace(/-/g, '')}-${String(kit.id || 'KIT').slice(-4).toUpperCase()}`;
-    const logoUrl = new URL('logo.png', window.location.href).href;
+    const meta = _kitGetOrderMeta(orderDraft);
+    const companyHeader = _kitGetPrintCompanyHeader();
+    const docRef = String(meta.documento || '').trim();
+    const companyHeaderHtml = companyHeader
+        ? companyHeader.split(/\r?\n/).map(line => `<div>${_esc(line)}</div>`).join('')
+        : '';
+    const ordiniClienteLabel = meta.ordiniCliente.length > 1 ? 'Ordini cliente' : 'Ordine cliente';
+    const ordiniClienteValue = meta.ordiniCliente.join(' · ');
     const selectedLinesHtml = distinta.selectedVarianti.length
         ? distinta.selectedVarianti.map(variante => {
-            const qty = Number.parseInt(orderDraft?.[variante.key], 10) || 0;
+            const qty = _kitGetOrderQty(orderDraft, variante.key);
             return `<tr>
                 <td>${_esc(_kitFormatQty(qty))}</td>
                 <td>${_esc(variante.nome)}</td>
-                <td>${_esc(Array.isArray(variante.selections) && variante.selections.length ? variante.selections.map(selection => selection.opzioneNome).join(' · ') : variante.key)}</td>
             </tr>`;
         }).join('')
-        : `<tr><td colspan="3">Nessuna configurazione selezionata.</td></tr>`;
+        : `<tr><td colspan="2">Nessuna configurazione selezionata.</td></tr>`;
 
     const rowsHtml = distinta.sezioni.map(sezione => {
-        const sectionRows = sezione.righe.map((riga, rowIndex) => {
+        const sectionRows = sezione.righe.map(riga => {
             const note = [riga.dettaglio, riga.noteConfig].filter(Boolean).join(' · ');
             return `<tr>
-                <td class="db-print-cell-ref">${_esc(_kitBuildPrintRowRef(sezione.nome, rowIndex))}</td>
-                <td>
-                    <div class="db-print-row-name">${_esc(riga.nome)}</div>
-                    <div class="db-print-row-sub">${_esc(sezione.nome)}</div>
-                </td>
+                <td class="db-print-cell-ref">${_esc(String(riga.codice || '').trim())}</td>
+                <td><div class="db-print-row-name">${_esc(riga.nome)}</div></td>
                 <td class="db-print-cell-unit">${_esc(riga.unita)}</td>
                 <td class="db-print-cell-qty">${_esc(_kitFormatQty(riga.totale))}</td>
-                <td class="db-print-cell-note">${note ? _esc(note) : '—'}</td>
+                <td class="db-print-cell-note">${note ? _esc(note) : ''}</td>
             </tr>`;
         }).join('');
 
@@ -784,31 +900,13 @@ function _kitBuildPrintPreviewHtml(kit, distinta, orderDraft) {
             gap: 18px;
             margin-bottom: 14px;
         }
-        .db-print-brand {
-            display: flex;
-            align-items: center;
-            gap: 14px;
+        .db-print-company {
+            max-width: 52%;
             min-width: 0;
-        }
-        .db-print-logo {
-            width: 52px;
-            height: 52px;
-            object-fit: contain;
-            border-radius: 14px;
-            border: 1px solid var(--line);
-            padding: 6px;
-            background: #fff;
-        }
-        .db-print-brand-name {
-            font-size: 18px;
-            font-weight: 800;
-            letter-spacing: 0.08em;
-            color: var(--brand);
-        }
-        .db-print-brand-sub {
             font-size: 11px;
-            color: var(--muted);
-            margin-top: 4px;
+            line-height: 1.55;
+            color: var(--brand);
+            white-space: pre-line;
         }
         .db-print-title-block {
             text-align: right;
@@ -924,7 +1022,6 @@ function _kitBuildPrintPreviewHtml(kit, distinta, orderDraft) {
             padding-bottom: 9px;
         }
         .db-print-row-name { font-size: 12px; font-weight: 700; color: var(--ink); }
-        .db-print-row-sub { margin-top: 3px; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
         .db-print-cell-ref { width: 70px; font-weight: 700; color: var(--brand); white-space: nowrap; }
         .db-print-cell-unit { width: 58px; text-align: center; font-weight: 700; }
         .db-print-cell-qty { width: 90px; text-align: right; font-weight: 800; }
@@ -942,16 +1039,6 @@ function _kitBuildPrintPreviewHtml(kit, distinta, orderDraft) {
         .db-print-alert-title { font-size: 12px; font-weight: 800; color: var(--ink); margin-bottom: 4px; }
         .db-print-alert-meta { margin-top: 5px; font-size: 10px; color: var(--muted); }
         .db-print-empty { color: var(--muted); font-size: 11px; padding: 12px; border: 1px dashed var(--line); }
-        .db-print-footer {
-            margin-top: 18px;
-            border-top: 1px solid var(--line);
-            padding-top: 10px;
-            display: flex;
-            justify-content: space-between;
-            gap: 12px;
-            font-size: 10px;
-            color: var(--muted);
-        }
         @page {
             size: A4;
             margin: 12mm;
@@ -982,13 +1069,7 @@ function _kitBuildPrintPreviewHtml(kit, distinta, orderDraft) {
     <div class="db-print-stage">
         <div class="db-print-page">
             <div class="db-print-header">
-                <div class="db-print-brand">
-                    <img class="db-print-logo" src="${_esc(logoUrl)}" alt="Logo PROD">
-                    <div>
-                        <div class="db-print-brand-name">PROD</div>
-                        <div class="db-print-brand-sub">Dashboard Produzione · Distinta base approvvigionamento</div>
-                    </div>
-                </div>
+                ${companyHeaderHtml ? `<div class="db-print-company">${companyHeaderHtml}</div>` : '<div></div>'}
                 <div class="db-print-title-block">
                     <div class="db-print-title">Distinta Base</div>
                     <div class="db-print-subtitle">Documento interno di produzione e approvvigionamento</div>
@@ -998,7 +1079,7 @@ function _kitBuildPrintPreviewHtml(kit, distinta, orderDraft) {
             <div class="db-print-meta-grid">
                 <div class="db-print-meta-card">
                     <div class="db-print-meta-row"><div class="db-print-meta-label">Prodotto</div><div class="db-print-meta-value">${_esc(kit.nome)}</div></div>
-                    <div class="db-print-meta-row"><div class="db-print-meta-label">Riferimento</div><div class="db-print-meta-value">${_esc(docRef)}</div></div>
+                    <div class="db-print-meta-row"><div class="db-print-meta-label">Riferimento</div><div class="db-print-meta-value">${_esc(meta.cliente || '')}</div></div>
                     <div class="db-print-meta-row"><div class="db-print-meta-label">Data emissione</div><div class="db-print-meta-value">${_esc(_kitFormatDateTime(generatedAt))}</div></div>
                 </div>
                 <div class="db-print-meta-card">
@@ -1018,8 +1099,8 @@ function _kitBuildPrintPreviewHtml(kit, distinta, orderDraft) {
                     <div class="db-print-strip-value">${_esc(kit.nome)}</div>
                 </div>
                 <div class="db-print-strip-cell">
-                    <div class="db-print-strip-label">Um ordine</div>
-                    <div class="db-print-strip-value">N.</div>
+                    <div class="db-print-strip-label">${_esc(ordiniClienteLabel)}</div>
+                    <div class="db-print-strip-value">${_esc(ordiniClienteValue)}</div>
                 </div>
             </div>
 
@@ -1029,7 +1110,6 @@ function _kitBuildPrintPreviewHtml(kit, distinta, orderDraft) {
                     <tr>
                         <th style="width:72px">Q.tà</th>
                         <th>Configurazione</th>
-                        <th>Riferimenti elettronici</th>
                     </tr>
                 </thead>
                 <tbody>${selectedLinesHtml}</tbody>
@@ -1051,11 +1131,6 @@ function _kitBuildPrintPreviewHtml(kit, distinta, orderDraft) {
 
             <div class="db-print-alerts-title">Attenzioni operative</div>
             <div class="db-print-alerts">${avvisiHtml}</div>
-
-            <div class="db-print-footer">
-                <div>Documento generato da PROD - Dashboard Produzione</div>
-                <div>Verifica quantità e avvisi prima della stampa definitiva</div>
-            </div>
         </div>
     </div>
 </body>
@@ -1067,11 +1142,18 @@ function _kitOpenPrintPreview(kitId) {
     const kit = kits.find(entry => entry.id === kitId);
     if (!kit) return;
 
-    const orderDraft = _kitGetOrderDraft(kit);
+    let orderDraft = _kitGetOrderDraft(kit);
     const distinta = _kitBuildDistintaBase(kit, orderDraft);
     if (!distinta.totalePezzi || !distinta.totaleRighe) {
         notificaElegante('Componi prima un ordine per generare la distinta stampabile.', 'warning');
         return;
+    }
+
+    if (!_kitGetOrderMeta(orderDraft).documento) {
+        _kitMutateOrderDraft(kitId, function(currentDraft) {
+            _kitEnsureOrderDraftDocument(currentDraft);
+        });
+        orderDraft = _kitGetOrderDraft(kit);
     }
 
     const previewWindow = window.open('', '_blank');
@@ -1304,11 +1386,20 @@ function _kitRenderView() {
     const contenitore = document.getElementById('contenitore-dati');
     const varsList = _kitGetVariantiEffettive(kit);
     const orderDraft = _kitGetOrderDraft(kit);
+    const draftMeta = _kitGetOrderMeta(orderDraft);
     const distinta = _kitBuildDistintaBase(kit, orderDraft);
 
     const ordineBadgesHtml = distinta.selectedVarianti.length
-        ? distinta.selectedVarianti.map(variante => `<span class="kit-meta-pill"><strong>${orderDraft[variante.key] || 0}</strong> × ${_esc(variante.nome)}</span>`).join('')
+        ? distinta.selectedVarianti.map(variante => `<span class="kit-meta-pill"><strong>${_kitGetOrderQty(orderDraft, variante.key)}</strong> × ${_esc(variante.nome)}</span>`).join('')
         : '<span class="kit-leg-item" style="color:#94a3b8">Nessuna configurazione selezionata.</span>';
+
+    const ordiniClienteHtml = draftMeta.ordiniCliente.length
+        ? draftMeta.ordiniCliente.map(orderNumber => `<span class="kit-order-ref-chip">${_esc(orderNumber)}
+                <button type="button" class="kit-order-ref-chip-remove" onclick='_kitOrderRemoveRef(${JSON.stringify(kit.id)}, ${JSON.stringify(orderNumber)})' aria-label="Rimuovi ordine ${_esc(orderNumber)}">
+                    <i class="fas fa-times"></i>
+                </button>
+            </span>`).join('')
+        : '<div class="kit-order-meta-empty">Nessun ordine cliente collegato.</div>';
 
     const composeState = _kitGetComposeState(kit);
     const composedVariant = _kitFindVariantFromComposeState(kit, composeState);
@@ -1326,7 +1417,7 @@ function _kitRenderView() {
 
     const orderLinesHtml = distinta.selectedVarianti.length
         ? distinta.selectedVarianti.map(variante => {
-            const qty = Number.parseInt(orderDraft[variante.key], 10) || 0;
+            const qty = _kitGetOrderQty(orderDraft, variante.key);
             return `<div class="kit-order-line">
                 <div class="kit-order-line-main">
                     <div class="kit-order-line-name">${_esc(variante.nome)}</div>
@@ -1392,6 +1483,25 @@ function _kitRenderView() {
                 </div>
             </div>
             <div class="kit-order-summary-note">Questa bozza ordine resta locale sul dispositivo e serve solo per generare la distinta base di approvvigionamento.</div>
+            <div class="kit-order-meta-grid">
+                <div class="kit-order-meta-card">
+                    <div class="kit-order-meta-title">Ordini cliente</div>
+                    <div class="ordine-autocomplete-wrapper kit-order-autocomplete-wrapper">
+                        <input class="kit-order-meta-input" id="kit-order-ref-input-${_esc(kit.id)}" type="text" placeholder="Cerca e collega un ordine cliente"
+                               oninput="_kitOrderSearch('${_esc(kit.id)}', this.value)"
+                               onfocus="_kitOrderSearch('${_esc(kit.id)}', this.value)"
+                               onblur="_kitOrderHideSearch('${_esc(kit.id)}')">
+                        <div id="kit-order-autocomplete-${_esc(kit.id)}" class="ordine-autocomplete-list"></div>
+                    </div>
+                    <div class="kit-order-ref-list">${ordiniClienteHtml}</div>
+                    <div class="kit-order-meta-help">Il cliente viene derivato dagli ordini selezionati. Se gli ordini appartengono a clienti diversi, in stampa il riferimento resta vuoto.</div>
+                </div>
+                <div class="kit-order-meta-card">
+                    <div class="kit-order-meta-title">Dati stampa</div>
+                    <div class="kit-order-meta-row"><span>Cliente</span><strong>${_esc(draftMeta.cliente || '')}</strong></div>
+                    <div class="kit-order-meta-row"><span>Documento</span><strong>${_esc(draftMeta.documento || '')}</strong></div>
+                </div>
+            </div>
             <div class="kit-order-summary-badges">${ordineBadgesHtml}</div>
         </div>
 
@@ -1429,6 +1539,7 @@ function _kitRenderView() {
     </div>`;
 
     applicaFade(contenitore);
+    _kitEnsureOrderLookupCache().catch(() => {});
 }
 
 function _kitBack() {
@@ -1466,13 +1577,82 @@ function _kitOrdineDelta(kitId, vKey, delta) {
 
 function _kitOrdineReset(kitId) {
     _kitMutateOrderDraft(kitId, function(orderDraft) {
-        for (const key of Object.keys(orderDraft)) orderDraft[key] = 0;
+        for (const key of Object.keys(orderDraft)) {
+            if (key === '_meta') continue;
+            orderDraft[key] = 0;
+        }
+        orderDraft._meta = _kitNormalizeOrderMeta({});
     });
 }
 
 function _kitOrdineResetVoce(kitId, vKey) {
     _kitMutateOrderDraft(kitId, function(orderDraft) {
         orderDraft[vKey] = 0;
+    });
+}
+
+function _kitRenderOrderAutocompleteList(kitId, matches) {
+    const list = document.getElementById('kit-order-autocomplete-' + kitId);
+    if (!list) return;
+    if (!matches.length) {
+        list.style.display = 'none';
+        list.innerHTML = '';
+        return;
+    }
+
+    list.innerHTML = matches.map(item => `
+        <div class="autocomplete-item" onmousedown='_kitOrderPick(${JSON.stringify(kitId)}, ${JSON.stringify(item.ordine)}, ${JSON.stringify(item.cliente)})'>
+            <span class="ac-ordine">ORD. ${_esc(item.ordine)}</span>
+            <span class="ac-cliente">${_esc(item.cliente)}</span>
+        </div>
+    `).join('');
+    list.style.display = 'block';
+}
+
+function _kitOrderSearch(kitId, rawQuery) {
+    const query = String(rawQuery || '').trim().toLowerCase();
+    if (!query) {
+        _kitRenderOrderAutocompleteList(kitId, []);
+        return;
+    }
+
+    _kitEnsureOrderLookupCache().then(function(cache) {
+        const matches = cache
+            .filter(item => item.ordine.toLowerCase().includes(query) || item.cliente.toLowerCase().includes(query))
+            .slice(0, 8);
+        _kitRenderOrderAutocompleteList(kitId, matches);
+    });
+}
+
+function _kitOrderHideSearch(kitId) {
+    setTimeout(function() {
+        _kitRenderOrderAutocompleteList(kitId, []);
+    }, 140);
+}
+
+function _kitOrderPick(kitId, orderNumber, customerName) {
+    const normalizedOrder = _kitNormalizeOrderNumber(orderNumber);
+    if (!normalizedOrder) return;
+
+    _kitMutateOrderDraft(kitId, function(orderDraft) {
+        const meta = _kitGetOrderMeta(orderDraft);
+        meta.ordiniCliente = [...new Set(meta.ordiniCliente.concat(normalizedOrder))];
+        meta.cliente = _kitResolveCustomerFromOrderRefs(meta.ordiniCliente, { [normalizedOrder]: customerName });
+        _kitSetOrderMeta(orderDraft, meta);
+    });
+
+    const input = document.getElementById('kit-order-ref-input-' + kitId);
+    if (input) input.value = '';
+    _kitRenderOrderAutocompleteList(kitId, []);
+}
+
+function _kitOrderRemoveRef(kitId, orderNumber) {
+    const normalizedOrder = _kitNormalizeOrderNumber(orderNumber);
+    _kitMutateOrderDraft(kitId, function(orderDraft) {
+        const meta = _kitGetOrderMeta(orderDraft);
+        meta.ordiniCliente = meta.ordiniCliente.filter(item => item !== normalizedOrder);
+        meta.cliente = _kitResolveCustomerFromOrderRefs(meta.ordiniCliente);
+        _kitSetOrderMeta(orderDraft, meta);
     });
 }
 
@@ -1504,7 +1684,7 @@ function _kitComposeAdd(kitId) {
     }
 
     _kitMutateOrderDraft(kitId, function(orderDraft) {
-        orderDraft[variant.key] = (Number.parseInt(orderDraft[variant.key], 10) || 0) + qty;
+        orderDraft[variant.key] = _kitGetOrderQty(orderDraft, variant.key) + qty;
     });
 
     const qtyInput = document.getElementById('kit-compose-qty-' + kitId);
@@ -2502,6 +2682,8 @@ function _kitRenderConfig() {
             <div class="kit-cfg-row kit-cfg-sarow">
                 <input class="kit-cfg-input" value="${_esc(opt.nome)}" maxlength="50" placeholder="Nome scelta elettronica"
                        onchange="_kitCfgUpdateOpzione('${_esc(kit.id)}','${_esc(asse.id)}','${_esc(opt.id)}','nome',this.value)">
+                <input class="kit-cfg-input kit-cfg-input-code" value="${_esc(opt.codice || '')}" maxlength="40" placeholder="Codice stampa opzionale"
+                       onchange="_kitCfgUpdateOpzione('${_esc(kit.id)}','${_esc(asse.id)}','${_esc(opt.id)}','codice',this.value)">
                 <button class="kit-cfg-del-btn" onclick="_kitCfgDelOpzione('${_esc(kit.id)}','${_esc(asse.id)}','${_esc(opt.id)}')"><i class="fas fa-times"></i></button>
             </div>`).join('');
 
@@ -2575,6 +2757,8 @@ function _kitRenderConfig() {
                 <div class="kit-cfg-row">
                     <input class="kit-cfg-input kit-cfg-input-comp" value="${_esc(comp.nome)}" maxlength="60" placeholder="Nome parte"
                            onchange="_kitCfgUpdateComp('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}','nome','',this.value)">
+                    <input class="kit-cfg-input kit-cfg-input-code" value="${_esc(comp.codice || '')}" maxlength="40" placeholder="Codice stampa opzionale"
+                           onchange="_kitCfgUpdateComp('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}','codice','',this.value)">
                     <select class="kit-cfg-select" style="max-width:210px"
                             onchange="_kitCfgUpdateComp('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}','modo','',this.value)">
                         <option value="quantificato" ${!isSegnalazione ? 'selected' : ''}>Materiale da contare</option>
@@ -2759,7 +2943,7 @@ function _kitCfgAddOpzione(kitId, asseId) {
         if (!asse) return;
         const idx = (asse.opzioni || []).length + 1;
         asse.opzioni = asse.opzioni || [];
-        asse.opzioni.push({ id: _uid(), key: 'opz' + idx, nome: 'Opzione ' + idx });
+        asse.opzioni.push({ id: _uid(), key: 'opz' + idx, nome: 'Opzione ' + idx, codice: '' });
     });
 }
 
@@ -2820,6 +3004,7 @@ function _kitCfgAddComp(kitId, sid) {
         sez.componenti.push({
             id: _uid(),
             nome: 'Nuovo componente',
+            codice: '',
             qtaPerVariante: {},
             caricato: 0,
             modoComponente: 'quantificato',
@@ -2973,6 +3158,10 @@ export function registerGlobals() {
     window._kitOrdineDelta           = _kitOrdineDelta;
     window._kitOrdineReset           = _kitOrdineReset;
     window._kitOrdineResetVoce       = _kitOrdineResetVoce;
+    window._kitOrderSearch           = _kitOrderSearch;
+    window._kitOrderHideSearch       = _kitOrderHideSearch;
+    window._kitOrderPick             = _kitOrderPick;
+    window._kitOrderRemoveRef        = _kitOrderRemoveRef;
     window._kitComposeSelect         = _kitComposeSelect;
     window._kitComposeAdd            = _kitComposeAdd;
     window._kitAggiornaCar           = _kitAggiornaCar;
