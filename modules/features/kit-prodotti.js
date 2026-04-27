@@ -312,6 +312,31 @@ function _kitCloneSezioneForKit(sezione, sourceKit, targetKit) {
     };
 }
 
+function _kitCloneAsseForKit(asse, sourceKit, targetKit) {
+    const existingKeys = new Set((targetKit.assiConfigurazione || []).map(a => a.key));
+    const baseKey = _kitSanitizeKey(asse?.key || String(asse?.nome || 'asse'), 'asse1');
+    let key = baseKey;
+    let i = 1;
+    while (existingKeys.has(key)) { key = baseKey + '_c' + (i++); }
+
+    const opzioni = [];
+    for (let idx = 0; idx < (asse.opzioni || []).length; idx++) {
+        const opt = asse.opzioni[idx];
+        const fallback = 'opz' + (idx + 1);
+        let optKey = _kitSanitizeKey(opt?.key, fallback);
+        let j = 1;
+        while (opzioni.some(o => o.key === optKey)) { optKey = optKey + '_c' + (j++); }
+        opzioni.push({ id: _uid(), key: optKey, nome: String(opt?.nome || '').trim() || optKey, codice: String(opt?.codice || '').trim() });
+    }
+
+    return {
+        id: _uid(),
+        key,
+        nome: String(asse?.nome || '').trim() || key,
+        opzioni
+    };
+}
+
 function _kitGetSectionById(kit, sectionId) {
     return (kit?.sezioni || []).find(sezione => sezione.id === sectionId) || null;
 }
@@ -2344,18 +2369,25 @@ function _kitCreateImportState(currentKitId, mode, preselectedSectionId = '') {
     const currentKit = kits.find(kit => kit.id === currentKitId);
     const firstSourceKit = kits.find(kit => kit.id !== currentKitId && (kit.sezioni || []).length);
     const firstCurrentSection = currentKit?.sezioni?.[0]?.id || '';
+    const firstSourceAsse = kits.find(kit => kit.id !== currentKitId && (kit.assiConfigurazione || []).length)?.assiConfigurazione?.[0]?.id || '';
     return {
         currentKitId,
         mode,
         search: '',
         sourceKitId: mode === 'copy' ? currentKitId : (firstSourceKit?.id || ''),
         sectionId: preselectedSectionId || (mode === 'copy' ? firstCurrentSection : (firstSourceKit?.sezioni?.[0]?.id || '')),
+        asseId: preselectedSectionId || (mode === 'import-asse' ? firstSourceAsse : ''),
         targetKitIds: []
     };
 }
 
 function _kitCfgOpenImportModal(kitId) {
     _kitImportState = _kitCreateImportState(kitId, 'import');
+    _kitRenderImportModal(true);
+}
+
+function _kitCfgOpenImportAsseModal(kitId) {
+    _kitImportState = _kitCreateImportState(kitId, 'import-asse');
     _kitRenderImportModal(true);
 }
 
@@ -2394,13 +2426,15 @@ function _kitCfgSelectImportSource(kitId) {
     const { kits } = _kitLoad();
     const sourceKit = kits.find(kit => kit.id === kitId);
     _kitImportState.sourceKitId = kitId;
-    _kitImportState.sectionId = sourceKit?.sezioni?.[0]?.id || '';
+    if (_kitImportState.mode === 'import-asse') _kitImportState.asseId = sourceKit?.assiConfigurazione?.[0]?.id || '';
+    else _kitImportState.sectionId = sourceKit?.sezioni?.[0]?.id || '';
     _kitRenderImportModal();
 }
 
 function _kitCfgSelectImportSection(sectionId) {
     if (!_kitImportState) return;
-    _kitImportState.sectionId = sectionId;
+    if (_kitImportState.mode === 'import-asse') _kitImportState.asseId = sectionId;
+    else _kitImportState.sectionId = sectionId;
     _kitRenderImportModal();
 }
 
@@ -2441,8 +2475,13 @@ function _kitRenderImportModal(openModal = false) {
         return;
     }
 
-    const sourceCandidates = kits.filter(kit => kit.id !== currentKit.id && (kit.sezioni || []).length);
-    if (state.mode === 'import' && !sourceCandidates.some(kit => kit.id === state.sourceKitId)) {
+    // source candidates depend on mode: sections import vs assi import
+    let sourceCandidates = [];
+    if (state.mode === 'import') sourceCandidates = kits.filter(kit => kit.id !== currentKit.id && (kit.sezioni || []).length);
+    else if (state.mode === 'import-asse') sourceCandidates = kits.filter(kit => kit.id !== currentKit.id && (kit.assiConfigurazione || []).length);
+    else sourceCandidates = kits.filter(kit => kit.id !== currentKit.id && (kit.sezioni || []).length);
+
+    if ((state.mode === 'import' || state.mode === 'import-asse') && !sourceCandidates.some(kit => kit.id === state.sourceKitId)) {
         state.sourceKitId = sourceCandidates[0]?.id || '';
     }
     if (state.mode === 'copy') {
@@ -2451,11 +2490,15 @@ function _kitRenderImportModal(openModal = false) {
     }
 
     const sourceKit = kits.find(kit => kit.id === state.sourceKitId) || null;
-    const sourceSections = sourceKit?.sezioni || [];
-    if (!sourceSections.some(sezione => sezione.id === state.sectionId)) {
-        state.sectionId = sourceSections[0]?.id || '';
+    const sourceSections = state.mode === 'import-asse' ? (sourceKit?.assiConfigurazione || []) : (sourceKit?.sezioni || []);
+    if (state.mode === 'import-asse') {
+        if (!sourceSections.some(item => item.id === state.asseId)) state.asseId = sourceSections[0]?.id || '';
+    } else {
+        if (!sourceSections.some(item => item.id === state.sectionId)) state.sectionId = sourceSections[0]?.id || '';
     }
-    const selectedSection = _kitGetSectionById(sourceKit, state.sectionId);
+    const selectedSection = state.mode === 'import-asse'
+        ? (sourceKit?.assiConfigurazione || []).find(a => a.id === state.asseId) || null
+        : _kitGetSectionById(sourceKit, state.sectionId);
     const filteredSourceKits = sourceCandidates.filter(kit => _kitMatchesSearch(kit.nome, state.search));
     const filteredTargetKits = kits.filter(kit => kit.id !== currentKit.id && _kitMatchesSearch(kit.nome, state.search));
 
@@ -2473,7 +2516,7 @@ function _kitRenderImportModal(openModal = false) {
     const copyModeBtn = document.getElementById('kit-import-mode-copy');
     if (!subtitleEl || !searchEl || !leftTitleEl || !rightTitleEl || !kitListEl || !sectionListEl || !targetWrapEl || !targetListEl || !previewEl || !confirmBtn || !importModeBtn || !copyModeBtn) return;
 
-    importModeBtn.classList.toggle('kit-import-mode-btn--active', state.mode === 'import');
+    importModeBtn.classList.toggle('kit-import-mode-btn--active', state.mode === 'import' || state.mode === 'import-asse');
     copyModeBtn.classList.toggle('kit-import-mode-btn--active', state.mode === 'copy');
     searchEl.value = state.search;
 
@@ -2532,18 +2575,28 @@ function _kitRenderImportModal(openModal = false) {
     }
 
     sectionListEl.innerHTML = sourceSections.length
-        ? sourceSections.map(sezione => {
-            const checked = sezione.id === state.sectionId;
+        ? sourceSections.map(item => {
+            const checked = state.mode === 'import-asse' ? (item.id === state.asseId) : (item.id === state.sectionId);
+            if (state.mode === 'import-asse') {
+                return `<label class="kit-import-option ${checked ? 'kit-import-option--active' : ''}">
+                    <input type="radio" name="kit-import-section" ${checked ? 'checked' : ''}
+                           onchange="_kitCfgSelectImportSection('${_esc(item.id)}')">
+                    <span class="kit-import-option-body">
+                        <span class="kit-import-option-title">${_esc(item.nome)}</span>
+                        <span class="kit-import-option-meta">${(item.opzioni || []).length} opzioni</span>
+                    </span>
+                </label>`;
+            }
             return `<label class="kit-import-option ${checked ? 'kit-import-option--active' : ''}">
                 <input type="radio" name="kit-import-section" ${checked ? 'checked' : ''}
-                       onchange="_kitCfgSelectImportSection('${_esc(sezione.id)}')">
+                       onchange="_kitCfgSelectImportSection('${_esc(item.id)}')">
                 <span class="kit-import-option-body">
-                    <span class="kit-import-option-title">${_esc(sezione.nome)}</span>
-                    <span class="kit-import-option-meta">${(sezione.componenti || []).length} componenti</span>
+                    <span class="kit-import-option-title">${_esc(item.nome)}</span>
+                    <span class="kit-import-option-meta">${(item.componenti || []).length} componenti</span>
                 </span>
             </label>`;
         }).join('')
-        : '<div class="kit-import-empty">Nessuna sezione disponibile.</div>';
+        : `<div class="kit-import-empty">Nessun ${state.mode === 'import-asse' ? 'gruppo elettronico' : 'sezione'} disponibile.</div>`;
 
     let canConfirm = false;
     let previewClass = 'kit-cfg-help kit-import-preview';
@@ -2568,6 +2621,16 @@ function _kitRenderImportModal(openModal = false) {
             }
         }
         confirmBtn.innerHTML = '<i class="fas fa-copy"></i> Importa sezione';
+    } else if (state.mode === 'import-asse') {
+        if (!sourceKit) {
+            previewHtml = 'Seleziona un kit sorgente per vedere gli assi disponibili.';
+        } else if (!selectedSection) {
+            previewHtml = 'Seleziona un asse da importare nel kit corrente.';
+        } else {
+            canConfirm = true;
+            previewHtml = `L'asse <strong>${_esc(selectedSection.nome)}</strong> verrà importato in <strong>${_esc(currentKit.nome)}</strong>. Opzioni duplicate verranno ignorate (merge per codice).`;
+        }
+        confirmBtn.innerHTML = '<i class="fas fa-copy"></i> Importa asse';
     } else {
         const selectedTargets = kits.filter(kit => (state.targetKitIds || []).includes(kit.id));
         if (!selectedSection) {
@@ -2611,8 +2674,44 @@ function _kitCfgConfirmImport() {
     const currentKit = kits.find(kit => kit.id === state.currentKitId);
     const sourceKit = kits.find(kit => kit.id === state.sourceKitId);
     const sourceSezione = _kitGetSectionById(sourceKit, state.sectionId);
-    if (!currentKit || !sourceKit || !sourceSezione) {
+    const sourceAsse = sourceKit?.assiConfigurazione?.find(a => a.id === state.asseId) || null;
+    if (!currentKit || !sourceKit || (state.mode === 'import' && !sourceSezione) || (state.mode === 'import-asse' && !sourceAsse)) {
         notificaElegante('Configurazione import non valida ⚠️');
+        return;
+    }
+
+    if (state.mode === 'import-asse') {
+        // import single asse (assi + opzioni). Merge options by codice when axis with same name exists.
+        currentKit.assiConfigurazione = currentKit.assiConfigurazione || [];
+        const existing = currentKit.assiConfigurazione.find(a => String(a.nome || '').trim().toLowerCase() === String(sourceAsse.nome || '').trim().toLowerCase());
+        let added = 0;
+        if (existing) {
+            existing.opzioni = existing.opzioni || [];
+            for (const opt of (sourceAsse.opzioni || [])) {
+                const optCodice = String(opt.codice || '').trim().toLowerCase();
+                let dup = false;
+                if (optCodice) dup = existing.opzioni.some(o => String(o.codice || '').trim().toLowerCase() === optCodice && optCodice !== '');
+                if (!dup) dup = existing.opzioni.some(o => String(o.nome || '').trim().toLowerCase() === String(opt.nome || '').trim().toLowerCase());
+                if (!dup) {
+                    const idx = (existing.opzioni || []).length + 1;
+                    existing.opzioni.push({ id: _uid(), key: _kitSanitizeKey(opt?.key, 'opz' + idx), nome: String(opt?.nome || '').trim() || ('opz' + idx), codice: String(opt?.codice || '').trim() });
+                    added += 1;
+                }
+            }
+            _kitSave(kits);
+            _kitCfgCloseImportModal();
+            _kitRenderConfig();
+            if (added) notificaElegante(`${added} opzione${added>1?'i':''} aggiunta${added>1?'e':''} all'asse "${sourceAsse.nome}" ✓`);
+            else notificaElegante(`Nessuna nuova opzione trovata per l'asse "${sourceAsse.nome}"`);
+            return;
+        }
+
+        // no existing axis -> clone whole asse
+        currentKit.assiConfigurazione.push(_kitCloneAsseForKit(sourceAsse, sourceKit, currentKit));
+        _kitSave(kits);
+        _kitCfgCloseImportModal();
+        _kitRenderConfig();
+        notificaElegante(`Asse "${sourceAsse.nome}" importato da "${sourceKit.nome}" ✓`);
         return;
     }
 
@@ -2700,6 +2799,7 @@ function _kitRenderConfig() {
         </div>
         ${recapHtml}
         <div class="kit-cfg-danger">
+            <button type="button" class="kit-cfg-add-btn" onclick="_kitDuplicaKit('${_esc(kit.id)}')"><i class="fas fa-clone"></i> Duplica kit</button>
             <button type="button" class="kit-btn-danger" onclick="_kitElimina('${_esc(kit.id)}')"><i class="fas fa-trash"></i> Elimina kit</button>
         </div>`;
 
@@ -2745,6 +2845,7 @@ function _kitRenderConfig() {
             </div>
             ${assiHtml || '<div style="color:#94a3b8;padding:6px 0;font-size:0.82rem">Nessun gruppo elettronico ancora. Aggiungi il primo per iniziare.</div>'}
             <button type="button" class="kit-cfg-add-btn" onclick="_kitCfgAddAsse('${_esc(kit.id)}')"><i class="fas fa-plus"></i> Aggiungi gruppo elettronico</button>
+            <button type="button" class="kit-cfg-add-btn" onclick="_kitCfgOpenImportAsseModal('${_esc(kit.id)}')"><i class="fas fa-copy"></i> Importa gruppo da altro kit</button>
             ${comboPreview}
         </div>`;
 
@@ -2933,6 +3034,44 @@ function _kitElimina(kitId) {
     _kitConfigId = null;
     _kitViewId   = null;
     caricaKitProdotti();
+}
+
+function _kitDuplicaKit(kitId) {
+    const { kits } = _kitLoad();
+    const src = kits.find(k => k.id === kitId);
+    if (!src) return;
+
+    const newKit = {
+        id: _uid(),
+        nome: `Copia di ${src.nome}`,
+        schemaVersion: _KIT_SCHEMA_VERSION,
+        assiConfigurazione: [],
+        varianti: [],
+        sezioni: [],
+        sottoAssembly: [],
+        qtaDaProdurre: {},
+        pronti: {},
+        movimenti: []
+    };
+
+    // clone assi (ensures new ids/keys unique within new kit)
+    for (const asse of (src.assiConfigurazione || [])) {
+        newKit.assiConfigurazione.push(_kitCloneAsseForKit(asse, src, newKit));
+    }
+    newKit.varianti = _kitBuildVariantiFromAssi(newKit.assiConfigurazione);
+
+    // clone sezioni/components with qta mapped to new kit variants
+    for (const sez of (src.sezioni || [])) {
+        newKit.sezioni.push(_kitCloneSezioneForKit(sez, src, newKit));
+    }
+
+    // clone sottoAssembly shallowly with new ids
+    newKit.sottoAssembly = (src.sottoAssembly || []).map(sa => ({ id: _uid(), nome: sa.nome || '', varianteKey: sa.varianteKey || '', noteConfig: sa.noteConfig || '' }));
+
+    kits.push(newKit);
+    _kitSave(kits);
+    _kitOpenConfig(newKit.id);
+    notificaElegante(`Kit "${src.nome}" duplicato ✓`);
 }
 
 // ─── Assi di configurazione ───────────────────────────────────────────────────
@@ -3211,11 +3350,13 @@ export function registerGlobals() {
     window._kitConfermaEliminaMov    = _kitConfermaEliminaMov;
     window._kitSalvaManuale          = _kitSalvaManuale;
     window._kitElimina               = _kitElimina;
+    window._kitDuplicaKit            = _kitDuplicaKit;
     window._kitCfgBack               = _kitCfgBack;
     window._kitCfgSwitchTab          = _kitCfgSwitchTab;
     window._kitCfgSaveNome           = _kitCfgSaveNome;
     window._kitCfgAddVar             = _kitCfgAddVar;
     window._kitCfgOpenImportModal    = _kitCfgOpenImportModal;
+    window._kitCfgOpenImportAsseModal = _kitCfgOpenImportAsseModal;
     window._kitCfgOpenCopySezModal   = _kitCfgOpenCopySezModal;
     window._kitCfgCloseImportModal   = _kitCfgCloseImportModal;
     window._kitCfgSetImportMode      = _kitCfgSetImportMode;
