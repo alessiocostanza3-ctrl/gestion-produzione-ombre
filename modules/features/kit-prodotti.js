@@ -12,6 +12,7 @@ const _KIT_LS_KEY  = '_mlKitData';        // { kits: [...], ts: number }
 const _KIT_LS_TS   = '_mlKitDataTs';      // timestamp locale
 const _KIT_DRAFT_LS_KEY = '_mlKitOrderDrafts'; // bozze ordine locali, non sincronizzate
 const _KIT_DRAFT_DOC_SEQ_KEY = '_mlKitOrderDraftSeq';
+const _KIT_PRESET_SECS_LS_KEY = '_mlKitPresetSections'; // anagrafiche/sezioni riutilizzabili
 const _KIT_SCHEMA_VERSION = 2;
 const _KIT_UNITA_MISURA_OPTIONS = ['pz', 'mt', 'cm', 'mm', 'kg', 'g', 'lt', 'ml'];
 
@@ -464,6 +465,22 @@ function _kitLoadOrderDrafts() {
 function _kitSaveOrderDrafts(drafts) {
     try {
         localStorage.setItem(_KIT_DRAFT_LS_KEY, JSON.stringify(drafts || {}));
+    } catch {}
+}
+
+function _kitLoadPresets() {
+    try {
+        const raw = localStorage.getItem(_KIT_PRESET_SECS_LS_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+}
+
+function _kitSavePresets(presets) {
+    try {
+        localStorage.setItem(_KIT_PRESET_SECS_LS_KEY, JSON.stringify(presets || []));
     } catch {}
 }
 
@@ -2338,6 +2355,7 @@ function _kitSalvaManuale(kitId) {
 let _kitConfigId  = null;
 let _kitConfigTab = 'info';
 let _kitImportState = null;
+let _kitPresetState = null;
 
 function _kitNuovoKit() {
     const { kits } = _kitLoad();
@@ -2752,6 +2770,150 @@ function _kitCfgConfirmImport() {
     notificaElegante(`Sezione "${sourceSezione.nome}" copiata in ${targetKits.length} kit ✓${suffix}`);
 }
 
+// ─── Preset: sezioni fisse (CRUD + applica) ─────────────────────────────────
+function _kitOpenPresetsModal(kitId) {
+    const { kits } = _kitLoad();
+    const currentKit = kits.find(k => k.id === kitId) || null;
+    _kitPresetState = {
+        currentKitId: kitId,
+        search: '',
+        selectedPresetId: '',
+        newPresetName: '',
+        newPresetSectionId: currentKit?.sezioni?.[0]?.id || ''
+    };
+    _kitRenderPresetsModal(true);
+}
+
+function _kitClosePresetsModal() {
+    const modal = document.getElementById('modal-kit-presets');
+    _kitPresetState = null;
+    if (!modal) return;
+    modal.classList.remove('active');
+    setTimeout(() => {
+        if (!modal.classList.contains('active')) modal.style.display = 'none';
+    }, 300);
+}
+
+function _kitSetPresetsSearch(value) {
+    if (!_kitPresetState) return;
+    _kitPresetState.search = String(value || '');
+    _kitRenderPresetsModal();
+}
+
+function _kitSelectPreset(presetId) {
+    if (!_kitPresetState) return;
+    _kitPresetState.selectedPresetId = presetId;
+    _kitRenderPresetsModal();
+}
+
+function _kitCreatePresetFromSection() {
+    if (!_kitPresetState) return;
+    const nameEl = document.getElementById('preset-new-name');
+    const selEl = document.getElementById('preset-new-section');
+    const name = String(nameEl?.value || '').trim();
+    if (!name) { notificaElegante('Inserisci il nome del preset ⚠️'); return; }
+    const sectionId = selEl?.value || '';
+    const { kits } = _kitLoad();
+    const currentKit = kits.find(k => k.id === _kitPresetState.currentKitId);
+    if (!currentKit) { notificaElegante('Kit non trovato ⚠️'); return; }
+    const section = _kitGetSectionById(currentKit, sectionId);
+    if (!section) { notificaElegante('Seleziona una sezione valida ⚠️'); return; }
+    const presets = _kitLoadPresets();
+    presets.push({ id: _uid(), nome: name, sourceKitId: currentKit.id, sezione: JSON.parse(JSON.stringify(section)) });
+    _kitSavePresets(presets);
+    notificaElegante('Preset salvato ✓');
+    _kitRenderPresetsModal();
+}
+
+function _kitApplyPreset(presetId) {
+    if (!_kitPresetState) return;
+    const presets = _kitLoadPresets();
+    const id = presetId || _kitPresetState.selectedPresetId;
+    const preset = presets.find(p => p.id === id);
+    if (!preset) { notificaElegante('Seleziona un preset ⚠️'); return; }
+    const { kits } = _kitLoad();
+    const targetKit = kits.find(k => k.id === _kitPresetState.currentKitId);
+    const sourceKit = kits.find(k => k.id === preset.sourceKitId) || null;
+    if (!targetKit) { notificaElegante('Kit non trovato ⚠️'); return; }
+    targetKit.sezioni = targetKit.sezioni || [];
+    targetKit.sezioni.push(_kitCloneSezioneForKit(preset.sezione, sourceKit, targetKit));
+    _kitSave(kits);
+    _kitClosePresetsModal();
+    _kitRenderConfig();
+    notificaElegante(`Preset "${preset.nome}" applicato ✓`);
+}
+
+function _kitRenamePreset(presetId, newName) {
+    const presets = _kitLoadPresets();
+    const p = presets.find(x => x.id === presetId);
+    if (!p) { notificaElegante('Preset non trovato ⚠️'); return; }
+    p.nome = String(newName || '').trim() || p.nome;
+    _kitSavePresets(presets);
+    notificaElegante('Nome aggiornato ✓');
+    _kitRenderPresetsModal();
+}
+
+function _kitDeletePreset(presetId) {
+    const presets = _kitLoadPresets().filter(p => p.id !== presetId);
+    _kitSavePresets(presets);
+    if (_kitPresetState) _kitPresetState.selectedPresetId = '';
+    _kitRenderPresetsModal();
+    notificaElegante('Preset eliminato ✓');
+}
+
+function _kitRenderPresetsModal(openModal = false) {
+    const modal = document.getElementById('modal-kit-presets');
+    if (!modal || !_kitPresetState) return;
+    const presets = _kitLoadPresets();
+    const state = _kitPresetState;
+    const currentKit = _kitLoad().kits.find(k => k.id === state.currentKitId);
+    const filtered = presets.filter(p => _kitMatchesSearch(p.nome, state.search));
+    const listEl = document.getElementById('preset-list');
+    const previewEl = document.getElementById('preset-preview');
+    const newNameInput = document.getElementById('preset-new-name');
+    const newSectionSelect = document.getElementById('preset-new-section');
+    const applyBtn = document.getElementById('preset-apply-btn');
+    if (!listEl || !previewEl || !newNameInput || !newSectionSelect || !applyBtn) return;
+
+    listEl.innerHTML = filtered.length
+        ? filtered.map(p => {
+            const active = p.id === state.selectedPresetId;
+            return `<label class="kit-import-option ${active ? 'kit-import-option--active' : ''}">
+                <input type="radio" name="preset-select" ${active ? 'checked' : ''} onchange="_kitSelectPreset('${_esc(p.id)}')">
+                <span class="kit-import-option-body">
+                    <span class="kit-import-option-title">${_esc(p.nome)}</span>
+                    <span class="kit-import-option-meta">${(p.sezione?.componenti||[]).length} componenti</span>
+                </span>
+            </label>`;
+        }).join('')
+        : '<div class="kit-import-empty">Nessun preset presente.</div>';
+
+    const selectedPreset = presets.find(p => p.id === state.selectedPresetId) || null;
+    if (selectedPreset) {
+        const sourceName = selectedPreset.sourceKitId && _kitLoad().kits.find(k => k.id === selectedPreset.sourceKitId)?.nome || '';
+        previewEl.innerHTML = `<div style="padding:6px"><strong>${_esc(selectedPreset.nome)}</strong><div style="color:#94a3b8">${_esc(sourceName)}</div></div>` +
+            ((selectedPreset.sezione?.componenti?.length)
+                ? `<div>${selectedPreset.sezione.componenti.map(c => `<div class="kit-meta-pill">${_esc(c.nome)}${c.codice ? ' · ' + _esc(c.codice) : ''}</div>`).join('')}</div>`
+                : '<div class="kit-import-empty">Sezione vuota</div>');
+    } else {
+        previewEl.innerHTML = '<div class="kit-import-empty">Seleziona un preset per vedere l\'anteprima.</div>';
+    }
+
+    applyBtn.disabled = !selectedPreset;
+    newNameInput.value = '';
+    newSectionSelect.innerHTML = (currentKit?.sezioni||[]).map(s => `<option value="${_esc(s.id)}">${_esc(s.nome)}</option>`).join('');
+
+    if (openModal) {
+        modal.style.display = 'flex';
+        modal.offsetHeight;
+        modal.classList.add('active');
+        setTimeout(() => {
+            const input = document.getElementById('preset-search');
+            if (input) input.focus();
+        }, 40);
+    }
+}
+
 function _kitRenderConfig() {
     const { kits } = _kitLoad();
     const kit = kits.find(k => k.id === _kitConfigId);
@@ -2846,6 +3008,7 @@ function _kitRenderConfig() {
             ${assiHtml || '<div style="color:#94a3b8;padding:6px 0;font-size:0.82rem">Nessun gruppo elettronico ancora. Aggiungi il primo per iniziare.</div>'}
             <button type="button" class="kit-cfg-add-btn" onclick="_kitCfgAddAsse('${_esc(kit.id)}')"><i class="fas fa-plus"></i> Aggiungi gruppo elettronico</button>
             <button type="button" class="kit-cfg-add-btn" onclick="_kitCfgOpenImportAsseModal('${_esc(kit.id)}')"><i class="fas fa-copy"></i> Importa gruppo da altro kit</button>
+            <button type="button" class="kit-cfg-add-btn" onclick="_kitOpenPresetsModal('${_esc(kit.id)}')"><i class="fas fa-bookmark"></i> Sezioni fisse</button>
             ${comboPreview}
         </div>`;
 
@@ -3367,6 +3530,14 @@ export function registerGlobals() {
     window._kitCfgSelectAllImportTargets = _kitCfgSelectAllImportTargets;
     window._kitCfgClearImportTargets = _kitCfgClearImportTargets;
     window._kitCfgConfirmImport      = _kitCfgConfirmImport;
+    window._kitOpenPresetsModal      = _kitOpenPresetsModal;
+    window._kitClosePresetsModal     = _kitClosePresetsModal;
+    window._kitSetPresetsSearch      = _kitSetPresetsSearch;
+    window._kitSelectPreset          = _kitSelectPreset;
+    window._kitCreatePresetFromSection = _kitCreatePresetFromSection;
+    window._kitApplyPreset           = _kitApplyPreset;
+    window._kitRenamePreset          = _kitRenamePreset;
+    window._kitDeletePreset          = _kitDeletePreset;
     window._kitCfgAddAsse            = _kitCfgAddAsse;
     window._kitCfgUpdateAsse         = _kitCfgUpdateAsse;
     window._kitCfgDelAsse            = _kitCfgDelAsse;
