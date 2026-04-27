@@ -15,6 +15,8 @@ const _KIT_DRAFT_DOC_SEQ_KEY = '_mlKitOrderDraftSeq';
 const _KIT_PRESET_SECS_LS_KEY = '_mlKitPresetSections'; // anagrafiche/sezioni riutilizzabili
 const _KIT_SCHEMA_VERSION = 2;
 const _KIT_UNITA_MISURA_OPTIONS = ['pz', 'mt', 'cm', 'mm', 'kg', 'g', 'lt', 'ml'];
+const _KIT_DISTINTE_LS_KEY = '_mlKitDistinte';
+const _KIT_DISTINTE_LS_TS  = '_mlKitDistinteTs';
 
 // ─── fetch flag ───────────────────────────────────────────────────────────────
 let _fetched = false;
@@ -22,6 +24,7 @@ let _kitOrderAutocompleteCache = [];
 let _kitOrderAutocompletePromise = null;
 // Lock per evitare chiamate duplicate rapide a _kitComposeAdd
 const _kitComposeAddLock = {};
+let _kitMainTab = 'kits';
 
 export function resetKitFetch() { _fetched = false; }
 
@@ -481,6 +484,24 @@ function _kitLoadPresets() {
 function _kitSavePresets(presets) {
     try {
         localStorage.setItem(_KIT_PRESET_SECS_LS_KEY, JSON.stringify(presets || []));
+    } catch {}
+}
+
+// ─── Distinte (localStorage) ─────────────────────────────────────────────────
+function _kitLoadDistinte() {
+    try {
+        const raw = localStorage.getItem(_KIT_DISTINTE_LS_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+}
+
+function _kitSaveDistinte(distinte) {
+    try {
+        localStorage.setItem(_KIT_DISTINTE_LS_KEY, JSON.stringify(distinte || []));
+        try { localStorage.setItem(_KIT_DISTINTE_LS_TS, Date.now()); } catch {}
     } catch {}
 }
 
@@ -1371,8 +1392,43 @@ export function caricaKitProdotti() {
 
     const { kits } = _kitLoad();
     const contenitore = document.getElementById('contenitore-dati');
+    if (!contenitore) return;
 
-    const cardsHtml = kits.map(kit => {
+    // Top-level page with three main tabs: Kits / Anagrafiche / Distinte
+    contenitore.innerHTML = `
+    <div class="kit-page">
+        <div class="kit-page-header">
+            <div class="kit-page-title"><i class="fas fa-boxes-stacked"></i> Kit Prodotti</div>
+            <div style="display:flex;gap:8px;align-items:center">
+                <button type="button" class="kit-nuovo-btn" onclick="_kitNuovoKit()"><i class="fas fa-plus"></i> Nuovo Kit</button>
+            </div>
+        </div>
+        <div class="kit-page-tabs" style="margin-top:12px;display:flex;gap:8px">
+            <button class="kit-tab ${_kitMainTab==='kits'?'kit-tab--active':''}" onclick="_kitSwitchMainTab('kits')">Kits</button>
+            <button class="kit-tab ${_kitMainTab==='anagrafiche'?'kit-tab--active':''}" onclick="_kitSwitchMainTab('anagrafiche')">Anagrafiche</button>
+            <button class="kit-tab ${_kitMainTab==='distinte'?'kit-tab--active':''}" onclick="_kitSwitchMainTab('distinte')">Distinte</button>
+        </div>
+        <div id="kit-main-content" class="kit-main-content" style="margin-top:14px"></div>
+    </div>`;
+
+    // render selected sub-page
+    _kitSwitchMainTab(_kitMainTab);
+
+    try {
+        if (window && window._kitSuppressNextFade) {
+            try { delete window._kitSuppressNextFade; } catch(e) {}
+        } else {
+            applicaFade(contenitore);
+        }
+    } catch(e) {
+        applicaFade(contenitore);
+    }
+}
+
+// helper di rendering per le tre pagine principali
+function _kitRenderKitsGrid(kits, container) {
+    if (!container) return;
+    const cardsHtml = (Array.isArray(kits) ? kits : []).map(kit => {
         const variantiEffettive = _kitGetVariantiEffettive(kit);
         const nVarianti = variantiEffettive.length;
         const nAssi     = (kit.assiConfigurazione || []).length;
@@ -1391,36 +1447,156 @@ export function caricaKitProdotti() {
         </div>`;
     }).join('');
 
-    contenitore.innerHTML = `
-    <div class="kit-page">
-        <div class="kit-page-header">
-            <div class="kit-page-title"><i class="fas fa-boxes-stacked"></i> Kit Prodotti</div>
-            <button type="button" class="kit-nuovo-btn" onclick="_kitNuovoKit()"><i class="fas fa-plus"></i> Nuovo Kit</button>
-        </div>
+    container.innerHTML = `
         ${kits.length === 0
-                ? `<div class="kit-empty-state">
+            ? `<div class="kit-empty-state">
                 <i class="fas fa-box-open kit-empty-icon"></i>
                 <p>Nessun kit configurato.</p>
                 <button type="button" class="kit-nuovo-btn" onclick="_kitNuovoKit()"><i class="fas fa-plus"></i> Crea il primo kit</button>
                </div>`
             : `<div class="kit-grid">${cardsHtml}</div>`
-        }
-    </div>`;
+        }`;
+}
 
-    try {
-        if (window && window._kitSuppressNextFade) {
-            try { delete window._kitSuppressNextFade; } catch(e) {}
-        } else {
-            applicaFade(contenitore);
+function _kitSwitchMainTab(tab) {
+    _kitMainTab = tab;
+    const { kits } = _kitLoad();
+    const content = document.getElementById('kit-main-content');
+    if (!content) return;
+    if (tab === 'kits') _kitRenderKitsGrid(kits, content);
+    else if (tab === 'anagrafiche') _kitRenderAnagrafichePage(kits, content);
+    else if (tab === 'distinte') _kitRenderDistintePage(kits, content);
+}
+
+function _kitRenderAnagrafichePage(kits, container) {
+    if (!container) return;
+    const presets = _kitLoadPresets();
+    const presetListHtml = presets.length
+        ? presets.map(p => `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0">
+                <div style="flex:1">
+                    <div style="font-weight:600">${_esc(p.nome)}</div>
+                    <div style="color:#94a3b8;font-size:0.85rem">${_esc(p.sourceKitId && _kitLoad().kits.find(k=>k.id===p.sourceKitId)?.nome || '')}</div>
+                </div>
+                <div style="display:flex;gap:8px">
+                    <button class="kit-cfg-add-btn" onclick="_kitOpenPresetsModal('${_esc(kits?.[0]?.id || '')}')">Applica</button>
+                    <button class="kit-cfg-add-btn" onclick="(function(){const n=prompt('Nuovo nome preset', '${_esc(p.nome)}'); if(n) _kitRenamePreset('${_esc(p.id)}', n);})()">Rinomina</button>
+                    <button class="kit-btn-danger" onclick="(function(){ if(confirm('Eliminare questo preset?')) _kitDeletePreset('${_esc(p.id)}') })()">Elimina</button>
+                </div>
+            </div>`).join('')
+        : '<div class="kit-import-empty">Nessun preset salvato.</div>';
+
+    const kitsOptions = (kits || []).map(k=>`<option value="${_esc(k.id)}">${_esc(k.nome)}</option>`).join('');
+    container.innerHTML = `
+        <div class="kit-cfg-section">
+            <div class="kit-cfg-help">Gestisci le <strong>sezioni fisse</strong> riutilizzabili tra kit.</div>
+            <div style="margin-top:8px">${presetListHtml}</div>
+            <hr style="margin:12px 0">
+            <div style="display:flex;gap:8px;align-items:center">
+                <select id="anag-kit-select" class="kit-cfg-select" style="min-width:220px">
+                    ${kitsOptions}
+                </select>
+                <button class="kit-cfg-add-btn" onclick="(function(){ const kid = document.getElementById('anag-kit-select')?.value || ''; if(!kid){ alert('Seleziona un kit'); return; } _kitOpenPresetsModal(kid); })()">Apri gestione preset per kit</button>
+            </div>
+        </div>`;
+}
+
+function _kitRenderDistintePage(kits, container) {
+    if (!container) return;
+    const distinte = _kitLoadDistinte();
+    const rowsHtml = distinte.length
+        ? distinte.map(d => `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #eee">
+                <div style="flex:1">
+                    <div style="font-weight:700">${_esc(d.nome)}</div>
+                    <div style="color:#94a3b8;font-size:0.9rem">${_esc(d.documento || '')} · ${_esc(d.kitNome || '')}</div>
+                    <div style="color:#94a3b8;font-size:0.8rem">${_esc(new Date(d.createdAt).toLocaleString())} · ${_esc(d.createdBy)}</div>
+                </div>
+                <div style="display:flex;gap:8px">
+                    <button class="kit-cfg-add-btn" onclick="_kitDistintaOpenPrint('${_esc(d.id)}')">Stampa</button>
+                    <button class="kit-cfg-add-btn" onclick="_kitDistintaApplyToDraft('${_esc(d.id)}')">Applica</button>
+                    <button class="kit-btn-danger" onclick="(function(){ if(confirm('Eliminare questa distinta?')) _kitDistintaDelete('${_esc(d.id)}')})()">Elimina</button>
+                </div>
+            </div>`).join('')
+        : '<div class="kit-import-empty">Nessuna distinta salvata.</div>';
+    container.innerHTML = `<div class="kit-cfg-section">${rowsHtml}</div>`;
+}
+
+function _kitCreateDistintaFromDraft(kitId) {
+    const { kits } = _kitLoad();
+    const kit = kits.find(k => k.id === kitId);
+    if (!kit) { notificaElegante('Kit non trovato ⚠️'); return; }
+    let orderDraft = _kitGetOrderDraft(kit);
+    if (!_kitGetOrderMeta(orderDraft).documento) {
+        _kitMutateOrderDraft(kitId, function(currentDraft) { _kitEnsureOrderDraftDocument(currentDraft); });
+        orderDraft = _kitGetOrderDraft(kit);
+    }
+    const distinta = _kitBuildDistintaBase(kit, orderDraft);
+    if (!distinta.totalePezzi || !distinta.totaleRighe) {
+        notificaElegante('Componi prima un ordine per generare la distinta stampabile.', 'warning'); return;
+    }
+    const distList = _kitLoadDistinte();
+    const meta = _kitGetOrderMeta(orderDraft);
+    const saved = {
+        id: _uid(),
+        kitId: kit.id,
+        kitNome: kit.nome,
+        nome: meta.documento || `Distinta-${Date.now()}`,
+        documento: meta.documento || '',
+        createdAt: Date.now(),
+        createdBy: utenteAttuale?.nome || 'Sistema',
+        orderDraftSnapshot: orderDraft,
+        distintaSnapshot: distinta
+    };
+    distList.unshift(saved);
+    _kitSaveDistinte(distList);
+    notificaElegante('Distinta salvata ✓');
+    if (_kitMainTab === 'distinte') _kitSwitchMainTab('distinte');
+}
+
+function _kitDistintaOpenPrint(distId) {
+    const dist = _kitLoadDistinte().find(d => d.id === distId);
+    if (!dist) return;
+    const { kits } = _kitLoad();
+    const kit = kits.find(k => k.id === dist.kitId) || null;
+    if (kit) {
+        const previewWindow = window.open('', '_blank');
+        if (!previewWindow) { notificaElegante('Popup bloccato: abilita l\'anteprima di stampa per aprire il modello completo.', 'warning'); return; }
+        previewWindow.document.open();
+        try {
+            previewWindow.document.write(_kitBuildPrintPreviewHtml(kit, dist.distintaSnapshot, dist.orderDraftSnapshot));
+        } catch(e) {
+            previewWindow.document.write('<pre>' + _esc(JSON.stringify(dist.distintaSnapshot, null, 2)) + '</pre>');
         }
-    } catch(e) {
-        applicaFade(contenitore);
+        previewWindow.document.close();
+        previewWindow.focus();
+    } else {
+        const previewWindow = window.open('', '_blank');
+        if (!previewWindow) { notificaElegante('Popup bloccato', 'warning'); return; }
+        previewWindow.document.open();
+        previewWindow.document.write('<pre>' + _esc(JSON.stringify(dist.distintaSnapshot, null, 2)) + '</pre>');
+        previewWindow.document.close();
+        previewWindow.focus();
     }
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
+function _kitDistintaApplyToDraft(distId) {
+    const dist = _kitLoadDistinte().find(d => d.id === distId);
+    if (!dist) return;
+    const drafts = _kitLoadOrderDrafts();
+    drafts[dist.kitId] = dist.orderDraftSnapshot || {};
+    _kitSaveOrderDrafts(drafts);
+    notificaElegante('Bozza ordine ripristinata per il kit selezionato ✓');
+}
+
+function _kitDistintaDelete(distId) {
+    const next = _kitLoadDistinte().filter(d => d.id !== distId);
+    _kitSaveDistinte(next);
+    if (_kitMainTab === 'distinte') _kitSwitchMainTab('distinte');
+    notificaElegante('Distinta eliminata ✓');
+}
+
+// ═════════════════════════════════════════════════════════════════════════====
 // VISTA OPERATIVA DI UN KIT (4 tab: BOM / Pronti / Movimenti / Spedizione)
-// ═════════════════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════════════════====
 
 let _kitViewId   = null;
 let _kitViewTab  = 'ordine';
@@ -1531,8 +1707,9 @@ function _kitRenderView() {
                     <div class="kit-order-summary-total">${distinta.totalePezzi} pezzi</div>
                 </div>
                 <div class="kit-order-summary-actions">
-                    <button type="button" class="kit-btn-secondary" onclick="_kitOpenPrintPreview('${_esc(kit.id)}')"><i class="fas fa-print"></i> Anteprima stampa</button>
-                    <button type="button" class="kit-btn-secondary" onclick="_kitOrdineReset('${_esc(kit.id)}')"><i class="fas fa-rotate-left"></i> Azzera ordine</button>
+                        <button type="button" class="kit-btn-secondary" onclick="_kitOpenPrintPreview('${_esc(kit.id)}')"><i class="fas fa-print"></i> Anteprima stampa</button>
+                        <button type="button" class="kit-cfg-add-btn" onclick="_kitOpenSaveDistintaModal('${_esc(kit.id)}')"><i class="fas fa-save"></i> Salva distinta</button>
+                        <button type="button" class="kit-btn-secondary" onclick="_kitOrdineReset('${_esc(kit.id)}')"><i class="fas fa-rotate-left"></i> Azzera ordine</button>
                 </div>
             </div>
             <div class="kit-order-summary-note">Questa bozza ordine resta locale sul dispositivo e serve solo per generare la distinta base di approvvigionamento.</div>
@@ -3509,6 +3686,77 @@ function _kitCfgDelSA(kitId, i) {
     });
 }
 
+// ─── Modal salva distinta (modifica metadati prima di salvare)
+function _kitOpenSaveDistintaModal(kitId) {
+    const modal = document.getElementById('modal-kit-distinta-edit');
+    if (!modal) {
+        _kitCreateDistintaFromDraft(kitId);
+        return;
+    }
+    const { kits } = _kitLoad();
+    const kit = kits.find(k => k.id === kitId);
+    if (!kit) return;
+    const orderDraft = _kitGetOrderDraft(kit);
+    const meta = _kitGetOrderMeta(orderDraft);
+    const nomeInput = document.getElementById('distinta-edit-nome');
+    const docInput = document.getElementById('distinta-edit-documento');
+    if (nomeInput) nomeInput.value = meta.documento || '';
+    if (docInput) docInput.value = meta.documento || '';
+    modal.dataset.kitId = kitId;
+    modal.style.display = 'flex';
+    modal.offsetHeight;
+    modal.classList.add('active');
+    setTimeout(() => nomeInput && nomeInput.focus(), 80);
+}
+
+function _kitCloseSaveDistintaModal() {
+    const modal = document.getElementById('modal-kit-distinta-edit');
+    if (!modal) return;
+    modal.classList.remove('active');
+    setTimeout(() => { if (!modal.classList.contains('active')) modal.style.display = 'none'; }, 300);
+}
+
+function _kitConfirmSaveDistinta() {
+    const modal = document.getElementById('modal-kit-distinta-edit');
+    if (!modal) return;
+    const kitId = modal.dataset.kitId;
+    const nome = (document.getElementById('distinta-edit-nome')?.value || '').trim();
+    const documento = (document.getElementById('distinta-edit-documento')?.value || '').trim();
+    if (!nome) { notificaElegante('Inserisci un nome per la distinta.', 'warning'); return; }
+
+    _kitMutateOrderDraft(kitId, function(orderDraft) {
+        const meta = _kitGetOrderMeta(orderDraft);
+        if (documento) meta.documento = documento;
+        else if (!meta.documento) meta.documento = nome;
+        _kitSetOrderMeta(orderDraft, meta);
+    });
+
+    const { kits } = _kitLoad();
+    const kit = kits.find(k => k.id === kitId);
+    if (!kit) { _kitCloseSaveDistintaModal(); notificaElegante('Kit non trovato ⚠️'); return; }
+    const orderDraft = _kitGetOrderDraft(kit);
+    const distinta = _kitBuildDistintaBase(kit, orderDraft);
+    if (!distinta.totalePezzi || !distinta.totaleRighe) { notificaElegante('Componi prima un ordine per generare la distinta stampabile.', 'warning'); return; }
+
+    const distList = _kitLoadDistinte();
+    const saved = {
+        id: _uid(),
+        kitId: kit.id,
+        kitNome: kit.nome,
+        nome: nome || (orderDraft._meta?.documento || `Distinta-${Date.now()}`),
+        documento: documento || orderDraft._meta?.documento || '',
+        createdAt: Date.now(),
+        createdBy: utenteAttuale?.nome || 'Sistema',
+        orderDraftSnapshot: orderDraft,
+        distintaSnapshot: distinta
+    };
+    distList.unshift(saved);
+    _kitSaveDistinte(distList);
+    _kitCloseSaveDistintaModal();
+    notificaElegante('Distinta salvata ✓');
+    if (_kitMainTab === 'distinte') _kitSwitchMainTab('distinte');
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 // GLOBALS
 // ═════════════════════════════════════════════════════════════════════════════
@@ -3597,6 +3845,19 @@ export function registerGlobals() {
     window._kitCfgAddSAForVariant    = _kitCfgAddSAForVariant;
     window._kitCfgUpdateSA           = _kitCfgUpdateSA;
     window._kitCfgDelSA              = _kitCfgDelSA;
+    window._kitSwitchMainTab          = _kitSwitchMainTab;
+    window._kitRenderKitsGrid         = _kitRenderKitsGrid;
+    window._kitRenderAnagrafichePage  = _kitRenderAnagrafichePage;
+    window._kitRenderDistintePage     = _kitRenderDistintePage;
+    window._kitLoadDistinte           = _kitLoadDistinte;
+    window._kitSaveDistinte           = _kitSaveDistinte;
+    window._kitCreateDistintaFromDraft = _kitCreateDistintaFromDraft;
+    window._kitOpenSaveDistintaModal   = _kitOpenSaveDistintaModal;
+    window._kitCloseSaveDistintaModal  = _kitCloseSaveDistintaModal;
+    window._kitConfirmSaveDistinta     = _kitConfirmSaveDistinta;
+    window._kitDistintaOpenPrint      = _kitDistintaOpenPrint;
+    window._kitDistintaApplyToDraft   = _kitDistintaApplyToDraft;
+    window._kitDistintaDelete         = _kitDistintaDelete;
 }
 
 export default caricaKitProdotti;
