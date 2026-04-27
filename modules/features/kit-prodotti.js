@@ -2813,16 +2813,23 @@ function _kitCreatePresetFromSection() {
     const name = String(nameEl?.value || '').trim();
     if (!name) { notificaElegante('Inserisci il nome del preset ⚠️'); return; }
     const sectionId = selEl?.value || '';
+    _kitCreatePreset(_kitPresetState.currentKitId, sectionId, name);
+}
+
+function _kitCreatePreset(kitId, sectionId, name) {
     const { kits } = _kitLoad();
-    const currentKit = kits.find(k => k.id === _kitPresetState.currentKitId);
+    const currentKit = kits.find(k => k.id === kitId);
     if (!currentKit) { notificaElegante('Kit non trovato ⚠️'); return; }
     const section = _kitGetSectionById(currentKit, sectionId);
     if (!section) { notificaElegante('Seleziona una sezione valida ⚠️'); return; }
     const presets = _kitLoadPresets();
-    presets.push({ id: _uid(), nome: name, sourceKitId: currentKit.id, sezione: JSON.parse(JSON.stringify(section)) });
+    presets.push({ id: _uid(), nome: String(name || '').trim(), sourceKitId: currentKit.id, sezione: JSON.parse(JSON.stringify(section)) });
     _kitSavePresets(presets);
     notificaElegante('Preset salvato ✓');
-    _kitRenderPresetsModal();
+    // if modal open, re-render it
+    if (_kitPresetState && _kitPresetState.currentKitId === kitId) _kitRenderPresetsModal();
+    // re-render config so tab list updates
+    _kitRenderConfig();
 }
 
 function _kitApplyPreset(presetId) {
@@ -2927,8 +2934,8 @@ function _kitRenderConfig() {
     if (_kitConfigTab === 'sezioni') _kitConfigTab = 'bom';
 
     if (_kitConfigTab === 'sa') _kitConfigTab = 'bom';
-    const tabs = ['info', 'varianti', 'bom'];
-    const tabLabels = { info: 'Prodotto', varianti: 'Elettronica selezionabile', bom: 'Parti del prodotto' };
+    const tabs = ['info', 'varianti', 'anagrafiche', 'bom'];
+    const tabLabels = { info: 'Prodotto', varianti: 'Elettronica selezionabile', anagrafiche: 'Anagrafiche', bom: 'Parti del prodotto' };
 
     // ─── Tab Info ───
     const nA  = assi.length;
@@ -3151,6 +3158,37 @@ function _kitRenderConfig() {
         </div>`;
 
     const panels = { info: infoHtml, varianti: variantiHtml, bom: sezioniPanelHtml, sa: saPanelHtml };
+    // ─── Tab Anagrafiche / Sezioni fisse ─────────────────────────────────────
+    const presets = _kitLoadPresets();
+    const presetListHtml = presets.length
+        ? presets.map(p => `<div class="kit-preset-row" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0">
+                <div style="flex:1">
+                    <div style="font-weight:600">${_esc(p.nome)}</div>
+                    <div style="color:#94a3b8;font-size:0.85rem">${_esc(p.sourceKitId && _kitLoad().kits.find(k=>k.id===p.sourceKitId)?.nome || '')}</div>
+                </div>
+                <div style="display:flex;gap:8px">
+                    <button class="kit-cfg-add-btn" onclick="_kitApplyPreset('${_esc(p.id)}')">Applica</button>
+                    <button class="kit-cfg-add-btn" onclick="(function(){const n=prompt('Nuovo nome preset', '${_esc(p.nome)}'); if(n) _kitRenamePreset('${_esc(p.id)}', n);})()">Rinomina</button>
+                    <button class="kit-btn-danger" onclick="(function(){ if(confirm('Eliminare questo preset?')) _kitDeletePreset('${_esc(p.id)}') })()">Elimina</button>
+                </div>
+            </div>`).join('')
+        : '<div class="kit-import-empty">Nessun preset salvato.</div>';
+
+    const anagrafichePanelHtml = `
+        <div class="kit-cfg-section">
+            <div class="kit-cfg-help">Gestisci le <strong>sezioni fisse</strong> riutilizzabili tra kit. Puoi creare un preset a partire da una sezione del kit corrente e applicarlo qui.</div>
+            <div style="margin-top:8px">${presetListHtml}</div>
+            <hr style="margin:12px 0">
+            <div style="display:flex;gap:8px;align-items:center">
+                <select id="preset-new-section-tab" class="kit-cfg-select" style="min-width:220px">
+                    ${(kit.sezioni||[]).map(s=>`<option value="${_esc(s.id)}">${_esc(s.nome)}</option>`).join('')}
+                </select>
+                <input id="preset-new-name-tab" class="kit-cfg-input" placeholder="Nome nuovo preset" style="flex:1">
+                <button class="kit-cfg-add-btn" onclick="(function(){ const sec = document.getElementById('preset-new-section-tab')?.value || ''; const name = document.getElementById('preset-new-name-tab')?.value || ''; if(!name) { alert('Inserisci un nome'); return; } _kitCreatePreset('${_esc(kit.id)}', sec, name); })()"><i class="fas fa-save"></i> Crea preset</button>
+            </div>
+        </div>`;
+
+    panels.anagrafiche = anagrafichePanelHtml;
     const tabNav = tabs.map(t => `<button class="kit-tab ${_kitConfigTab===t?'kit-tab--active':''}" onclick="_kitCfgSwitchTab('${t}')">${tabLabels[t]}</button>`).join('');
 
     contenitore.innerHTML = `
@@ -3535,6 +3573,7 @@ export function registerGlobals() {
     window._kitSetPresetsSearch      = _kitSetPresetsSearch;
     window._kitSelectPreset          = _kitSelectPreset;
     window._kitCreatePresetFromSection = _kitCreatePresetFromSection;
+    window._kitCreatePreset           = _kitCreatePreset;
     window._kitApplyPreset           = _kitApplyPreset;
     window._kitRenamePreset          = _kitRenamePreset;
     window._kitDeletePreset          = _kitDeletePreset;
