@@ -17,6 +17,8 @@ const _KIT_SCHEMA_VERSION = 2;
 const _KIT_UNITA_MISURA_OPTIONS = ['pz', 'mt', 'cm', 'mm', 'kg', 'g', 'lt', 'ml'];
 const _KIT_DISTINTE_LS_KEY = '_mlKitDistinte';
 const _KIT_DISTINTE_LS_TS  = '_mlKitDistinteTs';
+const _KIT_ANAGRAFICHE_LS_KEY = '_mlKitAnagrafiche';
+const _KIT_ANAGRAFICHE_LS_TS  = '_mlKitAnagraficheTs';
 
 // ─── fetch flag ───────────────────────────────────────────────────────────────
 let _fetched = false;
@@ -1399,9 +1401,7 @@ export function caricaKitProdotti() {
     <div class="kit-page">
         <div class="kit-page-header">
             <div class="kit-page-title"><i class="fas fa-boxes-stacked"></i> Kit Prodotti</div>
-            <div style="display:flex;gap:8px;align-items:center">
-                <button type="button" class="kit-nuovo-btn" onclick="_kitNuovoKit()"><i class="fas fa-plus"></i> Nuovo Kit</button>
-            </div>
+            <div id="kit-page-actions" style="display:flex;gap:8px;align-items:center"></div>
         </div>
         <div class="kit-page-tabs" style="margin-top:12px;display:flex;gap:8px">
             <button class="kit-tab ${_kitMainTab==='kits'?'kit-tab--active':''}" onclick="_kitSwitchMainTab('kits')">Kits</button>
@@ -1413,6 +1413,7 @@ export function caricaKitProdotti() {
 
     // render selected sub-page
     _kitSwitchMainTab(_kitMainTab);
+    _kitRenderHeaderActions();
 
     try {
         if (window && window._kitSuppressNextFade) {
@@ -1458,6 +1459,18 @@ function _kitRenderKitsGrid(kits, container) {
         }`;
 }
 
+    function _kitRenderHeaderActions() {
+        const actions = document.getElementById('kit-page-actions');
+        if (!actions) return;
+        if (_kitMainTab === 'kits') {
+            actions.innerHTML = `<button type="button" class="kit-nuovo-btn" onclick="_kitNuovoKit()"><i class="fas fa-plus"></i> Nuovo Kit</button>`;
+        } else if (_kitMainTab === 'anagrafiche') {
+            actions.innerHTML = `<button type="button" class="kit-cfg-add-btn" onclick="_kitOpenAnagraficaModal()"><i class="fas fa-plus"></i> Aggiungi</button>`;
+        } else {
+            actions.innerHTML = '';
+        }
+    }
+
 function _kitSwitchMainTab(tab) {
     _kitMainTab = tab;
     const { kits } = _kitLoad();
@@ -1466,38 +1479,40 @@ function _kitSwitchMainTab(tab) {
     if (tab === 'kits') _kitRenderKitsGrid(kits, content);
     else if (tab === 'anagrafiche') _kitRenderAnagrafichePage(kits, content);
     else if (tab === 'distinte') _kitRenderDistintePage(kits, content);
+    _kitRenderHeaderActions();
 }
 
 function _kitRenderAnagrafichePage(kits, container) {
     if (!container) return;
-    const presets = _kitLoadPresets();
-    const presetListHtml = presets.length
-        ? presets.map(p => `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0">
+    const anag = _kitLoadAnagrafiche();
+    if (!anag.length) {
+        container.innerHTML = `
+            <div class="kit-cfg-section">
+                <div class="kit-cfg-help">Gestisci i componenti riutilizzabili tra kit.</div>
+                <div style="margin-top:12px" class="kit-import-empty">Nessun componente salvato.</div>
+            </div>`;
+        return;
+    }
+
+    // group by category
+    const groups = anag.reduce((acc, item) => { const cat = item.categoria || 'Senza categoria'; acc[cat] = acc[cat] || []; acc[cat].push(item); return acc; }, {});
+    let html = `<div class="kit-cfg-section"><div class="kit-cfg-help">Gestisci i componenti riutilizzabili tra kit.</div>`;
+    for (const [cat, items] of Object.entries(groups)) {
+        html += `<div style="margin-top:12px"><div style="font-weight:700;margin-bottom:6px">${_esc(cat)}</div>`;
+        html += items.map(item => `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #eee">
                 <div style="flex:1">
-                    <div style="font-weight:600">${_esc(p.nome)}</div>
-                    <div style="color:#94a3b8;font-size:0.85rem">${_esc(p.sourceKitId && _kitLoad().kits.find(k=>k.id===p.sourceKitId)?.nome || '')}</div>
+                    <div style="font-weight:600">${_esc(item.nome)} ${item.codice ? `<span style="color:#94a3b8;font-size:.9rem">· ${_esc(item.codice)}</span>` : ''}</div>
+                    ${item.descrizione ? `<div style="color:#94a3b8;font-size:.85rem">${_esc(item.descrizione)}</div>` : ''}
                 </div>
                 <div style="display:flex;gap:8px">
-                    <button class="kit-cfg-add-btn" onclick="_kitOpenPresetsModal('${_esc(kits?.[0]?.id || '')}')">Applica</button>
-                    <button class="kit-cfg-add-btn" onclick="(function(){const n=prompt('Nuovo nome preset', '${_esc(p.nome)}'); if(n) _kitRenamePreset('${_esc(p.id)}', n);})()">Rinomina</button>
-                    <button class="kit-btn-danger" onclick="(function(){ if(confirm('Eliminare questo preset?')) _kitDeletePreset('${_esc(p.id)}') })()">Elimina</button>
+                    <button class="kit-cfg-add-btn" onclick="_kitOpenAnagraficaModal('${_esc(item.id)}')">Modifica</button>
+                    <button class="kit-btn-danger" onclick="(function(){ if(confirm('Eliminare questo componente?')) _kitDeleteAnagrafica('${_esc(item.id)}') })()">Elimina</button>
                 </div>
-            </div>`).join('')
-        : '<div class="kit-import-empty">Nessun preset salvato.</div>';
-
-    const kitsOptions = (kits || []).map(k=>`<option value="${_esc(k.id)}">${_esc(k.nome)}</option>`).join('');
-    container.innerHTML = `
-        <div class="kit-cfg-section">
-            <div class="kit-cfg-help">Gestisci le <strong>sezioni fisse</strong> riutilizzabili tra kit.</div>
-            <div style="margin-top:8px">${presetListHtml}</div>
-            <hr style="margin:12px 0">
-            <div style="display:flex;gap:8px;align-items:center">
-                <select id="anag-kit-select" class="kit-cfg-select" style="min-width:220px">
-                    ${kitsOptions}
-                </select>
-                <button class="kit-cfg-add-btn" onclick="(function(){ const kid = document.getElementById('anag-kit-select')?.value || ''; if(!kid){ alert('Seleziona un kit'); return; } _kitOpenPresetsModal(kid); })()">Apri gestione preset per kit</button>
-            </div>
-        </div>`;
+            </div>`).join('');
+        html += '</div>';
+    }
+    html += '</div>';
+    container.innerHTML = html;
 }
 
 function _kitRenderDistintePage(kits, container) {
@@ -1550,6 +1565,91 @@ function _kitCreateDistintaFromDraft(kitId) {
     _kitSaveDistinte(distList);
     notificaElegante('Distinta salvata ✓');
     if (_kitMainTab === 'distinte') _kitSwitchMainTab('distinte');
+}
+
+// ─── Anagrafiche (componenti) ───────────────────────────────────────────────
+function _kitLoadAnagrafiche() {
+    try {
+        const raw = localStorage.getItem(_KIT_ANAGRAFICHE_LS_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+}
+
+function _kitSaveAnagrafiche(items) {
+    try {
+        localStorage.setItem(_KIT_ANAGRAFICHE_LS_KEY, JSON.stringify(items || []));
+        try { localStorage.setItem(_KIT_ANAGRAFICHE_LS_TS, Date.now()); } catch {}
+    } catch {}
+}
+
+function _kitOpenAnagraficaModal(editId) {
+    const modal = document.getElementById('modal-kit-anagrafica-edit');
+    if (!modal) return;
+    const nome = document.getElementById('anag-componente');
+    const codice = document.getElementById('anag-codice');
+    const categoria = document.getElementById('anag-categoria');
+    const descrizione = document.getElementById('anag-descrizione');
+    if (editId) {
+        const item = _kitLoadAnagrafiche().find(a => a.id === editId);
+        if (item) {
+            if (nome) nome.value = item.nome || '';
+            if (codice) codice.value = item.codice || '';
+            if (categoria) categoria.value = item.categoria || '';
+            if (descrizione) descrizione.value = item.descrizione || '';
+            modal.dataset.editId = editId;
+        }
+    } else {
+        if (nome) nome.value = '';
+        if (codice) codice.value = '';
+        if (categoria) categoria.value = '';
+        if (descrizione) descrizione.value = '';
+        delete modal.dataset.editId;
+    }
+    modal.style.display = 'flex';
+    modal.offsetHeight;
+    modal.classList.add('active');
+    setTimeout(() => nome && nome.focus(), 80);
+}
+
+function _kitCloseAnagraficaModal() {
+    const modal = document.getElementById('modal-kit-anagrafica-edit');
+    if (!modal) return;
+    modal.classList.remove('active');
+    setTimeout(() => { if (!modal.classList.contains('active')) modal.style.display = 'none'; }, 300);
+}
+
+function _kitConfirmSaveAnagrafica() {
+    const modal = document.getElementById('modal-kit-anagrafica-edit');
+    if (!modal) return;
+    const editId = modal.dataset.editId;
+    const nome = (document.getElementById('anag-componente')?.value || '').trim();
+    if (!nome) { notificaElegante('Inserisci il nome del componente', 'warning'); return; }
+    const codice = (document.getElementById('anag-codice')?.value || '').trim();
+    const categoria = (document.getElementById('anag-categoria')?.value || '').trim();
+    const descrizione = (document.getElementById('anag-descrizione')?.value || '').trim();
+    const items = _kitLoadAnagrafiche();
+    if (editId) {
+        const idx = items.findIndex(i => i.id === editId);
+        if (idx !== -1) {
+            items[idx] = { ...items[idx], nome, codice, categoria, descrizione, updatedAt: Date.now() };
+        } else {
+            items.unshift({ id: _uid(), nome, codice, categoria, descrizione, createdAt: Date.now(), createdBy: utenteAttuale?.nome || 'Sistema' });
+        }
+    } else {
+        items.unshift({ id: _uid(), nome, codice, categoria, descrizione, createdAt: Date.now(), createdBy: utenteAttuale?.nome || 'Sistema' });
+    }
+    _kitSaveAnagrafiche(items);
+    _kitCloseAnagraficaModal();
+    notificaElegante('Componente salvato ✓');
+    if (_kitMainTab === 'anagrafiche') _kitSwitchMainTab('anagrafiche');
+}
+
+function _kitDeleteAnagrafica(id) {
+    const next = _kitLoadAnagrafiche().filter(a => a.id !== id);
+    _kitSaveAnagrafiche(next);
+    if (_kitMainTab === 'anagrafiche') _kitSwitchMainTab('anagrafiche');
+    notificaElegante('Componente eliminato ✓');
 }
 
 function _kitDistintaOpenPrint(distId) {
@@ -3852,6 +3952,13 @@ export function registerGlobals() {
     window._kitLoadDistinte           = _kitLoadDistinte;
     window._kitSaveDistinte           = _kitSaveDistinte;
     window._kitCreateDistintaFromDraft = _kitCreateDistintaFromDraft;
+    window._kitLoadAnagrafiche          = _kitLoadAnagrafiche;
+    window._kitSaveAnagrafiche          = _kitSaveAnagrafiche;
+    window._kitOpenAnagraficaModal      = _kitOpenAnagraficaModal;
+    window._kitCloseAnagraficaModal     = _kitCloseAnagraficaModal;
+    window._kitConfirmSaveAnagrafica    = _kitConfirmSaveAnagrafica;
+    window._kitDeleteAnagrafica         = _kitDeleteAnagrafica;
+    window._kitRenderHeaderActions      = _kitRenderHeaderActions;
     window._kitOpenSaveDistintaModal   = _kitOpenSaveDistintaModal;
     window._kitCloseSaveDistintaModal  = _kitCloseSaveDistintaModal;
     window._kitConfirmSaveDistinta     = _kitConfirmSaveDistinta;
