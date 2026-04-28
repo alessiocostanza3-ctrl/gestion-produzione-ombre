@@ -9,7 +9,7 @@
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbyVMV9MkGiqphN0AKXJdHXF0Arp1vxTYrCYi1SGv_4MKLRJkx--5HoGq7mmQX-p0ZTZ/exec';
 var APP_URL = 'https://alessiocostanza3-ctrl.github.io/gestion-produzione-ombre/';
 
-var SHELL_CACHE = 'prod-shell-v246';
+var SHELL_CACHE = 'prod-shell-v247';
 var SHELL_ASSETS = [
     APP_URL,
     APP_URL + 'index.html',
