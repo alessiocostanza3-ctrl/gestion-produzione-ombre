@@ -209,6 +209,32 @@
 
 <body>
 
+    <!-- Fallback: workaround per modal anagrafica bloccato da cache/SW -->
+    <script>
+    // Se la funzione globale non è disponibile, la definisco qui
+    if (!window._kitOpenAnagraficaModal) {
+      window._kitOpenAnagraficaModal = function() {
+        var modal = document.getElementById('modal-kit-anagrafica-edit');
+        if (modal) {
+          // Reset campi
+          var n = document.getElementById('anag-componente');
+          var e = document.getElementById('anag-codice');
+          var o = document.getElementById('anag-categoria');
+          var s = document.getElementById('anag-descrizione');
+          if(n) n.value = '';
+          if(e) e.value = '';
+          if(o) o.value = '';
+          if(s) s.value = '';
+          delete modal.dataset.editId;
+          modal.style.display = 'flex';
+          modal.offsetHeight;
+          modal.classList.add('active');
+          setTimeout(function(){ n && n.focus(); }, 80);
+        }
+      };
+    }
+    </script>
+
     <div id="rotate-overlay">
         <i class="fas fa-mobile-alt"></i>
         <p>Ruota il dispositivo<br>per usare l'app</p>
