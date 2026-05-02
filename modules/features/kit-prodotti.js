@@ -1583,7 +1583,41 @@ function _kitSaveAnagrafiche(items) {
     } catch {}
 }
 
+function _kitEnsureAnagraficaModal() {
+    if (document.getElementById('modal-kit-anagrafica-edit')) return;
+    const div = document.createElement('div');
+    div.innerHTML = `
+    <div id="modal-kit-anagrafica-edit" class="modal-overlay" style="display:none" onclick="if(event.target===this)_kitCloseAnagraficaModal()">
+      <div class="modal-content">
+        <h2 class="pip-sped-modal-title"><i class="fas fa-plus"></i> Aggiungi componente</h2>
+        <p class="pip-sped-modal-sub">Crea un componente riutilizzabile per i kit.</p>
+        <div style="padding:8px 18px">
+          <label class="kit-cfg-label">Componente</label>
+          <input id="anag-componente" class="pip-edit-mov-input" placeholder="Nome componente" maxlength="120">
+        </div>
+        <div style="padding:8px 18px">
+          <label class="kit-cfg-label">Codice</label>
+          <input id="anag-codice" class="pip-edit-mov-input" placeholder="Codice (opzionale)" maxlength="60">
+        </div>
+        <div style="padding:8px 18px">
+          <label class="kit-cfg-label">Categoria</label>
+          <input id="anag-categoria" class="pip-edit-mov-input" placeholder="Categoria (es. Elettronica, Meccanica)" maxlength="80">
+        </div>
+        <div style="padding:8px 18px">
+          <label class="kit-cfg-label">Descrizione</label>
+          <textarea id="anag-descrizione" class="pip-edit-mov-input" placeholder="Descrizione (opzionale)" rows="3"></textarea>
+        </div>
+        <div class="modal-footer" style="margin-top:12px">
+          <button type="button" onclick="_kitCloseAnagraficaModal()" class="btn-modal-cancel">Annulla</button>
+          <button type="button" class="btn-modal-send" onclick="_kitConfirmSaveAnagrafica()"><i class="fas fa-save"></i> Salva</button>
+        </div>
+      </div>
+    </div>`;
+    document.body.appendChild(div.firstElementChild);
+}
+
 function _kitOpenAnagraficaModal(editId) {
+    _kitEnsureAnagraficaModal();
     const modal = document.getElementById('modal-kit-anagrafica-edit');
     if (!modal) return;
     const nome = document.getElementById('anag-componente');
