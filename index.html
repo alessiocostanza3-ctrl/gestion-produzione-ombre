@@ -204,7 +204,7 @@
     <!-- head-init.js: error handler, FA loader, login functions (estratti dagli inline scripts) -->
     <script src="head-init.js?v=20260330e" defer></script>
     <link rel="modulepreload" href="dist/script.bundle.js?v=20260502a">
-    <script type="module" src="dist/script.bundle.js?v=20260502c"></script>
+    <script type="module" src="dist/script.bundle.js?v=20260502d"></script>
 </head>
 
 <body>
@@ -1225,25 +1225,6 @@
         </div>
       </div>
 
-    <!-- ===== MODAL: ANAGRAFICA COMPONENTE ===== -->
-    <div id="modal-kit-anagrafica-edit" class="modal-overlay" style="display:none" onclick="if(event.target===this)_kitCloseAnagraficaModal()">
-      <div class="modal-content">
-        <h2 style="margin:0 0 4px;font-size:1.05rem;font-weight:700;color:#1e293b"><i class="fas fa-plus" style="color:#6366f1;margin-right:6px"></i>Aggiungi componente</h2>
-        <p style="color:#94a3b8;font-size:0.82rem;margin:0 0 16px">Crea un componente riutilizzabile per i kit.</p>
-        <label class="modal-label">Componente *</label>
-        <input id="anag-componente" class="input-field-modern" placeholder="Nome componente" maxlength="120" style="margin-bottom:12px">
-        <label class="modal-label">Codice</label>
-        <input id="anag-codice" class="input-field-modern" placeholder="Codice (opzionale)" maxlength="60" style="margin-bottom:12px">
-        <label class="modal-label">Categoria</label>
-        <input id="anag-categoria" class="input-field-modern" placeholder="Categoria (es. Elettronica, Meccanica)" maxlength="80" style="margin-bottom:12px">
-        <label class="modal-label">Descrizione</label>
-        <textarea id="anag-descrizione" class="input-field-modern" placeholder="Descrizione (opzionale)" rows="3" style="resize:vertical"></textarea>
-        <div class="modal-footer">
-          <button type="button" onclick="_kitCloseAnagraficaModal()" class="btn-modal-cancel">Annulla</button>
-          <button type="button" class="btn-modal-send" onclick="_kitConfirmSaveAnagrafica()"><i class="fas fa-save"></i> Salva</button>
-        </div>
-      </div>
-    </div>
       <div class="modal-footer" style="margin-top:20px">
         <button type="button" onclick="_conflittoScegli('server')" class="btn-modal-cancel">
           Usa la versione di <span id="conflitto-btn-altro"></span>
@@ -1251,6 +1232,26 @@
         <button type="button" onclick="_conflittoScegli('client')" class="btn-modal-send">
           <i class="fas fa-check"></i> Mantieni la mia
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MODAL: ANAGRAFICA COMPONENTE ===== -->
+  <div id="modal-kit-anagrafica-edit" class="modal-overlay" style="display:none" onclick="if(event.target===this)_kitCloseAnagraficaModal()">
+    <div class="modal-content">
+      <h2 style="margin:0 0 4px;font-size:1.05rem;font-weight:700;color:#1e293b"><i class="fas fa-plus" style="color:#6366f1;margin-right:6px"></i>Aggiungi componente</h2>
+      <p style="color:#94a3b8;font-size:0.82rem;margin:0 0 16px">Crea un componente riutilizzabile per i kit.</p>
+      <label class="modal-label">Componente *</label>
+      <input id="anag-componente" class="input-field-modern" placeholder="Nome componente" maxlength="120" style="margin-bottom:12px">
+      <label class="modal-label">Codice</label>
+      <input id="anag-codice" class="input-field-modern" placeholder="Codice (opzionale)" maxlength="60" style="margin-bottom:12px">
+      <label class="modal-label">Categoria</label>
+      <input id="anag-categoria" class="input-field-modern" placeholder="Categoria (es. Elettronica, Meccanica)" maxlength="80" style="margin-bottom:12px">
+      <label class="modal-label">Descrizione</label>
+      <textarea id="anag-descrizione" class="input-field-modern" placeholder="Descrizione (opzionale)" rows="3" style="resize:vertical"></textarea>
+      <div class="modal-footer">
+        <button type="button" onclick="_kitCloseAnagraficaModal()" class="btn-modal-cancel">Annulla</button>
+        <button type="button" class="btn-modal-send" onclick="_kitConfirmSaveAnagrafica()"><i class="fas fa-save"></i> Salva</button>
       </div>
     </div>
   </div>
