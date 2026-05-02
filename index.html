@@ -204,35 +204,98 @@
     <!-- head-init.js: error handler, FA loader, login functions (estratti dagli inline scripts) -->
     <script src="head-init.js?v=20260330e" defer></script>
     <link rel="modulepreload" href="dist/script.bundle.js?v=20260502a">
-    <script type="module" src="dist/script.bundle.js?v=20260502a"></script>
+    <script type="module" src="dist/script.bundle.js?v=20260502b"></script>
 </head>
 
 <body>
 
-    <!-- Fallback: workaround per modal anagrafica bloccato da cache/SW -->
+    <!-- Kit Prodotti: implementazione standalone Anagrafiche (sovrascritta dal chunk quando caricato) -->
     <script>
-    // Se la funzione globale non è disponibile, la definisco qui
-    if (!window._kitOpenAnagraficaModal) {
-      window._kitOpenAnagraficaModal = function() {
+    (function() {
+      function _kitEnsureModalDOM_() {
+        if (document.getElementById('modal-kit-anagrafica-edit')) return;
+        var d = document.createElement('div');
+        d.innerHTML = '<div id="modal-kit-anagrafica-edit" class="modal-overlay" style="display:none" onclick="if(event.target===this)_kitCloseAnagraficaModal()">'
+          + '<div class="modal-content">'
+          + '<h2 style="margin:0 0 4px;font-size:1.05rem;font-weight:700;color:#1e293b"><i class="fas fa-plus" style="color:#6366f1;margin-right:6px"></i>Aggiungi componente</h2>'
+          + '<p style="color:#94a3b8;font-size:0.82rem;margin:0 0 16px">Crea un componente riutilizzabile per i kit.</p>'
+          + '<label class="modal-label">Componente *</label>'
+          + '<input id="anag-componente" class="input-field-modern" placeholder="Nome componente" maxlength="120" style="margin-bottom:12px">'
+          + '<label class="modal-label">Codice</label>'
+          + '<input id="anag-codice" class="input-field-modern" placeholder="Codice (opzionale)" maxlength="60" style="margin-bottom:12px">'
+          + '<label class="modal-label">Categoria</label>'
+          + '<input id="anag-categoria" class="input-field-modern" placeholder="Categoria (es. Elettronica, Meccanica)" maxlength="80" style="margin-bottom:12px">'
+          + '<label class="modal-label">Descrizione</label>'
+          + '<textarea id="anag-descrizione" class="input-field-modern" placeholder="Descrizione (opzionale)" rows="3" style="resize:vertical"></textarea>'
+          + '<div class="modal-footer">'
+          + '<button type="button" onclick="_kitCloseAnagraficaModal()" class="btn-modal-cancel">Annulla</button>'
+          + '<button type="button" class="btn-modal-send" onclick="_kitConfirmSaveAnagrafica()"><i class="fas fa-save"></i> Salva</button>'
+          + '</div></div></div>';
+        document.body.appendChild(d.firstElementChild);
+      }
+      window._kitOpenAnagraficaModal = function(editId) {
+        _kitEnsureModalDOM_();
         var modal = document.getElementById('modal-kit-anagrafica-edit');
-        if (modal) {
-          // Reset campi
-          var n = document.getElementById('anag-componente');
-          var e = document.getElementById('anag-codice');
-          var o = document.getElementById('anag-categoria');
-          var s = document.getElementById('anag-descrizione');
-          if(n) n.value = '';
-          if(e) e.value = '';
-          if(o) o.value = '';
-          if(s) s.value = '';
+        if (!modal) return;
+        var n = document.getElementById('anag-componente');
+        var c = document.getElementById('anag-codice');
+        var g = document.getElementById('anag-categoria');
+        var s = document.getElementById('anag-descrizione');
+        function clearFields_() {
+          if (n) n.value = ''; if (c) c.value = '';
+          if (g) g.value = ''; if (s) s.value = '';
           delete modal.dataset.editId;
-          modal.style.display = 'flex';
-          modal.offsetHeight;
-          modal.classList.add('active');
-          setTimeout(function(){ n && n.focus(); }, 80);
+        }
+        if (editId) {
+          try {
+            var items = JSON.parse(localStorage.getItem('_mlKitAnagrafiche') || '[]');
+            var item = items.find(function(a) { return a.id === editId; });
+            if (item) {
+              if (n) n.value = item.nome || '';
+              if (c) c.value = item.codice || '';
+              if (g) g.value = item.categoria || '';
+              if (s) s.value = item.descrizione || '';
+              modal.dataset.editId = editId;
+            } else { clearFields_(); }
+          } catch(e) { clearFields_(); }
+        } else { clearFields_(); }
+        modal.classList.remove('active');
+        modal.style.display = 'flex';
+        requestAnimationFrame(function() {
+          requestAnimationFrame(function() { modal.classList.add('active'); });
+        });
+        setTimeout(function() { n && n.focus(); }, 120);
+      };
+      window._kitCloseAnagraficaModal = function() {
+        var modal = document.getElementById('modal-kit-anagrafica-edit');
+        if (!modal) return;
+        modal.classList.remove('active');
+        setTimeout(function() { if (!modal.classList.contains('active')) modal.style.display = 'none'; }, 300);
+      };
+      window._kitConfirmSaveAnagrafica = function() {
+        var modal = document.getElementById('modal-kit-anagrafica-edit');
+        if (!modal) return;
+        var nome = ((document.getElementById('anag-componente') || {}).value || '').trim();
+        if (!nome) { alert('Inserisci il nome del componente'); return; }
+        var codice   = ((document.getElementById('anag-codice')     || {}).value || '').trim();
+        var categoria = ((document.getElementById('anag-categoria') || {}).value || '').trim();
+        var descrizione = ((document.getElementById('anag-descrizione') || {}).value || '').trim();
+        var editId = modal.dataset.editId;
+        try {
+          var items = JSON.parse(localStorage.getItem('_mlKitAnagrafiche') || '[]');
+          if (editId) {
+            var idx = items.findIndex(function(i) { return i.id === editId; });
+            if (idx !== -1) { items[idx] = Object.assign({}, items[idx], {nome:nome, codice:codice, categoria:categoria, descrizione:descrizione, updatedAt:Date.now()}); }
+            else { items.unshift({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6), nome:nome, codice:codice, categoria:categoria, descrizione:descrizione, createdAt:Date.now()}); }
+          } else { items.unshift({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6), nome:nome, codice:codice, categoria:categoria, descrizione:descrizione, createdAt:Date.now()}); }
+          localStorage.setItem('_mlKitAnagrafiche', JSON.stringify(items));
+        } catch(e) {}
+        window._kitCloseAnagraficaModal();
+        if (typeof window._kitSwitchMainTab === 'function') {
+          setTimeout(function() { window._kitSwitchMainTab('anagrafiche'); }, 320);
         }
       };
-    }
+    })();
     </script>
 
     <div id="rotate-overlay">
@@ -1166,25 +1229,17 @@
     <!-- ===== MODAL: ANAGRAFICA COMPONENTE ===== -->
     <div id="modal-kit-anagrafica-edit" class="modal-overlay" style="display:none" onclick="if(event.target===this)_kitCloseAnagraficaModal()">
       <div class="modal-content">
-        <h2 class="pip-sped-modal-title"><i class="fas fa-plus"></i> Aggiungi componente</h2>
-        <p class="pip-sped-modal-sub">Crea un componente riutilizzabile per i kit.</p>
-        <div style="padding:8px 18px">
-          <label class="kit-cfg-label">Componente</label>
-          <input id="anag-componente" class="pip-edit-mov-input" placeholder="Nome componente" maxlength="120">
-        </div>
-        <div style="padding:8px 18px">
-          <label class="kit-cfg-label">Codice</label>
-          <input id="anag-codice" class="pip-edit-mov-input" placeholder="Codice (opzionale)" maxlength="60">
-        </div>
-        <div style="padding:8px 18px">
-          <label class="kit-cfg-label">Categoria</label>
-          <input id="anag-categoria" class="pip-edit-mov-input" placeholder="Categoria (es. Elettronica, Meccanica)" maxlength="80">
-        </div>
-        <div style="padding:8px 18px">
-          <label class="kit-cfg-label">Descrizione</label>
-          <textarea id="anag-descrizione" class="pip-edit-mov-input" placeholder="Descrizione (opzionale)" rows="3"></textarea>
-        </div>
-        <div class="modal-footer" style="margin-top:12px">
+        <h2 style="margin:0 0 4px;font-size:1.05rem;font-weight:700;color:#1e293b"><i class="fas fa-plus" style="color:#6366f1;margin-right:6px"></i>Aggiungi componente</h2>
+        <p style="color:#94a3b8;font-size:0.82rem;margin:0 0 16px">Crea un componente riutilizzabile per i kit.</p>
+        <label class="modal-label">Componente *</label>
+        <input id="anag-componente" class="input-field-modern" placeholder="Nome componente" maxlength="120" style="margin-bottom:12px">
+        <label class="modal-label">Codice</label>
+        <input id="anag-codice" class="input-field-modern" placeholder="Codice (opzionale)" maxlength="60" style="margin-bottom:12px">
+        <label class="modal-label">Categoria</label>
+        <input id="anag-categoria" class="input-field-modern" placeholder="Categoria (es. Elettronica, Meccanica)" maxlength="80" style="margin-bottom:12px">
+        <label class="modal-label">Descrizione</label>
+        <textarea id="anag-descrizione" class="input-field-modern" placeholder="Descrizione (opzionale)" rows="3" style="resize:vertical"></textarea>
+        <div class="modal-footer">
           <button type="button" onclick="_kitCloseAnagraficaModal()" class="btn-modal-cancel">Annulla</button>
           <button type="button" class="btn-modal-send" onclick="_kitConfirmSaveAnagrafica()"><i class="fas fa-save"></i> Salva</button>
         </div>

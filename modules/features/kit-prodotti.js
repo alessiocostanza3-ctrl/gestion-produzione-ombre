@@ -1399,16 +1399,19 @@ export function caricaKitProdotti() {
     // Top-level page with three main tabs: Kits / Anagrafiche / Distinte
     contenitore.innerHTML = `
     <div class="kit-page">
-        <div class="kit-page-header">
-            <div class="kit-page-title"><i class="fas fa-boxes-stacked"></i> Kit Prodotti</div>
-            <div id="kit-page-actions" style="display:flex;gap:8px;align-items:center"></div>
+        <div class="acquisti-header header-flex">
+            <div>
+                <h3 class="acquisti-title"><i class="fas fa-toolbox" style="color:#6366f1;margin-right:6px;font-size:1.1rem"></i>Kit Prodotti</h3>
+                <p class="acquisti-subtitle">Gestisci kit, componenti e distinte.</p>
+            </div>
+            <div id="kit-page-actions" class="acquisti-actions-wrapper"></div>
         </div>
-        <div class="kit-page-tabs" style="margin-top:12px;display:flex;gap:8px">
-            <button class="kit-tab ${_kitMainTab==='kits'?'kit-tab--active':''}" onclick="_kitSwitchMainTab('kits')">Kits</button>
-            <button class="kit-tab ${_kitMainTab==='anagrafiche'?'kit-tab--active':''}" onclick="_kitSwitchMainTab('anagrafiche')">Anagrafiche</button>
-            <button class="kit-tab ${_kitMainTab==='distinte'?'kit-tab--active':''}" onclick="_kitSwitchMainTab('distinte')">Distinte</button>
+        <div id="kit-tab-bar" style="display:flex;gap:4px;padding:8px 0 0">
+            <button class="acq-tab ${_kitMainTab==='kits'?'active':''}" data-tab="kits" onclick="_kitSwitchMainTab('kits')"><i class="fas fa-boxes-stacked"></i> Kits</button>
+            <button class="acq-tab ${_kitMainTab==='anagrafiche'?'active':''}" data-tab="anagrafiche" onclick="_kitSwitchMainTab('anagrafiche')"><i class="fas fa-list"></i> Anagrafiche</button>
+            <button class="acq-tab ${_kitMainTab==='distinte'?'active':''}" data-tab="distinte" onclick="_kitSwitchMainTab('distinte')"><i class="fas fa-file-alt"></i> Distinte</button>
         </div>
-        <div id="kit-main-content" class="kit-main-content" style="margin-top:14px"></div>
+        <div id="kit-main-content" class="kit-main-content" style="border-top:1px solid #e2e8f0;padding-top:16px;margin-top:0"></div>
     </div>`;
 
     // render selected sub-page
@@ -1463,9 +1466,9 @@ function _kitRenderKitsGrid(kits, container) {
         const actions = document.getElementById('kit-page-actions');
         if (!actions) return;
         if (_kitMainTab === 'kits') {
-            actions.innerHTML = `<button type="button" class="kit-nuovo-btn" onclick="_kitNuovoKit()"><i class="fas fa-plus"></i> Nuovo Kit</button>`;
+            actions.innerHTML = `<button type="button" class="btn-modal-send" style="font-size:0.8rem;padding:8px 14px" onclick="_kitNuovoKit()"><i class="fas fa-plus"></i> Nuovo Kit</button>`;
         } else if (_kitMainTab === 'anagrafiche') {
-            actions.innerHTML = `<button type="button" class="kit-cfg-add-btn" onclick="_kitOpenAnagraficaModal()"><i class="fas fa-plus"></i> Aggiungi</button>`;
+            actions.innerHTML = `<button type="button" class="btn-modal-send" style="font-size:0.8rem;padding:8px 14px" onclick="_kitOpenAnagraficaModal()"><i class="fas fa-plus"></i> Aggiungi</button>`;
         } else {
             actions.innerHTML = '';
         }
@@ -1473,6 +1476,9 @@ function _kitRenderKitsGrid(kits, container) {
 
 function _kitSwitchMainTab(tab) {
     _kitMainTab = tab;
+    document.querySelectorAll('#kit-tab-bar .acq-tab').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tab);
+    });
     const { kits } = _kitLoad();
     const content = document.getElementById('kit-main-content');
     if (!content) return;
@@ -1487,52 +1493,73 @@ function _kitRenderAnagrafichePage(kits, container) {
     const anag = _kitLoadAnagrafiche();
     if (!anag.length) {
         container.innerHTML = `
-            <div class="kit-cfg-section">
-                <div class="kit-cfg-help">Gestisci i componenti riutilizzabili tra kit.</div>
-                <div style="margin-top:12px" class="kit-import-empty">Nessun componente salvato.</div>
+            <div style="padding:24px 0;text-align:center">
+                <p class="acquisti-subtitle" style="margin-bottom:16px">Nessun componente salvato. Aggiungi il primo componente riutilizzabile.</p>
+                <button type="button" class="btn-modal-send" style="font-size:0.8rem;padding:8px 14px" onclick="_kitOpenAnagraficaModal()"><i class="fas fa-plus"></i> Aggiungi componente</button>
             </div>`;
         return;
     }
 
     // group by category
     const groups = anag.reduce((acc, item) => { const cat = item.categoria || 'Senza categoria'; acc[cat] = acc[cat] || []; acc[cat].push(item); return acc; }, {});
-    let html = `<div class="kit-cfg-section"><div class="kit-cfg-help">Gestisci i componenti riutilizzabili tra kit.</div>`;
+    let html = '';
     for (const [cat, items] of Object.entries(groups)) {
-        html += `<div style="margin-top:12px"><div style="font-weight:700;margin-bottom:6px">${_esc(cat)}</div>`;
-        html += items.map(item => `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #eee">
-                <div style="flex:1">
-                    <div style="font-weight:600">${_esc(item.nome)} ${item.codice ? `<span style="color:#94a3b8;font-size:.9rem">· ${_esc(item.codice)}</span>` : ''}</div>
-                    ${item.descrizione ? `<div style="color:#94a3b8;font-size:.85rem">${_esc(item.descrizione)}</div>` : ''}
+        html += `<details class="ordine-group" open>
+            <summary class="ordine-group-summary">
+                <div class="og-left">
+                    <span class="og-operatore">${_esc(cat)}</span>
+                    <span style="color:#94a3b8;font-size:0.8rem;font-weight:500;margin-left:8px">${items.length} componente${items.length !== 1 ? 'i' : ''}</span>
                 </div>
-                <div style="display:flex;gap:8px">
-                    <button class="kit-cfg-add-btn" onclick="_kitOpenAnagraficaModal('${_esc(item.id)}')">Modifica</button>
-                    <button class="kit-btn-danger" onclick="(function(){ if(confirm('Eliminare questo componente?')) _kitDeleteAnagrafica('${_esc(item.id)}') })()">Elimina</button>
-                </div>
-            </div>`).join('');
-        html += '</div>';
+                <i class="fas fa-chevron-down og-chevron"></i>
+            </summary>
+            <div class="ordine-items">`;
+        html += items.map(item => `
+                <div class="ordine-item" style="display:flex;justify-content:space-between;align-items:center">
+                    <div style="flex:1;min-width:0">
+                        <div style="font-weight:600;color:#1e293b">${_esc(item.nome)}${item.codice ? ` <span style="color:#94a3b8;font-size:.85rem;font-weight:400">· ${_esc(item.codice)}</span>` : ''}</div>
+                        ${item.descrizione ? `<div style="color:#94a3b8;font-size:.82rem;margin-top:2px">${_esc(item.descrizione)}</div>` : ''}
+                    </div>
+                    <div style="display:flex;gap:6px;flex-shrink:0;margin-left:12px">
+                        <button type="button" class="btn-archive-action primary" onclick="_kitOpenAnagraficaModal('${_esc(item.id)}')"><i class="fas fa-pen"></i> Modifica</button>
+                        <button type="button" class="btn-trash-modern" onclick="(function(){ if(confirm('Eliminare questo componente?')) _kitDeleteAnagrafica('${_esc(item.id)}') })()" title="Elimina"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>`).join('');
+        html += `</div></details>`;
     }
-    html += '</div>';
     container.innerHTML = html;
 }
 
 function _kitRenderDistintePage(kits, container) {
     if (!container) return;
     const distinte = _kitLoadDistinte();
-    const rowsHtml = distinte.length
-        ? distinte.map(d => `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #eee">
-                <div style="flex:1">
-                    <div style="font-weight:700">${_esc(d.nome)}</div>
-                    <div style="color:#94a3b8;font-size:0.9rem">${_esc(d.documento || '')} · ${_esc(d.kitNome || '')}</div>
-                    <div style="color:#94a3b8;font-size:0.8rem">${_esc(new Date(d.createdAt).toLocaleString())} · ${_esc(d.createdBy)}</div>
+    if (!distinte.length) {
+        container.innerHTML = `<div style="padding:24px 0;text-align:center"><p class="acquisti-subtitle">Nessuna distinta salvata.</p></div>`;
+        return;
+    }
+    const rowsHtml = distinte.map(d => `
+        <details class="ordine-group">
+            <summary class="ordine-group-summary">
+                <div class="og-left">
+                    <span class="og-operatore">${_esc(d.nome)}</span>
+                    <span style="color:#94a3b8;font-size:0.8rem;font-weight:500;margin-left:8px">${_esc(d.kitNome || '')}</span>
                 </div>
-                <div style="display:flex;gap:8px">
-                    <button class="kit-cfg-add-btn" onclick="_kitDistintaOpenPrint('${_esc(d.id)}')">Stampa</button>
-                    <button class="kit-cfg-add-btn" onclick="_kitDistintaApplyToDraft('${_esc(d.id)}')">Applica</button>
-                    <button class="kit-btn-danger" onclick="(function(){ if(confirm('Eliminare questa distinta?')) _kitDistintaDelete('${_esc(d.id)}')})()">Elimina</button>
+                <i class="fas fa-chevron-down og-chevron"></i>
+            </summary>
+            <div class="ordine-items">
+                <div class="ordine-item" style="display:flex;justify-content:space-between;align-items:center">
+                    <div style="flex:1;min-width:0">
+                        ${d.documento ? `<div style="font-size:.85rem;color:#64748b">${_esc(d.documento)}</div>` : ''}
+                        <div style="color:#94a3b8;font-size:0.8rem;margin-top:2px">${_esc(new Date(d.createdAt).toLocaleString())} · ${_esc(d.createdBy)}</div>
+                    </div>
+                    <div style="display:flex;gap:6px;flex-shrink:0;margin-left:12px">
+                        <button type="button" class="btn-archive-action primary" onclick="_kitDistintaOpenPrint('${_esc(d.id)}')"><i class="fas fa-print"></i> Stampa</button>
+                        <button type="button" class="btn-archive-action" onclick="_kitDistintaApplyToDraft('${_esc(d.id)}')"><i class="fas fa-file-import"></i> Applica</button>
+                        <button type="button" class="btn-trash-modern" onclick="(function(){ if(confirm('Eliminare questa distinta?')) _kitDistintaDelete('${_esc(d.id)}') })()" title="Elimina"><i class="fas fa-trash"></i></button>
+                    </div>
                 </div>
-            </div>`).join('')
-        : '<div class="kit-import-empty">Nessuna distinta salvata.</div>';
-    container.innerHTML = `<div class="kit-cfg-section">${rowsHtml}</div>`;
+            </div>
+        </details>`).join('');
+    container.innerHTML = rowsHtml;
 }
 
 function _kitCreateDistintaFromDraft(kitId) {
@@ -1589,25 +1616,17 @@ function _kitEnsureAnagraficaModal() {
     div.innerHTML = `
     <div id="modal-kit-anagrafica-edit" class="modal-overlay" style="display:none" onclick="if(event.target===this)_kitCloseAnagraficaModal()">
       <div class="modal-content">
-        <h2 class="pip-sped-modal-title"><i class="fas fa-plus"></i> Aggiungi componente</h2>
-        <p class="pip-sped-modal-sub">Crea un componente riutilizzabile per i kit.</p>
-        <div style="padding:8px 18px">
-          <label class="kit-cfg-label">Componente</label>
-          <input id="anag-componente" class="pip-edit-mov-input" placeholder="Nome componente" maxlength="120">
-        </div>
-        <div style="padding:8px 18px">
-          <label class="kit-cfg-label">Codice</label>
-          <input id="anag-codice" class="pip-edit-mov-input" placeholder="Codice (opzionale)" maxlength="60">
-        </div>
-        <div style="padding:8px 18px">
-          <label class="kit-cfg-label">Categoria</label>
-          <input id="anag-categoria" class="pip-edit-mov-input" placeholder="Categoria (es. Elettronica, Meccanica)" maxlength="80">
-        </div>
-        <div style="padding:8px 18px">
-          <label class="kit-cfg-label">Descrizione</label>
-          <textarea id="anag-descrizione" class="pip-edit-mov-input" placeholder="Descrizione (opzionale)" rows="3"></textarea>
-        </div>
-        <div class="modal-footer" style="margin-top:12px">
+        <h2 style="margin:0 0 4px;font-size:1.05rem;font-weight:700;color:#1e293b"><i class="fas fa-plus" style="color:#6366f1;margin-right:6px"></i>Aggiungi componente</h2>
+        <p style="color:#94a3b8;font-size:0.82rem;margin:0 0 16px">Crea un componente riutilizzabile per i kit.</p>
+        <label class="modal-label">Componente *</label>
+        <input id="anag-componente" class="input-field-modern" placeholder="Nome componente" maxlength="120" style="margin-bottom:12px">
+        <label class="modal-label">Codice</label>
+        <input id="anag-codice" class="input-field-modern" placeholder="Codice (opzionale)" maxlength="60" style="margin-bottom:12px">
+        <label class="modal-label">Categoria</label>
+        <input id="anag-categoria" class="input-field-modern" placeholder="Categoria (es. Elettronica, Meccanica)" maxlength="80" style="margin-bottom:12px">
+        <label class="modal-label">Descrizione</label>
+        <textarea id="anag-descrizione" class="input-field-modern" placeholder="Descrizione (opzionale)" rows="3" style="resize:vertical"></textarea>
+        <div class="modal-footer">
           <button type="button" onclick="_kitCloseAnagraficaModal()" class="btn-modal-cancel">Annulla</button>
           <button type="button" class="btn-modal-send" onclick="_kitConfirmSaveAnagrafica()"><i class="fas fa-save"></i> Salva</button>
         </div>
@@ -1640,10 +1659,12 @@ function _kitOpenAnagraficaModal(editId) {
         if (descrizione) descrizione.value = '';
         delete modal.dataset.editId;
     }
+    modal.classList.remove('active');
     modal.style.display = 'flex';
-    modal.offsetHeight;
-    modal.classList.add('active');
-    setTimeout(() => nome && nome.focus(), 80);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => { modal.classList.add('active'); });
+    });
+    setTimeout(() => nome && nome.focus(), 120);
 }
 
 function _kitCloseAnagraficaModal() {
