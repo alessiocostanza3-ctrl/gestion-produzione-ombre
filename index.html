@@ -204,7 +204,7 @@
     <!-- head-init.js: error handler, FA loader, login functions (estratti dagli inline scripts) -->
     <script src="head-init.js?v=20260330e" defer></script>
     <link rel="modulepreload" href="dist/script.bundle.js?v=20260502a">
-    <script type="module" src="dist/script.bundle.js?v=20260502b"></script>
+    <script type="module" src="dist/script.bundle.js?v=20260502c"></script>
 </head>
 
 <body>
@@ -261,10 +261,9 @@
         } else { clearFields_(); }
         modal.classList.remove('active');
         modal.style.display = 'flex';
-        requestAnimationFrame(function() {
-          requestAnimationFrame(function() { modal.classList.add('active'); });
-        });
-        setTimeout(function() { n && n.focus(); }, 120);
+        modal.offsetHeight; // forza reflow
+        modal.classList.add('active');
+        setTimeout(function() { n && n.focus(); }, 80);
       };
       window._kitCloseAnagraficaModal = function() {
         var modal = document.getElementById('modal-kit-anagrafica-edit');

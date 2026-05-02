@@ -1659,12 +1659,10 @@ function _kitOpenAnagraficaModal(editId) {
         if (descrizione) descrizione.value = '';
         delete modal.dataset.editId;
     }
-    modal.classList.remove('active');
     modal.style.display = 'flex';
-    requestAnimationFrame(() => {
-        requestAnimationFrame(() => { modal.classList.add('active'); });
-    });
-    setTimeout(() => nome && nome.focus(), 120);
+    modal.offsetHeight; // forza reflow per attivare la transizione CSS
+    modal.classList.add('active');
+    setTimeout(() => nome && nome.focus(), 80);
 }
 
 function _kitCloseAnagraficaModal() {
