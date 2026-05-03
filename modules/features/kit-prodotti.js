@@ -966,8 +966,7 @@ function _kitRenderViewNew(kit, contenitore) {
             <div class="kit-order-stepper">
                 <button type="button" class="kit-order-stepper-btn" onclick="_kitNSSetUnits('${_esc(kit.id)}',${units - 1})">−</button>
                 <input class="kit-order-stepper-input" type="number" min="1" value="${units}"
-                    onchange="_kitNSSetUnits('${_esc(kit.id)}',this.value)"
-                    oninput="_kitNSSetUnits('${_esc(kit.id)}',this.value)">
+                    onchange="_kitNSSetUnits('${_esc(kit.id)}',this.value)">
                 <button type="button" class="kit-order-stepper-btn" onclick="_kitNSSetUnits('${_esc(kit.id)}',${units + 1})">+</button>
             </div>
         </div>
