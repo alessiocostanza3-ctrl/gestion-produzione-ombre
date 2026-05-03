@@ -663,6 +663,347 @@ function _kitCountOrderPieces(orderDraft) {
     }, 0);
 }
 
+// ═════════════════════════════════════════════════════════════════════════════
+// NEW-STYLE KIT: nessun assiConfigurazione — selezione diretta per componente
+// ═════════════════════════════════════════════════════════════════════════════
+
+/** Ritorna true se il kit non ha assi (stile nuovo: selezione componenti libera) */
+function _kitIsNewStyleKit(kit) {
+    return !(kit.assiConfigurazione && kit.assiConfigurazione.length);
+}
+
+/** Carica il draft new-style da localStorage */
+function _kitGetNewStyleDraft(kitId) {
+    const drafts = _kitLoadOrderDrafts();
+    const raw = (drafts?.[kitId] && typeof drafts[kitId] === 'object') ? drafts[kitId] : {};
+    return {
+        _meta: _kitNormalizeOrderMeta(raw._meta || {}),
+        _units: Math.max(1, Number.parseInt(raw._units, 10) || 1),
+        _sel: (raw._sel && typeof raw._sel === 'object') ? { ...raw._sel } : {}
+    };
+}
+
+/** Modifica il draft new-style e salva; re-renderizza la view se attiva */
+function _kitMutateNewStyleDraft(kitId, mutator, rerender) {
+    const drafts = _kitLoadOrderDrafts();
+    const raw = (drafts?.[kitId] && typeof drafts[kitId] === 'object') ? drafts[kitId] : {};
+    const draft = {
+        _meta: _kitNormalizeOrderMeta(raw._meta || {}),
+        _units: Math.max(1, Number.parseInt(raw._units, 10) || 1),
+        _sel: (raw._sel && typeof raw._sel === 'object') ? { ...raw._sel } : {}
+    };
+    mutator(draft);
+    const hasSel = Object.keys(draft._sel).length > 0;
+    const hasUnits = draft._units > 1;
+    const normalizedMeta = _kitNormalizeOrderMeta(draft._meta || {});
+    const hasMetaValues = !!(normalizedMeta.cliente || normalizedMeta.ordiniCliente.length || normalizedMeta.documento);
+    if (hasSel || hasUnits || hasMetaValues) {
+        if (!normalizedMeta.documento) normalizedMeta.documento = _kitGetNextDocumentNumber();
+        drafts[kitId] = { _meta: normalizedMeta, _units: draft._units, _sel: draft._sel };
+    } else {
+        delete drafts[kitId];
+    }
+    _kitSaveOrderDrafts(drafts);
+    if (rerender !== false && _kitViewId === kitId) _kitRenderView();
+}
+
+function _kitNSSetUnits(kitId, val) {
+    const u = Math.max(1, Number.parseInt(val, 10) || 1);
+    try { window._kitSuppressNextFade = true; } catch(e) {}
+    _kitMutateNewStyleDraft(kitId, function(d) { d._units = u; });
+}
+
+function _kitNSToggleComp(kitId, compId, checked) {
+    try { window._kitSuppressNextFade = true; } catch(e) {}
+    _kitMutateNewStyleDraft(kitId, function(d) {
+        if (checked) d._sel[compId] = true;
+        else delete d._sel[compId];
+    });
+}
+
+function _kitNSOrderSearch(kitId, rawQuery) {
+    const query = String(rawQuery || '').trim().toLowerCase();
+    const list = document.getElementById('kit-ns-autocomplete-' + kitId);
+    if (!list) return;
+    if (!query) { list.style.display = 'none'; list.innerHTML = ''; return; }
+    _kitEnsureOrderLookupCache().then(function(cache) {
+        const matches = cache
+            .filter(function(item) { return item.ordine.toLowerCase().includes(query) || item.cliente.toLowerCase().includes(query); })
+            .slice(0, 8);
+        if (!matches.length) { list.style.display = 'none'; list.innerHTML = ''; return; }
+        list.innerHTML = matches.map(function(item) {
+            return `<div class="autocomplete-item" onmousedown='_kitNSOrderPick(${JSON.stringify(kitId)},${JSON.stringify(item.ordine)},${JSON.stringify(item.cliente)})'>
+                <span class="ac-ordine">ORD. ${_esc(item.ordine)}</span>
+                <span class="ac-cliente">${_esc(item.cliente)}</span>
+            </div>`;
+        }).join('');
+        list.style.display = 'block';
+    });
+}
+
+function _kitNSOrderHideSearch(kitId) {
+    setTimeout(function() {
+        const list = document.getElementById('kit-ns-autocomplete-' + kitId);
+        if (list) { list.style.display = 'none'; list.innerHTML = ''; }
+    }, 140);
+}
+
+function _kitNSOrderPick(kitId, orderNumber, customerName) {
+    const normalized = _kitNormalizeOrderNumber(orderNumber);
+    if (!normalized) return;
+    try { window._kitSuppressNextFade = true; } catch(e) {}
+    _kitMutateNewStyleDraft(kitId, function(d) {
+        if (!d._meta.ordiniCliente.includes(normalized)) d._meta.ordiniCliente.push(normalized);
+        d._meta.cliente = _kitResolveCustomerFromOrderRefs(d._meta.ordiniCliente, { [normalized]: customerName });
+    });
+    const inp = document.getElementById('kit-ns-ref-input-' + kitId);
+    if (inp) inp.value = '';
+    const list = document.getElementById('kit-ns-autocomplete-' + kitId);
+    if (list) { list.style.display = 'none'; list.innerHTML = ''; }
+}
+
+function _kitNSOrderRemoveRef(kitId, orderNumber) {
+    const normalized = _kitNormalizeOrderNumber(orderNumber);
+    try { window._kitSuppressNextFade = true; } catch(e) {}
+    _kitMutateNewStyleDraft(kitId, function(d) {
+        d._meta.ordiniCliente = d._meta.ordiniCliente.filter(function(r) { return r !== normalized; });
+        d._meta.cliente = _kitResolveCustomerFromOrderRefs(d._meta.ordiniCliente);
+    });
+}
+
+function _kitNSReset(kitId) {
+    if (!confirm('Azzerare la selezione corrente?')) return;
+    const drafts = _kitLoadOrderDrafts();
+    delete drafts[kitId];
+    _kitSaveOrderDrafts(drafts);
+    _kitRenderView();
+}
+
+/** Cosstruisce la distinta base per kit new-style */
+function _kitBuildDistintaNew(kit, draft) {
+    const units = Math.max(1, Number.parseInt(draft._units, 10) || 1);
+    const sel = (draft._sel && typeof draft._sel === 'object') ? draft._sel : {};
+    const sezioni = [];
+    const avvisi = [];
+    for (const sez of (kit.sezioni || [])) {
+        const righe = [];
+        for (const comp of (sez.componenti || [])) {
+            if (!sel[comp.id]) continue;
+            const qty = _kitParseQty(comp.qtaBase != null ? comp.qtaBase : 1) * units;
+            righe.push({
+                id: comp.id,
+                nome: comp.nome,
+                codice: String(comp.codice || '').trim(),
+                totale: qty,
+                unita: comp.unitaMisura || 'pz',
+                dettaglio: '',
+                noteConfig: comp.noteConfig || ''
+            });
+            if (comp.noteConfig) {
+                avvisi.push({ id: 'note-' + comp.id, tipo: 'nota', nome: comp.nome, dettaglio: comp.noteConfig, totaleCoinvolto: qty, variantiLabel: '' });
+            }
+        }
+        if (righe.length) sezioni.push({ id: sez.id, nome: sez.nome, righe });
+    }
+    return {
+        selectedVarianti: [],
+        sezioni,
+        avvisi,
+        totalePezzi: units,
+        totaleRighe: sezioni.reduce(function(s, sez) { return s + sez.righe.length; }, 0),
+        _isNewStyle: true
+    };
+}
+
+/** Salva distinta per kit new-style */
+function _kitNSCreateDistinta(kitId) {
+    const { kits } = _kitLoad();
+    const kit = kits.find(function(k) { return k.id === kitId; });
+    if (!kit) return;
+    let nsDraft = _kitGetNewStyleDraft(kitId);
+    const distinta = _kitBuildDistintaNew(kit, nsDraft);
+    if (!distinta.totaleRighe) {
+        notificaElegante('Seleziona almeno un componente per generare la distinta.', 'warning');
+        return;
+    }
+    if (!nsDraft._meta.documento) {
+        _kitMutateNewStyleDraft(kitId, function(d) { d._meta.documento = _kitGetNextDocumentNumber(); }, false);
+        nsDraft = _kitGetNewStyleDraft(kitId);
+    }
+    const orderDraft = { _meta: nsDraft._meta };
+    const distList = _kitLoadDistinte();
+    distList.unshift({
+        id: _uid(),
+        kitId: kit.id,
+        kitNome: kit.nome,
+        nome: nsDraft._meta.documento || ('Distinta-' + Date.now()),
+        documento: nsDraft._meta.documento || '',
+        createdAt: Date.now(),
+        createdBy: utenteAttuale?.nome || 'Sistema',
+        orderDraftSnapshot: orderDraft,
+        distintaSnapshot: distinta
+    });
+    _kitSaveDistinte(distList);
+    notificaElegante('Distinta salvata ✓');
+    if (_kitMainTab === 'distinte') _kitSwitchMainTab('distinte');
+}
+
+/** Anteprima stampa per kit new-style */
+function _kitNSOpenPrintPreview(kitId) {
+    const { kits } = _kitLoad();
+    const kit = kits.find(function(k) { return k.id === kitId; });
+    if (!kit) return;
+    let nsDraft = _kitGetNewStyleDraft(kitId);
+    const distinta = _kitBuildDistintaNew(kit, nsDraft);
+    if (!distinta.totaleRighe) {
+        notificaElegante('Seleziona almeno un componente per generare l\'anteprima.', 'warning');
+        return;
+    }
+    if (!nsDraft._meta.documento) {
+        _kitMutateNewStyleDraft(kitId, function(d) { d._meta.documento = _kitGetNextDocumentNumber(); }, false);
+        nsDraft = _kitGetNewStyleDraft(kitId);
+    }
+    const orderDraft = { _meta: nsDraft._meta };
+    const previewWindow = window.open('', '_blank');
+    if (!previewWindow) { notificaElegante('Popup bloccato: abilita l\'anteprima di stampa.', 'warning'); return; }
+    previewWindow.document.open();
+    previewWindow.document.write(_kitBuildPrintPreviewHtml(kit, distinta, orderDraft));
+    previewWindow.document.close();
+    previewWindow.focus();
+}
+
+/** Vista operativa new-style: selezione componenti per categoria */
+function _kitRenderViewNew(kit, contenitore) {
+    const draft = _kitGetNewStyleDraft(kit.id);
+    const units = draft._units;
+    const sel = draft._sel;
+    const distinta = _kitBuildDistintaNew(kit, draft);
+    const meta = draft._meta;
+
+    // Component selection per sezione
+    const sezioni = kit.sezioni || [];
+    const sezioniHtml = sezioni.map(function(sez) {
+        const comps = sez.componenti || [];
+        if (!comps.length) return '';
+        const compsHtml = comps.map(function(comp) {
+            const isChecked = !!sel[comp.id];
+            const total = isChecked ? _kitParseQty(comp.qtaBase != null ? comp.qtaBase : 1) * units : 0;
+            return `<label class="kit-ns-comp-row${isChecked ? ' kit-ns-comp-row--checked' : ''}">
+                <input type="checkbox" class="kit-ns-check"${isChecked ? ' checked' : ''}
+                    onchange="_kitNSToggleComp('${_esc(kit.id)}','${_esc(comp.id)}',this.checked)">
+                <div class="kit-ns-comp-info">
+                    <span class="kit-ns-comp-name">${_esc(comp.nome)}</span>
+                    ${comp.codice ? `<span class="kit-ns-comp-code">· ${_esc(comp.codice)}</span>` : ''}
+                    <span class="kit-ns-comp-qty-base">${_kitFormatQty(comp.qtaBase != null ? comp.qtaBase : 1)} ${comp.unitaMisura || 'pz'}/unità</span>
+                </div>
+                ${isChecked ? `<div class="kit-ns-comp-total">${_kitFormatQty(total)} ${comp.unitaMisura || 'pz'}</div>` : ''}
+            </label>`;
+        }).join('');
+        return `<div class="kit-ns-section">
+            <div class="kit-ns-section-title">${_esc(sez.nome)}</div>
+            <div class="kit-ns-comps">${compsHtml}</div>
+        </div>`;
+    }).join('');
+
+    // Ordini cliente chips
+    const ordiniClienteHtml = meta.ordiniCliente.length
+        ? meta.ordiniCliente.map(function(orderNumber) {
+            return `<span class="kit-order-ref-chip">${_esc(orderNumber)}
+                <button type="button" class="kit-order-ref-chip-remove"
+                    onclick='_kitNSOrderRemoveRef(${JSON.stringify(kit.id)},${JSON.stringify(orderNumber)})' aria-label="Rimuovi ordine">
+                    <i class="fas fa-times"></i>
+                </button>
+            </span>`;
+        }).join('')
+        : '<div class="kit-order-meta-empty">Nessun ordine cliente collegato.</div>';
+
+    // Distinta preview
+    const distintaHtml = distinta.totaleRighe
+        ? distinta.sezioni.map(function(sezione) {
+            return `<div class="kit-distinta-section">
+                <div class="kit-distinta-section-title">${_esc(sezione.nome)}</div>
+                ${sezione.righe.map(function(riga) {
+                    return `<div class="kit-distinta-row">
+                        <div class="kit-distinta-row-main">
+                            <div class="kit-distinta-row-name">${_esc(riga.nome)}</div>
+                            ${riga.codice ? `<div class="kit-distinta-row-meta">${_esc(riga.codice)}</div>` : ''}
+                            ${riga.noteConfig ? `<div class="kit-distinta-row-note">${_esc(riga.noteConfig)}</div>` : ''}
+                        </div>
+                        <div class="kit-distinta-row-qty">${_kitFormatQty(riga.totale)} ${_esc(riga.unita)}</div>
+                    </div>`;
+                }).join('')}
+            </div>`;
+        }).join('')
+        : '';
+
+    contenitore.innerHTML = `
+    <div class="kit-page">
+        <div class="kit-view-header">
+            <button type="button" class="kit-back-btn" onclick="_kitBack()"><i class="fas fa-arrow-left"></i></button>
+            <span class="kit-view-nome">${_esc(kit.nome)}</span>
+            <button type="button" class="kit-gear-btn-inline" onclick="_kitOpenConfig('${_esc(kit.id)}')" title="Configura"><i class="fas fa-gear"></i></button>
+        </div>
+
+        <!-- Sommario + azioni -->
+        <div class="kit-order-summary">
+            <div class="kit-order-summary-top">
+                <div>
+                    <div class="kit-order-summary-label">Distinta in composizione</div>
+                    <div class="kit-order-summary-total">${units} unità · ${distinta.totaleRighe} materiali</div>
+                </div>
+                <div class="kit-order-summary-actions">
+                    <button type="button" class="kit-btn-secondary" onclick="_kitNSOpenPrintPreview('${_esc(kit.id)}')"><i class="fas fa-print"></i> Anteprima stampa</button>
+                    <button type="button" class="kit-cfg-add-btn" onclick="_kitNSCreateDistinta('${_esc(kit.id)}')"><i class="fas fa-save"></i> Salva distinta</button>
+                    <button type="button" class="kit-btn-secondary" onclick="_kitNSReset('${_esc(kit.id)}')"><i class="fas fa-rotate-left"></i> Azzera</button>
+                </div>
+            </div>
+            <div class="kit-order-summary-note">La selezione rimane locale sul dispositivo finché non salvi una distinta.</div>
+        </div>
+
+        <!-- Quante unità -->
+        <div class="kit-ns-units-card">
+            <div class="kit-ns-units-label">Quante unità vuoi produrre?</div>
+            <div class="kit-order-stepper">
+                <button type="button" class="kit-order-stepper-btn" onclick="_kitNSSetUnits('${_esc(kit.id)}',${units - 1})">−</button>
+                <input class="kit-order-stepper-input" type="number" min="1" value="${units}"
+                    onchange="_kitNSSetUnits('${_esc(kit.id)}',this.value)"
+                    oninput="_kitNSSetUnits('${_esc(kit.id)}',this.value)">
+                <button type="button" class="kit-order-stepper-btn" onclick="_kitNSSetUnits('${_esc(kit.id)}',${units + 1})">+</button>
+            </div>
+        </div>
+
+        <!-- Ordini cliente -->
+        <div class="kit-order-meta-grid">
+            <div class="kit-order-meta-card">
+                <div class="kit-order-meta-title">Ordini cliente</div>
+                <div class="ordine-autocomplete-wrapper kit-order-autocomplete-wrapper">
+                    <input class="kit-order-meta-input" id="kit-ns-ref-input-${_esc(kit.id)}" type="text" placeholder="Cerca e collega un ordine cliente"
+                        oninput="_kitNSOrderSearch('${_esc(kit.id)}',this.value)"
+                        onfocus="_kitNSOrderSearch('${_esc(kit.id)}',this.value)"
+                        onblur="_kitNSOrderHideSearch('${_esc(kit.id)}')">
+                    <div id="kit-ns-autocomplete-${_esc(kit.id)}" class="ordine-autocomplete-list"></div>
+                </div>
+                <div class="kit-order-ref-list">${ordiniClienteHtml}</div>
+            </div>
+        </div>
+
+        <!-- Selezione componenti -->
+        <div class="kit-ns-comps-panel">
+            ${sezioni.length
+                ? `<div class="kit-ns-panel-title">Seleziona i componenti per questo ordine</div>${sezioniHtml}`
+                : `<div class="kit-cfg-help">Questo kit non ha ancora componenti. <button type="button" class="btn-link-inline" onclick="_kitOpenConfig('${_esc(kit.id)}')">Apri configurazione</button></div>`
+            }
+        </div>
+
+        <!-- Distinta anteprima -->
+        ${distinta.totaleRighe ? `
+        <div class="kit-ns-distinta-preview">
+            <div class="kit-ns-panel-title" style="margin-bottom:8px">Riepilogo distinta (${distinta.totaleRighe} materiali · ${_kitFormatQty(units)} unità)</div>
+            ${distintaHtml}
+        </div>` : ''}
+    </div>`;
+}
+
 const _kitComposeState = {};
 
 function _kitGetComposeState(kit) {
@@ -763,6 +1104,11 @@ function _kitBuildSelectedOptionsRows(kit, selectedVarianti, orderDraft) {
 }
 
 function _kitBuildDistintaBase(kit, orderDraft) {
+    // Dispatch al builder new-style per kits senza assi configurazione
+    if (_kitIsNewStyleKit(kit)) {
+        return _kitBuildDistintaNew(kit, _kitGetNewStyleDraft(kit.id));
+    }
+
     const selectedVarianti = _kitGetVariantiEffettive(kit).filter(variante => _kitGetOrderQty(orderDraft, variante.key) > 0);
     const sezioni = [];
     const avvisi = [];
@@ -1845,6 +2191,12 @@ function _kitRenderView() {
     if (!kit) { caricaKitProdotti(); return; }
 
     const contenitore = document.getElementById('contenitore-dati');
+
+    // Kits senza assi configurazione usano il flusso new-style
+    if (_kitIsNewStyleKit(kit)) {
+        _kitRenderViewNew(kit, contenitore);
+        return;
+    }
     const varsList = _kitGetVariantiEffettive(kit);
     const orderDraft = _kitGetOrderDraft(kit);
     const draftMeta = _kitGetOrderMeta(orderDraft);
