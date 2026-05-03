@@ -1432,41 +1432,120 @@ export function caricaKitProdotti() {
 // helper di rendering per le tre pagine principali
 function _kitRenderKitsGrid(kits, container) {
     if (!container) return;
-    const cardsHtml = (Array.isArray(kits) ? kits : []).map(kit => {
-        const variantiEffettive = _kitGetVariantiEffettive(kit);
-        const nVarianti = variantiEffettive.length;
-        const nAssi     = (kit.assiConfigurazione || []).length;
-        const nComp    = (kit.sezioni || []).reduce((s, z) => s + (z.componenti || []).length, 0);
-        return `
-        <div class="kit-card" onclick="_kitOpenView('${_esc(kit.id)}')">
-            <div class="kit-card-header">
-                <span class="kit-card-nome">${_esc(kit.nome)}</span>
-                <button type="button" class="kit-card-gear" onclick="event.stopPropagation();_kitOpenConfig('${_esc(kit.id)}')" title="Configura kit"><i class="fas fa-gear"></i></button>
-            </div>
-            <div class="kit-card-meta">
-                <span class="kit-meta-pill"><i class="fas fa-sliders"></i> ${nAssi} ass${nAssi===1?'e':'i'}</span>
-                <span class="kit-meta-pill"><i class="fas fa-layer-group"></i> ${nVarianti} configuraz.${nVarianti===1?'ione':'ioni'}</span>
-                <span class="kit-meta-pill"><i class="fas fa-list"></i> ${nComp} voci BOM</span>
-            </div>
+
+    if (!kits.length) {
+        container.innerHTML = `
+        <div style="padding:40px 0;text-align:center">
+            <i class="fas fa-box-open" style="font-size:2.5rem;color:#cbd5e1;margin-bottom:16px;display:block"></i>
+            <p class="acquisti-subtitle" style="margin-bottom:16px">Nessun kit configurato.</p>
+            <button type="button" class="btn-modal-send" style="font-size:0.8rem;padding:8px 14px" onclick="_kitOpenCreaKit()"><i class="fas fa-plus"></i> Crea il primo kit</button>
         </div>`;
+        return;
+    }
+
+    const UNITA = ['pz','mt','cm','mm','kg','g','lt','ml'];
+
+    const kitsHtml = kits.map(kit => {
+        const sezioni = kit.sezioni || [];
+        const nComp = sezioni.reduce((s, z) => s + (z.componenti || []).length, 0);
+        const nSez = sezioni.length;
+
+        const sezioniHtml = sezioni.map(sez => {
+            const comps = sez.componenti || [];
+            const compHtml = comps.map(c => `
+            <div style="display:grid;grid-template-columns:1fr 90px 80px 32px;gap:6px;align-items:center;padding:5px 0;border-bottom:1px solid #f8fafc">
+                <span style="font-size:.84rem;font-weight:500;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_esc(c.nome)}">${_esc(c.nome)}${c.codice ? ` <span style="color:#94a3b8;font-size:.76rem">· ${_esc(c.codice)}</span>` : ''}</span>
+                <input type="number" min="0" step="any" value="${c.qtaBase != null ? c.qtaBase : 1}"
+                    class="input-field-modern" style="padding:4px 8px;font-size:.82rem;text-align:right"
+                    onchange="_kitQUpdateComp('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(c.id)}','qtaBase',this.value)"
+                    title="Quantità">
+                <select class="input-field-modern" style="padding:4px 6px;font-size:.82rem"
+                    onchange="_kitQUpdateComp('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(c.id)}','unitaMisura',this.value)">
+                    ${UNITA.map(u => `<option value="${u}"${(c.unitaMisura||'pz')===u?' selected':''}>${u}</option>`).join('')}
+                </select>
+                <button type="button" class="btn-trash-modern" style="padding:4px 7px"
+                    onclick="_kitQDelComp('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(c.id)}')" title="Rimuovi componente"><i class="fas fa-trash"></i></button>
+            </div>`).join('');
+
+            return `
+            <details style="border-top:1px solid #f1f5f9" open>
+                <summary style="display:flex;justify-content:space-between;align-items:center;padding:7px 12px;cursor:pointer;list-style:none;user-select:none;background:#fafafa;border-radius:0">
+                    <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
+                        <input type="text" value="${_esc(sez.nome)}"
+                            class="input-field-modern" style="padding:3px 8px;font-size:.84rem;font-weight:600;max-width:200px;background:transparent;border:1px solid transparent"
+                            onclick="event.preventDefault();event.stopPropagation()"
+                            onfocus="this.style.background='#fff';this.style.border='1px solid #e2e8f0'"
+                            onblur="this.style.background='transparent';this.style.border='1px solid transparent';_kitQRenomeSez('${_esc(kit.id)}','${_esc(sez.id)}',this.value)">
+                        <span style="color:#94a3b8;font-size:.76rem;white-space:nowrap">${comps.length} comp.</span>
+                    </div>
+                    <div style="display:flex;gap:5px;align-items:center;flex-shrink:0">
+                        <button type="button" class="btn-trash-modern" style="padding:3px 7px;font-size:.75rem"
+                            onclick="event.preventDefault();event.stopPropagation();_kitQDelSez('${_esc(kit.id)}','${_esc(sez.id)}')" title="Rimuovi sezione"><i class="fas fa-trash"></i></button>
+                        <i class="fas fa-chevron-down" style="color:#94a3b8;font-size:.75rem;transition:transform .2s"></i>
+                    </div>
+                </summary>
+                <div style="padding:4px 12px 8px">
+                    ${comps.length ? `
+                    <div style="display:grid;grid-template-columns:1fr 90px 80px 32px;gap:6px;padding:4px 0 2px;border-bottom:2px solid #e2e8f0;margin-bottom:2px">
+                        <span style="font-size:.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.04em">Componente</span>
+                        <span style="font-size:.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;text-align:right">Qty</span>
+                        <span style="font-size:.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase">Unità</span>
+                        <span></span>
+                    </div>
+                    ${compHtml}` : `<p style="color:#94a3b8;font-size:.82rem;padding:6px 0">Nessun componente.</p>`}
+                    <button type="button" class="btn-archive-action" style="margin-top:8px;font-size:.8rem"
+                        onclick="_kitQAddCompOpen('${_esc(kit.id)}','${_esc(sez.id)}')">
+                        <i class="fas fa-plus"></i> Aggiungi componente
+                    </button>
+                </div>
+            </details>`;
+        }).join('');
+
+        return `
+        <details class="ordine-group" open style="margin-bottom:8px">
+            <summary class="ordine-group-summary">
+                <div class="og-left">
+                    <span class="og-operatore" style="font-size:1rem">${_esc(kit.nome)}</span>
+                    <span style="color:#94a3b8;font-size:.78rem;font-weight:500;margin-left:8px">${nSez} sez. · ${nComp} comp.</span>
+                </div>
+                <div style="display:flex;gap:6px;align-items:center">
+                    <button type="button" class="btn-archive-action primary" style="font-size:.78rem;padding:4px 10px"
+                        onclick="event.preventDefault();event.stopPropagation();_kitOpenView('${_esc(kit.id)}')" title="Usa kit / crea ordine">
+                        <i class="fas fa-play"></i> Usa
+                    </button>
+                    <button type="button" class="btn-archive-action" style="font-size:.78rem;padding:4px 10px"
+                        onclick="event.preventDefault();event.stopPropagation();_kitOpenConfig('${_esc(kit.id)}')" title="Configurazione avanzata">
+                        <i class="fas fa-gear"></i> Config
+                    </button>
+                    <button type="button" class="btn-trash-modern"
+                        onclick="event.preventDefault();event.stopPropagation();_kitQDelKit('${_esc(kit.id)}')" title="Elimina kit">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    <i class="fas fa-chevron-down og-chevron"></i>
+                </div>
+            </summary>
+            <div class="ordine-items" style="padding:0">
+                ${sezioni.length
+                    ? sezioniHtml
+                    : `<p class="acquisti-subtitle" style="padding:12px 16px;margin:0">Nessuna sezione. Aggiungi una sezione per iniziare.</p>`}
+                <div style="padding:8px 12px;border-top:1px solid #f1f5f9">
+                    <button type="button" class="btn-archive-action" style="font-size:.8rem"
+                        onclick="_kitQAddSezOpen('${_esc(kit.id)}')">
+                        <i class="fas fa-folder-plus"></i> Aggiungi sezione
+                    </button>
+                </div>
+            </div>
+        </details>`;
     }).join('');
 
-    container.innerHTML = `
-        ${kits.length === 0
-            ? `<div class="kit-empty-state">
-                <i class="fas fa-box-open kit-empty-icon"></i>
-                <p>Nessun kit configurato.</p>
-                <button type="button" class="kit-nuovo-btn" onclick="_kitNuovoKit()"><i class="fas fa-plus"></i> Crea il primo kit</button>
-               </div>`
-            : `<div class="kit-grid">${cardsHtml}</div>`
-        }`;
+    container.innerHTML = kitsHtml;
 }
 
     function _kitRenderHeaderActions() {
         const actions = document.getElementById('kit-page-actions');
         if (!actions) return;
         if (_kitMainTab === 'kits') {
-            actions.innerHTML = `<button type="button" class="btn-modal-send" style="font-size:0.8rem;padding:8px 14px" onclick="_kitNuovoKit()"><i class="fas fa-plus"></i> Nuovo Kit</button>`;
+            actions.innerHTML = `<button type="button" class="btn-modal-send" style="font-size:0.8rem;padding:8px 14px" onclick="_kitOpenCreaKit()"><i class="fas fa-plus"></i> Nuovo Kit</button>`;
         } else if (_kitMainTab === 'anagrafiche') {
             actions.innerHTML = `<button type="button" class="btn-modal-send" style="font-size:0.8rem;padding:8px 14px" onclick="_kitOpenAnagraficaModal()"><i class="fas fa-plus"></i> Aggiungi</button>`;
         } else {
@@ -2687,23 +2766,224 @@ let _kitConfigTab = 'info';
 let _kitImportState = null;
 let _kitPresetState = null;
 
-function _kitNuovoKit() {
+// ─── Quick-compose state ─────────────────────────────────────────────────────
+let _kitQAddState = { kitId: null, sezId: null };
+
+// ── Crea Kit (modal nome-first) ───────────────────────────────────────────────
+function _kitOpenCreaKit() {
+    const modal = document.getElementById('modal-kit-crea');
+    if (!modal) return;
+    const inp = document.getElementById('kit-crea-nome');
+    if (inp) inp.value = '';
+    modal.style.display = 'flex';
+    modal.offsetHeight;
+    modal.classList.add('active');
+    setTimeout(() => inp && inp.focus(), 80);
+}
+function _kitCloseCreaKit() {
+    const modal = document.getElementById('modal-kit-crea');
+    if (!modal) return;
+    modal.classList.remove('active');
+    setTimeout(() => { if (!modal.classList.contains('active')) modal.style.display = 'none'; }, 300);
+}
+function _kitConfirmCreaKit() {
+    const nome = (document.getElementById('kit-crea-nome')?.value || '').trim();
+    if (!nome) { notificaElegante('Inserisci un nome per il kit', 'warning'); return; }
     const { kits } = _kitLoad();
     const kit = {
-        id: _uid(),
-        nome: 'Nuovo Kit',
+        id: _uid(), nome,
         schemaVersion: _KIT_SCHEMA_VERSION,
-        assiConfigurazione: [],
-        varianti: [],
-        sezioni: [],
-        sottoAssembly: [],
-        qtaDaProdurre: {},
-        pronti: {},
-        movimenti: []
+        assiConfigurazione: [], varianti: [],
+        sezioni: [], sottoAssembly: [],
+        qtaDaProdurre: {}, pronti: {}, movimenti: []
     };
     kits.push(kit);
     _kitSave(kits);
-    _kitOpenConfig(kit.id);
+    _kitCloseCreaKit();
+    setTimeout(() => _kitSwitchMainTab('kits'), 320);
+}
+
+// ── Quick add sezione ─────────────────────────────────────────────────────────
+function _kitQAddSezOpen(kitId) {
+    _kitQAddState.kitId = kitId;
+    const modal = document.getElementById('modal-kit-qadd-sez');
+    if (!modal) return;
+    const inp = document.getElementById('kit-qadd-sez-nome');
+    if (inp) inp.value = '';
+    modal.style.display = 'flex';
+    modal.offsetHeight;
+    modal.classList.add('active');
+    setTimeout(() => inp && inp.focus(), 80);
+}
+function _kitQAddSezClose() {
+    const modal = document.getElementById('modal-kit-qadd-sez');
+    if (!modal) return;
+    modal.classList.remove('active');
+    setTimeout(() => { if (!modal.classList.contains('active')) modal.style.display = 'none'; }, 300);
+}
+function _kitQAddSezConfirm() {
+    const nome = (document.getElementById('kit-qadd-sez-nome')?.value || '').trim() || 'Nuova sezione';
+    const { kits } = _kitLoad();
+    const kit = kits.find(k => k.id === _kitQAddState.kitId);
+    if (!kit) return;
+    kit.sezioni = kit.sezioni || [];
+    kit.sezioni.push({ id: _uid(), nome, componenti: [] });
+    _kitSave(kits);
+    _kitQAddSezClose();
+    setTimeout(() => _kitSwitchMainTab('kits'), 320);
+}
+
+// ── Quick add componente ──────────────────────────────────────────────────────
+function _kitQAddCompOpen(kitId, sezId) {
+    _kitQAddState.kitId = kitId;
+    _kitQAddState.sezId = sezId;
+    const modal = document.getElementById('modal-kit-qadd-comp');
+    if (!modal) return;
+    // Default: da catalogo se ci sono anagrafiche, altrimenti libero
+    const anag = _kitLoadAnagrafiche();
+    const srcCat = document.getElementById('kit-qadd-comp-source-cat');
+    const srcFree = document.getElementById('kit-qadd-comp-source-free');
+    if (anag.length) {
+        if (srcCat) srcCat.checked = true;
+        _kitQAddCompToggleSource('cat');
+    } else {
+        if (srcFree) srcFree.checked = true;
+        _kitQAddCompToggleSource('free');
+    }
+    // Popola categorie
+    const cats = [...new Set(anag.map(a => a.categoria || 'Senza categoria'))].sort();
+    const selCat = document.getElementById('kit-qadd-comp-cat');
+    if (selCat) {
+        selCat.innerHTML = cats.map(c => `<option value="${_esc(c)}">${_esc(c)}</option>`).join('');
+        _kitQAddCompChangeCategoria();
+    }
+    const qtyInp = document.getElementById('kit-qadd-comp-qty');
+    if (qtyInp) qtyInp.value = '1';
+    const unitSel = document.getElementById('kit-qadd-comp-unit');
+    if (unitSel) unitSel.value = 'pz';
+    const nomeInp = document.getElementById('kit-qadd-comp-nome');
+    if (nomeInp) nomeInp.value = '';
+    const codiceInp = document.getElementById('kit-qadd-comp-codice');
+    if (codiceInp) codiceInp.value = '';
+    modal.style.display = 'flex';
+    modal.offsetHeight;
+    modal.classList.add('active');
+}
+function _kitQAddCompToggleSource(src) {
+    const catSection = document.getElementById('kit-qadd-comp-cat-section');
+    const freeSection = document.getElementById('kit-qadd-comp-free-section');
+    if (catSection) catSection.style.display = src === 'cat' ? '' : 'none';
+    if (freeSection) freeSection.style.display = src === 'free' ? '' : 'none';
+}
+function _kitQAddCompChangeCategoria() {
+    const selCat = document.getElementById('kit-qadd-comp-cat');
+    const selComp = document.getElementById('kit-qadd-comp-comp');
+    if (!selCat || !selComp) return;
+    const cat = selCat.value;
+    const anag = _kitLoadAnagrafiche();
+    const filtered = anag.filter(a => (a.categoria || 'Senza categoria') === cat);
+    selComp.innerHTML = filtered.length
+        ? filtered.map(a => `<option value="${_esc(a.id)}">${_esc(a.nome)}${a.codice ? ' · ' + _esc(a.codice) : ''}</option>`).join('')
+        : '<option value="">Nessun componente in questa categoria</option>';
+}
+function _kitQAddCompClose() {
+    const modal = document.getElementById('modal-kit-qadd-comp');
+    if (!modal) return;
+    modal.classList.remove('active');
+    setTimeout(() => { if (!modal.classList.contains('active')) modal.style.display = 'none'; }, 300);
+}
+function _kitQAddCompConfirm() {
+    const isCat = document.getElementById('kit-qadd-comp-source-cat')?.checked;
+    let nome = '', codice = '';
+    if (isCat) {
+        const selComp = document.getElementById('kit-qadd-comp-comp');
+        const anagId = selComp?.value;
+        if (!anagId) { notificaElegante('Seleziona un componente dal catalogo', 'warning'); return; }
+        const anag = _kitLoadAnagrafiche().find(a => a.id === anagId);
+        if (!anag) { notificaElegante('Componente non trovato nel catalogo', 'warning'); return; }
+        nome = anag.nome;
+        codice = anag.codice || '';
+    } else {
+        nome = (document.getElementById('kit-qadd-comp-nome')?.value || '').trim();
+        if (!nome) { notificaElegante('Inserisci il nome del componente', 'warning'); return; }
+        codice = (document.getElementById('kit-qadd-comp-codice')?.value || '').trim();
+    }
+    const qty = parseFloat(document.getElementById('kit-qadd-comp-qty')?.value) || 1;
+    const unit = document.getElementById('kit-qadd-comp-unit')?.value || 'pz';
+    const { kits } = _kitLoad();
+    const kit = kits.find(k => k.id === _kitQAddState.kitId);
+    if (!kit) return;
+    const sez = (kit.sezioni || []).find(s => s.id === _kitQAddState.sezId);
+    if (!sez) return;
+    sez.componenti = sez.componenti || [];
+    sez.componenti.push({
+        id: _uid(), nome, codice,
+        qtaBase: qty,
+        qtaPerVariante: {},
+        caricato: 0,
+        modoComponente: 'quantificato',
+        tracciabile: true,
+        noteConfig: '',
+        unitaMisura: unit,
+        applicazioneTipo: 'sempre'
+    });
+    _kitSave(kits);
+    _kitQAddCompClose();
+    setTimeout(() => _kitSwitchMainTab('kits'), 320);
+}
+
+// ── Inline edit / delete ──────────────────────────────────────────────────────
+function _kitQUpdateComp(kitId, sezId, compId, field, value) {
+    const { kits } = _kitLoad();
+    const kit = kits.find(k => k.id === kitId);
+    if (!kit) return;
+    const sez = (kit.sezioni || []).find(s => s.id === sezId);
+    if (!sez) return;
+    const comp = (sez.componenti || []).find(c => c.id === compId);
+    if (!comp) return;
+    if (field === 'qtaBase') comp.qtaBase = parseFloat(value) || 0;
+    else comp[field] = value;
+    _kitSave(kits);
+}
+function _kitQRenomeSez(kitId, sezId, nome) {
+    if (!nome.trim()) return;
+    const { kits } = _kitLoad();
+    const kit = kits.find(k => k.id === kitId);
+    if (!kit) return;
+    const sez = (kit.sezioni || []).find(s => s.id === sezId);
+    if (!sez) return;
+    sez.nome = nome.trim();
+    _kitSave(kits);
+}
+function _kitQDelComp(kitId, sezId, compId) {
+    const { kits } = _kitLoad();
+    const kit = kits.find(k => k.id === kitId);
+    if (!kit) return;
+    const sez = (kit.sezioni || []).find(s => s.id === sezId);
+    if (!sez) return;
+    sez.componenti = (sez.componenti || []).filter(c => c.id !== compId);
+    _kitSave(kits);
+    _kitSwitchMainTab('kits');
+}
+function _kitQDelSez(kitId, sezId) {
+    if (!confirm('Rimuovere questa sezione e tutti i suoi componenti?')) return;
+    const { kits } = _kitLoad();
+    const kit = kits.find(k => k.id === kitId);
+    if (!kit) return;
+    kit.sezioni = (kit.sezioni || []).filter(s => s.id !== sezId);
+    _kitSave(kits);
+    _kitSwitchMainTab('kits');
+}
+function _kitQDelKit(kitId) {
+    if (!confirm('Eliminare questo kit? L\'operazione non è reversibile.')) return;
+    const { kits } = _kitLoad();
+    const newKits = kits.filter(k => k.id !== kitId);
+    _kitSave(newKits);
+    _kitSwitchMainTab('kits');
+}
+
+function _kitNuovoKit() {
+    _kitOpenCreaKit();
 }
 
 function _kitOpenConfig(id) {
@@ -4011,6 +4291,22 @@ export function registerGlobals() {
     window._kitCloseAnagraficaModal     = _kitCloseAnagraficaModal;
     window._kitConfirmSaveAnagrafica    = _kitConfirmSaveAnagrafica;
     window._kitDeleteAnagrafica         = _kitDeleteAnagrafica;
+    window._kitOpenCreaKit              = _kitOpenCreaKit;
+    window._kitCloseCreaKit             = _kitCloseCreaKit;
+    window._kitConfirmCreaKit           = _kitConfirmCreaKit;
+    window._kitQAddSezOpen              = _kitQAddSezOpen;
+    window._kitQAddSezClose             = _kitQAddSezClose;
+    window._kitQAddSezConfirm           = _kitQAddSezConfirm;
+    window._kitQAddCompOpen             = _kitQAddCompOpen;
+    window._kitQAddCompToggleSource     = _kitQAddCompToggleSource;
+    window._kitQAddCompChangeCategoria  = _kitQAddCompChangeCategoria;
+    window._kitQAddCompClose            = _kitQAddCompClose;
+    window._kitQAddCompConfirm          = _kitQAddCompConfirm;
+    window._kitQUpdateComp              = _kitQUpdateComp;
+    window._kitQRenomeSez               = _kitQRenomeSez;
+    window._kitQDelComp                 = _kitQDelComp;
+    window._kitQDelSez                  = _kitQDelSez;
+    window._kitQDelKit                  = _kitQDelKit;
     window._kitRenderHeaderActions      = _kitRenderHeaderActions;
     window._kitOpenSaveDistintaModal   = _kitOpenSaveDistintaModal;
     window._kitCloseSaveDistintaModal  = _kitCloseSaveDistintaModal;

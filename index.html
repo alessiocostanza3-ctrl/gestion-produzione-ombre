@@ -203,8 +203,8 @@
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js" integrity="sha384-0RsG1yo/crf/1Qc14sho26SXXOTngNCjgJw7fuvXBt9W/OChF/Ijx+aUuBDqQwEk" crossorigin="anonymous" defer></script>
     <!-- head-init.js: error handler, FA loader, login functions (estratti dagli inline scripts) -->
     <script src="head-init.js?v=20260330e" defer></script>
-    <link rel="modulepreload" href="dist/script.bundle.js?v=20260502a">
-    <script type="module" src="dist/script.bundle.js?v=20260502d"></script>
+    <link rel="modulepreload" href="dist/script.bundle.js?v=20260503a">
+    <script type="module" src="dist/script.bundle.js?v=20260503a"></script>
 </head>
 
 <body>
@@ -1252,6 +1252,92 @@
       <div class="modal-footer">
         <button type="button" onclick="_kitCloseAnagraficaModal()" class="btn-modal-cancel">Annulla</button>
         <button type="button" class="btn-modal-send" onclick="_kitConfirmSaveAnagrafica()"><i class="fas fa-save"></i> Salva</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Crea nuovo kit -->
+  <div id="modal-kit-crea" class="modal-overlay" style="display:none" onclick="if(event.target===this)_kitCloseCreaKit()">
+    <div class="modal-content">
+      <h2 style="margin:0 0 4px;font-size:1.05rem;font-weight:700;color:#1e293b"><i class="fas fa-plus" style="color:#6366f1;margin-right:6px"></i>Nuovo Kit</h2>
+      <p style="color:#94a3b8;font-size:0.82rem;margin:0 0 16px">Scegli un nome per il kit. Potrai aggiungere sezioni e componenti dopo.</p>
+      <label class="modal-label">Nome kit *</label>
+      <input id="kit-crea-nome" class="input-field-modern" placeholder="es. Pipistrello 500W" maxlength="120"
+        onkeydown="if(event.key==='Enter')_kitConfirmCreaKit()">
+      <div class="modal-footer" style="margin-top:16px">
+        <button type="button" onclick="_kitCloseCreaKit()" class="btn-modal-cancel">Annulla</button>
+        <button type="button" class="btn-modal-send" onclick="_kitConfirmCreaKit()"><i class="fas fa-plus"></i> Crea Kit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Aggiungi sezione al kit -->
+  <div id="modal-kit-qadd-sez" class="modal-overlay" style="display:none" onclick="if(event.target===this)_kitQAddSezClose()">
+    <div class="modal-content">
+      <h2 style="margin:0 0 4px;font-size:1.05rem;font-weight:700;color:#1e293b"><i class="fas fa-folder-plus" style="color:#6366f1;margin-right:6px"></i>Nuova Sezione</h2>
+      <p style="color:#94a3b8;font-size:0.82rem;margin:0 0 16px">Aggiungi una sezione al kit per organizzare i componenti.</p>
+      <label class="modal-label">Nome sezione *</label>
+      <input id="kit-qadd-sez-nome" class="input-field-modern" placeholder="es. TESTA, CORPO, CAVI" maxlength="120"
+        onkeydown="if(event.key==='Enter')_kitQAddSezConfirm()">
+      <div class="modal-footer" style="margin-top:16px">
+        <button type="button" onclick="_kitQAddSezClose()" class="btn-modal-cancel">Annulla</button>
+        <button type="button" class="btn-modal-send" onclick="_kitQAddSezConfirm()"><i class="fas fa-folder-plus"></i> Aggiungi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Aggiungi componente al kit -->
+  <div id="modal-kit-qadd-comp" class="modal-overlay" style="display:none" onclick="if(event.target===this)_kitQAddCompClose()">
+    <div class="modal-content">
+      <h2 style="margin:0 0 4px;font-size:1.05rem;font-weight:700;color:#1e293b"><i class="fas fa-puzzle-piece" style="color:#6366f1;margin-right:6px"></i>Aggiungi Componente</h2>
+      <p style="color:#94a3b8;font-size:0.82rem;margin:0 0 16px">Seleziona dal catalogo o inserisci manualmente.</p>
+      <!-- Toggle sorgente -->
+      <div style="display:flex;gap:0;margin-bottom:14px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
+        <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:8px;cursor:pointer;font-size:.85rem;font-weight:600;background:#f8fafc"
+               id="kit-qadd-label-cat">
+          <input type="radio" name="kit-qadd-source" id="kit-qadd-comp-source-cat" value="cat"
+                 onchange="_kitQAddCompToggleSource('cat')" checked style="display:none">
+          <i class="fas fa-book"></i> Dal catalogo
+        </label>
+        <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:8px;cursor:pointer;font-size:.85rem;font-weight:600;border-left:1px solid #e2e8f0;background:#fff"
+               id="kit-qadd-label-free">
+          <input type="radio" name="kit-qadd-source" id="kit-qadd-comp-source-free" value="free"
+                 onchange="_kitQAddCompToggleSource('free')" style="display:none">
+          <i class="fas fa-pen"></i> Libero
+        </label>
+      </div>
+      <!-- Sezione catalogo -->
+      <div id="kit-qadd-comp-cat-section">
+        <label class="modal-label">Categoria</label>
+        <select id="kit-qadd-comp-cat" class="input-field-modern" style="margin-bottom:10px" onchange="_kitQAddCompChangeCategoria()"></select>
+        <label class="modal-label">Componente</label>
+        <select id="kit-qadd-comp-comp" class="input-field-modern" style="margin-bottom:12px"></select>
+      </div>
+      <!-- Sezione libero -->
+      <div id="kit-qadd-comp-free-section" style="display:none">
+        <label class="modal-label">Nome componente *</label>
+        <input id="kit-qadd-comp-nome" class="input-field-modern" placeholder="Nome componente" maxlength="120" style="margin-bottom:10px">
+        <label class="modal-label">Codice (opzionale)</label>
+        <input id="kit-qadd-comp-codice" class="input-field-modern" placeholder="Codice" maxlength="60" style="margin-bottom:12px">
+      </div>
+      <!-- Quantità + unità -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <label class="modal-label">Quantità</label>
+          <input type="number" id="kit-qadd-comp-qty" class="input-field-modern" value="1" min="0" step="any" placeholder="1">
+        </div>
+        <div>
+          <label class="modal-label">Unità di misura</label>
+          <select id="kit-qadd-comp-unit" class="input-field-modern">
+            <option value="pz">pz</option><option value="mt">mt</option><option value="cm">cm</option>
+            <option value="mm">mm</option><option value="kg">kg</option><option value="g">g</option>
+            <option value="lt">lt</option><option value="ml">ml</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer" style="margin-top:16px">
+        <button type="button" onclick="_kitQAddCompClose()" class="btn-modal-cancel">Annulla</button>
+        <button type="button" class="btn-modal-send" onclick="_kitQAddCompConfirm()"><i class="fas fa-plus"></i> Aggiungi</button>
       </div>
     </div>
   </div>
