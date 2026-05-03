@@ -1322,7 +1322,7 @@ function _kitBuildPrintPreviewHtml(kit, distinta, orderDraft) {
             white-space: pre-line;
         }
         .db-print-title-block {
-            text-align: right;
+            text-align: left;
             min-width: 240px;
         }
         .db-print-title {
@@ -1482,11 +1482,11 @@ function _kitBuildPrintPreviewHtml(kit, distinta, orderDraft) {
     <div class="db-print-stage">
         <div class="db-print-page">
             <div class="db-print-header">
-                ${companyHeaderHtml ? `<div class="db-print-company">${companyHeaderHtml}</div>` : '<div></div>'}
                 <div class="db-print-title-block">
                     <div class="db-print-title">Distinta Base</div>
                     <div class="db-print-subtitle">Documento interno di produzione e approvvigionamento</div>
                 </div>
+                ${companyHeaderHtml ? `<div class="db-print-company" style="text-align:right">${companyHeaderHtml}</div>` : ''}
             </div>
 
             <div class="db-print-meta-grid">
