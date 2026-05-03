@@ -9638,15 +9638,33 @@ details[open] .kit-assemb-chev { transform: rotate(180deg); }
 .kit-ns-section {
     margin-bottom: 16px;
 }
+.kit-ns-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 0 4px;
+    border-bottom: 1px solid #e0e7ff;
+    margin-bottom: 6px;
+    gap: 10px;
+}
 .kit-ns-section-title {
     font-size: .7rem;
     font-weight: 800;
     letter-spacing: .07em;
     text-transform: uppercase;
     color: #6366f1;
-    padding: 5px 0 4px;
-    border-bottom: 1px solid #e0e7ff;
-    margin-bottom: 6px;
+    margin: 0;
+}
+.kit-ns-sel-all {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: .72rem;
+    font-weight: 600;
+    color: #6366f1;
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
 }
 .kit-ns-comps {
     display: flex;

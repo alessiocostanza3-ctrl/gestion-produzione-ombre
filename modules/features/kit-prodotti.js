@@ -771,6 +771,16 @@ function _kitNSOrderRemoveRef(kitId, orderNumber) {
     });
 }
 
+function _kitNSToggleSection(kitId, compIds, checked) {
+    try { window._kitSuppressNextFade = true; } catch(e) {}
+    _kitMutateNewStyleDraft(kitId, function(d) {
+        compIds.forEach(function(id) {
+            if (checked) d._sel[id] = true;
+            else delete d._sel[id];
+        });
+    });
+}
+
 function _kitNSReset(kitId) {
     if (!confirm('Azzerare la selezione corrente?')) return;
     const drafts = _kitLoadOrderDrafts();
@@ -899,8 +909,18 @@ function _kitRenderViewNew(kit, contenitore) {
                 ${isChecked ? `<div class="kit-ns-comp-total">${_kitFormatQty(total)} ${comp.unitaMisura || 'pz'}</div>` : ''}
             </label>`;
         }).join('');
+        const allChecked = comps.every(function(c) { return !!sel[c.id]; });
+        const someChecked = comps.some(function(c) { return !!sel[c.id]; });
+        const sezCompIds = JSON.stringify(comps.map(function(c){ return c.id; }));
         return `<div class="kit-ns-section">
-            <div class="kit-ns-section-title">${_esc(sez.nome)}</div>
+            <div class="kit-ns-section-header">
+                <span class="kit-ns-section-title">${_esc(sez.nome)}</span>
+                <label class="kit-ns-sel-all" title="${allChecked ? 'Deseleziona tutto' : 'Seleziona tutto'}">
+                    <input type="checkbox" class="kit-ns-check"${allChecked ? ' checked' : (someChecked ? ' data-indeterminate="true"' : '')}
+                        onchange="_kitNSToggleSection('${_esc(kit.id)}',${sezCompIds},this.checked)">
+                    <span>${allChecked ? 'Deseleziona tutto' : 'Seleziona tutto'}</span>
+                </label>
+            </div>
             <div class="kit-ns-comps">${compsHtml}</div>
         </div>`;
     }).join('');
@@ -1001,6 +1021,11 @@ function _kitRenderViewNew(kit, contenitore) {
             ${distintaHtml}
         </div>` : ''}
     </div>`;
+
+    // Imposta indeterminate sulle checkbox di sezione parzialmente selezionate
+    contenitore.querySelectorAll('[data-indeterminate="true"]').forEach(function(el) {
+        el.indeterminate = true;
+    });
 }
 
 const _kitComposeState = {};
@@ -4995,6 +5020,7 @@ export function registerGlobals() {
     window._kitNSOrderPick            = _kitNSOrderPick;
     window._kitNSOrderRemoveRef       = _kitNSOrderRemoveRef;
     window._kitNSReset                = _kitNSReset;
+    window._kitNSToggleSection        = _kitNSToggleSection;
     window._kitNSCreateDistinta       = _kitNSCreateDistinta;
     window._kitNSOpenPrintPreview     = _kitNSOpenPrintPreview;
 }
