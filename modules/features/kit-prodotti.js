@@ -2813,110 +2813,101 @@ function _kitRenderConfigModal() {
     const nomeEl = document.getElementById('kit-cfg-modal-nome');
     if (nomeEl) nomeEl.value = kit.nome || '';
 
-    // ── categorie dal catalogo Anagrafiche ──
+    // ── dati base ──
     const cats = [...new Set(anag.map(a => (a.categoria || '').trim()).filter(Boolean))].sort();
+    const CAT_COLORS = ['#6366f1','#ec4899','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ef4444','#14b8a6','#f97316','#84cc16'];
+    const catColor   = cat => CAT_COLORS[cats.indexOf(cat) % CAT_COLORS.length] || '#94a3b8';
 
-    // tutti i componenti del kit con sezione di appartenenza
-    const sezioni = kit.sezioni || [];
+    const sezioni     = kit.sezioni || [];
     const allKitComps = sezioni.flatMap(sez => (sez.componenti || []).map(comp => ({ comp, sez })));
 
-    // trova categoria anagrafica di un componente del kit
-    function getCompCat(comp) {
-        const m = anag.find(a => a.nome === comp.nome && (!comp.codice || !a.codice || a.codice === comp.codice))
-               || anag.find(a => a.nome === comp.nome);
-        return m ? (m.categoria || '').trim() : '';
+    function getCompAnag(comp) {
+        return anag.find(a => a.nome === comp.nome && (!comp.codice || !a.codice || a.codice === comp.codice))
+            || anag.find(a => a.nome === comp.nome);
     }
 
-    // riga di un componente gia' nel kit
-    function renderCompRow(comp, sez) {
-        const unitVal = _kitNormalizeUnit(comp.unitaMisura, 'pz');
-        const optsHtml = UNITA.map(u => `<option value="${u}"${unitVal===u?' selected':''}>${u}</option>`).join('');
-        return `<div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;padding:6px 0;border-bottom:1px solid #f1f5f9">
-            <span style="font-size:.84rem;font-weight:600;color:#1e293b;flex:1;min-width:80px">${_esc(comp.nome)}${comp.codice?`<span style="font-size:.74rem;color:#94a3b8;margin-left:4px">${_esc(comp.codice)}</span>`:''}</span>
-            <input type="number" min="0" step="any" class="input-field-modern"
-                style="font-size:.8rem;padding:3px 6px;max-width:65px;text-align:right" value="${comp.qtaBase??1}" title="Quantita"
-                onchange="_kitCfgModalUpdateComp('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}','qtaBase',this.value)">
-            <select class="input-field-modern" style="font-size:.8rem;padding:3px 5px;max-width:58px"
-                onchange="_kitCfgModalUpdateComp('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}','unitaMisura',this.value)">
-                ${optsHtml}
-            </select>
-            <button type="button" class="btn-trash-modern" style="padding:3px 7px;font-size:.74rem"
-                onclick="_kitCfgModalDelComp('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}')"><i class="fas fa-times"></i></button>
+    // ── sezione 1: lista tabulare componenti nel kit ──
+    let listHtml;
+    if (allKitComps.length === 0) {
+        listHtml = `<div class="kcfg-empty">
+            <i class="fas fa-inbox" style="font-size:1.3rem;display:block;margin-bottom:6px;opacity:.35"></i>
+            Nessun componente ancora. Aggiungili dal catalogo qui sotto.
         </div>`;
+    } else {
+        listHtml = `<div class="kcfg-list">` +
+            allKitComps.map(({ comp, sez }) => {
+                const a        = getCompAnag(comp);
+                const cat      = a ? (a.categoria || '').trim() : '';
+                const dot      = cat ? catColor(cat) : '#e2e8f0';
+                const unitVal  = _kitNormalizeUnit(comp.unitaMisura, 'pz');
+                const unitsHtml = UNITA.map(u => `<option value="${u}"${unitVal===u?' selected':''}>${u}</option>`).join('');
+                return `<div class="kcfg-comp-row">
+                    <span class="kcfg-dot" style="background:${dot}"></span>
+                    <span class="kcfg-name">${_esc(comp.nome)}${comp.codice ? `<span class="kcfg-code">&middot;&thinsp;${_esc(comp.codice)}</span>` : ''}</span>
+                    <input type="number" min="0" step="any" class="input-field-modern kcfg-qty"
+                        value="${comp.qtaBase ?? 1}" title="Quantit&#224;"
+                        onchange="_kitCfgModalUpdateComp('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}','qtaBase',this.value)">
+                    <select class="input-field-modern kcfg-unit"
+                        onchange="_kitCfgModalUpdateComp('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}','unitaMisura',this.value)">
+                        ${unitsHtml}
+                    </select>
+                    <button type="button" class="btn-trash-modern" style="width:28px;height:28px;flex-shrink:0"
+                        onclick="_kitCfgModalDelComp('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}')">
+                        <i class="fas fa-times" style="font-size:.75rem"></i>
+                    </button>
+                </div>`;
+            }).join('') + `</div>`;
     }
 
-    const claimedCompIds = new Set();
+    // ── sezione 2: pill per aggiungere dal catalogo ──
+    const inKitNames = new Set(allKitComps.map(({ comp }) => comp.nome));
+    let catalogHtml  = '';
 
-    // ── un accordion per ogni categoria ──
-    const catBlocks = cats.map(cat => {
-        const catAnags    = anag.filter(a => (a.categoria || '').trim() === cat);
-        const catKitComps = allKitComps.filter(({ comp }) => getCompCat(comp) === cat);
-        catKitComps.forEach(({ comp }) => claimedCompIds.add(comp.id));
+    if (anag.length === 0) {
+        catalogHtml = `<div class="kcfg-empty" style="background:#fef3c7;border-color:#fde68a;color:#92400e;text-align:left">
+            <i class="fas fa-exclamation-triangle" style="margin-right:6px"></i>
+            Catalogo vuoto. Vai nella tab <strong>Anagrafiche</strong> per aggiungere componenti.
+        </div>`;
+    } else {
+        const strips = cats.map(cat => {
+            const avail = anag.filter(a => (a.categoria || '').trim() === cat && !inKitNames.has(a.nome));
+            if (avail.length === 0) return '';
+            const color = catColor(cat);
+            const pills = avail.map(a =>
+                `<button type="button" class="kcfg-pill"
+                    onclick="_kitCfgModalAddAnag('${_esc(kit.id)}','${_esc(a.id)}')"
+                    title="Aggiungi ${_esc(a.nome)}">
+                    <i class="fas fa-plus" style="font-size:.58rem;opacity:.6;margin-right:3px"></i>${_esc(a.nome)}${a.codice ? `<span class="kcfg-pill-code">${_esc(a.codice)}</span>` : ''}
+                </button>`
+            ).join('');
+            return `<div class="kcfg-cat-strip">
+                <span class="kcfg-cat-badge" style="--kcfg-dot:${color}">${_esc(cat)}</span>
+                <div class="kcfg-pills">${pills}</div>
+            </div>`;
+        }).filter(Boolean).join('');
 
-        const inKitRows = catKitComps.map(({ comp, sez }) => renderCompRow(comp, sez)).join('');
-
-        // bottoni per componenti di questa categoria NON ancora nel kit
-        const addBtns = catAnags
-            .filter(a => !catKitComps.some(({ comp }) => comp.nome === a.nome))
-            .map(a => `<button type="button" class="btn-archive-action" style="font-size:.77rem;padding:4px 10px"
-                onclick="_kitCfgModalAddAnag('${_esc(kit.id)}','${_esc(a.id)}')">${_esc(a.nome)}${a.codice?` <span style="color:#94a3b8;font-size:.7rem">${_esc(a.codice)}</span>`:''}</button>`)
-            .join('');
-
-        const badge = catKitComps.length > 0
-            ? `<span style="font-size:.72rem;font-weight:700;color:#6366f1;background:#eef2ff;padding:2px 7px;border-radius:10px">${catKitComps.length} nel kit</span>`
-            : `<span style="font-size:.72rem;color:#94a3b8">nessuno</span>`;
-
-        return `<details class="ordine-group" style="margin-bottom:5px"${catKitComps.length?' open':''}>
-            <summary class="ordine-group-summary">
-                <div class="og-left">
-                    <i class="fas fa-tag" style="color:#6366f1;font-size:.78rem;margin-right:5px"></i>
-                    <span class="og-operatore" style="font-size:.88rem">${_esc(cat)}</span>
-                </div>
-                <div style="display:flex;align-items:center;gap:6px">
-                    ${badge}
-                    <i class="fas fa-chevron-down og-chevron"></i>
-                </div>
-            </summary>
-            <div class="ordine-items" style="padding:4px 12px 10px">
-                ${inKitRows}
-                ${addBtns ? `<div style="display:flex;gap:5px;flex-wrap:wrap;padding-top:${catKitComps.length?'6px':'2px'}${catKitComps.length?';border-top:1px dashed #e2e8f0;margin-top:3px':''}">
-                    ${addBtns}
-                </div>` : '<p style="color:#94a3b8;font-size:.8rem;margin:4px 0 0">Tutti i componenti sono gia\' nel kit.</p>'}
-            </div>
-        </details>`;
-    }).join('');
-
-    // ── componenti liberi (non in catalogo) ──
-    const freeKitComps = allKitComps.filter(({ comp }) => !claimedCompIds.has(comp.id));
-    const freeBlock = freeKitComps.length > 0 ? `
-        <details class="ordine-group" style="margin-bottom:5px" open>
-            <summary class="ordine-group-summary">
-                <div class="og-left">
-                    <i class="fas fa-pen" style="color:#94a3b8;font-size:.78rem;margin-right:5px"></i>
-                    <span class="og-operatore" style="font-size:.88rem;color:#64748b">Componenti liberi</span>
-                </div>
-                <i class="fas fa-chevron-down og-chevron"></i>
-            </summary>
-            <div class="ordine-items" style="padding:4px 12px 10px">
-                ${freeKitComps.map(({ comp, sez }) => renderCompRow(comp, sez)).join('')}
-            </div>
-        </details>` : '';
-
-    const noCatalogNote = anag.length === 0
-        ? `<div style="background:#fef3c7;border-left:3px solid #f59e0b;border-radius:0 6px 6px 0;padding:10px 14px;margin-bottom:12px;font-size:.83rem;color:#92400e">
-            <i class="fas fa-exclamation-triangle" style="margin-right:5px"></i>
-            Catalogo vuoto. Aggiungi componenti nella tab <strong>Anagrafiche</strong> prima di configurare il kit.
-           </div>` : '';
+        catalogHtml = strips
+            || `<p style="color:#94a3b8;font-size:.82rem;margin:4px 0;padding:6px 2px">
+                   <i class="fas fa-check-circle" style="color:#10b981;margin-right:5px"></i>
+                   Tutti i componenti del catalogo sono gi&#224; nel kit.
+               </p>`;
+    }
 
     const panel = document.getElementById('kit-cfg-modal-bom-panel');
-    if (panel) {
-        panel.innerHTML = noCatalogNote + catBlocks + freeBlock +
-            `<div style="padding-top:10px;margin-top:6px;border-top:1px solid #f1f5f9">
-               <button type="button" class="btn-archive-action" style="font-size:.79rem" onclick="_kitCfgModalAddCompFree()">
-                 <i class="fas fa-pen"></i> Aggiungi componente manuale
-               </button>
-             </div>`;
-    }
+    if (!panel) return;
+
+    panel.innerHTML = `
+        <div class="kcfg-section-lbl">Nel kit (${allKitComps.length})</div>
+        ${listHtml}
+        ${anag.length > 0 ? `
+        <div class="kcfg-section-lbl" style="margin-top:18px">Aggiungi dal catalogo</div>
+        <div style="padding:2px 0">${catalogHtml}</div>` : catalogHtml}
+        <div style="margin-top:14px;padding-top:10px;border-top:1px solid #f1f5f9">
+            <button type="button" class="btn-add-dashed" style="font-size:.79rem;padding:8px 14px;border-radius:10px"
+                onclick="_kitCfgModalAddCompFree()">
+                <i class="fas fa-pen" style="margin-right:6px;opacity:.55"></i>Aggiungi componente manuale
+            </button>
+        </div>`;
 }
 
 

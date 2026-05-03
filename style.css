@@ -9356,6 +9356,70 @@ details[open] .kit-assemb-chev { transform: rotate(180deg); }
 /* Variante field (label + input stacked) */
 .kit-cfg-var-field { display: flex; flex-direction: column; gap: 4px; }
 
+/* ── Kit Configurator Modal v2 ──────────────────────────────────────────────── */
+.kcfg-section-lbl {
+    font-size: .67rem; font-weight: 700; letter-spacing: .09em; color: #94a3b8;
+    text-transform: uppercase; margin-bottom: 7px;
+}
+/* Lista componenti nel kit */
+.kcfg-list {
+    background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 10px; overflow: hidden;
+}
+.kcfg-comp-row {
+    display: flex; align-items: center; gap: 7px; padding: 7px 10px;
+    border-bottom: 1px solid #f1f5f9; transition: background .15s;
+}
+.kcfg-comp-row:last-child { border-bottom: none; }
+.kcfg-comp-row:hover { background: #fff; }
+.kcfg-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-right: 1px;
+}
+.kcfg-name {
+    flex: 1; font-size: .84rem; font-weight: 600; color: #1e293b; min-width: 60px; overflow: hidden;
+    white-space: nowrap; text-overflow: ellipsis;
+}
+.kcfg-code { font-size: .73rem; color: #94a3b8; font-weight: 400; margin-left: 4px; }
+.kcfg-qty {
+    width: 58px !important; padding: 4px 5px !important; font-size: .8rem !important;
+    margin-bottom: 0 !important; text-align: right; flex-shrink: 0;
+}
+.kcfg-unit {
+    width: 52px !important; padding: 4px 3px !important; font-size: .8rem !important;
+    margin-bottom: 0 !important; flex-shrink: 0;
+}
+.kcfg-empty {
+    text-align: center; padding: 20px 10px; color: #94a3b8; font-size: .83rem; background: #f8fafc;
+    border: 1px solid #f1f5f9; border-radius: 10px;
+}
+/* Sezione catalogo */
+.kcfg-cat-strip {
+    display: flex; align-items: flex-start; gap: 10px; padding: 4px 0;
+}
+.kcfg-cat-badge {
+    display: inline-flex; align-items: center; gap: 5px; font-size: .72rem; font-weight: 700;
+    color: #475569; min-width: 80px; padding-top: 3px; white-space: nowrap;
+}
+.kcfg-cat-badge::before {
+    content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--kcfg-dot, #94a3b8); flex-shrink: 0;
+}
+.kcfg-pills { display: flex; flex-wrap: wrap; gap: 5px; }
+/* Pill singolo componente da aggiungere */
+.kcfg-pill {
+    font-size: .75rem; font-weight: 500; padding: 3px 10px; border-radius: 20px;
+    border: 1.5px solid #e2e8f0; background: transparent; color: #475569; cursor: pointer;
+    white-space: nowrap;
+    transition: color .18s, background .18s, border-color .18s,
+                transform .18s cubic-bezier(0.22, 1, 0.36, 1), box-shadow .18s;
+}
+.kcfg-pill:hover {
+    border-color: #6366f1; color: #6366f1; background: #eef2ff;
+    transform: scale(1.05); box-shadow: 0 2px 8px rgba(99,102,241,.15);
+}
+.kcfg-pill:active { transform: scale(0.92) !important; transition: transform .07s ease !important; }
+.kcfg-pill-code { font-size: .68rem; color: #94a3b8; margin-left: 3px; }
+
+
 /* SA grouped */
 .kit-cfg-sa-group {
     background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px;
