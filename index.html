@@ -203,8 +203,8 @@
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js" integrity="sha384-0RsG1yo/crf/1Qc14sho26SXXOTngNCjgJw7fuvXBt9W/OChF/Ijx+aUuBDqQwEk" crossorigin="anonymous" defer></script>
     <!-- head-init.js: error handler, FA loader, login functions (estratti dagli inline scripts) -->
     <script src="head-init.js?v=20260330e" defer></script>
-    <link rel="modulepreload" href="dist/script.bundle.js?v=20260503c">
-    <script type="module" src="dist/script.bundle.js?v=20260503c"></script>
+    <link rel="modulepreload" href="dist/script.bundle.js?v=20260503d">
+    <script type="module" src="dist/script.bundle.js?v=20260503d"></script>
 </head>
 
 <body>
@@ -1355,24 +1355,9 @@
         <input id="kit-cfg-modal-nome" class="input-field-modern" placeholder="Nome kit" maxlength="120"
           style="width:100%;box-sizing:border-box;font-size:.95rem;font-weight:600"
           onblur="_kitCfgModalSaveNome(this)">
-        <!-- Tab bar -->
-        <div id="kit-cfg-modal-tabs" style="display:flex;gap:0;margin-top:10px;background:#f1f5f9;border-radius:8px;padding:3px">
-          <button type="button" class="acq-tab active" data-tab="bom"
-            style="flex:1;font-size:.83rem" onclick="_kitCfgModalSwitchTab('bom')">
-            <i class="fas fa-layer-group" style="margin-right:5px"></i>Sezioni &amp; Componenti
-          </button>
-          <button type="button" class="acq-tab" data-tab="elettronica"
-            style="flex:1;font-size:.83rem" onclick="_kitCfgModalSwitchTab('elettronica')">
-            <i class="fas fa-bolt" style="margin-right:5px"></i>Elettronica selezionabile
-          </button>
-        </div>
       </div>
       <!-- Pannello BOM -->
       <div id="kit-cfg-modal-bom-panel" style="overflow-y:auto;flex:1;padding:16px 20px">
-        <!-- popolato via JS -->
-      </div>
-      <!-- Pannello Elettronica -->
-      <div id="kit-cfg-modal-el-panel" style="display:none;overflow-y:auto;flex:1;padding:16px 20px">
         <!-- popolato via JS -->
       </div>
       <!-- Footer fisso -->
