@@ -4999,6 +4999,16 @@ export function registerGlobals() {
     window._kitDistintaOpenPrint      = _kitDistintaOpenPrint;
     window._kitDistintaApplyToDraft   = _kitDistintaApplyToDraft;
     window._kitDistintaDelete         = _kitDistintaDelete;
+    // New-style kit globals
+    window._kitNSToggleComp           = _kitNSToggleComp;
+    window._kitNSSetUnits             = _kitNSSetUnits;
+    window._kitNSOrderSearch          = _kitNSOrderSearch;
+    window._kitNSOrderHideSearch      = _kitNSOrderHideSearch;
+    window._kitNSOrderPick            = _kitNSOrderPick;
+    window._kitNSOrderRemoveRef       = _kitNSOrderRemoveRef;
+    window._kitNSReset                = _kitNSReset;
+    window._kitNSCreateDistinta       = _kitNSCreateDistinta;
+    window._kitNSOpenPrintPreview     = _kitNSOpenPrintPreview;
 }
 
 export default caricaKitProdotti;
