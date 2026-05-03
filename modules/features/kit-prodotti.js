@@ -1517,17 +1517,6 @@ function _kitBuildPrintPreviewHtml(kit, distinta, orderDraft) {
                 </div>
             </div>
 
-            <div class="db-print-config-title">Configurazioni incluse nell'ordine</div>
-            <table class="db-print-config-table">
-                <thead>
-                    <tr>
-                        <th style="width:72px">Q.tà</th>
-                        <th>Configurazione</th>
-                    </tr>
-                </thead>
-                <tbody>${selectedLinesHtml}</tbody>
-            </table>
-
             <div class="db-print-materials-title">Materiali della distinta</div>
             <table class="db-print-table">
                 <thead>
