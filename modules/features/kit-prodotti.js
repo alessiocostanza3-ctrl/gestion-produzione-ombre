@@ -1502,7 +1502,7 @@ function _kitRenderKitsGrid(kits, container) {
         }).join('');
 
         return `
-        <details class="ordine-group" open style="margin-bottom:8px">
+        <details class="ordine-group" style="margin-bottom:8px">
             <summary class="ordine-group-summary">
                 <div class="og-left">
                     <span class="og-operatore" style="font-size:1rem">${_esc(kit.nome)}</span>
@@ -2769,6 +2769,341 @@ let _kitPresetState = null;
 // ─── Quick-compose state ─────────────────────────────────────────────────────
 let _kitQAddState = { kitId: null, sezId: null };
 
+// ─── Config Modal state ───────────────────────────────────────────────────────
+let _kitConfigModalId  = null;
+let _kitConfigModalTab = 'bom'; // 'bom' | 'elettronica'
+
+// ─── Config Modal — apri / chiudi ─────────────────────────────────────────────
+function _kitOpenConfigModal(kitId) {
+    _kitConfigModalId  = kitId;
+    _kitConfigModalTab = 'bom';
+    const modal = document.getElementById('modal-kit-config');
+    if (!modal) return;
+    _kitRenderConfigModal();
+    modal.style.display = 'flex';
+    modal.offsetHeight;
+    modal.classList.add('active');
+}
+
+function _kitCloseConfigModal() {
+    const modal = document.getElementById('modal-kit-config');
+    if (!modal) return;
+    modal.classList.remove('active');
+    setTimeout(() => { if (!modal.classList.contains('active')) modal.style.display = 'none'; }, 300);
+    _kitConfigModalId = null;
+}
+
+function _kitCfgModalSaveNome(el) {
+    if (!_kitConfigModalId) return;
+    const val = (el?.value || '').trim();
+    if (!val) return;
+    _kitCfgMutate(_kitConfigModalId, kit => { kit.nome = val; }, false);
+    // aggiorna anche la card nella griglia se visibile
+    _kitSwitchMainTab('kits');
+}
+
+function _kitCfgModalSwitchTab(tab) {
+    _kitConfigModalTab = tab;
+    document.querySelectorAll('#kit-cfg-modal-tabs .acq-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    const bomPanel = document.getElementById('kit-cfg-modal-bom-panel');
+    const elPanel  = document.getElementById('kit-cfg-modal-el-panel');
+    if (bomPanel) bomPanel.style.display = tab === 'bom' ? 'block' : 'none';
+    if (elPanel)  elPanel.style.display  = tab === 'elettronica' ? 'block' : 'none';
+}
+
+// ─── Config Modal — renderer principale ──────────────────────────────────────
+function _kitRenderConfigModal() {
+    if (!_kitConfigModalId) return;
+    const { kits } = _kitLoad();
+    const kit = kits.find(k => k.id === _kitConfigModalId);
+    if (!kit) return;
+    const anag  = _kitLoadAnagrafiche();
+    const UNITA = ['pz','mt','cm','mm','kg','g','lt','ml'];
+    const assi  = kit.assiConfigurazione || [];
+
+    // ── nome kit ──
+    const nomeEl = document.getElementById('kit-cfg-modal-nome');
+    if (nomeEl) nomeEl.value = kit.nome || '';
+
+    // ── BOM panel ──
+    const sezioni = kit.sezioni || [];
+    // categorie dal catalogo
+    const cats = [...new Set(anag.map(a => (a.categoria || '').trim()).filter(Boolean))].sort();
+
+    const bomHtml = sezioni.length === 0
+        ? `<p style="color:#94a3b8;font-size:.85rem;padding:16px 0">Nessuna sezione. Aggiungi una sezione per iniziare.</p>`
+        : sezioni.map(sez => {
+            const comps = sez.componenti || [];
+            const compsHtml = comps.map(comp => {
+                // prova a matchare il comp con un'anagrafica
+                const matchedAnag = anag.find(a => a.nome === comp.nome && (!comp.codice || a.codice === comp.codice)) || anag.find(a => a.nome === comp.nome);
+                const catDiComp  = matchedAnag?.categoria?.trim() || '';
+                const compAnagDiCat = anag.filter(a => (a.categoria || '').trim() === catDiComp);
+                const catSelectHtml = `<select id="cfg-cat-${_esc(sez.id)}-${_esc(comp.id)}" class="input-field-modern" style="font-size:.82rem;padding:4px 8px;max-width:160px" onchange="_kitCfgModalChangeCat('${_esc(sez.id)}','${_esc(comp.id)}')">
+                    <option value="">— Categoria —</option>
+                    ${cats.map(c => `<option value="${_esc(c)}"${c === catDiComp ? ' selected' : ''}>${_esc(c)}</option>`).join('')}
+                    <option value="__free__"${!catDiComp ? ' selected' : ''}>Libero</option>
+                </select>`;
+                const isFree = !catDiComp;
+                const compSelectHtml = isFree
+                    ? `<input id="cfg-comp-${_esc(sez.id)}-${_esc(comp.id)}" class="input-field-modern" style="font-size:.82rem;padding:4px 8px;flex:1" placeholder="Nome componente" value="${_esc(comp.nome)}"
+                        onchange="_kitCfgModalUpdateComp('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}','nome',this.value)">`
+                    : `<select id="cfg-comp-${_esc(sez.id)}-${_esc(comp.id)}" class="input-field-modern" style="font-size:.82rem;padding:4px 8px;flex:1" onchange="_kitCfgModalSelectAnag('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}',this.value)">
+                        <option value="">— Componente —</option>
+                        ${compAnagDiCat.map(a => `<option value="${_esc(a.nome)}|${_esc(a.codice||'')}"${a.nome===comp.nome?' selected':''}>${_esc(a.nome)}${a.codice ? ' · '+_esc(a.codice) : ''}</option>`).join('')}
+                      </select>`;
+
+                // rule
+                const rule = _kitGetCompRuleUi(comp, kit);
+                const isSeg = _kitIsSegnalazione(comp);
+                const unitVal = isSeg ? 'flag' : _kitNormalizeUnit(comp.unitaMisura, 'pz');
+                const asseSelectHtml = rule.tipo === 'gruppo' && assi.length
+                    ? `<select class="input-field-modern" style="font-size:.82rem;padding:4px 8px;margin-top:4px;max-width:200px"
+                           onchange="_kitCfgModalUpdateCompRule('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}','asseId',this.value)">
+                          ${assi.map(a => `<option value="${_esc(a.id)}"${rule.asseId===a.id?' selected':''}>${_esc(a.nome)}</option>`).join('')}
+                       </select>`
+                    : '';
+                const asseAttualeOpzioni = rule.tipo === 'gruppo' ? ((assi.find(a => a.id === rule.asseId) || assi[0])?.opzioni || []) : [];
+                const opzioniHtml = rule.tipo === 'gruppo' && asseAttualeOpzioni.length
+                    ? `<div style="display:flex;gap:8px;flex-wrap:wrap;padding:4px 0 2px">${asseAttualeOpzioni.map(o => `<label style="display:flex;align-items:center;gap:4px;font-size:.82rem;cursor:pointer"><input type="checkbox"${rule.opzioneIds.includes(o.id)?' checked':''} onchange="_kitCfgToggleCompOption('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}','${_esc(o.id)}',this.checked)"> ${_esc(o.nome)}</label>`).join('')}</div>`
+                    : '';
+
+                return `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:8px">
+                    <!-- Riga 1: categoria + comp + codice + trash -->
+                    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+                        ${catSelectHtml}
+                        ${compSelectHtml}
+                        <input class="input-field-modern" style="font-size:.82rem;padding:4px 8px;max-width:120px" placeholder="Codice" value="${_esc(comp.codice||'')}"
+                            onchange="_kitCfgModalUpdateComp('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}','codice',this.value)">
+                        <button type="button" class="btn-trash-modern" style="padding:4px 8px;flex-shrink:0" onclick="_kitCfgModalDelComp('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}')"><i class="fas fa-trash"></i></button>
+                    </div>
+                    <!-- Riga 2: qty + unità + modo -->
+                    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                        <input type="number" min="0" step="any" class="input-field-modern" style="font-size:.82rem;padding:4px 8px;max-width:90px;text-align:right"
+                            value="${comp.qtaBase != null ? comp.qtaBase : 1}" placeholder="Qty"
+                            onchange="_kitCfgModalUpdateComp('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}','qtaBase',this.value)">
+                        <select class="input-field-modern" style="font-size:.82rem;padding:4px 8px;max-width:90px"
+                            onchange="_kitCfgModalUpdateComp('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}','unitaMisura',this.value)"${isSeg?' disabled':''}>
+                            ${UNITA.map(u => `<option value="${u}"${unitVal===u?' selected':''}>${u}</option>`).join('')}
+                        </select>
+                        <select class="input-field-modern" style="font-size:.82rem;padding:4px 8px;max-width:220px"
+                            onchange="_kitCfgModalUpdateCompRule('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}','tipo',this.value)">
+                            <option value="sempre"${rule.tipo==='sempre'?' selected':''}>Sempre presente</option>
+                            <option value="gruppo"${rule.tipo==='gruppo'?' selected':''}>Solo per elettronica</option>
+                        </select>
+                        ${asseSelectHtml}
+                    </div>
+                    ${opzioniHtml}
+                    <input class="input-field-modern" style="font-size:.82rem;padding:4px 8px;margin-top:6px;width:100%;box-sizing:border-box" placeholder="Nota approvvigionamento (opzionale)"
+                        value="${_esc(comp.noteConfig||'')}"
+                        onchange="_kitCfgModalUpdateComp('${_esc(kit.id)}','${_esc(sez.id)}','${_esc(comp.id)}','noteConfig',this.value)">
+                </div>`;
+            }).join('');
+
+            return `<div style="margin-bottom:16px">
+                <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+                    <input class="input-field-modern" style="font-size:.9rem;font-weight:700;padding:5px 10px;flex:1" value="${_esc(sez.nome)}"
+                        onchange="_kitCfgModalUpdateSez('${_esc(kit.id)}','${_esc(sez.id)}','nome',this.value)">
+                    <button type="button" class="btn-trash-modern" style="padding:4px 8px" onclick="_kitCfgModalDelSez('${_esc(kit.id)}','${_esc(sez.id)}')"><i class="fas fa-trash"></i></button>
+                </div>
+                ${compsHtml}
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button type="button" class="btn-archive-action" style="font-size:.8rem" onclick="_kitQAddCompOpen('${_esc(kit.id)}','${_esc(sez.id)}')"><i class="fas fa-plus"></i> Da catalogo</button>
+                    <button type="button" class="btn-archive-action" style="font-size:.8rem" onclick="_kitCfgModalAddCompFree('${_esc(kit.id)}','${_esc(sez.id)}')"><i class="fas fa-pen"></i> Manuale</button>
+                </div>
+            </div>`;
+        }).join('');
+
+    const bomPanel = document.getElementById('kit-cfg-modal-bom-panel');
+    if (bomPanel) {
+        bomPanel.innerHTML = `
+          ${bomHtml}
+          <div style="padding-top:8px;border-top:1px solid #f1f5f9">
+            <button type="button" class="btn-archive-action" style="font-size:.8rem" onclick="_kitQAddSezOpen('${_esc(kit.id)}')">
+              <i class="fas fa-folder-plus"></i> Aggiungi sezione
+            </button>
+          </div>`;
+    }
+
+    // ── Elettronica panel ──
+    const assiHtml = assi.length === 0
+        ? `<p style="color:#94a3b8;font-size:.85rem;padding:16px 0">Nessun gruppo elettronico. Aggiungine uno per definire le varianti selezionabili.</p>`
+        : assi.map(asse => {
+            const opzioniHtml = (asse.opzioni || []).map(opt => `
+                <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px">
+                    <input class="input-field-modern" style="font-size:.82rem;padding:3px 8px;flex:1" placeholder="Nome opzione" value="${_esc(opt.nome)}"
+                        onchange="_kitCfgModalUpdateOpz('${_esc(kit.id)}','${_esc(asse.id)}','${_esc(opt.id)}','nome',this.value)">
+                    <input class="input-field-modern" style="font-size:.82rem;padding:3px 8px;max-width:110px" placeholder="Codice" value="${_esc(opt.codice||'')}"
+                        onchange="_kitCfgModalUpdateOpz('${_esc(kit.id)}','${_esc(asse.id)}','${_esc(opt.id)}','codice',this.value)">
+                    <button type="button" class="btn-trash-modern" style="padding:3px 7px;font-size:.75rem" onclick="_kitCfgModalDelOpz('${_esc(kit.id)}','${_esc(asse.id)}','${_esc(opt.id)}')"><i class="fas fa-times"></i></button>
+                </div>`).join('');
+            return `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:12px">
+                <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+                    <input class="input-field-modern" style="font-size:.9rem;font-weight:700;padding:5px 10px;flex:1" placeholder="Nome gruppo es. LED, Lente…" value="${_esc(asse.nome)}"
+                        onchange="_kitCfgModalUpdateAsse('${_esc(kit.id)}','${_esc(asse.id)}','nome',this.value)">
+                    <button type="button" class="btn-trash-modern" style="padding:4px 8px" onclick="_kitCfgModalDelAsse('${_esc(kit.id)}','${_esc(asse.id)}')"><i class="fas fa-trash"></i></button>
+                </div>
+                <div style="margin-bottom:6px">${opzioniHtml || '<p style="color:#94a3b8;font-size:.82rem;margin:0 0 4px">Nessuna opzione.</p>'}</div>
+                <button type="button" class="btn-archive-action" style="font-size:.78rem" onclick="_kitCfgModalAddOpz('${_esc(kit.id)}','${_esc(asse.id)}')"><i class="fas fa-plus"></i> Aggiungi opzione</button>
+            </div>`;
+        }).join('');
+
+    const elPanel = document.getElementById('kit-cfg-modal-el-panel');
+    if (elPanel) {
+        elPanel.innerHTML = `
+          ${assiHtml}
+          <button type="button" class="btn-archive-action" style="font-size:.8rem" onclick="_kitCfgModalAddAsse('${_esc(kit.id)}')">
+            <i class="fas fa-plus"></i> Aggiungi gruppo elettronico
+          </button>`;
+    }
+}
+
+// ─── Config Modal — helpers sezione, componente, asse ────────────────────────
+function _kitCfgModalUpdateSez(kitId, sezId, field, val) {
+    _kitCfgMutate(kitId, kit => {
+        const sez = (kit.sezioni || []).find(s => s.id === sezId);
+        if (sez) sez[field] = val.trim() || sez[field];
+    }, true);
+}
+
+function _kitCfgModalDelSez(kitId, sezId) {
+    if (!confirm('Eliminare questa sezione e tutti i componenti?')) return;
+    _kitCfgMutate(kitId, kit => {
+        kit.sezioni = (kit.sezioni || []).filter(s => s.id !== sezId);
+    }, true);
+}
+
+function _kitCfgModalChangeCat(sezId, compId) {
+    const catEl  = document.getElementById(`cfg-cat-${sezId}-${compId}`);
+    const compEl = document.getElementById(`cfg-comp-${sezId}-${compId}`);
+    if (!catEl || !compEl) return;
+    const cat = catEl.value;
+    const anag = _kitLoadAnagrafiche();
+    const list = cat && cat !== '__free__' ? anag.filter(a => (a.categoria || '').trim() === cat) : [];
+    if (!list.length || cat === '__free__') {
+        // rimpiazza con input libero
+        const input = document.createElement('input');
+        input.id = `cfg-comp-${sezId}-${compId}`;
+        input.className = compEl.className;
+        input.style.cssText = compEl.style.cssText;
+        input.placeholder = 'Nome componente';
+        compEl.replaceWith(input);
+        return;
+    }
+    // rimpiazza con select
+    const sel = document.createElement('select');
+    sel.id = `cfg-comp-${sezId}-${compId}`;
+    sel.className = compEl.className;
+    sel.style.cssText = compEl.style.cssText;
+    sel.innerHTML = `<option value="">— Componente —</option>` +
+        list.map(a => `<option value="${_esc(a.nome)}|${_esc(a.codice||'')}">${_esc(a.nome)}${a.codice? ' · '+_esc(a.codice):''}</option>`).join('');
+    compEl.replaceWith(sel);
+}
+
+function _kitCfgModalSelectAnag(kitId, sezId, compId, val) {
+    if (!val) return;
+    const [nome, codice] = val.split('|');
+    _kitCfgMutate(kitId, kit => {
+        const sez  = (kit.sezioni || []).find(s => s.id === sezId);
+        const comp = sez && (sez.componenti || []).find(c => c.id === compId);
+        if (!comp) return;
+        comp.nome   = nome || comp.nome;
+        comp.codice = codice || '';
+    }, true);
+}
+
+function _kitCfgModalAddCompFree(kitId, sezId) {
+    _kitCfgMutate(kitId, kit => {
+        const sez = (kit.sezioni || []).find(s => s.id === sezId);
+        if (!sez) return;
+        sez.componenti = sez.componenti || [];
+        sez.componenti.push({ id: _uid(), nome: 'Nuovo componente', codice: '', qtaBase: 1, unitaMisura: 'pz', regola: { tipo: 'sempre', qtyBase: 1 } });
+    }, true);
+}
+
+function _kitCfgModalUpdateComp(kitId, sezId, compId, field, val) {
+    _kitCfgMutate(kitId, kit => {
+        const sez  = (kit.sezioni || []).find(s => s.id === sezId);
+        const comp = sez && (sez.componenti || []).find(c => c.id === compId);
+        if (!comp) return;
+        if (field === 'qtaBase') { comp.qtaBase = parseFloat(val) || 1; if (comp.regola) comp.regola.qtyBase = comp.qtaBase; }
+        else comp[field] = val;
+    }, true);
+}
+
+function _kitCfgModalUpdateCompRule(kitId, sezId, compId, field, val) {
+    _kitCfgMutate(kitId, kit => {
+        const sez  = (kit.sezioni || []).find(s => s.id === sezId);
+        const comp = sez && (sez.componenti || []).find(c => c.id === compId);
+        if (!comp) return;
+        comp.regola = comp.regola || {};
+        if (field === 'tipo') {
+            comp.regola.tipo = val;
+            if (val === 'gruppo' && !comp.regola.asseId && kit.assiConfigurazione?.length) comp.regola.asseId = kit.assiConfigurazione[0].id;
+            if (val === 'gruppo') comp.regola.opzioneIds = comp.regola.opzioneIds || [];
+        } else if (field === 'asseId') {
+            comp.regola.asseId = val;
+            comp.regola.opzioneIds = [];
+        } else {
+            comp.regola[field] = val;
+        }
+    }, true);
+}
+
+function _kitCfgModalDelComp(kitId, sezId, compId) {
+    _kitCfgMutate(kitId, kit => {
+        const sez = (kit.sezioni || []).find(s => s.id === sezId);
+        if (sez) sez.componenti = (sez.componenti || []).filter(c => c.id !== compId);
+    }, true);
+}
+
+function _kitCfgModalAddAsse(kitId) {
+    _kitCfgMutate(kitId, kit => {
+        kit.assiConfigurazione = kit.assiConfigurazione || [];
+        kit.assiConfigurazione.push({ id: _uid(), nome: 'Nuovo gruppo', key: _kitSanitizeKey('', 'ax'+kit.assiConfigurazione.length), opzioni: [] });
+    }, true);
+}
+
+function _kitCfgModalDelAsse(kitId, asseId) {
+    if (!confirm('Eliminare questo gruppo elettronico?')) return;
+    _kitCfgMutate(kitId, kit => {
+        kit.assiConfigurazione = (kit.assiConfigurazione || []).filter(a => a.id !== asseId);
+    }, true);
+}
+
+function _kitCfgModalUpdateAsse(kitId, asseId, field, val) {
+    _kitCfgMutate(kitId, kit => {
+        const asse = (kit.assiConfigurazione || []).find(a => a.id === asseId);
+        if (asse) asse[field] = val;
+    }, false);
+}
+
+function _kitCfgModalAddOpz(kitId, asseId) {
+    _kitCfgMutate(kitId, kit => {
+        const asse = (kit.assiConfigurazione || []).find(a => a.id === asseId);
+        if (!asse) return;
+        asse.opzioni = asse.opzioni || [];
+        const idx = asse.opzioni.length + 1;
+        asse.opzioni.push({ id: _uid(), key: _kitSanitizeKey('', 'opz'+idx), nome: 'Nuova opzione', codice: '' });
+    }, true);
+}
+
+function _kitCfgModalDelOpz(kitId, asseId, opzId) {
+    _kitCfgMutate(kitId, kit => {
+        const asse = (kit.assiConfigurazione || []).find(a => a.id === asseId);
+        if (asse) asse.opzioni = (asse.opzioni || []).filter(o => o.id !== opzId);
+    }, true);
+}
+
+function _kitCfgModalUpdateOpz(kitId, asseId, opzId, field, val) {
+    _kitCfgMutate(kitId, kit => {
+        const asse = (kit.assiConfigurazione || []).find(a => a.id === asseId);
+        const opz  = asse && (asse.opzioni || []).find(o => o.id === opzId);
+        if (!opz) return;
+        opz[field] = val;
+    }, false);
+}
+
 // ── Crea Kit (modal nome-first) ───────────────────────────────────────────────
 function _kitOpenCreaKit() {
     const modal = document.getElementById('modal-kit-crea');
@@ -2830,7 +3165,8 @@ function _kitQAddSezConfirm() {
     kit.sezioni.push({ id: _uid(), nome, componenti: [] });
     _kitSave(kits);
     _kitQAddSezClose();
-    setTimeout(() => _kitSwitchMainTab('kits'), 320);
+    if (_kitConfigModalId) { setTimeout(() => _kitRenderConfigModal(), 320); }
+    else { setTimeout(() => _kitSwitchMainTab('kits'), 320); }
 }
 
 // ── Quick add componente ──────────────────────────────────────────────────────
@@ -2929,7 +3265,8 @@ function _kitQAddCompConfirm() {
     });
     _kitSave(kits);
     _kitQAddCompClose();
-    setTimeout(() => _kitSwitchMainTab('kits'), 320);
+    if (_kitConfigModalId) { setTimeout(() => _kitRenderConfigModal(), 320); }
+    else { setTimeout(() => _kitSwitchMainTab('kits'), 320); }
 }
 
 // ── Inline edit / delete ──────────────────────────────────────────────────────
@@ -2987,9 +3324,8 @@ function _kitNuovoKit() {
 }
 
 function _kitOpenConfig(id) {
-    _kitConfigId  = id;
-    _kitConfigTab = 'info';
-    _kitRenderConfig();
+    _kitConfigModalId = id;
+    _kitOpenConfigModal(id);
 }
 
 function _kitCreateImportState(currentKitId, mode, preselectedSectionId = '') {
@@ -3328,7 +3664,7 @@ function _kitCfgConfirmImport() {
             }
             _kitSave(kits);
             _kitCfgCloseImportModal();
-            _kitRenderConfig();
+            _kitRenderConfigModal();
             if (added) notificaElegante(`${added} opzione${added>1?'i':''} aggiunta${added>1?'e':''} all'asse "${sourceAsse.nome}" ✓`);
             else notificaElegante(`Nessuna nuova opzione trovata per l'asse "${sourceAsse.nome}"`);
             return;
@@ -3338,7 +3674,7 @@ function _kitCfgConfirmImport() {
         currentKit.assiConfigurazione.push(_kitCloneAsseForKit(sourceAsse, sourceKit, currentKit));
         _kitSave(kits);
         _kitCfgCloseImportModal();
-        _kitRenderConfig();
+        _kitRenderConfigModal();
         notificaElegante(`Asse "${sourceAsse.nome}" importato da "${sourceKit.nome}" ✓`);
         return;
     }
@@ -3349,7 +3685,7 @@ function _kitCfgConfirmImport() {
         currentKit.sezioni.push(_kitCloneSezioneForKit(sourceSezione, sourceKit, currentKit));
         _kitSave(kits);
         _kitCfgCloseImportModal();
-        _kitRenderConfig();
+        _kitRenderConfigModal();
 
         let suffix = '';
         if (!align.hasTargetVarianti) suffix = ' Definisci poi gli assi del kit per rifinire i coefficienti.';
@@ -3373,7 +3709,7 @@ function _kitCfgConfirmImport() {
     }
     _kitSave(kits);
     _kitCfgCloseImportModal();
-    _kitRenderConfig();
+    _kitRenderConfigModal();
 
     let suffix = '';
     if (reviewCount > 0) suffix = ` ${reviewCount} kit richiedono un controllo delle quantità.`;
@@ -3439,7 +3775,7 @@ function _kitCreatePreset(kitId, sectionId, name) {
     // if modal open, re-render it
     if (_kitPresetState && _kitPresetState.currentKitId === kitId) _kitRenderPresetsModal();
     // re-render config so tab list updates
-    _kitRenderConfig();
+    _kitRenderConfigModal();
 }
 
 function _kitApplyPreset(presetId) {
@@ -3456,7 +3792,7 @@ function _kitApplyPreset(presetId) {
     targetKit.sezioni.push(_kitCloneSezioneForKit(preset.sezione, sourceKit, targetKit));
     _kitSave(kits);
     _kitClosePresetsModal();
-    _kitRenderConfig();
+    _kitRenderConfigModal();
     notificaElegante(`Preset "${preset.nome}" applicato ✓`);
 }
 
@@ -3829,7 +4165,7 @@ function _kitCfgMutate(kitId, mutator, rerender = true) {
     if (!kit) return;
     mutator(kit);
     _kitSave(kits);
-    if (rerender) _kitRenderConfig();
+    if (rerender) _kitRenderConfigModal();
 }
 
 function _kitCfgSaveNome(kitId, val) {
@@ -4294,6 +4630,25 @@ export function registerGlobals() {
     window._kitOpenCreaKit              = _kitOpenCreaKit;
     window._kitCloseCreaKit             = _kitCloseCreaKit;
     window._kitConfirmCreaKit           = _kitConfirmCreaKit;
+    window._kitOpenConfigModal          = _kitOpenConfigModal;
+    window._kitCloseConfigModal         = _kitCloseConfigModal;
+    window._kitRenderConfigModal        = _kitRenderConfigModal;
+    window._kitCfgModalSwitchTab        = _kitCfgModalSwitchTab;
+    window._kitCfgModalSaveNome         = _kitCfgModalSaveNome;
+    window._kitCfgModalUpdateSez        = _kitCfgModalUpdateSez;
+    window._kitCfgModalDelSez           = _kitCfgModalDelSez;
+    window._kitCfgModalChangeCat        = _kitCfgModalChangeCat;
+    window._kitCfgModalSelectAnag       = _kitCfgModalSelectAnag;
+    window._kitCfgModalAddCompFree      = _kitCfgModalAddCompFree;
+    window._kitCfgModalUpdateComp       = _kitCfgModalUpdateComp;
+    window._kitCfgModalUpdateCompRule   = _kitCfgModalUpdateCompRule;
+    window._kitCfgModalDelComp          = _kitCfgModalDelComp;
+    window._kitCfgModalAddAsse          = _kitCfgModalAddAsse;
+    window._kitCfgModalDelAsse          = _kitCfgModalDelAsse;
+    window._kitCfgModalUpdateAsse       = _kitCfgModalUpdateAsse;
+    window._kitCfgModalAddOpz           = _kitCfgModalAddOpz;
+    window._kitCfgModalDelOpz           = _kitCfgModalDelOpz;
+    window._kitCfgModalUpdateOpz        = _kitCfgModalUpdateOpz;
     window._kitQAddSezOpen              = _kitQAddSezOpen;
     window._kitQAddSezClose             = _kitQAddSezClose;
     window._kitQAddSezConfirm           = _kitQAddSezConfirm;
