@@ -622,6 +622,9 @@ async function importaListaDiCaricoDaFile(input) {
                 if (json.corrette > 0) {
                     msg += `<br><span style="color:#b45309"><i class="fas fa-exclamation-triangle"></i> ${json.corrette} righe corrette automaticamente (campi con separatore nel testo)</span>`;
                 }
+                if (json.missingCount > 0) {
+                    msg += `<br><span style="color:#d97706">⚠ <strong>${json.missingCount}</strong> ordini non presenti nel CSV — vai nel tab Fornitori per archiviarli.</span>`;
+                }
                 risultato.innerHTML = `<div style="background:#dcfce7;border:1px solid #86efac;border-radius:10px;padding:12px 16px;font-size:0.88rem;color:#166534">${msg}</div>`;
                 // Invalida cache ordini fornitori
                 if (typeof window.invalidateOFCache === 'function') window.invalidateOFCache();
@@ -656,6 +659,7 @@ async function caricaImpostazioni() {
  */
 async function caricaDatiIniziali() {
     const LS_KEY = '_impostazioni_cache';
+    const LS_KEY_FORN = '_impostazioni_stati_forn_cache';
     const TTL_MS = 5 * 60 * 1000;
     // Stale-while-revalidate: leggi cache ignorando la scadenza → listaStati sempre pronto
     const cachedAny = _lsCacheGet(LS_KEY, Infinity);
@@ -667,6 +671,14 @@ async function caricaDatiIniziali() {
                 window.listaOperatori = parsed.operatori || [];
                 window._distintaHeaderAzienda = String(parsed.distintaHeaderAzienda || '');
                 _applicaOverviewConfig(parsed.overviewStati);
+                // Carica stati fornitori dalla cache
+                const cachedForn = _lsCacheGet(LS_KEY_FORN, Infinity);
+                if (cachedForn) {
+                    try {
+                        const parsedForn = (typeof cachedForn === 'string') ? JSON.parse(cachedForn) : cachedForn;
+                        if (Array.isArray(parsedForn) && parsedForn.length) window.listaStatiFornitori = parsedForn;
+                    } catch (_) {}
+                }
                 // Se i dati sono scaduti: aggiorna in background senza bloccare la UI
                 if (!_lsCacheGet(LS_KEY, TTL_MS)) {
                     _fetchImpostazioniDaServer().catch(e => console.warn('[impostazioni] bg refresh:', e));
@@ -683,6 +695,7 @@ async function caricaDatiIniziali() {
 /** Fetch fresco dal server e aggiorna cache LS + variabili globali */
 async function _fetchImpostazioniDaServer() {
     const LS_KEY = '_impostazioni_cache';
+    const LS_KEY_FORN = '_impostazioni_stati_forn_cache';
     try {
         const res = await fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify({ azione: 'getImpostazioni' }) });
         const settings = await res.json();
@@ -699,6 +712,15 @@ async function _fetchImpostazioniDaServer() {
         console.warn('[Boot] _fetchImpostazioniDaServer:', e);
         notificaElegante('Impostazioni non aggiornate — uso dati locali.', 'warning');
     }
+    // Carica stati fornitori in parallelo (non bloccante se fallisce)
+    try {
+        const resForn = await fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify({ azione: 'getStatiFornitoriConfig' }) });
+        const jsonForn = await resForn.json();
+        if (jsonForn.stati && jsonForn.stati.length) {
+            window.listaStatiFornitori = jsonForn.stati;
+            _lsCacheSet(LS_KEY_FORN, JSON.stringify(jsonForn.stati));
+        }
+    } catch (_fErr) { /* non bloccante */ }
 }
 
 /** Popola le variabili overview dai dati server (con fallback ai default) */
@@ -1029,6 +1051,41 @@ function caricaInterfacciaImpostazioni() {
                     <button class="btn-add-dashed" onclick="azioneAggiungiStato()">+ Aggiungi Stato</button>
                 </div>
             </div>
+
+            <!-- ROW: Stati Ordini Fornitori -->
+            ${(() => {
+                const listaStatiForn = window.listaStatiFornitori || [];
+                return `<div class="settings-row" onclick="toggleSettingsSection('section-stati-fornitori', this)">
+                <div class="settings-row-left">
+                    <div class="settings-row-icon"><i class="fas fa-truck"></i></div>
+                    <div>
+                        <div class="settings-row-title">Stati Ordini Fornitori</div>
+                        <div class="settings-row-sub">${listaStatiForn.length} stati configurati</div>
+                    </div>
+                </div>
+                <i class="fas fa-chevron-down settings-row-arrow"></i>
+            </div>
+            <div id="section-stati-fornitori" class="settings-section-body" style="display:none">
+                <div class="card-settings">
+                    <div id="lista-stati-fornitori-config">
+                        ${listaStatiForn.map((s, i) => {
+                            const nome = s.stato || s.nome || '';
+                            const colore = s.colore || '#94a3b8';
+                            return `<div class="config-row-modern row" data-idx="${i}">
+                                <div class="color-picker-wrapper">
+                                    <input type="color" value="${colore}" class="color-overlay"
+                                           onchange="(window.listaStatiFornitori||[])[${i}].colore=this.value; segnaModifica(); caricaInterfacciaImpostazioni();">
+                                    <div class="status-dot-custom" style="--bg-color:${colore};"></div>
+                                </div>
+                                <input type="text" class="input-flat flex-grow" value="${nome}" onchange="(window.listaStatiFornitori||[])[${i}].stato=this.value.toUpperCase(); segnaModifica();">
+                                <button type="button" class="btn-trash-modern" onclick="azioneEliminaStatoFornitori(${i})"><i class="fas fa-trash"></i></button>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                    <button class="btn-add-dashed" onclick="azioneAggiungiStatoFornitori()">+ Aggiungi Stato</button>
+                </div>
+            </div>`;
+            })()}
 
             <div class="settings-row" onclick="toggleSettingsSection('section-distinta-stampa', this)">
                 <div class="settings-row-left">
@@ -1397,6 +1454,21 @@ function azioneAggiungiStato() {
     caricaInterfacciaImpostazioni();
 }
 
+function azioneEliminaStatoFornitori(i) {
+    if (confirm("Sei sicuro di voler eliminare questo stato?")) {
+        (window.listaStatiFornitori || []).splice(i, 1);
+        segnaModifica();
+        caricaInterfacciaImpostazioni();
+    }
+}
+
+function azioneAggiungiStatoFornitori() {
+    if (!window.listaStatiFornitori) window.listaStatiFornitori = [];
+    window.listaStatiFornitori.push({ stato: 'NUOVO', colore: '#94a3b8' });
+    segnaModifica();
+    caricaInterfacciaImpostazioni();
+}
+
 function segnaModifica() {
     window.modifichePendenti = true;
     const btn = document.getElementById('btn-salva-globale');
@@ -1503,6 +1575,18 @@ async function salvaTutteImpostazioni() {
         });
         const json = await res.json().catch(() => ({}));
         if (json.status === 'success') {
+            // Salva anche stati fornitori in parallelo
+            if (window.listaStatiFornitori && window.listaStatiFornitori.length) {
+                try {
+                    await fetch(URL_GOOGLE, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            azione: 'saveStatiFornitoriConfig',
+                            stati: window.listaStatiFornitori
+                        })
+                    });
+                } catch (_sfErr) { /* non bloccante */ }
+            }
             notificaElegante('Impostazioni salvate correttamente!');
             window.modifichePendenti = false;
             const btn = document.getElementById('btn-salva-globale');
@@ -1511,6 +1595,7 @@ async function salvaTutteImpostazioni() {
                 btn.innerHTML = "<i class='fas fa-save'></i> Salva Impostazioni";
             }
             _lsCacheDel('_impostazioni_cache');
+            _lsCacheDel('_impostazioni_stati_forn_cache');
             if (window.cacheContenuti) Object.keys(window.cacheContenuti).forEach(k => delete window.cacheContenuti[k]);
             Object.keys(localStorage).filter(k => k.startsWith('_html_')).forEach(k => localStorage.removeItem(k));
             await _fetchImpostazioniDaServer();
@@ -1580,6 +1665,8 @@ export function registerGlobals() {
     window._svuotaCacheLocale         = _svuotaCacheLocale;
     window.azioneEliminaStato      = azioneEliminaStato;
     window.azioneAggiungiStato     = azioneAggiungiStato;
+    window.azioneEliminaStatoFornitori = azioneEliminaStatoFornitori;
+    window.azioneAggiungiStatoFornitori = azioneAggiungiStatoFornitori;
     window.segnaModifica           = segnaModifica;
     window.salvaTutteImpostazioni  = salvaTutteImpostazioni;
     // QR Scanner

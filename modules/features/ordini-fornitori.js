@@ -14,6 +14,27 @@ const _ofCacheTs = {};  // { chiave: timestamp }
 const IDB_KEY = 'ORDINI_FORNITORI';
 const LS_KEY  = '_html_ORDINI_FORNITORI';
 
+// ─── Default stati fornitori (usati come fallback se window.listaStatiFornitori non è pronto) ─
+const _OF_STATI_FALLBACK = [
+    { stato: 'IN ATTESA',   colore: '#94a3b8' },
+    { stato: 'ORDINATO',    colore: '#fbbf24' },
+    { stato: 'PARZ. EVASO', colore: '#f97316' },
+    { stato: 'EVASO',       colore: '#22c55e' },
+    { stato: 'ANNULLATO',   colore: '#ef4444' }
+];
+
+function _getStatiFornitori() {
+    return (window.listaStatiFornitori && window.listaStatiFornitori.length)
+        ? window.listaStatiFornitori
+        : _OF_STATI_FALLBACK;
+}
+
+function _getColoreStato(nomeStato) {
+    const stati = _getStatiFornitori();
+    const found = stati.find(s => (s.stato || s.nome || '').toUpperCase() === (nomeStato || '').toUpperCase());
+    return found ? (found.colore || '#94a3b8') : '#94a3b8';
+}
+
 // ─── Fetch dati ────────────────────────────────────────────────────────────────
 async function _fetchOrdiniFornitori(signal) {
     const res = await gasRequestWithTimeout(
@@ -43,26 +64,47 @@ function _renderOrdiniFornitori(righe) {
         gruppi[key].push(r);
     });
 
-    const ordKeys = Object.keys(gruppi).sort((a, b) => {
+    // Separa ordini da revisionare (review_missing) dagli ordinari
+    const ordKeysMissing = [];
+    const ordKeysNormal  = [];
+    Object.keys(gruppi).forEach(k => {
+        const isMissing = gruppi[k].some(r => r.review_missing);
+        if (isMissing) ordKeysMissing.push(k);
+        else ordKeysNormal.push(k);
+    });
+
+    const _sortKeys = keys => keys.sort((a, b) => {
         const fA = (gruppi[a][0].fornitore || '').toUpperCase();
         const fB = (gruppi[b][0].fornitore || '').toUpperCase();
         if (fA < fB) return -1;
         if (fA > fB) return 1;
         return a < b ? -1 : a > b ? 1 : 0;
     });
+    _sortKeys(ordKeysMissing);
+    _sortKeys(ordKeysNormal);
+    const ordKeys = [...ordKeysMissing, ...ordKeysNormal];
 
     const totArticoli = righe.length;
     const totOrdini = ordKeys.length;
     const totEvasi = righe.reduce((s, r) => s + r.qta_evasa, 0);
     const totQtyAll = righe.reduce((s, r) => s + r.quantita, 0);
     const pctGlobal = totQtyAll > 0 ? Math.round((totEvasi / totQtyAll) * 100) : 0;
+    const nMissing = ordKeysMissing.length;
 
     let html = `<div class="acquisti-header header-flex">
         <div>
             <h3 class="acquisti-title">Ordini Fornitori</h3>
-            <p class="acquisti-subtitle">${totOrdini} ordini \u00b7 ${totArticoli} articoli \u00b7 ${pctGlobal}% evaso</p>
+            <p class="acquisti-subtitle">${totOrdini} ordini · ${totArticoli} articoli · ${pctGlobal}% evaso${nMissing > 0 ? ` · <span style="color:#d97706;font-weight:600">⚠ ${nMissing} da revisionare</span>` : ''}</p>
         </div>
     </div>`;
+
+    // Banner sezione "Da revisionare" se ci sono ordini mancanti
+    if (ordKeysMissing.length > 0) {
+        html += `<div class="of-review-banner">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span><strong>${ordKeysMissing.length} ordini</strong> non presenti nell'ultimo CSV caricato — verificali e archiviali se non più necessari.</span>
+        </div>`;
+    }
 
     ordKeys.forEach(nOrd => {
         const items = gruppi[nOrd];
@@ -72,20 +114,47 @@ function _renderOrdiniFornitori(righe) {
         const totEvasa = items.reduce((s, r) => s + r.qta_evasa, 0);
         const pct = totQty > 0 ? Math.round((totEvasa / totQty) * 100) : 0;
         const barColor = pct === 100 ? '#22c55e' : pct > 0 ? '#f59e0b' : '#e2e8f0';
+        const nOrdBadge = nOrd.length > 14 ? nOrd.substring(0, 14) + '…' : nOrd;
+        const isMissing = items.some(r => r.review_missing);
+        const statoCorrente = items[0].stato || _OF_STATI_FALLBACK[0].stato;
+        const coloreStato = _getColoreStato(statoCorrente);
+        const statoOpts = _getStatiFornitori().map(s => {
+            const n = s.stato || s.nome || '';
+            const sel = n.toUpperCase() === statoCorrente.toUpperCase() ? ' selected' : '';
+            return `<option value="${_esc(n)}"${sel}>${_esc(n)}</option>`;
+        }).join('');
 
-        const nOrdBadge = nOrd.length > 14 ? nOrd.substring(0, 14) + '\u2026' : nOrd;
+        const missingClass = isMissing ? ' of-ordine-missing' : '';
+        const missingBadge = isMissing
+            ? `<span class="of-badge-missing"><i class="fas fa-exclamation-triangle"></i> Da revisionare</span>`
+            : '';
+        const archiviaBtn = isMissing
+            ? `<button class="of-btn-archivia" onclick="event.stopPropagation(); _archiviaOrdineOF('${_esc(nOrd)}')" title="Archivia ordine">
+                   <i class="fas fa-archive"></i> Archivia
+               </button>`
+            : '';
 
-        html += `<div class="ordine-wrapper of-ordine-wrapper">
+        const nOrdEscaped = _esc(nOrd);
+
+        html += `<div class="ordine-wrapper of-ordine-wrapper${missingClass}" data-nordine="${nOrdEscaped}">
             <div class="riga-ordine of-riga-ordine" onclick="toggleAccordion(this)">
-                <div class="flex-grow">
+                <div class="flex-grow of-header-left">
                     <span class="order-title"><i class="fas fa-truck" style="font-size:.75rem;opacity:.5;margin-right:6px"></i>${_esc(fornitore)}</span>
+                    ${missingBadge}
                 </div>
                 <div class="order-info">
-                    <div class="badge-count"><span class="badge-ord-num">${_esc(nOrdBadge)}</span><span class="badge-sep">\u00b7</span>${items.length} ART.</div>
+                    <div class="badge-count"><span class="badge-ord-num">${_esc(nOrdBadge)}</span><span class="badge-sep">·</span>${items.length} ART.</div>
                     <span class="of-data-badge" title="Data consegna"><i class="far fa-calendar-alt"></i> ${_esc(dataCons)}</span>
                     <div class="of-progress-mini" title="${pct}% evaso">
                         <div class="of-progress-bar" style="width:${pct}%;background:${barColor}"></div>
                     </div>
+                    <div class="of-stato-wrapper" onclick="event.stopPropagation()">
+                        <span class="of-stato-dot" style="background:${coloreStato}"></span>
+                        <select class="of-stato-select" data-nordine="${nOrdEscaped}" onchange="_setStatoOF('${nOrdEscaped}', this.value, this)">
+                            ${statoOpts}
+                        </select>
+                    </div>
+                    ${archiviaBtn}
                     <i class="fas fa-chevron-down dettagli-chevron"></i>
                 </div>
             </div>
@@ -197,6 +266,71 @@ function _chiudiDettaglioOF() {
     if (m) {
         m.classList.remove('active');
         setTimeout(() => m.remove(), 200);
+    }
+}
+
+// ─── Cambio stato ordine fornitore ──────────────────────────────────────────────
+async function _setStatoOF(nOrdine, nuovoStato, selectEl) {
+    // Optimistic update: aggiorna colore dot subito
+    const wrapper = selectEl?.closest('.of-ordine-wrapper');
+    const dot = wrapper?.querySelector('.of-stato-dot');
+    if (dot) dot.style.background = _getColoreStato(nuovoStato);
+
+    try {
+        const res = await gasRequestWithTimeout(
+            { azione: 'setStatoOrdineFornitori', n_ordine: nOrdine, stato: nuovoStato },
+            8000, { retries: 1 }
+        );
+        if (!res || res.status !== 'ok') {
+            notificaElegante('Errore salvataggio stato', 'error');
+            return;
+        }
+        // Invalida cache per aggiornarsi al prossimo accesso
+        invalidateOFCache();
+    } catch (err) {
+        notificaElegante('Errore connessione', 'error');
+    }
+}
+
+// ─── Archivia ordine fornitore ──────────────────────────────────────────────────
+async function _archiviaOrdineOF(nOrdine) {
+    if (!confirm(`Archiviare l'ordine ${nOrdine}?\nNon comparirà più nella lista principale.`)) return;
+
+    // Optimistic: rimuovi subito il wrapper dalla vista
+    const wrapper = document.querySelector(`.of-ordine-wrapper[data-nordine="${nOrdine}"]`);
+    if (wrapper) {
+        wrapper.style.opacity = '0.4';
+        wrapper.style.pointerEvents = 'none';
+    }
+
+    try {
+        const res = await gasRequestWithTimeout(
+            { azione: 'archiviaOrdineFornitori', n_ordine: nOrdine },
+            8000, { retries: 1 }
+        );
+        if (!res || res.status !== 'ok') {
+            notificaElegante('Errore archiviazione', 'error');
+            if (wrapper) { wrapper.style.opacity = ''; wrapper.style.pointerEvents = ''; }
+            return;
+        }
+        if (wrapper) wrapper.remove();
+        // Aggiorna contatori nel subtitle
+        const subtitle = document.querySelector('.acquisti-subtitle');
+        if (subtitle) {
+            const newRighe = document.querySelectorAll('.of-ordine-wrapper');
+            const nMissing = document.querySelectorAll('.of-ordine-missing').length;
+            const missingTxt = nMissing > 0 ? ` · <span style="color:#d97706;font-weight:600">⚠ ${nMissing} da revisionare</span>` : '';
+            subtitle.innerHTML = `${newRighe.length} ordini${missingTxt}`;
+        }
+        // Rimuovi banner se non ci sono più ordini mancanti
+        if (!document.querySelector('.of-ordine-missing')) {
+            const banner = document.querySelector('.of-review-banner');
+            if (banner) banner.remove();
+        }
+        invalidateOFCache();
+    } catch (err) {
+        notificaElegante('Errore connessione', 'error');
+        if (wrapper) { wrapper.style.opacity = ''; wrapper.style.pointerEvents = ''; }
     }
 }
 
@@ -320,6 +454,8 @@ export function invalidateOFCache() {
 export function registerGlobals() {
     window._apriDettaglioOF    = _apriDettaglioOF;
     window._chiudiDettaglioOF  = _chiudiDettaglioOF;
+    window._setStatoOF         = _setStatoOF;
+    window._archiviaOrdineOF   = _archiviaOrdineOF;
     window.caricaOrdiniFornitori = caricaOrdiniFornitori;
     window.invalidateOFCache   = invalidateOFCache;
 }
