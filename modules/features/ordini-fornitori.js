@@ -448,6 +448,8 @@ export function invalidateOFCache() {
     delete _ofCache[IDB_KEY];
     delete _ofCacheTs[IDB_KEY];
     ProdCache.invalidate(IDB_KEY).catch(() => {});
+    // Pulisce anche la cache localStorage così il prossimo accesso rifà il fetch
+    try { localStorage.removeItem(LS_KEY); } catch (_) {}
 }
 
 // ─── Register globals ───────────────────────────────────────────────────────────
