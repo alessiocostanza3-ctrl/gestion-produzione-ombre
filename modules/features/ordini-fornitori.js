@@ -118,21 +118,20 @@ function _renderOrdiniFornitori(righe) {
         const isMissing = items.some(r => r.review_missing);
         const statoCorrente = items[0].stato || _OF_STATI_FALLBACK[0].stato;
         const coloreStato = _getColoreStato(statoCorrente);
-        const statoOpts = _getStatiFornitori().map(s => {
+        const statoOptsHtml = _getStatiFornitori().map(s => {
             const n = s.stato || s.nome || '';
-            const sel = n.toUpperCase() === statoCorrente.toUpperCase() ? ' selected' : '';
-            return `<option value="${_esc(n)}"${sel}>${_esc(n)}</option>`;
+            const c = s.colore || '#94a3b8';
+            const isSelected = n.toUpperCase() === statoCorrente.toUpperCase();
+            const selClass = isSelected ? ' is-selected' : '';
+            const checkIcon = isSelected ? '<i class="fas fa-check stato-check-icon"></i>' : '';
+            return `<button type="button" class="stato-option${selClass}" onclick="event.stopPropagation(); _selezionaStatoOF(this,'${nOrdEscaped}','${_esc(n)}','${c}')"><span class="stato-opt-dot" style="background:${c}"></span><span>${_esc(n)}</span>${checkIcon}</button>`;
         }).join('');
 
         const missingClass = isMissing ? ' of-ordine-missing' : '';
         const missingBadge = isMissing
             ? `<span class="of-badge-missing"><i class="fas fa-exclamation-triangle"></i> Da revisionare</span>`
             : '';
-        const archiviaBtn = isMissing
-            ? `<button class="of-btn-archivia" onclick="event.stopPropagation(); _archiviaOrdineOF('${_esc(nOrd)}')" title="Archivia ordine">
-                   <i class="fas fa-archive"></i> Archivia
-               </button>`
-            : '';
+        const archiviaBtn = `<button class="of-btn-archivia${isMissing ? '' : ' of-btn-archivia-quieta'}" onclick="event.stopPropagation(); _archiviaOrdineOF('${_esc(nOrd)}')" title="Archivia ordine"><i class="fas fa-archive"></i>${isMissing ? ' Archivia' : ''}</button>`;
 
         const nOrdEscaped = _esc(nOrd);
 
@@ -148,11 +147,13 @@ function _renderOrdiniFornitori(righe) {
                     <div class="of-progress-mini" title="${pct}% evaso">
                         <div class="of-progress-bar" style="width:${pct}%;background:${barColor}"></div>
                     </div>
-                    <div class="of-stato-wrapper" onclick="event.stopPropagation()">
-                        <span class="of-stato-dot" style="background:${coloreStato}"></span>
-                        <select class="of-stato-select" data-nordine="${nOrdEscaped}" onchange="_setStatoOF('${nOrdEscaped}', this.value, this)">
-                            ${statoOpts}
-                        </select>
+                    <div class="stato-dropdown stato-dropdown-ord" data-nordine="${nOrdEscaped}">
+                        <button type="button" class="stato-trigger" onclick="event.stopPropagation(); _toggleStatoDropdownOF(this)" title="Cambia stato">
+                            <span class="stato-dot" style="background:${coloreStato}"></span>
+                            <span class="stato-label-txt">${_esc(statoCorrente)}</span>
+                            <i class="fas fa-chevron-down stato-chevron"></i>
+                        </button>
+                        <div class="stato-popup">${statoOptsHtml}</div>
                     </div>
                     ${archiviaBtn}
                     <i class="fas fa-chevron-down dettagli-chevron"></i>
@@ -269,13 +270,38 @@ function _chiudiDettaglioOF() {
     }
 }
 
-// ─── Cambio stato ordine fornitore ──────────────────────────────────────────────
-async function _setStatoOF(nOrdine, nuovoStato, selectEl) {
-    // Optimistic update: aggiorna colore dot subito
-    const wrapper = selectEl?.closest('.of-ordine-wrapper');
-    const dot = wrapper?.querySelector('.of-stato-dot');
-    if (dot) dot.style.background = _getColoreStato(nuovoStato);
+// ─── Toggle dropdown stato OF ──────────────────────────────────────────────────
+function _toggleStatoDropdownOF(btn) {
+    const dd = btn.closest('.stato-dropdown');
+    const isOpen = dd.classList.contains('open');
+    document.querySelectorAll('.of-ordine-wrapper .stato-dropdown.open').forEach(el => el.classList.remove('open'));
+    if (!isOpen) dd.classList.add('open');
+}
 
+// ─── Selezione opzione dropdown stato OF ────────────────────────────────────────
+function _selezionaStatoOF(btn, nOrdine, nuovoStato, colore) {
+    const dd = btn.closest('.stato-dropdown');
+    // Optimistic update trigger
+    const dot = dd.querySelector('.stato-dot');
+    const lbl = dd.querySelector('.stato-label-txt');
+    if (dot) dot.style.background = colore;
+    if (lbl) lbl.textContent = nuovoStato;
+    // Update selected option
+    dd.querySelectorAll('.stato-option').forEach(opt => {
+        opt.classList.remove('is-selected');
+        const chk = opt.querySelector('.stato-check-icon');
+        if (chk) chk.remove();
+    });
+    btn.classList.add('is-selected');
+    const chkEl = document.createElement('i');
+    chkEl.className = 'fas fa-check stato-check-icon';
+    btn.appendChild(chkEl);
+    dd.classList.remove('open');
+    _setStatoOF(nOrdine, nuovoStato);
+}
+
+// ─── Cambio stato ordine fornitore ──────────────────────────────────────────────
+async function _setStatoOF(nOrdine, nuovoStato) {
     try {
         const res = await gasRequestWithTimeout(
             { azione: 'setStatoOrdineFornitori', n_ordine: nOrdine, stato: nuovoStato },
@@ -285,7 +311,6 @@ async function _setStatoOF(nOrdine, nuovoStato, selectEl) {
             notificaElegante('Errore salvataggio stato', 'error');
             return;
         }
-        // Invalida cache per aggiornarsi al prossimo accesso
         invalidateOFCache();
     } catch (err) {
         notificaElegante('Errore connessione', 'error');
@@ -454,10 +479,23 @@ export function invalidateOFCache() {
 
 // ─── Register globals ───────────────────────────────────────────────────────────
 export function registerGlobals() {
-    window._apriDettaglioOF    = _apriDettaglioOF;
-    window._chiudiDettaglioOF  = _chiudiDettaglioOF;
-    window._setStatoOF         = _setStatoOF;
-    window._archiviaOrdineOF   = _archiviaOrdineOF;
+    window._apriDettaglioOF      = _apriDettaglioOF;
+    window._chiudiDettaglioOF    = _chiudiDettaglioOF;
+    window._setStatoOF           = _setStatoOF;
+    window._selezionaStatoOF     = _selezionaStatoOF;
+    window._toggleStatoDropdownOF = _toggleStatoDropdownOF;
+    window._archiviaOrdineOF     = _archiviaOrdineOF;
     window.caricaOrdiniFornitori = caricaOrdiniFornitori;
-    window.invalidateOFCache   = invalidateOFCache;
+    window.invalidateOFCache     = invalidateOFCache;
+
+    // Chiudi dropdown OF al click fuori
+    if (!window._ofDropdownListenerAdded) {
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.of-ordine-wrapper .stato-dropdown')) {
+                document.querySelectorAll('.of-ordine-wrapper .stato-dropdown.open')
+                    .forEach(el => el.classList.remove('open'));
+            }
+        }, true);
+        window._ofDropdownListenerAdded = true;
+    }
 }

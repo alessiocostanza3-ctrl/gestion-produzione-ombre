@@ -8630,39 +8630,13 @@ body.page-pip #rotate-overlay { display: none !important; }
     min-width: 0;
 }
 
-/* Dropdown stato ordine fornitore */
-.of-stato-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 20px;
-    padding: 2px 8px 2px 5px;
-    flex-shrink: 0;
-}
-.of-stato-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    transition: background .2s;
-}
-.of-stato-select {
-    appearance: none;
-    -webkit-appearance: none;
-    background: transparent;
-    border: none;
-    outline: none;
-    font-size: 11px;
-    font-weight: 600;
-    color: #475569;
-    cursor: pointer;
-    padding: 0;
-    max-width: 110px;
+/* Elevazione z-index quando il dropdown OF è aperto */
+.of-ordine-wrapper:has(.stato-dropdown.open) {
+    position: relative;
+    z-index: 20;
 }
 
-/* Pulsante Archivia ordine fornitore */
+/* Pulsante Archivia ordine fornitore — variante visibile (ordini da revisionare) */
 .of-btn-archivia {
     display: inline-flex;
     align-items: center;
@@ -8687,11 +8661,20 @@ body.page-pip #rotate-overlay { display: none !important; }
     font-size: 10px;
 }
 
+/* Variante icon-only per ordini normali (non mancanti) */
+.of-btn-archivia-quieta {
+    padding: 3px 7px;
+    background: transparent;
+    border-color: #e2e8f0;
+    color: #94a3b8;
+}
+.of-btn-archivia-quieta:hover {
+    background: #fef2f2;
+    border-color: #fca5a5;
+    color: #dc2626;
+}
+
 @media (max-width: 768px) {
-    .of-stato-select {
-        max-width: 80px;
-        font-size: 10px;
-    }
     .of-btn-archivia {
         padding: 2px 8px;
         font-size: 10px;
