@@ -781,6 +781,16 @@ function _kitNSToggleSection(kitId, compIds, checked) {
     });
 }
 
+function _kitNSToggleSectionChk(el) {
+    try {
+        const kitId = el.dataset.kitid;
+        const compIds = JSON.parse(el.dataset.compids);
+        _kitNSToggleSection(kitId, compIds, el.checked);
+    } catch(e) {
+        console.error('[kit] _kitNSToggleSectionChk error', e);
+    }
+}
+
 function _kitNSReset(kitId) {
     if (!confirm('Azzerare la selezione corrente?')) return;
     const drafts = _kitLoadOrderDrafts();
@@ -911,13 +921,15 @@ function _kitRenderViewNew(kit, contenitore) {
         }).join('');
         const allChecked = comps.every(function(c) { return !!sel[c.id]; });
         const someChecked = comps.some(function(c) { return !!sel[c.id]; });
-        const sezCompIds = JSON.stringify(comps.map(function(c){ return c.id; }));
+        const sezCompIdsAttr = _esc(JSON.stringify(comps.map(function(c){ return c.id; })));
         return `<div class="kit-ns-section">
             <div class="kit-ns-section-header">
                 <span class="kit-ns-section-title">${_esc(sez.nome)}</span>
                 <label class="kit-ns-sel-all" title="${allChecked ? 'Deseleziona tutto' : 'Seleziona tutto'}">
-                    <input type="checkbox" class="kit-ns-check"${allChecked ? ' checked' : (someChecked ? ' data-indeterminate="true"' : '')}
-                        onchange="_kitNSToggleSection('${_esc(kit.id)}',${sezCompIds},this.checked)">
+                    <input type="checkbox" class="kit-ns-check kit-ns-sel-all-chk"
+                        data-kitid="${_esc(kit.id)}" data-compids="${sezCompIdsAttr}"
+                        ${allChecked ? ' checked' : (someChecked ? ' data-indeterminate="true"' : '')}
+                        onchange="_kitNSToggleSectionChk(this)">
                     <span>${allChecked ? 'Deseleziona tutto' : 'Seleziona tutto'}</span>
                 </label>
             </div>
@@ -5021,6 +5033,7 @@ export function registerGlobals() {
     window._kitNSOrderRemoveRef       = _kitNSOrderRemoveRef;
     window._kitNSReset                = _kitNSReset;
     window._kitNSToggleSection        = _kitNSToggleSection;
+    window._kitNSToggleSectionChk     = _kitNSToggleSectionChk;
     window._kitNSCreateDistinta       = _kitNSCreateDistinta;
     window._kitNSOpenPrintPreview     = _kitNSOpenPrintPreview;
 }
