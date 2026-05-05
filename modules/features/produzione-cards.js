@@ -109,9 +109,7 @@ export function generaBloccoOrdiniUnificato(dati, isArchivio) {
             _menuVoci = `<button class="ord-menu-item" onclick="event.stopPropagation();chiudiTuttiMenuAzioni();${_aRiprist}"><i class="fa-solid fa-rotate-left"></i> Ripristina</button>`;
         } else {
             _menuVoci += `<button class="ord-menu-item" onclick="event.stopPropagation();chiudiTuttiMenuAzioni();${_aChiedi}"><i class="fa-regular fa-envelope"></i> Chiedi</button>`;
-            if (window._isUtenteEsente()) {
-                _menuVoci += `<button class="ord-menu-item ord-menu-item--danger" onclick="event.stopPropagation();chiudiTuttiMenuAzioni();${_aArchivia}"><i class="fa-solid fa-box-archive"></i> Archivia</button>`;
-            }
+            _menuVoci += `<button class="ord-menu-item ord-menu-item--danger" onclick="event.stopPropagation();chiudiTuttiMenuAzioni();${_aArchivia}"><i class="fa-solid fa-box-archive"></i> Archivia</button>`;
             if (window._isCommerciale() || window._isUtenteEsente()) {
                 _menuVoci += `<button class="ord-menu-item ord-menu-item--warn" onclick="event.stopPropagation();chiudiTuttiMenuAzioni();${_aSollecit}"><i class="fa-solid fa-calendar-alt"></i> Scadenza</button>`;
             }
