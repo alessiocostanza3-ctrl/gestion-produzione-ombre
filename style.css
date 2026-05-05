@@ -2771,6 +2771,7 @@ h1 {
     padding: 4px 0;
 }
 .fabprod-sel-search::placeholder { color: #cbd5e1; }
+.fabprod-sel-modal-body {
     overflow-y: auto;
     padding: 8px 12px;
     flex: 1;
@@ -2789,11 +2790,11 @@ h1 {
     border: 1.5px solid transparent;
 }
 .fabprod-sel-item:hover { background: #f8fafc; }
-.fabprod-sel-item--checked { background: #f5f3ff; border-color: #ddd6fe; }
+.fabprod-sel-item--checked { background: #f1f5f9; border-color: #334155; }
 .fabprod-sel-item input[type="checkbox"] {
     width: 18px;
     height: 18px;
-    accent-color: #7c3aed;
+    accent-color: #1e293b;
     flex-shrink: 0;
     cursor: pointer;
 }
@@ -2837,7 +2838,7 @@ h1 {
 .fabprod-sel-btn-cancel:hover { background: #e2e8f0; }
 .fabprod-sel-btn-apply {
     flex: 2;
-    background: #1d4ed8;
+    background: #1e293b;
     border: none;
     border-radius: 12px;
     padding: 11px;
@@ -2847,7 +2848,7 @@ h1 {
     cursor: pointer;
     transition: background 0.15s;
 }
-.fabprod-sel-btn-apply:hover { background: #1e40af; }
+.fabprod-sel-btn-apply:hover { background: #334155; }
 
 
 /* â”€â”€â”€ CARD QUADRATE RICHIESTE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
