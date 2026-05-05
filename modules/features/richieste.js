@@ -1,5 +1,5 @@
-// PROD — Features / Richieste
-// Estratto da script.js — 27 marzo 2026
+﻿// PROD â€” Features / Richieste
+// Estratto da script.js â€” 27 marzo 2026
 // Dipendenze: ../core/config.js, ../core/cache.js, ../core/session.js, ../core/ui.js, ../core/revision-poller.js
 
 import { URL_GOOGLE } from '../core/config.js';
@@ -10,13 +10,18 @@ import RevisionPoller from '../core/revision-poller.js';
 import { prefetch } from '../core/state.js';
 import { lsCacheGet as _lsCacheGet, lsCacheSet as _lsCacheSet, lsCacheDel as _lsCacheDel } from '../core/ls-cache.js';
 
-// ─── Stato interno ────────────────────────────────────────────────────────────
+// â”€â”€â”€ Stato interno â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 let _ordiniAutocompleteCache = [];
 
-// ─── Alias _normNome (definita in script.js, dipende da _NOME_CANON) ──────────
+// â”€â”€â”€ Stato fabbisogno compilabile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+let _fabbisognoOrdiniSel   = new Set(); // ordini selezionati nel modal (reset a ogni load)
+let _fabbisognoRawRows     = [];        // righe di produzione grezze per ricalcolo client-side
+let _ordiniSelezionabili   = [];        // { ordine, cliente } unici, ordinati
+
+// â”€â”€â”€ Alias _normNome (definita in script.js, dipende da _NOME_CANON) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const _normNome = n => window._normNome ? window._normNome(n) : (n ? String(n).trim() : n);
 
-// ─── Helper: invalida cache STORICO_RICHIESTE ─────────────────────────────────
+// â”€â”€â”€ Helper: invalida cache STORICO_RICHIESTE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function _invalidaCacheRichieste() {
     if (window.cacheContenuti)  delete window.cacheContenuti['STORICO_RICHIESTE'];
     if (window.cacheFetchTime)  delete window.cacheFetchTime['STORICO_RICHIESTE'];
@@ -63,14 +68,14 @@ function _removeRichiestaCardOptimistic(idRiga) {
     return false;
 }
 
-// ─── Helper: verifica se utente è esente (ALESSIO/MASTER) ────────────────────
+// â”€â”€â”€ Helper: verifica se utente Ã¨ esente (ALESSIO/MASTER) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function _isUtenteEsente() {
     if (!utenteAttuale || !utenteAttuale.nome) return false;
     const nome = utenteAttuale.nome.toUpperCase();
     return nome === 'ALESSIO' || nome === '0000' || utenteAttuale.ruolo === 'MASTER';
 }
 
-// ─── Badge richieste su sidebar e bottom nav ──────────────────────────────────
+// â”€â”€â”€ Badge richieste su sidebar e bottom nav â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export function aggiornaBadgeRichieste(messaggi) {
     const badgeSidebar = document.getElementById('badge-richieste-count');
     const nomeSidebar  = document.getElementById('nome-utente-sidebar');
@@ -83,7 +88,7 @@ export function aggiornaBadgeRichieste(messaggi) {
     if (nomeSidebar) nomeSidebar.innerText = vistaAttiva;
     if (imgAvatar)   imgAvatar.src = `https://ui-avatars.com/api/?name=${vistaAttiva}&background=2563eb&color=fff`;
 
-    // Se si è già sulla pagina richieste, il badge rimane nascosto
+    // Se si Ã¨ giÃ  sulla pagina richieste, il badge rimane nascosto
     if (window.paginaAttuale === 'STORICO_RICHIESTE') {
         badgeSidebar.style.display = 'none';
         badgeSidebar.classList.remove('badge-sollecito-attivo');
@@ -93,7 +98,7 @@ export function aggiornaBadgeRichieste(messaggi) {
     const rilevanti = messaggi.filter(m => {
         const nonRisolto = String(m.RISOLTO).toLowerCase() !== 'true';
         if (vistaAttiva === 'MASTER') return nonRisolto;
-        // Il campo A può contenere destinatari multipli separati da virgola
+        // Il campo A puÃ² contenere destinatari multipli separati da virgola
         var destMatch = String(m.A || '').split(',').some(function(d) {
             return d.trim().toUpperCase() === vistaAttiva;
         });
@@ -197,14 +202,14 @@ async function confermaInvioSollecito() {
 /* ---- MODAL AIUTO ---- */
 function apriModalAiuto(idRiga, riferimento, nOrdine, cliente) {
     const modal = document.getElementById('modalAiuto');
-    if (modal.style.display === 'flex') return;  // guard: già aperto
+    if (modal.style.display === 'flex') return;  // guard: giÃ  aperto
 
     modal._openedAt = Date.now();   // grace-period backdrop
     modal.style.display = 'flex';
     modal.offsetHeight; // Forza il reflow per l'animazione
     modal.classList.add('active');
 
-    // Titolo più coerente: Messaggio invece di Supporto
+    // Titolo piÃ¹ coerente: Messaggio invece di Supporto
     document.getElementById('modal-titolo').innerText = idRiga ?
         `Messaggio Art. ${riferimento}` :
         `Messaggio Ordine ${nOrdine}`;
@@ -226,7 +231,7 @@ function apriModalAiuto(idRiga, riferimento, nOrdine, cliente) {
     const ordineRow = document.getElementById('modal-ordine-row');
     if (ordineRow) ordineRow.style.display = 'none';
 
-    // Reset del campo testo — modal sempre in modalità DOMANDA
+    // Reset del campo testo â€” modal sempre in modalitÃ  DOMANDA
     document.getElementById('messaggio-aiuto').value = "";
     setTipoAzione('DOMANDA');
 }
@@ -235,7 +240,7 @@ function apriModalAiuto(idRiga, riferimento, nOrdine, cliente) {
 // Supporta opzioni = { ordine, cliente, prodotto } per precompilazione da riga produzione
 export function apriNuovaRichiesta(opzioni = {}) {
     const modal = document.getElementById('modalAiuto');
-    // Guard DOM-based: se il modal è già visibile (aperto o in fase di chiusura), non fare nulla
+    // Guard DOM-based: se il modal Ã¨ giÃ  visibile (aperto o in fase di chiusura), non fare nulla
     if (modal.style.display === 'flex') return;
     modal._openedAt = Date.now();   // timestamp per grace-period backdrop
     modal.style.display = 'flex';
@@ -314,7 +319,7 @@ function _selezionaOrdine(ordine, cliente) {
     if (input) input.value = ordine;
     const list = document.getElementById('ordine-autocomplete');
     if (list) { list.style.display = 'none'; list.innerHTML = ''; }
-    // Aggiorna il dataset del modal affinché confermaInvioSupporto usi il valore corretto
+    // Aggiorna il dataset del modal affinchÃ© confermaInvioSupporto usi il valore corretto
     const modal = document.getElementById('modalAiuto');
     if (modal) {
         modal.dataset.nOrdine = ordine;
@@ -330,7 +335,7 @@ function setTipoAzione(tipo) {
 function chiudiModal() {
     const modal = document.getElementById('modalAiuto');
 
-    // 1. Porta subito display a '' così il guard DOM blocca riaperture durante il fade-out
+    // 1. Porta subito display a '' cosÃ¬ il guard DOM blocca riaperture durante il fade-out
     modal.style.display = '';
 
     // 2. Togli la classe active per avviare il fade-out
@@ -360,7 +365,7 @@ async function confermaInvioSupporto() {
     const listaNomiStr        = Array.from(checkboxSelezionate).map(cb => cb.getAttribute('data-nome')).join(', ');
     const listaNomiDestinatari = Array.from(checkboxSelezionate).map(cb => cb.getAttribute('data-nome'));
 
-    // ── Chiudi subito il modal e dai feedback immediato ──
+    // â”€â”€ Chiudi subito il modal e dai feedback immediato â”€â”€
     document.getElementById('messaggio-aiuto').value = '';
     chiudiModal();
     notificaElegante(tipoAzione === 'ASSEGNAZIONE' ? '\u2705 Assegnazione inviata' : '\u2705 Richiesta inviata');
@@ -368,7 +373,7 @@ async function confermaInvioSupporto() {
     // Invalida cache richieste in anticipo (client-side + prefetch bundle)
     _invalidaCacheRichieste();
 
-    // ── Fire-and-forget: entrambe le chiamate in background ──
+    // â”€â”€ Fire-and-forget: entrambe le chiamate in background â”€â”€
     const urlAssegnazione = `${URL_GOOGLE}?azione=assegnaOperatori&ordine=${encodeURIComponent(nOrd)}&operatori=${encodeURIComponent(listaNomiStr)}&id_riga=${idRiga}&mittente=${encodeURIComponent(utenteAttuale.nome.toUpperCase().trim())}&registra=0`;
     const clienteVal = (modalElement.dataset.cliente || '').trim();
     const payload = {
@@ -409,7 +414,7 @@ function toggleAreaRisposta(id) {
         const input = document.getElementById('input-risposta-' + id);
         if (input) {
             input.focus();
-            // Scroll al box dopo che la tastiera iOS si è aperta (~400ms)
+            // Scroll al box dopo che la tastiera iOS si Ã¨ aperta (~400ms)
             setTimeout(() => {
                 box.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }, 400);
@@ -442,7 +447,7 @@ async function inviaRisposta(idRiga, nOrdine, destinatario, cliente) {
     if (!testo) return;
 
     RevisionPoller.pauseFor(6000);
-    // ── Reset UI immediato ──
+    // â”€â”€ Reset UI immediato â”€â”€
     input.value = '';
     toggleAreaRisposta(idRiga); // chiude il box risposta subito
     notificaElegante('\u2705 Risposta inviata');
@@ -450,7 +455,7 @@ async function inviaRisposta(idRiga, nOrdine, destinatario, cliente) {
     // Invalida cache in anticipo
     _invalidaCacheRichieste();
 
-    // ── Fire-and-forget ──
+    // â”€â”€ Fire-and-forget â”€â”€
     const payload = {
         azione: 'supporto_multiplo',
         n_ordine: nOrdine,
@@ -500,7 +505,7 @@ function _isStatoEsclusoFabbisogno_(stato) {
     ].includes(key);
 }
 
-// ── Fabbisogno Produzione: navigazione e modals ──────────────────────────────
+// â”€â”€ Fabbisogno Produzione: navigazione e modals â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function _fabprodVaiOrdine(nOrd) {
     document.querySelectorAll('.fabprod-modal-overlay').forEach(el => el.remove());
     window.cambiaPagina?.('PROGRAMMA PRODUZIONE DEL MESE', null);
@@ -563,6 +568,127 @@ function _fabprodCardClick(idx) {
     // desktop: pills gestiscono il click da soli
 }
 
+// â”€â”€â”€ Fabbisogno compilabile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+function _aggiornaPannelloFabbisogno() {
+    const listEl   = document.getElementById('fabprod-list');
+    const badgeSel = document.getElementById('fabprod-sel-badge');
+    const badgeCnt = document.getElementById('fabprod-cnt-badge');
+    if (!listEl) return;
+
+    const rawFiltrate = _fabbisognoRawRows.filter(r => {
+        if (!r || !r.ordine) return false;
+        return _fabbisognoOrdiniSel.has(String(r.ordine).trim());
+    });
+    const rows = _buildFabbisognoProduzioneRows_(rawFiltrate);
+
+    // Aggiorna lista con mini-render inline (non _renderFabbisogno di closure)
+    if (!rows.length) {
+        listEl.innerHTML = _fabbisognoOrdiniSel.size === 0
+            ? `<div class="fabprod-empty-sel"><i class="fas fa-hand-pointer fabprod-empty-sel-icon"></i><div class="fabprod-empty-sel-text">Seleziona gli ordini per vedere il fabbisogno</div></div>`
+            : `<div class="empty-msg" style="margin:16px 0 8px">Nessun articolo attivo per gli ordini selezionati.</div>`;
+    } else {
+        window._fabprodCurrentRows = rows;
+        listEl.innerHTML = rows.map((row, idx) => {
+            const pillsHtml = row.ordini.map(o => {
+                const safeOrd = o.ordine.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                const safeCli = (o.cliente || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                return `<span class="fabprod-order-pill fabprod-order-pill--click" onclick="event.stopPropagation();_fabprodApriModalOrdine('${safeOrd}','${safeCli}')">ORD. ${o.ordine}${o.cliente ? `<span class="fabprod-pill-cliente"> \u00b7 ${o.cliente}</span>` : ''}</span>`;
+            }).join('');
+            const breakdownHtml = row.ordini.length > 1
+                ? `<div class="fabprod-qty-breakdown">${row.ordini.map(o => `${_formatQtyProduzione_(o.qty)}\u00a0(${o.ordine})`).join(' + ')}</div>`
+                : '';
+            return `<div class="fabprod-card" onclick="_fabprodCardClick(${idx})">
+                <div class="fabprod-top">
+                    <div class="fabprod-name">${row.codice ? `<span class="fabprod-code">${row.codice}</span>` : ''}${row.prodotto}</div>
+                    <span class="fabprod-qty">${_formatQtyProduzione_(row.qty)} pz</span>
+                </div>
+                ${breakdownHtml}
+                <div class="fabprod-orders">${pillsHtml}</div>
+            </div>`;
+        }).join('');
+    }
+
+    // Badge "N selezionati" nel bottone
+    const nSel = _fabbisognoOrdiniSel.size;
+    if (badgeSel) {
+        badgeSel.textContent = nSel;
+        badgeSel.style.display = nSel > 0 ? '' : 'none';
+    }
+    // Badge conteggio articoli nella summary
+    if (badgeCnt) {
+        badgeCnt.textContent = rows.length;
+        badgeCnt.style.display = rows.length > 0 ? '' : 'none';
+    }
+}
+
+function _apriModalFabbisognoSel() {
+    document.getElementById('fabprod-sel-modal')?.remove();
+
+    const itemsHtml = _ordiniSelezionabili.length
+        ? _ordiniSelezionabili.map(o => {
+            const checked = _fabbisognoOrdiniSel.has(o.ordine) ? ' checked' : '';
+            const safeOrd = o.ordine.replace(/"/g, '&quot;');
+            return `<label class="fabprod-sel-item${checked ? ' fabprod-sel-item--checked' : ''}">
+                <input type="checkbox" class="fabprod-sel-chk" value="${safeOrd}"${checked}>
+                <div class="fabprod-sel-item-info">
+                    <span class="fabprod-sel-ord">ORD. ${o.ordine}</span>
+                    ${o.cliente ? `<span class="fabprod-sel-cli">${o.cliente}</span>` : ''}
+                </div>
+            </label>`;
+        }).join('')
+        : `<div class="empty-msg" style="margin:16px 0">Nessun ordine attivo disponibile.</div>`;
+
+    const el = document.createElement('div');
+    el.id = 'fabprod-sel-modal';
+    el.className = 'fabprod-sel-modal-overlay';
+    el.innerHTML = `
+        <div class="fabprod-sel-modal-box">
+            <div class="fabprod-sel-modal-header">
+                <span><i class="fas fa-sliders"></i> Seleziona ordini</span>
+                <button type="button" class="fabprod-sel-modal-close" onclick="_chiudiModalFabbisognoSel()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="fabprod-sel-modal-body" id="fabprod-sel-modal-body">
+                ${itemsHtml}
+            </div>
+            <div class="fabprod-sel-footer">
+                <button type="button" class="fabprod-sel-btn-cancel" onclick="_chiudiModalFabbisognoSel()">Annulla</button>
+                <button type="button" class="fabprod-sel-btn-apply" id="fabprod-sel-apply" onclick="_applicaSelFabbisogno()">Applica</button>
+            </div>
+        </div>`;
+
+    // Aggiorna testo bottone Applica in tempo reale
+    el.addEventListener('change', () => {
+        const n = el.querySelectorAll('.fabprod-sel-chk:checked').length;
+        const btn = el.querySelector('#fabprod-sel-apply');
+        if (btn) btn.textContent = n > 0 ? `Applica (${n})` : 'Applica';
+    });
+    // Inizializza conteggio
+    const initN = _fabbisognoOrdiniSel.size;
+    const applyBtn = el.querySelector('#fabprod-sel-apply');
+    if (applyBtn && initN > 0) applyBtn.textContent = `Applica (${initN})`;
+
+    el.addEventListener('click', e => { if (e.target === el) _chiudiModalFabbisognoSel(); });
+    document.body.appendChild(el);
+    // Piccolo delay per animazione in
+    requestAnimationFrame(() => el.classList.add('fabprod-sel-modal-overlay--in'));
+}
+
+function _applicaSelFabbisogno() {
+    const modal = document.getElementById('fabprod-sel-modal');
+    if (!modal) return;
+    _fabbisognoOrdiniSel = new Set(
+        [...modal.querySelectorAll('.fabprod-sel-chk:checked')].map(c => c.value)
+    );
+    _chiudiModalFabbisognoSel();
+    _aggiornaPannelloFabbisogno();
+}
+
+function _chiudiModalFabbisognoSel() {
+    document.getElementById('fabprod-sel-modal')?.remove();
+}
+
+
 function _buildFabbisognoProduzioneRows_(righeProduzione) {
     const grouped = new Map();
     (righeProduzione || []).forEach(riga => {
@@ -594,7 +720,10 @@ function _buildFabbisognoProduzioneRows_(righeProduzione) {
         if (riga.ordine) {
             const nOrd = String(riga.ordine).trim();
             const cli  = String(riga.cliente || '').trim();
-            if (!entry.ordini.has(nOrd) || !entry.ordini.get(nOrd)) entry.ordini.set(nOrd, cli);
+            if (!entry.ordini.has(nOrd)) {
+                entry.ordini.set(nOrd, { cliente: cli, qty: 0 });
+            }
+            entry.ordini.get(nOrd).qty += qtyNetta;
         }
     });
 
@@ -604,16 +733,16 @@ function _buildFabbisognoProduzioneRows_(righeProduzione) {
             codice: entry.codice,
             qty: entry.qty,
             ordini: Array.from(entry.ordini.entries())
-                .map(([ord, cli]) => ({ ordine: ord, cliente: cli }))
+                .map(([ord, { cliente, qty }]) => ({ ordine: ord, cliente, qty }))
                 .sort((a, b) => a.ordine.localeCompare(b.ordine, 'it'))
         }))
         .sort((a, b) => (a.codice || '').localeCompare(b.codice || '', 'it', { sensitivity: 'base' }));
 }
 
-async function _loadFabbisognoProduzioneRows_() {
+async function _loadFabbisognoRawRows_() {
     const attiviProd = window._attiviProd;
     if (Array.isArray(attiviProd) && attiviProd.length) {
-        return _buildFabbisognoProduzioneRows_(attiviProd);
+        return attiviProd;
     }
 
     let dashBundle = null;
@@ -634,8 +763,11 @@ async function _loadFabbisognoProduzioneRows_() {
         dashBundle = await dashResp.json();
     }
 
-    const produzione = (dashBundle && dashBundle.produzione) || [];
-    return _buildFabbisognoProduzioneRows_(produzione);
+    return (dashBundle && dashBundle.produzione) || [];
+}
+
+async function _loadFabbisognoProduzioneRows_() {
+    return _buildFabbisognoProduzioneRows_(await _loadFabbisognoRawRows_());
 }
 
 /** Fetch del bundle richieste (+ fabbisogno produzione) dal GAS o dal prefetch in volo. */
@@ -661,12 +793,13 @@ export async function _fetchDatiRichieste(signal = null) {
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         return resp.json();
     }
-    const [bundle, fabbisogno] = await Promise.all([
+    const [bundle, fabbisognoRaw] = await Promise.all([
         _fetchRqBundle_(),
-        _loadFabbisognoProduzioneRows_().catch(e => { console.warn('Fabbisogno Produzione non disponibile:', e); return []; })
+        _loadFabbisognoRawRows_().catch(e => { console.warn('Fabbisogno Produzione non disponibile:', e); return []; })
     ]);
     if (!bundle) throw new Error('bundle vuoto');
-    return { attive: bundle.attive || [], archivio: bundle.archivio || [], fabbisogno };
+    const fabbisogno = _buildFabbisognoProduzioneRows_(fabbisognoRaw);
+    return { attive: bundle.attive || [], archivio: bundle.archivio || [], fabbisogno, fabbisognoRaw };
 }
 
 export async function caricaRichieste(expectedRequestId = null, signal = null) {
@@ -715,9 +848,28 @@ export function _renderDatiRichieste(_dati) {
     const contenitore = document.getElementById('contenitore-dati');
     if (!contenitore) return;
 
-    const messaggiAttivi   = _dati.attive     || [];
-    const messaggiArchivio = _dati.archivio   || [];
-    const fabbisognoRows   = _dati.fabbisogno || [];
+    const messaggiAttivi   = _dati.attive        || [];
+    const messaggiArchivio = _dati.archivio      || [];
+    const fabbisognoRows   = _dati.fabbisogno    || [];
+
+    // Inizializza stato fabbisogno compilabile (reset a ogni render)
+    _fabbisognoRawRows   = _dati.fabbisognoRaw || [];
+    _fabbisognoOrdiniSel = new Set();
+    // Costruisce lista ordini selezionabili: unici, non esclusi, ordinati per numero ordine
+    {
+        const seenOrd = new Set();
+        _ordiniSelezionabili = [];
+        for (const riga of _fabbisognoRawRows) {
+            if (!riga || !riga.ordine) continue;
+            if (String(riga.archiviato || '').toUpperCase() === 'TRUE') continue;
+            if (_isStatoEsclusoFabbisogno_(riga.stato)) continue;
+            const nOrd = String(riga.ordine).trim();
+            if (!nOrd || seenOrd.has(nOrd)) continue;
+            seenOrd.add(nOrd);
+            _ordiniSelezionabili.push({ ordine: nOrd, cliente: String(riga.cliente || '').trim() });
+        }
+        _ordiniSelezionabili.sort((a, b) => a.ordine.localeCompare(b.ordine, 'it'));
+    }
 
     const io = (utenteAttuale?.nome || '').toUpperCase().trim();
 
@@ -733,13 +885,13 @@ export function _renderDatiRichieste(_dati) {
         const _gruppiAttiviAll   = raggruppa(messaggiAttivi);
         const _gruppiArchivioAll = raggruppa(messaggiArchivio);
 
-        /* ── Filtro: ogni operatore vede solo thread in cui è coinvolto ── */
+        /* â”€â”€ Filtro: ogni operatore vede solo thread in cui Ã¨ coinvolto â”€â”€ */
         const _coinvolto = (() => {
             if (_isUtenteEsente()) return () => true;          // MASTER / ALESSIO vedono tutto
             const ioN = _normNome(utenteAttuale?.nome || '').toUpperCase();
             return (msgs) => msgs.some(m => {
                 if (_normNome(m.DA || '').toUpperCase() === ioN) return true;
-                // Il campo A può contenere destinatari multipli separati da virgola
+                // Il campo A puÃ² contenere destinatari multipli separati da virgola
                 var destStr = String(m.A || '');
                 return destStr.split(',').some(function(d) {
                     return _normNome(d.trim()).toUpperCase() === ioN;
@@ -754,7 +906,7 @@ export function _renderDatiRichieste(_dati) {
         const gruppiAttivi   = _filtraGruppi(_gruppiAttiviAll);
         const gruppiArchivio = _filtraGruppi(_gruppiArchivioAll);
 
-        // Separa per tipo — le scadenze vengono scorporate dal thread e messe in gScadenze a parte
+        // Separa per tipo â€” le scadenze vengono scorporate dal thread e messe in gScadenze a parte
         const gAssegnazioni = {};
         const gRichieste    = {};
         const gScadenze     = {};
@@ -802,23 +954,33 @@ export function _renderDatiRichieste(_dati) {
             return allMsgs.map(m => generaCardScadenza(m, io)).join('')
                 || `<div class="empty-msg" style="margin:16px 0 8px">Nessuna scadenza.</div>`;
         };
-        const _renderFabbisogno = () => {
-            if (!fabbisognoRows.length) {
-                return `<div class="empty-msg" style="margin:16px 0 8px">Nessun articolo attivo da produrre.</div>`;
+        const _renderFabbisogno = (rows) => {
+            if (!rows || !rows.length) {
+                if (_fabbisognoOrdiniSel.size === 0) {
+                    return `<div class="fabprod-empty-sel">
+                        <i class="fas fa-hand-pointer fabprod-empty-sel-icon"></i>
+                        <div class="fabprod-empty-sel-text">Seleziona gli ordini per vedere il fabbisogno</div>
+                    </div>`;
+                }
+                return `<div class="empty-msg" style="margin:16px 0 8px">Nessun articolo attivo per gli ordini selezionati.</div>`;
             }
-            window._fabprodCurrentRows = fabbisognoRows;
-            return fabbisognoRows.map((row, idx) => {
+            window._fabprodCurrentRows = rows;
+            return rows.map((row, idx) => {
                 const pillsHtml = row.ordini.map(o => {
                     const safeOrd = o.ordine.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                     const safeCli = (o.cliente || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                     return `<span class="fabprod-order-pill fabprod-order-pill--click" onclick="event.stopPropagation();_fabprodApriModalOrdine('${safeOrd}','${safeCli}')">ORD. ${o.ordine}${o.cliente ? `<span class="fabprod-pill-cliente"> \u00b7 ${o.cliente}</span>` : ''}</span>`;
                 }).join('');
+                const breakdownHtml = row.ordini.length > 1
+                    ? `<div class="fabprod-qty-breakdown">${row.ordini.map(o => `${_formatQtyProduzione_(o.qty)}\u00a0(${o.ordine})`).join(' + ')}</div>`
+                    : '';
                 return `
                 <div class="fabprod-card" onclick="_fabprodCardClick(${idx})">
                     <div class="fabprod-top">
                         <div class="fabprod-name">${row.codice ? `<span class="fabprod-code">${row.codice}</span>` : ''}${row.prodotto}</div>
                         <span class="fabprod-qty">${_formatQtyProduzione_(row.qty)} pz</span>
                     </div>
+                    ${breakdownHtml}
                     <div class="fabprod-orders">${pillsHtml}</div>
                 </div>`;
             }).join('');
@@ -848,11 +1010,19 @@ export function _renderDatiRichieste(_dati) {
                         <span class="rg-left">
                             <span class="rg-icon rg-icon-fabbisogno"><i class="fas fa-boxes-stacked"></i></span>
                             <span class="rg-title">FABBISOGNO PRODUZIONE</span>
-                            ${cntF > 0 ? `<span class="rg-count rg-count-fabb">${cntF}</span>` : ''}
+                            <span class="rg-count rg-count-fabb" id="fabprod-cnt-badge" style="${_fabbisognoOrdiniSel.size > 0 && fabbisognoRows.length > 0 ? '' : 'display:none'}">0</span>
+                        </span>
+                        <span class="fabprod-sel-btn-wrap">
+                            <button type="button" class="fabprod-sel-btn" id="fabprod-sel-btn"
+                                onclick="event.stopPropagation();_apriModalFabbisognoSel()">
+                                <i class="fas fa-sliders"></i>
+                                Seleziona ordini
+                                <span class="fabprod-sel-badge" id="fabprod-sel-badge" style="display:none">0</span>
+                            </button>
                         </span>
                         <i class="fas fa-chevron-down rg-chevron"></i>
                     </summary>
-                    <div class="fabprod-list">${_renderFabbisogno()}</div>
+                    <div class="fabprod-list" id="fabprod-list">${_renderFabbisogno([])}</div>
                 </details>
 
                 <details id="rg-assegnazioni" class="req-group" ${asseOpen ? 'open' : ''}
@@ -935,7 +1105,7 @@ function cambiaVistaUtente(valoreSelezionato) {
     // Ricarichiamo la pagina per aggiornare bolle e filtri
     caricaRichieste();
 }
-// ─── Sync Richieste → Produzione ────────────────────────────────────────────
+// â”€â”€â”€ Sync Richieste â†’ Produzione â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 /**
  * Pulisce ottimisticamente l'assegnazione dal DOM di Produzione (se caricato)
  * e aggiorna _attiviProd in-memory.
@@ -946,7 +1116,7 @@ function _clearAssegnazioneProduzione(nOrd) {
     if (typeof window._setAssegnaLocalByOrdine === 'function') {
         window._setAssegnaLocalByOrdine(nOrd, '');
     }
-    // Aggiorna il DOM della pagina Produzione se l'ordine è attualmente nel DOM
+    // Aggiorna il DOM della pagina Produzione se l'ordine Ã¨ attualmente nel DOM
     const wrapper = document.querySelector(`.ordine-wrapper[data-ordine="${CSS.escape(nOrd)}"]`);
     if (wrapper) {
         // Celle singola riga: visualizza-operatori e op-dropdown
@@ -1076,7 +1246,7 @@ function formattaData(stringaData) {
     if (!stringaData) return "N.D.";
 
     let d;
-    // Se è un timestamp numerico
+    // Se Ã¨ un timestamp numerico
     if (!isNaN(stringaData) && typeof stringaData !== 'string') {
         d = new Date(Number(stringaData));
     } else {
@@ -1112,7 +1282,7 @@ function generaCardRichiesta(msgs, io, isArchiviata) {
     // Usa il CLIENTE salvato nel record; se mancante (record vecchi) prova la cache degli ordini di produzione
     const nomeCliente = primo.CLIENTE || ultimo.CLIENTE || ((_ordiniAutocompleteCache || []).find(o => o.ordine === nOrd) || {}).cliente || "";
 
-    // Controlla se almeno un messaggio del gruppo è sollecitato
+    // Controlla se almeno un messaggio del gruppo Ã¨ sollecitato
     const isSollecitata = msgs.some(m => String(m.SOLLECITO).toLowerCase() === 'true');
 
     // Mittente e destinatario presi dal PRIMO messaggio (le risposte non cambiano il mittente originale)
@@ -1125,7 +1295,7 @@ function generaCardRichiesta(msgs, io, isArchiviata) {
         ? destinatariOriginali.map(d => `<span class="rc-val rc-val-a">${d}</span>`).join('<span style="color:#cbd5e1;margin:0 1px">,</span> ')
         : `<span class="rc-val rc-val-a">${destinatariOriginali[0] || '\u2013'}</span>`;
 
-    // Icona tipo — usa il tipo del PRIMO messaggio, non delle risposte
+    // Icona tipo â€” usa il tipo del PRIMO messaggio, non delle risposte
     const tipoRaw = (primo.TIPO || 'MSG').toUpperCase();
     // Array di tutti gli id_riga del thread (per archiviazione bulk)
     const tuttiIds = msgs.map(m => m.id_riga).join(',');
@@ -1279,7 +1449,7 @@ function generaCardScadenza(msg, io) {
 }
 /* ---- FINE SCADENZE ---- */
 
-// ─── Registrazione globals (onclick inline su HTML) ───────────────────────────
+// â”€â”€â”€ Registrazione globals (onclick inline su HTML) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export function registerGlobals() {
     window.chiudiModal             = chiudiModal;
     window.confermaInvioSupporto   = confermaInvioSupporto;
@@ -1299,10 +1469,14 @@ export function registerGlobals() {
     window._fetchDatiRichieste     = _fetchDatiRichieste;
     window._renderDatiRichieste    = _renderDatiRichieste;
     window._saveReqGroup           = _saveReqGroup;
-    window._fabprodCardClick       = _fabprodCardClick;
-    window._fabprodApriModalOrdine = _fabprodApriModalOrdine;
+    window._fabprodCardClick          = _fabprodCardClick;
+    window._fabprodApriModalOrdine    = _fabprodApriModalOrdine;
     window._fabprodApriModalArticolo = _fabprodApriModalArticolo;
-    window._fabprodVaiOrdine       = _fabprodVaiOrdine;
+    window._fabprodVaiOrdine          = _fabprodVaiOrdine;
+    window._aggiornaPannelloFabbisogno = _aggiornaPannelloFabbisogno;
+    window._apriModalFabbisognoSel    = _apriModalFabbisognoSel;
+    window._applicaSelFabbisogno      = _applicaSelFabbisogno;
+    window._chiudiModalFabbisognoSel  = _chiudiModalFabbisognoSel;
     window.aggiornaRichiesta       = aggiornaRichiesta;
     window._sollecitaConferma      = _sollecitaConferma;
     window._archiviaConferma       = _archiviaConferma;
@@ -1315,10 +1489,10 @@ export function registerGlobals() {
     window._getScadDate            = _getScadDate;
 }
 
-// ─── Init: event listeners DOM ────────────────────────────────────────────────
+// â”€â”€â”€ Init: event listeners DOM â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export function init() {
-    // FAB "+" — un solo listener 'click'.
-    // Il 300ms delay è eliminato dal CSS (touch-action: manipulation).
+    // FAB "+" â€” un solo listener 'click'.
+    // Il 300ms delay Ã¨ eliminato dal CSS (touch-action: manipulation).
     // Il guard in apriNuovaRichiesta() controlla il DOM (display === 'flex').
     const fabBtn = document.getElementById('btn-nuova-richiesta');
     if (fabBtn) {
@@ -1339,9 +1513,9 @@ export function init() {
         });
     }
 
-    // ── Chiudi box risposta/conferma toccando fuori dalla card (mobile) ──
+    // â”€â”€ Chiudi box risposta/conferma toccando fuori dalla card (mobile) â”€â”€
     document.addEventListener('click', function(e) {
-        // Se il click è dentro una req-card, non chiudere nulla
+        // Se il click Ã¨ dentro una req-card, non chiudere nulla
         if (e.target.closest('.req-card')) return;
         // Chiudi tutti i box-risposta e box-conferma aperti
         document.querySelectorAll('.box-risposta, .box-conferma').forEach(function(box) {
