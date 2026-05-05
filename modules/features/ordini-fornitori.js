@@ -116,6 +116,7 @@ function _renderOrdiniFornitori(righe) {
         const barColor = pct === 100 ? '#22c55e' : pct > 0 ? '#f59e0b' : '#e2e8f0';
         const nOrdBadge = nOrd.length > 14 ? nOrd.substring(0, 14) + '…' : nOrd;
         const isMissing = items.some(r => r.review_missing);
+        const nOrdEscaped = _esc(nOrd);
         const statoCorrente = items[0].stato || _OF_STATI_FALLBACK[0].stato;
         const coloreStato = _getColoreStato(statoCorrente);
         const statoOptsHtml = _getStatiFornitori().map(s => {
@@ -132,8 +133,6 @@ function _renderOrdiniFornitori(righe) {
             ? `<span class="of-badge-missing"><i class="fas fa-exclamation-triangle"></i> Da revisionare</span>`
             : '';
         const archiviaBtn = `<button class="of-btn-archivia${isMissing ? '' : ' of-btn-archivia-quieta'}" onclick="event.stopPropagation(); _archiviaOrdineOF('${_esc(nOrd)}')" title="Archivia ordine"><i class="fas fa-archive"></i>${isMissing ? ' Archivia' : ''}</button>`;
-
-        const nOrdEscaped = _esc(nOrd);
 
         html += `<div class="ordine-wrapper of-ordine-wrapper${missingClass}" data-nordine="${nOrdEscaped}">
             <div class="riga-ordine of-riga-ordine" onclick="toggleAccordion(this)">
@@ -274,8 +273,17 @@ function _chiudiDettaglioOF() {
 function _toggleStatoDropdownOF(btn) {
     const dd = btn.closest('.stato-dropdown');
     const isOpen = dd.classList.contains('open');
-    document.querySelectorAll('.of-ordine-wrapper .stato-dropdown.open').forEach(el => el.classList.remove('open'));
-    if (!isOpen) dd.classList.add('open');
+    // Chiudi tutti i dropdown aperti e rimuovi stato-aperto-ord dalla riga
+    document.querySelectorAll('.of-ordine-wrapper .stato-dropdown.open').forEach(el => {
+        el.classList.remove('open');
+        const riga = el.closest('.riga-ordine');
+        if (riga) riga.classList.remove('stato-aperto-ord');
+    });
+    if (!isOpen) {
+        dd.classList.add('open');
+        const riga = dd.closest('.riga-ordine');
+        if (riga) riga.classList.add('stato-aperto-ord');
+    }
 }
 
 // ─── Selezione opzione dropdown stato OF ────────────────────────────────────────
@@ -297,6 +305,8 @@ function _selezionaStatoOF(btn, nOrdine, nuovoStato, colore) {
     chkEl.className = 'fas fa-check stato-check-icon';
     btn.appendChild(chkEl);
     dd.classList.remove('open');
+    const riga = dd.closest('.riga-ordine');
+    if (riga) riga.classList.remove('stato-aperto-ord');
     _setStatoOF(nOrdine, nuovoStato);
 }
 
@@ -492,8 +502,11 @@ export function registerGlobals() {
     if (!window._ofDropdownListenerAdded) {
         document.addEventListener('click', function(e) {
             if (!e.target.closest('.of-ordine-wrapper .stato-dropdown')) {
-                document.querySelectorAll('.of-ordine-wrapper .stato-dropdown.open')
-                    .forEach(el => el.classList.remove('open'));
+                document.querySelectorAll('.of-ordine-wrapper .stato-dropdown.open').forEach(el => {
+                    el.classList.remove('open');
+                    const riga = el.closest('.riga-ordine');
+                    if (riga) riga.classList.remove('stato-aperto-ord');
+                });
             }
         }, true);
         window._ofDropdownListenerAdded = true;
