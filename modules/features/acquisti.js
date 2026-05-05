@@ -6,6 +6,7 @@ import { URL_GOOGLE, CACHE_TTL_MS } from '../core/config.js';
 import { utenteAttuale } from '../core/session.js';
 import { notificaElegante, applicaFade, mostraConferma, _esc } from '../core/ui.js';
 import RevisionPoller from '../core/revision-poller.js';
+import { gasRequestWithTimeout as _gasReqTimed } from '../core/api.js';
 import { lsCacheGet as _lsCacheGet, lsCacheSet as _lsCacheSet, lsCacheDel as _lsCacheDel } from '../core/ls-cache.js';
 import { prefetch } from '../core/state.js';
 import ProdCache from '../core/cache.js';
@@ -868,30 +869,31 @@ function _unbindArtModalViewport() {
 async function salvaArticolo() {
     const btn  = document.getElementById('btn-salva-articolo');
     const nome = document.getElementById('edit-nome').value.trim();
-    if (!nome) return alert("Inserisci il nome!");
-    RevisionPoller.pauseFor(6000);
-    const payload = {
-        azione: "gestisciMateriale",
-        id_riga:   document.getElementById('edit-id-riga').value,
-        nome,
-        codice:    document.getElementById('edit-codice').value,
-        fornitore: document.getElementById('edit-fornitore').value
-    };
-    btn.innerText = "Salvataggio...";
-    btn.disabled  = true;
+    if (!nome) { notificaElegante('Inserisci il nome del prodotto!', 'warning'); return; }
+    btn.textContent = 'Salvataggio...';
+    btn.disabled = true;
+    RevisionPoller.pauseFor(8000);
     try {
-        const res = await fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify(payload) });
-        const r   = await res.json();
+        const r = await _gasReqTimed({
+            azione:    'gestisciMateriale',
+            id_riga:   document.getElementById('edit-id-riga').value,
+            nome,
+            codice:    document.getElementById('edit-codice').value,
+            fornitore: document.getElementById('edit-fornitore').value
+        }, 10000, { noDedupe: true });
         if (r && r.status === 'auth_error') { window._gestisciAuthError_?.(r.message); return; }
-        if (r.status === "success") {
+        if (r && r.status === 'forbidden') { notificaElegante(r.message || 'Non hai i permessi per questa operazione.', 'error'); return; }
+        if (r && r.status === 'success') {
             chiudiModalArticolo();
-            caricaMateriali();
+            caricaMateriali(true);
+        } else {
+            notificaElegante('Errore durante il salvataggio.', 'error');
         }
     } catch (e) {
-        alert("Errore salvataggio!");
+        notificaElegante(e?.name === 'TimeoutError' ? 'Timeout: il server non risponde. Riprova.' : 'Errore di rete. Riprova.', 'error');
     } finally {
-        btn.innerText = "Salva";
-        btn.disabled  = false;
+        btn.textContent = 'Salva';
+        btn.disabled = false;
     }
 }
 
@@ -960,15 +962,14 @@ async function duplicaArticolo(idRiga, nome, fornitore, codice) {
         });
 
         try {
-            const res = await fetch(URL_GOOGLE, {
-                method: 'POST',
-                body: JSON.stringify({ azione: "duplicaMateriale", id_riga: idRiga, nome, codice, fornitore })
-            });
-            const r = await res.json();
-            if (r.status === "success") caricaMateriali(true);
+            const r = await _gasReqTimed({ azione: 'duplicaMateriale', id_riga: idRiga, nome, codice, fornitore }, 10000, { noDedupe: true });
+            if (r && r.status === 'auth_error') { window._gestisciAuthError_?.(r.message); return; }
+            if (r && r.status === 'forbidden') { nuovaCard.remove(); notificaElegante(r.message || 'Non hai i permessi.', 'error'); return; }
+            if (r && r.status === 'success') caricaMateriali(true);
+            else { nuovaCard.style.border = '1px solid red'; notificaElegante('Errore di sincronizzazione.', 'error'); }
         } catch (e) {
-            nuovaCard.style.border = "1px solid red";
-            notificaElegante('Errore di sincronizzazione.', 'error');
+            nuovaCard.style.border = '1px solid red';
+            notificaElegante(e?.name === 'TimeoutError' ? 'Timeout: il server non risponde.' : 'Errore di rete.', 'error');
         }
     }, 'Duplica');
 }
@@ -1112,19 +1113,16 @@ async function eliminaArticolo(idRiga) {
         card.style.opacity    = "0";
         setTimeout(() => card.style.display = "none", 300);
         try {
-            const res = await fetch(URL_GOOGLE, {
-                method: 'POST',
-                body: JSON.stringify({ azione: "eliminaMateriale", id_riga: idRiga })
-            });
-            const r = await res.json();
+            const r = await _gasReqTimed({ azione: 'eliminaMateriale', id_riga: idRiga }, 10000, { noDedupe: true });
             if (r && r.status === 'auth_error') { window._gestisciAuthError_?.(r.message); return; }
-            if (r.status !== "success") throw new Error();
+            if (r && r.status === 'forbidden') { card.style.display = 'flex'; card.style.opacity = '1'; card.style.transform = ''; notificaElegante(r.message || 'Non hai i permessi.', 'error'); return; }
+            if (r && r.status !== 'success') throw new Error();
             caricaMateriali(true);
         } catch (e) {
-            card.style.display   = "flex";
-            card.style.opacity   = "1";
-            card.style.transform = "";
-            notificaElegante("Errore durante l'eliminazione.", 'error');
+            card.style.display   = 'flex';
+            card.style.opacity   = '1';
+            card.style.transform = '';
+            notificaElegante(e?.name === 'TimeoutError' ? 'Timeout: il server non risponde.' : "Errore durante l'eliminazione.", 'error');
         }
     }, 'Elimina');
 }
@@ -1146,19 +1144,16 @@ async function eliminaSelezionati() {
             const card = cb.closest('.materiale-card');
             if (card) { card.style.opacity = "0.3"; card.style.pointerEvents = "none"; }
         });
-        const res = await fetch(URL_GOOGLE, {
-            method: 'POST',
-            body: JSON.stringify({ azione: "eliminaMateriale", id_riga: selezionati })
-        });
-        const r = await res.json();
+        const r = await _gasReqTimed({ azione: 'eliminaMateriale', id_riga: selezionati }, 10000, { noDedupe: true });
         if (r && r.status === 'auth_error') { window._gestisciAuthError_?.(r.message); return; }
-        if (r.status === "success") {
-            notificaElegante("Articoli eliminati con successo");
+        if (r && r.status === 'forbidden') { notificaElegante(r.message || 'Non hai i permessi.', 'error'); caricaMateriali(true); return; }
+        if (r && r.status === 'success') {
+            notificaElegante('Articoli eliminati con successo');
             const btnDelete = document.getElementById('btn-delete-selected');
             if (btnDelete) btnDelete.classList.remove('visible');
             caricaMateriali(false);
         } else {
-            throw new Error(r.message);
+            throw new Error(r && r.message);
         }
     } catch (e) {
         alert("Errore durante l'eliminazione multipla: " + e.message);
