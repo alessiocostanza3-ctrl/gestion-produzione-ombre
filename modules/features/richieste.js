@@ -625,8 +625,21 @@ function _aggiornaPannelloFabbisogno() {
 function _apriModalFabbisognoSel() {
     document.getElementById('fabprod-sel-modal')?.remove();
 
-    const itemsHtml = _ordiniSelezionabili.length
-        ? _ordiniSelezionabili.map(o => {
+    const buildItemsHtml = (filter) => {
+        const q = (filter || '').trim().toLowerCase();
+        const list = q
+            ? _ordiniSelezionabili.filter(o =>
+                o.ordine.toLowerCase().includes(q) ||
+                (o.cliente || '').toLowerCase().includes(q))
+            : _ordiniSelezionabili;
+
+        if (!list.length && !_ordiniSelezionabili.length) {
+            return `<div class="empty-msg" style="margin:16px 0">Nessun ordine attivo disponibile.</div>`;
+        }
+        if (!list.length) {
+            return `<div class="empty-msg" style="margin:16px 0">Nessun ordine trovato.</div>`;
+        }
+        return list.map(o => {
             const checked = _fabbisognoOrdiniSel.has(o.ordine) ? ' checked' : '';
             const safeOrd = o.ordine.replace(/"/g, '&quot;');
             return `<label class="fabprod-sel-item${checked ? ' fabprod-sel-item--checked' : ''}">
@@ -636,8 +649,8 @@ function _apriModalFabbisognoSel() {
                     ${o.cliente ? `<span class="fabprod-sel-cli">${o.cliente}</span>` : ''}
                 </div>
             </label>`;
-        }).join('')
-        : `<div class="empty-msg" style="margin:16px 0">Nessun ordine attivo disponibile.</div>`;
+        }).join('');
+    };
 
     const el = document.createElement('div');
     el.id = 'fabprod-sel-modal';
@@ -648,8 +661,13 @@ function _apriModalFabbisognoSel() {
                 <span><i class="fas fa-sliders"></i> Seleziona ordini</span>
                 <button type="button" class="fabprod-sel-modal-close" onclick="_chiudiModalFabbisognoSel()"><i class="fas fa-times"></i></button>
             </div>
+            <div class="fabprod-sel-search-wrap">
+                <i class="fas fa-search fabprod-sel-search-icon"></i>
+                <input type="text" class="fabprod-sel-search" id="fabprod-sel-search"
+                    placeholder="Cerca per ordine o cliente..." autocomplete="off">
+            </div>
             <div class="fabprod-sel-modal-body" id="fabprod-sel-modal-body">
-                ${itemsHtml}
+                ${buildItemsHtml('')}
             </div>
             <div class="fabprod-sel-footer">
                 <button type="button" class="fabprod-sel-btn-cancel" onclick="_chiudiModalFabbisognoSel()">Annulla</button>
@@ -657,12 +675,31 @@ function _apriModalFabbisognoSel() {
             </div>
         </div>`;
 
-    // Aggiorna testo bottone Applica in tempo reale
-    el.addEventListener('change', () => {
+    // Aggiorna badge Applica al cambio checkbox
+    el.addEventListener('change', e => {
+        if (!e.target.classList.contains('fabprod-sel-chk')) return;
+        // toggle classe --checked sulla label
+        e.target.closest('.fabprod-sel-item')?.classList.toggle('fabprod-sel-item--checked', e.target.checked);
         const n = el.querySelectorAll('.fabprod-sel-chk:checked').length;
         const btn = el.querySelector('#fabprod-sel-apply');
         if (btn) btn.textContent = n > 0 ? `Applica (${n})` : 'Applica';
     });
+
+    // Ricerca in tempo reale
+    el.addEventListener('input', e => {
+        if (e.target.id !== 'fabprod-sel-search') return;
+        // Prima salva lo stato corrente delle checkbox visibili
+        el.querySelectorAll('.fabprod-sel-chk').forEach(chk => {
+            if (chk.checked) _fabbisognoOrdiniSel.add(chk.value);
+            else _fabbisognoOrdiniSel.delete(chk.value);
+        });
+        const body = el.querySelector('#fabprod-sel-modal-body');
+        if (body) body.innerHTML = buildItemsHtml(e.target.value);
+        const n = _fabbisognoOrdiniSel.size;
+        const btn = el.querySelector('#fabprod-sel-apply');
+        if (btn) btn.textContent = n > 0 ? `Applica (${n})` : 'Applica';
+    });
+
     // Inizializza conteggio
     const initN = _fabbisognoOrdiniSel.size;
     const applyBtn = el.querySelector('#fabprod-sel-apply');
@@ -670,8 +707,10 @@ function _apriModalFabbisognoSel() {
 
     el.addEventListener('click', e => { if (e.target === el) _chiudiModalFabbisognoSel(); });
     document.body.appendChild(el);
-    // Piccolo delay per animazione in
-    requestAnimationFrame(() => el.classList.add('fabprod-sel-modal-overlay--in'));
+    requestAnimationFrame(() => {
+        el.classList.add('fabprod-sel-modal-overlay--in');
+        el.querySelector('#fabprod-sel-search')?.focus();
+    });
 }
 
 function _applicaSelFabbisogno() {
