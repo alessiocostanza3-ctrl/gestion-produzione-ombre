@@ -324,6 +324,16 @@ function _initBadgeNotifiche() {
             if (d && d.status === 'ok' && d.all && d.all.length) {
                 _salvaNotificheInLocale_(d.all);
                 _mostraToastRiepilogoNotifiche_(d.all.length);
+                // Aggiorna la cache push del SW per il fallback dei prossimi push
+                if (d.titolo && 'serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                    try {
+                        navigator.serviceWorker.controller.postMessage({
+                            type: 'CACHE_NOTIF',
+                            titolo: d.titolo,
+                            corpo: d.corpo || ''
+                        });
+                    } catch (_swmsg) {}
+                }
             }
         })
         .catch(function(err) { console.warn('[notifiche] _initBadgeNotifiche fetch fallito:', err); });

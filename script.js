@@ -48,6 +48,16 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('message', function(event) {
         if (event.data && event.data.type === 'NUOVE_NOTIFICHE') {
             _salvaNotificheInLocale_(event.data.notifiche || []);
+            // Aggiorna la cache del SW per il fallback dei prossimi push
+            var _notifs = event.data.notifiche || [];
+            if (_notifs.length > 0 && _notifs[0].titolo && 'caches' in window) {
+                caches.open('prod-last-notif').then(function(c) {
+                    c.put('last', new Response(JSON.stringify({
+                        titolo: _notifs[0].titolo,
+                        corpo: _notifs[0].corpo || ''
+                    })));
+                }).catch(function() {});
+            }
             return;
         }
         if (event.data && event.data.type === 'OPEN_CSV_MODAL') {

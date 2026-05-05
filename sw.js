@@ -9,7 +9,7 @@
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbyVMV9MkGiqphN0AKXJdHXF0Arp1vxTYrCYi1SGv_4MKLRJkx--5HoGq7mmQX-p0ZTZ/exec';
 var APP_URL = 'https://alessiocostanza3-ctrl.github.io/gestion-produzione-ombre/';
 
-var SHELL_CACHE = 'prod-shell-v259';
+var SHELL_CACHE = 'prod-shell-v260';
 var SHELL_ASSETS = [
     APP_URL,
     APP_URL + 'index.html',
@@ -102,14 +102,18 @@ self.addEventListener('push', function(event) {
                     return self.registration.pushManager.getSubscription()
                         .then(function(sub) {
                             var endpoint = sub && sub.endpoint ? sub.endpoint : '';
-                            if (!endpoint) return _showNotif_('PROD', 'Hai nuove notifiche', null);
-                            return fetch(GAS_URL, {
-                                method: 'POST',
-                                body: JSON.stringify({ azione: 'getNotificheByEndpoint', endpoint: endpoint })
-                            })
-                                .then(function(r) { return r.json(); })
+                            if (!endpoint) {
+                                return _leggiUltimaNotifCache_().then(function(n) {
+                                    return _showNotif_(n ? n.titolo : 'PROD', n ? n.corpo : 'Hai nuove notifiche', null);
+                                });
+                            }
+                            return _gasPostWithTimeout_({ azione: 'getNotificheByEndpoint', endpoint: endpoint }, 5000)
                                 .then(function(d) {
-                                    if (!d || d.status !== 'ok') return _showNotif_('PROD', 'Hai nuove notifiche', null);
+                                    if (!d || d.status !== 'ok') {
+                                        return _leggiUltimaNotifCache_().then(function(n) {
+                                            return _showNotif_(n ? n.titolo : 'PROD', n ? n.corpo : 'Hai nuove notifiche', null);
+                                        });
+                                    }
                                     var titolo = d.titolo || 'PROD';
                                     var corpo  = d.corpo  || '';
                                     var all    = d.all    || [{ titolo: titolo, corpo: corpo }];
@@ -119,23 +123,26 @@ self.addEventListener('push', function(event) {
                                     if (!_deveMostrareNotificaVisibile_(uname, titolo)) return;
                                     return _showNotif_(titolo, corpo, uname);
                                 })
-                                .catch(function() { return _showNotif_('PROD', 'Hai nuove notifiche', null); });
+                                .catch(function() {
+                                    return _leggiUltimaNotifCache_().then(function(n) {
+                                        return _showNotif_(n ? n.titolo : 'PROD', n ? n.corpo : 'Hai nuove notifiche', null);
+                                    });
+                                });
                         })
-                        .catch(function() { return _showNotif_('PROD', 'Hai nuove notifiche', null); });
+                        .catch(function() {
+                            return _leggiUltimaNotifCache_().then(function(n) {
+                                return _showNotif_(n ? n.titolo : 'PROD', n ? n.corpo : 'Hai nuove notifiche', null);
+                            });
+                        });
                 }
                 // markRead=0: il SW legge senza segnare come lette (evita race condition multi-device)
-                return fetch(GAS_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({ azione: 'getNotifiche', username: username, markRead: 0 })
-                })
-                    .then(function(r) { return r.json(); })
+                return _gasPostWithTimeout_({ azione: 'getNotifiche', username: username, markRead: 0 }, 5000)
                     .then(function(d) {
                         if (!d || d.status === 'none') {
                             return _leggiUltimaNotifCache_().then(function(n) {
-                                var titolo = n ? n.titolo : 'PROD';
-                                var corpo  = n ? n.corpo   : 'Nessuna nuova notifica';
-                                if (!_deveMostrareNotificaVisibile_(username, titolo)) return;
-                                return _showNotif_(titolo, corpo, username);
+                                if (!n) return; // niente da mostrare se non c'è nulla in cache
+                                if (!_deveMostrareNotificaVisibile_(username, n.titolo)) return;
+                                return _showNotif_(n.titolo, n.corpo, username);
                             });
                         }
                         var titolo = d.titolo || 'PROD';
@@ -149,7 +156,7 @@ self.addEventListener('push', function(event) {
                         return _showNotif_(titolo, corpo, username);
                     })
                     .catch(function() {
-                        // Fetch GAS fallito (cold start / offline): usa l'ultima notifica in cache
+                        // Fetch GAS fallito o scaduto (cold start / offline): usa cache
                         return _leggiUltimaNotifCache_().then(function(n) {
                             var titolo = n ? n.titolo : 'PROD';
                             var corpo  = n ? n.corpo   : 'Hai nuove notifiche';
@@ -159,8 +166,11 @@ self.addEventListener('push', function(event) {
                     });
             })
             .catch(function() {
-                // Ultimo fallback: evita che iOS mostri notifica generica "from Prod"
-                return _showNotif_('PROD', 'Hai nuove notifiche', null);
+                return _leggiUltimaNotifCache_().then(function(n) {
+                    return _showNotif_(n ? n.titolo : 'PROD', n ? n.corpo : 'Hai nuove notifiche', null);
+                }).catch(function() {
+                    return _showNotif_('PROD', 'Hai nuove notifiche', null);
+                });
             })
     );
 });
@@ -265,3 +275,29 @@ function _leggiUltimaNotifCache_() {
         .then(function(r) { return r ? r.json() : null; })
         .catch(function() { return null; });
 }
+
+/**
+ * Fetch POST a GAS con timeout via AbortController.
+ * Se GAS non risponde entro ms millisecondi, rigetta con AbortError.
+ */
+function _gasPostWithTimeout_(payload, ms) {
+    var ac = new AbortController();
+    var tid = setTimeout(function() { ac.abort(); }, ms || 5000);
+    return fetch(GAS_URL, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        signal: ac.signal
+    })
+        .then(function(r) { clearTimeout(tid); return r.json(); })
+        .catch(function(err) { clearTimeout(tid); throw err; });
+}
+
+/* ---- ricezione messaggi dall'app (page → SW) ---- */
+self.addEventListener('message', function(event) {
+    var data = event.data;
+    if (!data) return;
+    // L'app aggiorna la cache push dopo aver ricevuto notifiche fresche da GAS
+    if (data.type === 'CACHE_NOTIF' && data.titolo) {
+        _salvaUltimaNotifCache_(data.titolo, data.corpo || '');
+    }
+});
