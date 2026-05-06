@@ -1568,6 +1568,7 @@ async function salvaTutteImpostazioni() {
             method: 'POST',
             body: JSON.stringify({
                 azione: 'salva_impostazioni_globali',
+                sessionToken: window._getSessionToken_(),
                 stati: window.listaStati || [],
                 operatori: [],
                 distintaHeaderAzienda: String(window._distintaHeaderAzienda || '').trim()
