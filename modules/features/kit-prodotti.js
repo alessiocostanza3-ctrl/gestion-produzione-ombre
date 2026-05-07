@@ -1288,6 +1288,9 @@ function _kitBuildPrintPreviewHtml(kit, distinta, orderDraft) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Distinta base - ${_esc(kit.nome)}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lora:wght@600;700&family=Roboto:wght@400;500;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
             color-scheme: light;
@@ -1303,8 +1306,8 @@ function _kitBuildPrintPreviewHtml(kit, distinta, orderDraft) {
             --warning-line: #fcd34d;
         }
         * { box-sizing: border-box; }
-        html, body { margin: 0; padding: 0; background: var(--bg); font-family: Arial, Helvetica, sans-serif; color: var(--ink); }
-        body { min-height: 100vh; }
+        html, body { margin: 0; padding: 0; background: var(--bg); font-family: 'Roboto', 'Segoe UI', sans-serif; color: var(--ink); }
+        body { min-height: 100vh; font-size: 14px; }
         .db-print-toolbar {
             position: sticky;
             top: 0;
@@ -1318,7 +1321,7 @@ function _kitBuildPrintPreviewHtml(kit, distinta, orderDraft) {
             color: #fff;
             box-shadow: 0 10px 30px rgba(15, 23, 42, 0.22);
         }
-        .db-print-toolbar-title { font-size: 13px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+        .db-print-toolbar-title { font-size: 14px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
         .db-print-toolbar-actions { display: flex; gap: 8px; flex-wrap: wrap; }
         .db-print-toolbar button {
             border: 1px solid rgba(255,255,255,0.16);
@@ -1326,7 +1329,7 @@ function _kitBuildPrintPreviewHtml(kit, distinta, orderDraft) {
             color: #0f172a;
             border-radius: 999px;
             padding: 10px 16px;
-            font-size: 12px;
+            font-size: 13px;
             font-weight: 700;
             cursor: pointer;
         }
@@ -1353,7 +1356,7 @@ function _kitBuildPrintPreviewHtml(kit, distinta, orderDraft) {
         .db-print-company {
             max-width: 52%;
             min-width: 0;
-            font-size: 11px;
+            font-size: 13px;
             line-height: 1.55;
             color: var(--brand);
             white-space: pre-line;
@@ -1363,15 +1366,17 @@ function _kitBuildPrintPreviewHtml(kit, distinta, orderDraft) {
             min-width: 240px;
         }
         .db-print-title {
-            font-size: 24px;
+            font-family: 'Lora', Georgia, serif;
+            font-size: 46px;
             font-weight: 800;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.02em;
             text-transform: uppercase;
             color: var(--accent);
+            line-height: 1.05;
         }
         .db-print-subtitle {
             margin-top: 4px;
-            font-size: 11px;
+            font-size: 12px;
             color: var(--muted);
             text-transform: uppercase;
             letter-spacing: 0.08em;
@@ -1391,7 +1396,7 @@ function _kitBuildPrintPreviewHtml(kit, distinta, orderDraft) {
             display: grid;
             grid-template-columns: 108px 1fr;
             gap: 8px;
-            font-size: 12px;
+            font-size: 13px;
             padding: 3px 0;
         }
         .db-print-meta-label {
@@ -1417,21 +1422,21 @@ function _kitBuildPrintPreviewHtml(kit, distinta, orderDraft) {
         }
         .db-print-strip-cell:last-child { border-right: none; }
         .db-print-strip-label {
-            font-size: 10px;
+            font-size: 11px;
             color: var(--muted);
             text-transform: uppercase;
             letter-spacing: 0.06em;
             margin-bottom: 6px;
         }
         .db-print-strip-value {
-            font-size: 15px;
+            font-size: 19px;
             font-weight: 800;
             color: var(--accent);
         }
         .db-print-config-title,
         .db-print-materials-title,
         .db-print-alerts-title {
-            font-size: 12px;
+            font-size: 14px;
             font-weight: 800;
             text-transform: uppercase;
             letter-spacing: 0.08em;
@@ -1450,14 +1455,14 @@ function _kitBuildPrintPreviewHtml(kit, distinta, orderDraft) {
         .db-print-table td {
             border: 1px solid #cbd5e1;
             padding: 7px 8px;
-            font-size: 11px;
+            font-size: 12px;
             vertical-align: top;
         }
         .db-print-config-table th,
         .db-print-table th {
             background: #f8fafc;
             text-align: left;
-            font-size: 10px;
+            font-size: 11px;
             text-transform: uppercase;
             letter-spacing: 0.06em;
             color: var(--muted);
@@ -1471,7 +1476,7 @@ function _kitBuildPrintPreviewHtml(kit, distinta, orderDraft) {
             padding-top: 9px;
             padding-bottom: 9px;
         }
-        .db-print-row-name { font-size: 12px; font-weight: 700; color: var(--ink); }
+        .db-print-row-name { font-size: 13px; font-weight: 700; color: var(--ink); }
         .db-print-cell-ref { width: 70px; font-weight: 700; color: var(--brand); white-space: nowrap; }
         .db-print-cell-unit { width: 58px; text-align: center; font-weight: 700; }
         .db-print-cell-qty { width: 90px; text-align: right; font-weight: 800; }
@@ -1486,9 +1491,9 @@ function _kitBuildPrintPreviewHtml(kit, distinta, orderDraft) {
             border-color: var(--warning-line);
             background: var(--warning-bg);
         }
-        .db-print-alert-title { font-size: 12px; font-weight: 800; color: var(--ink); margin-bottom: 4px; }
-        .db-print-alert-meta { margin-top: 5px; font-size: 10px; color: var(--muted); }
-        .db-print-empty { color: var(--muted); font-size: 11px; padding: 12px; border: 1px dashed var(--line); }
+        .db-print-alert-title { font-size: 13px; font-weight: 800; color: var(--ink); margin-bottom: 4px; }
+        .db-print-alert-meta { margin-top: 5px; font-size: 11px; color: var(--muted); }
+        .db-print-empty { color: var(--muted); font-size: 12px; padding: 12px; border: 1px dashed var(--line); }
         @page {
             size: A4;
             margin: 12mm;

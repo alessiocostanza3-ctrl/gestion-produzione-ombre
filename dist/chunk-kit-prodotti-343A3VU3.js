@@ -117,6 +117,9 @@ import{a as Gi,c as Ot,e as Ji,f as r,g as y,h as vt,l as Wi,m as j,q as Yi,r as
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Distinta base - ${r(t.nome)}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lora:wght@600;700&family=Roboto:wght@400;500;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
             color-scheme: light;
@@ -132,8 +135,8 @@ import{a as Gi,c as Ot,e as Ji,f as r,g as y,h as vt,l as Wi,m as j,q as Yi,r as
             --warning-line: #fcd34d;
         }
         * { box-sizing: border-box; }
-        html, body { margin: 0; padding: 0; background: var(--bg); font-family: Arial, Helvetica, sans-serif; color: var(--ink); }
-        body { min-height: 100vh; }
+        html, body { margin: 0; padding: 0; background: var(--bg); font-family: 'Roboto', 'Segoe UI', sans-serif; color: var(--ink); }
+        body { min-height: 100vh; font-size: 14px; }
         .db-print-toolbar {
             position: sticky;
             top: 0;
@@ -147,7 +150,7 @@ import{a as Gi,c as Ot,e as Ji,f as r,g as y,h as vt,l as Wi,m as j,q as Yi,r as
             color: #fff;
             box-shadow: 0 10px 30px rgba(15, 23, 42, 0.22);
         }
-        .db-print-toolbar-title { font-size: 13px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+        .db-print-toolbar-title { font-size: 14px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
         .db-print-toolbar-actions { display: flex; gap: 8px; flex-wrap: wrap; }
         .db-print-toolbar button {
             border: 1px solid rgba(255,255,255,0.16);
@@ -155,7 +158,7 @@ import{a as Gi,c as Ot,e as Ji,f as r,g as y,h as vt,l as Wi,m as j,q as Yi,r as
             color: #0f172a;
             border-radius: 999px;
             padding: 10px 16px;
-            font-size: 12px;
+            font-size: 13px;
             font-weight: 700;
             cursor: pointer;
         }
@@ -182,7 +185,7 @@ import{a as Gi,c as Ot,e as Ji,f as r,g as y,h as vt,l as Wi,m as j,q as Yi,r as
         .db-print-company {
             max-width: 52%;
             min-width: 0;
-            font-size: 11px;
+            font-size: 13px;
             line-height: 1.55;
             color: var(--brand);
             white-space: pre-line;
@@ -192,15 +195,17 @@ import{a as Gi,c as Ot,e as Ji,f as r,g as y,h as vt,l as Wi,m as j,q as Yi,r as
             min-width: 240px;
         }
         .db-print-title {
-            font-size: 24px;
+            font-family: 'Lora', Georgia, serif;
+            font-size: 46px;
             font-weight: 800;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.02em;
             text-transform: uppercase;
             color: var(--accent);
+            line-height: 1.05;
         }
         .db-print-subtitle {
             margin-top: 4px;
-            font-size: 11px;
+            font-size: 12px;
             color: var(--muted);
             text-transform: uppercase;
             letter-spacing: 0.08em;
@@ -220,7 +225,7 @@ import{a as Gi,c as Ot,e as Ji,f as r,g as y,h as vt,l as Wi,m as j,q as Yi,r as
             display: grid;
             grid-template-columns: 108px 1fr;
             gap: 8px;
-            font-size: 12px;
+            font-size: 13px;
             padding: 3px 0;
         }
         .db-print-meta-label {
@@ -246,21 +251,21 @@ import{a as Gi,c as Ot,e as Ji,f as r,g as y,h as vt,l as Wi,m as j,q as Yi,r as
         }
         .db-print-strip-cell:last-child { border-right: none; }
         .db-print-strip-label {
-            font-size: 10px;
+            font-size: 11px;
             color: var(--muted);
             text-transform: uppercase;
             letter-spacing: 0.06em;
             margin-bottom: 6px;
         }
         .db-print-strip-value {
-            font-size: 15px;
+            font-size: 19px;
             font-weight: 800;
             color: var(--accent);
         }
         .db-print-config-title,
         .db-print-materials-title,
         .db-print-alerts-title {
-            font-size: 12px;
+            font-size: 14px;
             font-weight: 800;
             text-transform: uppercase;
             letter-spacing: 0.08em;
@@ -279,14 +284,14 @@ import{a as Gi,c as Ot,e as Ji,f as r,g as y,h as vt,l as Wi,m as j,q as Yi,r as
         .db-print-table td {
             border: 1px solid #cbd5e1;
             padding: 7px 8px;
-            font-size: 11px;
+            font-size: 12px;
             vertical-align: top;
         }
         .db-print-config-table th,
         .db-print-table th {
             background: #f8fafc;
             text-align: left;
-            font-size: 10px;
+            font-size: 11px;
             text-transform: uppercase;
             letter-spacing: 0.06em;
             color: var(--muted);
@@ -300,7 +305,7 @@ import{a as Gi,c as Ot,e as Ji,f as r,g as y,h as vt,l as Wi,m as j,q as Yi,r as
             padding-top: 9px;
             padding-bottom: 9px;
         }
-        .db-print-row-name { font-size: 12px; font-weight: 700; color: var(--ink); }
+        .db-print-row-name { font-size: 13px; font-weight: 700; color: var(--ink); }
         .db-print-cell-ref { width: 70px; font-weight: 700; color: var(--brand); white-space: nowrap; }
         .db-print-cell-unit { width: 58px; text-align: center; font-weight: 700; }
         .db-print-cell-qty { width: 90px; text-align: right; font-weight: 800; }
@@ -315,9 +320,9 @@ import{a as Gi,c as Ot,e as Ji,f as r,g as y,h as vt,l as Wi,m as j,q as Yi,r as
             border-color: var(--warning-line);
             background: var(--warning-bg);
         }
-        .db-print-alert-title { font-size: 12px; font-weight: 800; color: var(--ink); margin-bottom: 4px; }
-        .db-print-alert-meta { margin-top: 5px; font-size: 10px; color: var(--muted); }
-        .db-print-empty { color: var(--muted); font-size: 11px; padding: 12px; border: 1px dashed var(--line); }
+        .db-print-alert-title { font-size: 13px; font-weight: 800; color: var(--ink); margin-bottom: 4px; }
+        .db-print-alert-meta { margin-top: 5px; font-size: 11px; color: var(--muted); }
+        .db-print-empty { color: var(--muted); font-size: 12px; padding: 12px; border: 1px dashed var(--line); }
         @page {
             size: A4;
             margin: 12mm;
@@ -987,4 +992,4 @@ import{a as Gi,c as Ot,e as Ji,f as r,g as y,h as vt,l as Wi,m as j,q as Yi,r as
         <div class="kit-tabs">${ct}</div>
         <div class="kit-tab-panel kit-tab-panel--active kit-cfg-panel">${P[st]}</div>
     </div>`,vt(n)}function ro(t){if(t&&B===t){K();return}B=t,K()}function co(t){st=t,ao()}function S(t,i,n=!0){let{kits:e}=b(),o=e.find(s=>s.id===t);o&&(i(o),x(e),n&&Q())}function lo(t,i){S(t,function(n){n.nome=i.trim()||"Kit senza nome"},!1)}function po(t){if(!confirm("Eliminare questo kit e tutti i suoi dati?"))return;let{kits:i}=b();x(i.filter(n=>n.id!==t)),Ni=null,B=null,ft()}function mo(t){let{kits:i}=b(),n=i.find(o=>o.id===t);if(!n)return;let e={id:C(),nome:`Copia di ${n.nome}`,schemaVersion:Rt,assiConfigurazione:[],varianti:[],sezioni:[],sottoAssembly:[],qtaDaProdurre:{},pronti:{},movimenti:[]};for(let o of n.assiConfigurazione||[])e.assiConfigurazione.push(ui(o,n,e));e.varianti=pi(e.assiConfigurazione);for(let o of n.sezioni||[])e.sezioni.push($t(o,n,e));e.sottoAssembly=(n.sottoAssembly||[]).map(o=>({id:C(),nome:o.nome||"",varianteKey:o.varianteKey||"",noteConfig:o.noteConfig||""})),i.push(e),x(i),Ki(e.id),y(`Kit "${n.nome}" duplicato \u2713`)}function ji(t){S(t,function(i){let n=(i.assiConfigurazione||[]).length+1;i.assiConfigurazione=i.assiConfigurazione||[],i.assiConfigurazione.push({id:C(),key:"asse"+n,nome:"Asse "+n,opzioni:[{id:C(),key:"opz1",nome:"Opzione 1"}]})})}function uo(t,i,n,e){S(t,function(o){let s=(o.assiConfigurazione||[]).find(a=>a.id===i);s&&(n==="key"?s.key=G(e,s.key||"asse"):s[n]=e.trim())})}function fo(t,i){S(t,function(n){n.assiConfigurazione=(n.assiConfigurazione||[]).filter(e=>e.id!==i)})}function go(t,i){S(t,function(n){let e=(n.assiConfigurazione||[]).find(s=>s.id===i);if(!e)return;let o=(e.opzioni||[]).length+1;e.opzioni=e.opzioni||[],e.opzioni.push({id:C(),key:"opz"+o,nome:"Opzione "+o,codice:""})})}function ko(t,i,n,e,o){S(t,function(s){let a=(s.assiConfigurazione||[]).find(d=>d.id===i),c=a&&(a.opzioni||[]).find(d=>d.id===n);c&&(e==="key"?c.key=G(o,c.key||"opzione"):c[e]=o.trim())})}function vo(t,i,n){S(t,function(e){let o=(e.assiConfigurazione||[]).find(s=>s.id===i);o&&(o.opzioni=(o.opzioni||[]).filter(s=>s.id!==n))})}function yo(t){ji(t)}function bo(t){S(t,function(i){i.sezioni=i.sezioni||[],i.sezioni.push({id:C(),nome:"Nuova sezione",componenti:[]})})}function ho(t){Pi(t)}function zo(t,i,n,e){S(t,function(o){let s=(o.sezioni||[]).find(a=>a.id===i);s&&(s[n]=e.trim())},!1)}function wo(t,i){confirm("Eliminare questa sezione e tutti i suoi componenti?")&&S(t,function(n){n.sezioni=(n.sezioni||[]).filter(e=>e.id!==i)})}function _o(t,i){S(t,function(n){let e=(n.sezioni||[]).find(o=>o.id===i);e&&(e.componenti=e.componenti||[],e.componenti.push({id:C(),nome:"Nuovo componente",codice:"",qtaPerVariante:{},caricato:0,modoComponente:"quantificato",tracciabile:!0,noteConfig:"",unitaMisura:"pz"}))})}function Co(t,i,n,e,o,s){S(t,function(a){let c=(a.sezioni||[]).find(l=>l.id===i),d=c&&(c.componenti||[]).find(l=>l.id===n);if(d){if(e==="coeff"||e==="flag"){d.qtaPerVariante=d.qtaPerVariante||{},d.qtaPerVariante[o]=Z(s);return}if(e==="modo"){d.modoComponente=s==="segnalazione"?"segnalazione":"quantificato",d.modoComponente==="segnalazione"?(d.tracciabile=!1,d.unitaMisura="flag"):d.unitaMisura==="flag"&&(d.unitaMisura="pz");return}if(e==="unitaMisura"){d.unitaMisura=d.modoComponente==="segnalazione"?"flag":zt(s,"pz");return}d[e]=s.trim()}},e!=="nome"&&e!=="noteConfig")}function $o(t,i,n,e,o){S(t,function(s){let a=(s.sezioni||[]).find(l=>l.id===i),c=a&&(a.componenti||[]).find(l=>l.id===n);if(!c)return;let d=Vt(c,s);if(e==="tipo"){if(d.tipo=o==="gruppo"?"gruppo":"sempre",d.tipo==="gruppo"&&!d.asseId){d.asseId=s.assiConfigurazione?.[0]?.id||"";let l=(s.assiConfigurazione||[]).find(m=>m.id===d.asseId);d.opzioneIds=l?.opzioni?.length?[l.opzioni[0].id]:[]}}else if(e==="qtyBase")d.qtyBase=Z(o);else if(e==="asseId"){d.asseId=String(o||"");let l=(s.assiConfigurazione||[]).find(m=>m.id===d.asseId);d.opzioneIds=l?.opzioni?.length?[l.opzioni[0].id]:[],d.tipo="gruppo"}c.applicazioneTipo=d.tipo,c.applicazioneAsseId=d.asseId,c.applicazioneOpzioneIds=d.opzioneIds,c.qtaBase=d.qtyBase,c.qtaPerVariante=Ht(c,s,d)})}function So(t,i,n,e,o){S(t,function(s){let a=(s.sezioni||[]).find(m=>m.id===i),c=a&&(a.componenti||[]).find(m=>m.id===n);if(!c)return;let d=Vt(c,s),l=new Set(d.opzioneIds||[]);o?l.add(e):l.delete(e),d.tipo="gruppo",d.opzioneIds=[...l],c.applicazioneTipo=d.tipo,c.applicazioneAsseId=d.asseId,c.applicazioneOpzioneIds=d.opzioneIds,c.qtaBase=d.qtyBase,c.qtaPerVariante=Ht(c,s,d)})}function Io(t,i,n,e){S(t,function(o){let s=(o.sezioni||[]).find(c=>c.id===i),a=s&&(s.componenti||[]).find(c=>c.id===n);!a||H(a)||(a.tracciabile=!!e)},!1)}function xo(t,i,n){S(t,function(e){let o=(e.sezioni||[]).find(s=>s.id===i);o&&(o.componenti=(o.componenti||[]).filter(s=>s.id!==n))})}function Ao(t){S(t,function(i){i.sottoAssembly=i.sottoAssembly||[],i.sottoAssembly.push({id:C(),nome:"",varianteKey:q(i)[0]?.key||""})})}function Mo(t,i){S(t,function(n){n.sottoAssembly=n.sottoAssembly||[],n.sottoAssembly.push({id:C(),nome:"",varianteKey:i,noteConfig:""})})}function Eo(t,i,n,e){S(t,function(o){o.sottoAssembly[i]&&(o.sottoAssembly[i][n]=e.trim())},!1)}function No(t,i){S(t,function(n){n.sottoAssembly.splice(i,1)})}function qo(t){let i=document.getElementById("modal-kit-distinta-edit");if(!i){_i(t);return}let{kits:n}=b(),e=n.find(d=>d.id===t);if(!e)return;let o=it(e),s=J(o),a=document.getElementById("distinta-edit-nome"),c=document.getElementById("distinta-edit-documento");a&&(a.value=s.documento||""),c&&(c.value=s.documento||""),i.dataset.kitId=t,i.style.display="flex",i.offsetHeight,i.classList.add("active"),setTimeout(()=>a&&a.focus(),80)}function Kt(){let t=document.getElementById("modal-kit-distinta-edit");t&&(t.classList.remove("active"),setTimeout(()=>{t.classList.contains("active")||(t.style.display="none")},300))}function Oo(){let t=document.getElementById("modal-kit-distinta-edit");if(!t)return;let i=t.dataset.kitId,n=(document.getElementById("distinta-edit-nome")?.value||"").trim(),e=(document.getElementById("distinta-edit-documento")?.value||"").trim();if(!n){y("Inserisci un nome per la distinta.","warning");return}U(i,function(m){let p=J(m);e?p.documento=e:p.documento||(p.documento=n),At(m,p)});let{kits:o}=b(),s=o.find(m=>m.id===i);if(!s){Kt(),y("Kit non trovato \u26A0\uFE0F");return}let a=it(s),c=Nt(s,a);if(!c.totalePezzi||!c.totaleRighe){y("Componi prima un ordine per generare la distinta stampabile.","warning");return}let d=et(),l={id:C(),kitId:s.id,kitNome:s.nome,nome:n||a._meta?.documento||`Distinta-${Date.now()}`,documento:e||a._meta?.documento||"",createdAt:Date.now(),createdBy:j?.nome||"Sistema",orderDraftSnapshot:a,distintaSnapshot:c};d.unshift(l),wt(d),Kt(),y("Distinta salvata \u2713"),L==="distinte"&&T("distinte")}function Ho(){window._kitOpenView=He,window._kitOpenConfig=Ki,window._kitNuovoKit=Hn,window._kitBack=je,window._kitOpenPrintPreview=Me,window._kitSwitchTab=Qe,window._kitAggiornaQty=Ve,window._kitOrdineSet=Ue,window._kitOrdineDelta=Fe,window._kitOrdineReset=Ge,window._kitOrdineResetVoce=Je,window._kitOrderSearch=We,window._kitOrderHideSearch=Ye,window._kitOrderPick=Ze,window._kitOrderRemoveRef=Xe,window._kitComposeSelect=tn,window._kitComposeAdd=en,window._kitAggiornaCar=Si,window._kitAggiornaPronti=nn,window._kitSetPronti=on,window._kitApriModalSped=pn,window._kitChiudiModalSped=Mi,window._kitConfermaSpedizione=mn,window._kitApriModalReso=un,window._kitChiudiModalReso=Ei,window._kitResoQtyChange=fn,window._kitResoAggiornaBOM=ti,window._kitConfermaReso=gn,window._kitSalvaMovimento=an,window._kitEliminaMovimento=rn,window._kitModificaMovimento=dn,window._kitChiudiModalEditMov=Ai,window._kitConfermaModificaMov=ln,window._kitChiudiModalDelMov=Ii,window._kitConfermaEliminaMov=xi,window._kitSalvaManuale=kn,window._kitElimina=po,window._kitDuplicaKit=mo,window._kitCfgBack=ro,window._kitCfgSwitchTab=co,window._kitCfgSaveNome=lo,window._kitCfgAddVar=yo,window._kitCfgOpenImportModal=Pi,window._kitCfgOpenImportAsseModal=jn,window._kitCfgOpenCopySezModal=Qn,window._kitCfgCloseImportModal=dt,window._kitCfgSetImportMode=Vn,window._kitCfgSetImportSearch=Un,window._kitCfgSelectImportSource=Fn,window._kitCfgSelectImportSection=Gn,window._kitCfgToggleImportTarget=Jn,window._kitCfgSelectAllImportTargets=Wn,window._kitCfgClearImportTargets=Yn,window._kitCfgConfirmImport=Zn,window._kitOpenPresetsModal=Xn,window._kitClosePresetsModal=Ri,window._kitSetPresetsSearch=to,window._kitSelectPreset=io,window._kitCreatePresetFromSection=eo,window._kitCreatePreset=Hi,window._kitApplyPreset=no,window._kitRenamePreset=oo,window._kitDeletePreset=so,window._kitCfgAddAsse=ji,window._kitCfgUpdateAsse=uo,window._kitCfgDelAsse=fo,window._kitCfgAddOpzione=go,window._kitCfgUpdateOpzione=ko,window._kitCfgDelOpzione=vo,window._kitCfgAddSez=bo,window._kitCfgImportSez=ho,window._kitCfgUpdateSez=zo,window._kitCfgDelSez=wo,window._kitCfgAddComp=_o,window._kitCfgUpdateComp=Co,window._kitCfgUpdateCompRule=$o,window._kitCfgToggleCompOption=So,window._kitCfgToggleCompTracked=Io,window._kitCfgDelComp=xo,window._kitCfgAddSA=Ao,window._kitCfgAddSAForVariant=Mo,window._kitCfgUpdateSA=Eo,window._kitCfgDelSA=No,window._kitSwitchMainTab=T,window._kitRenderKitsGrid=hi,window._kitRenderAnagrafichePage=zi,window._kitRenderDistintePage=wi,window._kitLoadDistinte=et,window._kitSaveDistinte=wt,window._kitCreateDistintaFromDraft=_i,window._kitLoadAnagrafiche=W,window._kitSaveAnagrafiche=Xt,window._kitOpenAnagraficaModal=Te,window._kitCloseAnagraficaModal=Ci,window._kitConfirmSaveAnagrafica=De,window._kitDeleteAnagrafica=Le,window._kitOpenCreaKit=Oi,window._kitCloseCreaKit=Bi,window._kitConfirmCreaKit=Nn,window._kitOpenConfigModal=qi,window._kitCloseConfigModal=vn,window._kitRenderConfigModal=Q,window._kitCfgModalSaveNome=yn,window._kitCfgModalAddAnag=zn,window._kitCfgModalAddCompFree=wn,window._kitCfgModalUpdateSez=bn,window._kitCfgModalDelSez=hn,window._kitCfgModalUpdateComp=_n,window._kitCfgModalUpdateCompRule=Cn,window._kitCfgModalDelComp=$n,window._kitCfgModalAddAsse=Sn,window._kitCfgModalDelAsse=In,window._kitCfgModalUpdateAsse=xn,window._kitCfgModalAddOpz=An,window._kitCfgModalDelOpz=Mn,window._kitCfgModalUpdateOpz=En,window._kitQAddSezOpen=qn,window._kitQAddSezClose=Ti,window._kitQAddSezConfirm=On,window._kitQAddCompOpen=Bn,window._kitQAddCompToggleSource=Lt,window._kitQAddCompChangeCategoria=Di,window._kitQAddCompClose=Li,window._kitQAddCompConfirm=Tn,window._kitQUpdateComp=Dn,window._kitQRenomeSez=Ln,window._kitQDelComp=Kn,window._kitQDelSez=Pn,window._kitQDelKit=Rn,window._kitRenderHeaderActions=Zt,window._kitOpenSaveDistintaModal=qo,window._kitCloseSaveDistintaModal=Kt,window._kitConfirmSaveDistinta=Oo,window._kitDistintaOpenPrint=Ke,window._kitDistintaApplyToDraft=Pe,window._kitDistintaDelete=Re,window._kitNSToggleComp=ge,window._kitNSSetUnits=fe,window._kitNSOrderSearch=ke,window._kitNSOrderHideSearch=ve,window._kitNSOrderPick=ye,window._kitNSOrderRemoveRef=be,window._kitNSReset=ze,window._kitNSToggleSection=vi,window._kitNSToggleSectionChk=he,window._kitNSCreateDistinta=we,window._kitNSOpenPrintPreview=_e}var Pt,Ct,ai,ni,ri,Rt,Xi,ci,te,di,ie,Dt,ot,yt,Tt,L,bt,si,B,$i,Ni,st,_,E,pt,V,jo,Bo=Gi(()=>{Ji();Yi();Zi();Wi();Pt="_mlKitData",Ct="_mlKitDataTs",ai="_mlKitOrderDrafts",ni="_mlKitOrderDraftSeq",ri="_mlKitPresetSections",Rt=2,Xi=["pz","mt","cm","mm","kg","g","lt","ml"],ci="_mlKitDistinte",te="_mlKitDistinteTs",di="_mlKitAnagrafiche",ie="_mlKitAnagraficheTs",Dt=!1,ot=[],yt=null,Tt={},L="kits";bt={};si=null;B=null,$i="ordine";Ni=null,st="info",_=null,E=null,pt={kitId:null,sezId:null},V=null;jo=ft});Bo();export{ft as caricaKitProdotti,jo as default,Ho as registerGlobals,Ro as resetKitFetch};
-//# sourceMappingURL=chunk-kit-prodotti-UG64ZEVB.js.map
+//# sourceMappingURL=chunk-kit-prodotti-343A3VU3.js.map
