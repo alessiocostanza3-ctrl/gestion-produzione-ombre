@@ -29,7 +29,7 @@ import { aggiornaBadgeNotifiche, _initBadgeNotifiche, _salvaNotificheInLocale_, 
 import {
   aggiornaProfiloSidebar, _caricaColoriAvatarDaServer, _checkOrarioAccesso,
   _isUtenteEsente, _bloccaSchermo_,
-  _normNome, _PREDEFINED_AVATAR_COLORS, _avatarColorsCache, _isOrarioConsentito,
+  _normNome, _PREDEFINED_AVATAR_COLORS, _avatarColorsCache,
   registerGlobals as registerSessionUIGlobals
 } from './modules/auth/session-ui.js';
 
@@ -738,9 +738,6 @@ window.onload = async function() {
             return;
         }
 
-        // Blocco orario: se fuori orario e non esente â†’ blocca schermo (senza return, carica l'app sotto)
-        const _fuoriOrario = !_isUtenteEsente() && !_isOrarioConsentito();
-
         // Avvia subito le 3 fetch GAS in parallelo (risparmio 200-500ms warm-up su ogni reload)
         _prefetchBackground();
 
@@ -752,9 +749,6 @@ window.onload = async function() {
         (window.requestIdleCallback || function(cb) { setTimeout(cb, 3000); })(function() { _caricaColoriAvatarDaServer(); });
 
         if (overlay) overlay.style.display = 'none';
-
-        // Mostra blocco schermo sopra l'app se fuori orario (non fa logout, sessione preservata)
-        if (_fuoriOrario) _bloccaSchermo_();
 
     } else {
         // Se non c'Ã¨ sessione, forziamo il login

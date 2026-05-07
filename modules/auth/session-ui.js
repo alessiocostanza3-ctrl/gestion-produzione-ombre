@@ -273,7 +273,6 @@ setInterval(function() {
 // ── Exports ──────────────────────────────────────────────────────────────────
 
 export function registerGlobals() {
-    window._richiestaAccessoFuoriOrario_ = _richiestaAccessoFuoriOrario_;
     window._normNome                   = _normNome;
     window._PREDEFINED_AVATAR_COLORS   = _PREDEFINED_AVATAR_COLORS;
     window._avatarColorsCache          = _avatarColorsCache;
@@ -290,6 +289,5 @@ export {
     _bloccaSchermo_,
     _normNome,
     _PREDEFINED_AVATAR_COLORS,
-    _avatarColorsCache,
-    _isOrarioConsentito
+    _avatarColorsCache
 };
