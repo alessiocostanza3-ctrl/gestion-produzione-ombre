@@ -568,6 +568,182 @@ function _fabprodCardClick(idx) {
     // desktop: pills gestiscono il click da soli
 }
 
+function _fabprodEscHtml_(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function _fabprodBuildPrintRows_() {
+    const rows = [];
+    for (const riga of (_fabbisognoRawRows || [])) {
+        if (!riga || !riga.ordine) continue;
+        if (String(riga.archiviato || '').toUpperCase() === 'TRUE') continue;
+        if (_isStatoEsclusoFabbisogno_(riga.stato)) continue;
+        const ordine = String(riga.ordine || '').trim();
+        if (!ordine || !_fabbisognoOrdiniSel.has(ordine)) continue;
+
+        const qtyTotale = _parseQtyProduzione_(riga.qty);
+        const qtyEvasa = _parseQtyProduzione_(riga.qty_evasa);
+        const qtyNetta = Math.max(qtyTotale - qtyEvasa, 0);
+        if (qtyNetta <= 0) continue;
+
+        const prodotto = String(riga.prodotto || '').trim();
+        if (!prodotto) continue;
+
+        const codice = String(riga.codice || '').trim();
+        const cliente = String(riga.cliente || '').trim();
+        const descrizione = String(
+            riga.descrizione || riga.dettaglio || riga.riferimento || riga.rif_articolo || riga.note || ''
+        ).trim();
+
+        rows.push({ ordine, cliente, codice, prodotto, descrizione, qty: qtyNetta });
+    }
+
+    rows.sort((a, b) => {
+        const ordCmp = a.ordine.localeCompare(b.ordine, 'it', { numeric: true, sensitivity: 'base' });
+        if (ordCmp !== 0) return ordCmp;
+        const prodCmp = a.prodotto.localeCompare(b.prodotto, 'it', { sensitivity: 'base' });
+        if (prodCmp !== 0) return prodCmp;
+        return (a.codice || '').localeCompare(b.codice || '', 'it', { sensitivity: 'base' });
+    });
+    return rows;
+}
+
+function _fabprodBuildPrintHtml_(rows) {
+    const generatedAt = new Date();
+    const ordini = [..._fabbisognoOrdiniSel].sort((a, b) => a.localeCompare(b, 'it', { numeric: true, sensitivity: 'base' }));
+    const ordiniLabel = ordini.length <= 6
+        ? ordini.join(', ')
+        : `${ordini.slice(0, 6).join(', ')} +${ordini.length - 6}`;
+    const totaleQty = rows.reduce((sum, r) => sum + (Number(r.qty) || 0), 0);
+
+    const bodyRows = rows.map(r => `
+        <tr>
+            <td>${_fabprodEscHtml_(r.ordine)}</td>
+            <td>${_fabprodEscHtml_(r.cliente || '-')}</td>
+            <td>${_fabprodEscHtml_(r.codice || '-')}</td>
+            <td>${_fabprodEscHtml_(r.prodotto)}</td>
+            <td>${_fabprodEscHtml_(r.descrizione || '-')}</td>
+            <td class="qty">${_fabprodEscHtml_(_formatQtyProduzione_(r.qty))}</td>
+        </tr>
+    `).join('');
+
+    return `<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fabbisogno per ordini: ${_fabprodEscHtml_(ordiniLabel)}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lora:wght@600;700&family=Roboto:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root { --ink:#0f172a; --muted:#64748b; --line:#cbd5e1; --paper:#fff; --bg:#e5e7eb; }
+        * { box-sizing: border-box; }
+        html, body { margin:0; padding:0; background:var(--bg); color:var(--ink); font-family:'Roboto','Segoe UI',sans-serif; }
+        .toolbar {
+            position: sticky; top: 0; z-index: 9;
+            display:flex; align-items:center; justify-content:space-between; gap:12px;
+            padding:14px 18px; background:rgba(15,23,42,0.96); color:#fff;
+        }
+        .toolbar-title { font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; }
+        .toolbar-actions { display:flex; gap:8px; }
+        .toolbar button {
+            border:1px solid rgba(255,255,255,.16); border-radius:999px; padding:10px 16px;
+            font-size:12px; font-weight:700; cursor:pointer;
+            background:#fff; color:#0f172a;
+        }
+        .toolbar .ghost { background:transparent; color:#fff; }
+        .stage { padding:28px 18px 46px; }
+        .page {
+            width:210mm; min-height:297mm; margin:0 auto; background:var(--paper);
+            box-shadow:0 24px 50px rgba(15,23,42,.14); padding:18mm 16mm 14mm;
+        }
+        .title { font-family:'Lora', Georgia, serif; font-size:38px; font-weight:700; line-height:1.05; }
+        .subtitle { margin-top:4px; color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.06em; }
+        .meta { margin-top:14px; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+        .meta-card { border:1px solid var(--line); background:#f8fafc; padding:10px 12px; }
+        .meta-k { color:var(--muted); font-size:10px; text-transform:uppercase; letter-spacing:.06em; font-weight:700; }
+        .meta-v { color:var(--ink); font-size:13px; margin-top:4px; font-weight:700; }
+        .orders { margin-top:12px; padding:10px 12px; border:1px dashed var(--line); color:#334155; font-size:12px; }
+        .orders strong { color:#0f172a; }
+        table { width:100%; border-collapse:collapse; margin-top:14px; border:1px solid #94a3b8; }
+        th, td { border:1px solid var(--line); padding:8px; font-size:12px; vertical-align:top; }
+        th { background:#f8fafc; text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+        td.qty { text-align:right; font-weight:800; }
+        .footer { margin-top:12px; color:var(--muted); font-size:11px; }
+        @page { size:A4; margin:12mm; }
+        @media print {
+            html, body { background:#fff; }
+            .toolbar { display:none !important; }
+            .stage { padding:0; }
+            .page { width:auto; min-height:auto; margin:0; box-shadow:none; padding:0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <div class="toolbar-title">Fabbisogno per ordini</div>
+        <div class="toolbar-actions">
+            <button type="button" onclick="window.print()">Stampa</button>
+            <button type="button" class="ghost" onclick="window.close()">Chiudi</button>
+        </div>
+    </div>
+    <div class="stage">
+        <div class="page">
+            <div class="title">Fabbisogno per ordini</div>
+            <div class="subtitle">Documento operativo per produzione e approvvigionamento</div>
+            <div class="meta">
+                <div class="meta-card"><div class="meta-k">Data emissione</div><div class="meta-v">${_fabprodEscHtml_(generatedAt.toLocaleString('it-IT'))}</div></div>
+                <div class="meta-card"><div class="meta-k">Ordini selezionati</div><div class="meta-v">${_fabprodEscHtml_(String(ordini.length))}</div></div>
+                <div class="meta-card"><div class="meta-k">Totale quantità</div><div class="meta-v">${_fabprodEscHtml_(_formatQtyProduzione_(totaleQty))} pz</div></div>
+            </div>
+            <div class="orders"><strong>Fabbisogno per ordini:</strong> ${_fabprodEscHtml_(ordiniLabel)}</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:13%">N. Ordine</th>
+                        <th style="width:20%">Cliente</th>
+                        <th style="width:10%">Codice</th>
+                        <th style="width:22%">Prodotto</th>
+                        <th>Descrizione</th>
+                        <th style="width:11%">Quantità</th>
+                    </tr>
+                </thead>
+                <tbody>${bodyRows || '<tr><td colspan="6">Nessuna riga disponibile per la stampa.</td></tr>'}</tbody>
+            </table>
+            <div class="footer">Generato da PROD - ${_fabprodEscHtml_(String(utenteAttuale?.nome || 'Sistema'))}</div>
+        </div>
+    </div>
+</body>
+</html>`;
+}
+
+function _fabprodStampaFabbisognoSel() {
+    if (!_fabbisognoOrdiniSel.size) {
+        notificaElegante('Seleziona almeno un ordine prima di stampare il fabbisogno.', 'warning');
+        return;
+    }
+    const rows = _fabprodBuildPrintRows_();
+    if (!rows.length) {
+        notificaElegante('Nessuna riga utile da stampare per gli ordini selezionati.', 'warning');
+        return;
+    }
+    const win = window.open('', '_blank');
+    if (!win) {
+        notificaElegante('Popup bloccato: abilita l\'anteprima di stampa.', 'warning');
+        return;
+    }
+    win.document.open();
+    win.document.write(_fabprodBuildPrintHtml_(rows));
+    win.document.close();
+    win.focus();
+}
+
 // â”€â”€â”€ Fabbisogno compilabile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function _aggiornaPannelloFabbisogno() {
@@ -620,6 +796,8 @@ function _aggiornaPannelloFabbisogno() {
         badgeCnt.textContent = rows.length;
         badgeCnt.style.display = rows.length > 0 ? '' : 'none';
     }
+    const printBtn = document.getElementById('fabprod-print-btn');
+    if (printBtn) printBtn.disabled = _fabbisognoOrdiniSel.size === 0;
 }
 
 function _apriModalFabbisognoSel() {
@@ -1051,12 +1229,17 @@ export function _renderDatiRichieste(_dati) {
                             <span class="rg-title">FABBISOGNO PRODUZIONE</span>
                             <span class="rg-count rg-count-fabb" id="fabprod-cnt-badge" style="${_fabbisognoOrdiniSel.size > 0 && fabbisognoRows.length > 0 ? '' : 'display:none'}">0</span>
                         </span>
-                        <span class="fabprod-sel-btn-wrap">
+                        <span class="fabprod-actions-wrap">
                             <button type="button" class="fabprod-sel-btn" id="fabprod-sel-btn"
                                 onclick="event.stopPropagation();_apriModalFabbisognoSel()">
                                 <i class="fas fa-sliders"></i>
                                 Seleziona ordini
                                 <span class="fabprod-sel-badge" id="fabprod-sel-badge" style="display:none">0</span>
+                            </button>
+                            <button type="button" class="fabprod-print-btn" id="fabprod-print-btn"
+                                onclick="event.stopPropagation();_fabprodStampaFabbisognoSel()" disabled>
+                                <i class="fas fa-print"></i>
+                                Stampa
                             </button>
                         </span>
                         <i class="fas fa-chevron-down rg-chevron"></i>
@@ -1516,6 +1699,7 @@ export function registerGlobals() {
     window._apriModalFabbisognoSel    = _apriModalFabbisognoSel;
     window._applicaSelFabbisogno      = _applicaSelFabbisogno;
     window._chiudiModalFabbisognoSel  = _chiudiModalFabbisognoSel;
+    window._fabprodStampaFabbisognoSel = _fabprodStampaFabbisognoSel;
     window.aggiornaRichiesta       = aggiornaRichiesta;
     window._sollecitaConferma      = _sollecitaConferma;
     window._archiviaConferma       = _archiviaConferma;
