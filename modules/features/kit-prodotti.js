@@ -1244,8 +1244,8 @@ function _kitBuildPrintPreviewHtml(kit, distinta, orderDraft) {
     const meta = _kitGetOrderMeta(orderDraft);
     const companyHeader = _kitGetPrintCompanyHeader();
     const docRef = String(meta.documento || '').trim();
-    const companyHeaderHtml = companyHeader
-        ? companyHeader.split(/\r?\n/).map(line => `<div>${_esc(line)}</div>`).join('')
+    const companyHeaderInline = companyHeader
+        ? companyHeader.split(/\r?\n/).map(line => String(line || '').trim()).filter(Boolean).join(' - ')
         : '';
     const ordiniClienteLabel = meta.ordiniCliente.length > 1 ? 'Ordini cliente' : 'Ordine cliente';
     const ordiniClienteValue = meta.ordiniCliente.join(' · ');
@@ -1353,13 +1353,19 @@ function _kitBuildPrintPreviewHtml(kit, distinta, orderDraft) {
             gap: 18px;
             margin-bottom: 14px;
         }
-        .db-print-company {
-            max-width: 52%;
-            min-width: 0;
-            font-size: 13px;
-            line-height: 1.55;
+        .db-print-company-footer {
+            margin-top: 14px;
+            padding-top: 10px;
+            border-top: 1px solid var(--line);
+            text-align: center;
+            font-size: 12px;
+            line-height: 1.45;
             color: var(--brand);
-            white-space: pre-line;
+            font-weight: 500;
+            letter-spacing: 0.01em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .db-print-title-block {
             text-align: left;
@@ -1528,7 +1534,6 @@ function _kitBuildPrintPreviewHtml(kit, distinta, orderDraft) {
                     <div class="db-print-title">Distinta Base</div>
                     <div class="db-print-subtitle">Documento interno di produzione e approvvigionamento</div>
                 </div>
-                ${companyHeaderHtml ? `<div class="db-print-company" style="text-align:right">${companyHeaderHtml}</div>` : ''}
             </div>
 
             <div class="db-print-meta-grid">
@@ -1575,6 +1580,8 @@ function _kitBuildPrintPreviewHtml(kit, distinta, orderDraft) {
 
             <div class="db-print-alerts-title">Attenzioni operative</div>
             <div class="db-print-alerts">${avvisiHtml}</div>
+
+            ${companyHeaderInline ? `<div class="db-print-company-footer">${_esc(companyHeaderInline)}</div>` : ''}
         </div>
     </div>
 </body>
