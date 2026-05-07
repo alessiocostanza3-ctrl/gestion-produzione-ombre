@@ -1851,7 +1851,7 @@ function _kitRenderKitsGrid(kits, container) {
             </div>`).join('');
 
             return `
-            <details style="border-top:1px solid #f1f5f9" open>
+            <details style="border-top:1px solid #f1f5f9">
                 <summary style="display:flex;justify-content:space-between;align-items:center;padding:7px 12px;cursor:pointer;list-style:none;user-select:none;background:#fafafa;border-radius:0">
                     <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
                         <input type="text" value="${_esc(sez.nome)}"
