@@ -105,9 +105,7 @@ async function _caricaColoriAvatarDaServer() {
 // ── Blocco orario accesso ──────────────────────────────────────────────────
 
 function _isUtenteEsente() {
-    if (!utenteAttuale || !utenteAttuale.nome) return false;
-    const nome = utenteAttuale.nome.toUpperCase();
-    return nome === 'ALESSIO' || nome === '0000' || utenteAttuale.ruolo === 'MASTER';
+    return !!(utenteAttuale && utenteAttuale.nome);
 }
 
 function _isCommerciale() {

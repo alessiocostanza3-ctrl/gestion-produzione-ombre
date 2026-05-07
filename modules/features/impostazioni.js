@@ -1363,7 +1363,7 @@ function caricaInterfacciaImpostazioni() {
     `;
     applicaFade(contenitore);
     requestAnimationFrame(() => _qrRenderListaCanvas());
-    if (utenteAttuale?.ruolo === 'MASTER') {
+    if (utenteAttuale) {
         initSortable('lista-stati-config', (container) => {
             const rows = [...container.querySelectorAll('[data-idx]')];
             const nuovoOrdine = rows.map(el => (window.listaStati || [])[+el.dataset.idx]);

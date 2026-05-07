@@ -1273,7 +1273,6 @@ export function _renderDatiRichieste(_dati) {
                     <div class="chat-inbox">${_renderGroup(gRichieste, io)}</div>
                 </details>
 
-                ${_isUtenteEsente() ? `
                 <details id="rg-scadenze" class="req-group" ${scadOpen ? 'open' : ''}
                          ontoggle="_saveReqGroup('scadenze', this)">
                     <summary class="req-group-summary">
@@ -1285,7 +1284,7 @@ export function _renderDatiRichieste(_dati) {
                         <i class="fas fa-chevron-down rg-chevron"></i>
                     </summary>
                     <div class="chat-inbox">${_renderScadenze()}</div>
-                </details>` : ''}
+                </details>
 
             </div>
 
