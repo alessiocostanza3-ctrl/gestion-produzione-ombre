@@ -646,7 +646,7 @@ async function importaListaDiCaricoDaFile(input) {
 
 async function caricaImpostazioni() {
     try {
-        const res = await fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify({ azione: 'getImpostazioni' }) });
+        const res = await fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify({ azione: 'getImpostazioni', noCache: true }) });
         const settings = await res.json();
         window.listaStati = settings.stati || [];
         window.listaOperatori = settings.operatori || [];
@@ -697,7 +697,7 @@ async function _fetchImpostazioniDaServer() {
     const LS_KEY = '_impostazioni_cache';
     const LS_KEY_FORN = '_impostazioni_stati_forn_cache';
     try {
-        const res = await fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify({ azione: 'getImpostazioni' }) });
+        const res = await fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify({ azione: 'getImpostazioni', noCache: true }) });
         const settings = await res.json();
         window.listaStati     = (settings.stati && settings.stati.length) ? settings.stati : window._defaultListaStati_();
         window.listaOperatori = settings.operatori || [];
@@ -1017,6 +1017,7 @@ function caricaInterfacciaImpostazioni() {
 
     const listaStati = window.listaStati || [];
     const TW = window.TW || {};
+    const canEditStati = utenteAttuale?.ruolo === 'MASTER';
 
     contenitore.innerHTML = `
         <div class="settings-accordion">
@@ -1036,19 +1037,23 @@ function caricaInterfacciaImpostazioni() {
                 <div class="card-settings">
                     <div id="lista-stati-config">
                         ${listaStati.map((s, i) => `
-                            <div class="config-row-modern row" draggable="true" data-idx="${i}">
-                                <i class="fas fa-grip-vertical drag-handle"></i>
+                            <div class="config-row-modern row" ${canEditStati ? 'draggable="true"' : ''} data-idx="${i}">
+                                <i class="fas fa-grip-vertical drag-handle" style="${canEditStati ? '' : 'display:none'}"></i>
                                 <div class="color-picker-wrapper">
                                     <input type="color" value="${s.colore}" class="color-overlay"
-                                           onchange="listaStati[${i}].colore=this.value; segnaModifica(); caricaInterfacciaImpostazioni();">
+                                           ${canEditStati ? `onchange="listaStati[${i}].colore=this.value; segnaModifica(); caricaInterfacciaImpostazioni();"` : 'disabled title="Solo MASTER può modificare gli stati"'}>
                                     <div class="status-dot-custom" style="--bg-color:${s.colore};"></div>
                                 </div>
-                                <input type="text" class="input-flat flex-grow" value="${s.nome || s.stato}" onchange="listaStati[${i}].nome=this.value.toUpperCase(); segnaModifica();">
-                                <button type="button" class="btn-trash-modern" onclick="azioneEliminaStato(${i})"><i class="fas fa-trash"></i></button>
+                                <input type="text" class="input-flat flex-grow" value="${s.nome || s.stato}" ${canEditStati ? `onchange="listaStati[${i}].nome=this.value.toUpperCase(); segnaModifica();"` : 'readonly title="Solo MASTER può modificare gli stati"'}>
+                                ${canEditStati
+                                    ? `<button type="button" class="btn-trash-modern" onclick="azioneEliminaStato(${i})"><i class="fas fa-trash"></i></button>`
+                                    : '<button type="button" class="btn-trash-modern" disabled title="Solo MASTER può modificare gli stati"><i class="fas fa-lock"></i></button>'}
                             </div>
                         `).join('')}
                     </div>
-                    <button class="btn-add-dashed" onclick="azioneAggiungiStato()">+ Aggiungi Stato</button>
+                    ${canEditStati
+                        ? '<button class="btn-add-dashed" onclick="azioneAggiungiStato()">+ Aggiungi Stato</button>'
+                        : '<div style="margin-top:10px;color:#64748b;font-size:0.82rem">Solo MASTER può creare/modificare stati globali.</div>'}
                 </div>
             </div>
 
@@ -1363,15 +1368,17 @@ function caricaInterfacciaImpostazioni() {
     `;
     applicaFade(contenitore);
     requestAnimationFrame(() => _qrRenderListaCanvas());
-    initSortable('lista-stati-config', (container) => {
-        const rows = [...container.querySelectorAll('[data-idx]')];
-        const nuovoOrdine = rows.map(el => (window.listaStati || [])[+el.dataset.idx]);
-        if (window.listaStati) {
-            window.listaStati.length = 0;
-            nuovoOrdine.forEach((s, i) => { window.listaStati.push(s); rows[i].dataset.idx = i; });
-        }
-        segnaModifica();
-    });
+    if (utenteAttuale?.ruolo === 'MASTER') {
+        initSortable('lista-stati-config', (container) => {
+            const rows = [...container.querySelectorAll('[data-idx]')];
+            const nuovoOrdine = rows.map(el => (window.listaStati || [])[+el.dataset.idx]);
+            if (window.listaStati) {
+                window.listaStati.length = 0;
+                nuovoOrdine.forEach((s, i) => { window.listaStati.push(s); rows[i].dataset.idx = i; });
+            }
+            segnaModifica();
+        });
+    }
 }
 
 /* ── Diagnostica Sync (solo MASTER) ────────────────────────────────── */
