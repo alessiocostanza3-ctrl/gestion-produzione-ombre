@@ -1017,7 +1017,6 @@ function caricaInterfacciaImpostazioni() {
 
     const listaStati = window.listaStati || [];
     const TW = window.TW || {};
-    const canEditStati = utenteAttuale?.ruolo === 'MASTER';
 
     contenitore.innerHTML = `
         <div class="settings-accordion">
@@ -1037,23 +1036,19 @@ function caricaInterfacciaImpostazioni() {
                 <div class="card-settings">
                     <div id="lista-stati-config">
                         ${listaStati.map((s, i) => `
-                            <div class="config-row-modern row" ${canEditStati ? 'draggable="true"' : ''} data-idx="${i}">
-                                <i class="fas fa-grip-vertical drag-handle" style="${canEditStati ? '' : 'display:none'}"></i>
+                            <div class="config-row-modern row" draggable="true" data-idx="${i}">
+                                <i class="fas fa-grip-vertical drag-handle"></i>
                                 <div class="color-picker-wrapper">
                                     <input type="color" value="${s.colore}" class="color-overlay"
-                                           ${canEditStati ? `onchange="listaStati[${i}].colore=this.value; segnaModifica(); caricaInterfacciaImpostazioni();"` : 'disabled title="Solo MASTER può modificare gli stati"'}>
+                                           onchange="listaStati[${i}].colore=this.value; segnaModifica(); caricaInterfacciaImpostazioni();">
                                     <div class="status-dot-custom" style="--bg-color:${s.colore};"></div>
                                 </div>
-                                <input type="text" class="input-flat flex-grow" value="${s.nome || s.stato}" ${canEditStati ? `onchange="listaStati[${i}].nome=this.value.toUpperCase(); segnaModifica();"` : 'readonly title="Solo MASTER può modificare gli stati"'}>
-                                ${canEditStati
-                                    ? `<button type="button" class="btn-trash-modern" onclick="azioneEliminaStato(${i})"><i class="fas fa-trash"></i></button>`
-                                    : '<button type="button" class="btn-trash-modern" disabled title="Solo MASTER può modificare gli stati"><i class="fas fa-lock"></i></button>'}
+                                <input type="text" class="input-flat flex-grow" value="${s.nome || s.stato}" onchange="listaStati[${i}].nome=this.value.toUpperCase(); segnaModifica();">
+                                <button type="button" class="btn-trash-modern" onclick="azioneEliminaStato(${i})"><i class="fas fa-trash"></i></button>
                             </div>
                         `).join('')}
                     </div>
-                    ${canEditStati
-                        ? '<button class="btn-add-dashed" onclick="azioneAggiungiStato()">+ Aggiungi Stato</button>'
-                        : '<div style="margin-top:10px;color:#64748b;font-size:0.82rem">Solo MASTER può creare/modificare stati globali.</div>'}
+                    <button class="btn-add-dashed" onclick="azioneAggiungiStato()">+ Aggiungi Stato</button>
                 </div>
             </div>
 
