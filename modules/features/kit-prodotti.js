@@ -1736,6 +1736,13 @@ function _kitFetchFromServer(cb) {
     fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify({ azione: 'getKitData' }) })
         .then(r => r.json())
         .then(d => {
+            if (d && d.integrityOk === false) {
+                console.error('[kit-prodotti] payload kit non leggibile lato server:', d.parseError || 'parse error');
+                notificaElegante('Errore lettura dati Kit dal server. Contatta subito supporto: nessun salvataggio automatico verrà forzato.', 'error');
+                if (cb) cb(false);
+                return;
+            }
+
             const serverPayload = _kitNormalizeServerPayload(d);
             if (_kitPayloadHasData(serverPayload)) {
                 _kitStore = serverPayload;
