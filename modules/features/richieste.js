@@ -578,7 +578,7 @@ function _fabprodEscHtml_(value) {
 }
 
 function _fabprodBuildPrintRows_() {
-    const rows = [];
+    const grouped = new Map();
     for (const riga of (_fabbisognoRawRows || [])) {
         if (!riga || !riga.ordine) continue;
         if (String(riga.archiviato || '').toUpperCase() === 'TRUE') continue;
@@ -595,21 +595,57 @@ function _fabprodBuildPrintRows_() {
         if (!prodotto) continue;
 
         const codice = String(riga.codice || '').trim();
-        const cliente = String(riga.cliente || '').trim();
         const descrizione = String(
             riga.descrizione || riga.dettaglio || riga.riferimento || riga.rif_articolo || riga.note || ''
         ).trim();
 
-        rows.push({ ordine, cliente, codice, prodotto, descrizione, qty: qtyNetta });
+        const key = `${codice.toUpperCase()}|${prodotto.toUpperCase()}`;
+        if (!grouped.has(key)) {
+            grouped.set(key, {
+                codice,
+                prodotto,
+                descrizione,
+                qtyTotale: 0,
+                ordiniMap: new Map() // key=ordine, value={ ordine, cliente, qty }
+            });
+        }
+
+        const entry = grouped.get(key);
+        entry.qtyTotale += qtyNetta;
+        if (!entry.descrizione && descrizione) entry.descrizione = descrizione;
+
+        const cliente = String(riga.cliente || '').trim();
+        if (!entry.ordiniMap.has(ordine)) {
+            entry.ordiniMap.set(ordine, { ordine, cliente, qty: 0 });
+        }
+        entry.ordiniMap.get(ordine).qty += qtyNetta;
     }
 
+    const rows = [...grouped.values()].map(entry => {
+        const ordini = [...entry.ordiniMap.values()].sort((a, b) =>
+            a.ordine.localeCompare(b.ordine, 'it', { numeric: true, sensitivity: 'base' })
+        );
+        const addendi = ordini.map(o => _formatQtyProduzione_(o.qty));
+        const formulaQty = ordini.length > 1
+            ? `${addendi.join(' + ')} = ${_formatQtyProduzione_(entry.qtyTotale)}`
+            : _formatQtyProduzione_(entry.qtyTotale);
+
+        return {
+            codice: entry.codice,
+            prodotto: entry.prodotto,
+            descrizione: entry.descrizione,
+            ordini,
+            qtyTotale: entry.qtyTotale,
+            formulaQty
+        };
+    });
+
     rows.sort((a, b) => {
-        const ordCmp = a.ordine.localeCompare(b.ordine, 'it', { numeric: true, sensitivity: 'base' });
-        if (ordCmp !== 0) return ordCmp;
         const prodCmp = a.prodotto.localeCompare(b.prodotto, 'it', { sensitivity: 'base' });
         if (prodCmp !== 0) return prodCmp;
         return (a.codice || '').localeCompare(b.codice || '', 'it', { sensitivity: 'base' });
     });
+
     return rows;
 }
 
@@ -619,16 +655,15 @@ function _fabprodBuildPrintHtml_(rows) {
     const ordiniLabel = ordini.length <= 6
         ? ordini.join(', ')
         : `${ordini.slice(0, 6).join(', ')} +${ordini.length - 6}`;
-    const totaleQty = rows.reduce((sum, r) => sum + (Number(r.qty) || 0), 0);
+    const totaleQty = rows.reduce((sum, r) => sum + (Number(r.qtyTotale) || 0), 0);
 
     const bodyRows = rows.map(r => `
         <tr>
-            <td>${_fabprodEscHtml_(r.ordine)}</td>
-            <td>${_fabprodEscHtml_(r.cliente || '-')}</td>
             <td>${_fabprodEscHtml_(r.codice || '-')}</td>
             <td>${_fabprodEscHtml_(r.prodotto)}</td>
             <td>${_fabprodEscHtml_(r.descrizione || '-')}</td>
-            <td class="qty">${_fabprodEscHtml_(_formatQtyProduzione_(r.qty))}</td>
+            <td>${r.ordini.map(o => `ORD. ${_fabprodEscHtml_(o.ordine)}${o.cliente ? ` · ${_fabprodEscHtml_(o.cliente)}` : ''}`).join('<br>')}</td>
+            <td class="qty">${_fabprodEscHtml_(r.formulaQty)}</td>
         </tr>
     `).join('');
 
@@ -706,15 +741,14 @@ function _fabprodBuildPrintHtml_(rows) {
             <table>
                 <thead>
                     <tr>
-                        <th style="width:13%">N. Ordine</th>
-                        <th style="width:20%">Cliente</th>
-                        <th style="width:10%">Codice</th>
-                        <th style="width:22%">Prodotto</th>
+                        <th style="width:12%">Codice</th>
+                        <th style="width:24%">Prodotto</th>
                         <th>Descrizione</th>
-                        <th style="width:11%">Quantità</th>
+                        <th style="width:26%">Ordini di riferimento</th>
+                        <th style="width:16%">Quantità totale</th>
                     </tr>
                 </thead>
-                <tbody>${bodyRows || '<tr><td colspan="6">Nessuna riga disponibile per la stampa.</td></tr>'}</tbody>
+                <tbody>${bodyRows || '<tr><td colspan="5">Nessuna riga disponibile per la stampa.</td></tr>'}</tbody>
             </table>
             <div class="footer">Generato da PROD - ${_fabprodEscHtml_(String(utenteAttuale?.nome || 'Sistema'))}</div>
         </div>
