@@ -905,6 +905,58 @@ function _chiudiModalFabbisognoSel() {
     document.getElementById('fabprod-sel-modal')?.remove();
 }
 
+function _fabprodApriSezioneDaScadenze_() {
+    const details = document.getElementById('rg-fabbisogno-produzione');
+    if (!details) return;
+    if (!details.open) {
+        details.open = true;
+        _saveReqGroup('fabbisogno_produzione', details);
+    }
+    details.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function _fabprodOrdiniDaScadenze_(onlyFlaggati) {
+    const cards = [...document.querySelectorAll('.scad-card[data-ordine]')];
+    if (!cards.length) return [];
+
+    const allOrdiniAttivi = new Set((_ordiniSelezionabili || []).map(o => String(o.ordine || '').trim()));
+    const ordini = [];
+
+    cards.forEach(card => {
+        const chk = card.querySelector('.scad-fab-chk');
+        if (onlyFlaggati && !chk?.checked) return;
+        const ordine = String(card.dataset.ordine || '').trim();
+        if (!ordine || !allOrdiniAttivi.has(ordine)) return;
+        ordini.push(ordine);
+    });
+
+    return [...new Set(ordini)].sort((a, b) => a.localeCompare(b, 'it', { numeric: true, sensitivity: 'base' }));
+}
+
+function _fabprodDaScadenzeTutte() {
+    const ordini = _fabprodOrdiniDaScadenze_(false);
+    if (!ordini.length) {
+        notificaElegante('Nessuna scadenza utile trovata per creare il fabbisogno.', 'warning');
+        return;
+    }
+    _fabbisognoOrdiniSel = new Set(ordini);
+    _aggiornaPannelloFabbisogno();
+    _fabprodApriSezioneDaScadenze_();
+    notificaElegante(`Fabbisogno impostato su ${ordini.length} ordini da scadenze.`, 'success');
+}
+
+function _fabprodDaScadenzeFlaggate() {
+    const ordini = _fabprodOrdiniDaScadenze_(true);
+    if (!ordini.length) {
+        notificaElegante('Flagga almeno una scadenza per creare il fabbisogno.', 'warning');
+        return;
+    }
+    _fabbisognoOrdiniSel = new Set(ordini);
+    _aggiornaPannelloFabbisogno();
+    _fabprodApriSezioneDaScadenze_();
+    notificaElegante(`Fabbisogno impostato su ${ordini.length} ordini selezionati.`, 'success');
+}
+
 
 function _buildFabbisognoProduzioneRows_(righeProduzione) {
     const grouped = new Map();
@@ -1281,6 +1333,18 @@ export function _renderDatiRichieste(_dati) {
                             <span class="rg-title">SCADENZE</span>
                             ${cntS > 0 ? `<span class="rg-count rg-count-scad">${cntS}</span>` : ''}
                         </span>
+                        <span class="scad-actions-wrap">
+                            <button type="button" class="scad-fab-btn"
+                                onclick="event.stopPropagation();_fabprodDaScadenzeTutte()"
+                                ${cntS > 0 ? '' : 'disabled'}>
+                                <i class="fas fa-layer-group"></i> Tutte -> Fabbisogno
+                            </button>
+                            <button type="button" class="scad-fab-btn"
+                                onclick="event.stopPropagation();_fabprodDaScadenzeFlaggate()"
+                                ${cntS > 0 ? '' : 'disabled'}>
+                                <i class="fas fa-check-square"></i> Flaggate -> Fabbisogno
+                            </button>
+                        </span>
                         <i class="fas fa-chevron-down rg-chevron"></i>
                     </summary>
                     <div class="chat-inbox">${_renderScadenze()}</div>
@@ -1647,7 +1711,7 @@ function generaCardScadenza(msg, io) {
         else                urgClass = 'scad-ok';
     }
     return `
-    <div class="scad-card ${urgClass}" data-id-riga="${String(msg.id_riga || '')}" data-ordine="${nOrd}" data-cliente="${(cliente).toLowerCase().replace(/"/g,'')}">
+    <div class="scad-card ${urgClass}" data-id-riga="${String(msg.id_riga || '')}" data-ordine="${_fabprodEscHtml_(nOrd)}" data-cliente="${(cliente).toLowerCase().replace(/"/g,'')}">
         <div class="scad-top">
             <div class="scad-ordine-wrap">
                 <span class="rc-tipo rc-tipo-scadenza" title="Scadenza"><i class="fa-solid fa-clock"></i></span>
@@ -1664,6 +1728,10 @@ function generaCardScadenza(msg, io) {
             <span class="rc-date" style="margin-left:auto">${formattaData(dataOra)}</span>
         </div>
         <div class="rc-actions">
+            <label class="scad-fab-pick" onclick="event.stopPropagation()" title="Seleziona questa scadenza per il fabbisogno">
+                <input type="checkbox" class="scad-fab-chk" value="${_fabprodEscHtml_(nOrd)}">
+                <span>Fabbisogno</span>
+            </label>
             <button onclick="aggiornaRichiesta('${msg.id_riga}', 'risolto')" class="rc-btn rc-btn-arch" title="Archivia scadenza"><i class="fa-solid fa-check"></i></button>
         </div>
     </div>`;
@@ -1698,6 +1766,8 @@ export function registerGlobals() {
     window._apriModalFabbisognoSel    = _apriModalFabbisognoSel;
     window._applicaSelFabbisogno      = _applicaSelFabbisogno;
     window._chiudiModalFabbisognoSel  = _chiudiModalFabbisognoSel;
+    window._fabprodDaScadenzeTutte    = _fabprodDaScadenzeTutte;
+    window._fabprodDaScadenzeFlaggate = _fabprodDaScadenzeFlaggate;
     window._fabprodStampaFabbisognoSel = _fabprodStampaFabbisognoSel;
     window.aggiornaRichiesta       = aggiornaRichiesta;
     window._sollecitaConferma      = _sollecitaConferma;

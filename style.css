@@ -2998,6 +2998,54 @@ h1 {
     word-break: break-word;
 }
 .scad-no-nota { opacity: 0.4; font-style: italic; }
+
+.scad-actions-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    margin-right: 8px;
+}
+
+.scad-fab-btn {
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    color: #334155;
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: all .15s ease;
+}
+
+.scad-fab-btn:hover { background: #f8fafc; border-color: #94a3b8; }
+.scad-fab-btn:disabled { opacity: .55; cursor: not-allowed; }
+
+.scad-fab-pick {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: auto;
+    font-size: 11px;
+    font-weight: 700;
+    color: #475569;
+    user-select: none;
+    cursor: pointer;
+}
+
+.scad-fab-pick .scad-fab-chk {
+    width: 15px;
+    height: 15px;
+    accent-color: #1e293b;
+}
+
+.scad-fab-pick .scad-fab-chk:checked + span {
+    color: #0f172a;
+}
 /* ---- FINE SCADENZE CARD ---- */
 .rc-tipo-domanda  { background: #fee2e2; color: #dc2626; }
 .rc-arch-badge {
