@@ -106,6 +106,7 @@ function _buildManualeCard(m) {
             </div>
             <div class="mt-4 flex flex-wrap gap-2">
                 <button type="button" class="${window.TW?.btnPrimary || ''}" onclick="apriManuale('${_esc(m.id)}')"><i class="fas fa-eye"></i> Apri</button>
+                <button type="button" class="${window.TW?.btn || ''}" onclick="stampaManuale('${_esc(m.id)}')"><i class="fas fa-print"></i> Stampa</button>
                 <button type="button" class="${window.TW?.btn || ''}" onclick="apriFormManuale('${_esc(m.id)}')"><i class="fas fa-pen"></i> Modifica</button>
                 <button type="button" class="${window.TW?.btn || ''}" onclick="apriStoricoManuale('${_esc(m.id)}')"><i class="fas fa-clock-rotate-left"></i> Storico</button>
             </div>
@@ -717,6 +718,426 @@ async function salvaManualeCorrente() {
     }
 }
 
+function _manualeNormalizeForPrint(m) {
+    const sections = _getSections(m);
+    const schedaTecnica = sections ? (sections.schedaTecnica || []) : [];
+    const occorrente = sections ? (sections.occorrente || []) : [];
+    const procedimenti = sections
+        ? (sections.procedimenti || [])
+        : (Array.isArray(m.steps) ? m.steps.map(function(s) {
+            return {
+                descrizione: String(s.descrizione || s.titolo || '').trim(),
+                foto: String(s.foto || '').trim(),
+                foto2: ''
+            };
+        }) : []);
+
+    return {
+        titolo: String(m.titolo || '(Senza titolo)'),
+        categoria: String(m.categoria || 'Generale'),
+        versione: Number(m.version || 1),
+        aggiornato: _formatTs(m.updatedAt),
+        copertina: _safeImgSrc(m.copertina),
+        schedaTecnica: Array.isArray(schedaTecnica) ? schedaTecnica : [],
+        occorrente: Array.isArray(occorrente) ? occorrente : [],
+        procedimenti: Array.isArray(procedimenti) ? procedimenti : [],
+        disegnoTecnico: _safeImgSrc(sections?.disegnoTecnico?.foto || '')
+    };
+}
+
+function _manualePrintPlaceholder(label) {
+    return `<div class="man-print-placeholder">${_esc(label || 'Sezione non disponibile')}</div>`;
+}
+
+function _buildManualePrintHtml(m) {
+    const data = _manualeNormalizeForPrint(m);
+    const coverHtml = data.copertina
+        ? `<img class="man-cover-image" src="${data.copertina}" alt="copertina manuale">`
+        : _manualePrintPlaceholder('Copertina non disponibile');
+
+    const schedaRows = data.schedaTecnica
+        .map(function(r) {
+            return `<tr>
+                <td>${_esc(r?.voce || '')}</td>
+                <td>${_esc(r?.valore || '')}</td>
+            </tr>`;
+        }).join('');
+
+    const occHtml = data.occorrente
+        .map(function(o) {
+            const foto = _safeImgSrc(o?.foto || '');
+            const media = foto
+                ? `<img src="${foto}" alt="${_esc(o?.nome || 'componente')}" class="man-occ-image">`
+                : '<div class="man-occ-image man-occ-image--empty">Immagine non disponibile</div>';
+            return `<article class="man-occ-card">
+                <div class="man-occ-head">
+                    <span class="man-occ-letter">${_esc(o?.lettera || '?')}</span>
+                    <div>
+                        <h4>${_esc(o?.nome || 'Componente')}</h4>
+                        <p>${_esc(o?.codice || 'Codice non disponibile')}</p>
+                    </div>
+                </div>
+                ${media}
+            </article>`;
+        }).join('');
+
+    const procHtml = data.procedimenti
+        .map(function(p, i) {
+            const fotoA = _safeImgSrc(p?.foto || '');
+            const fotoB = _safeImgSrc(p?.foto2 || '');
+            const fotoArr = [fotoA, fotoB].filter(Boolean);
+            const fotoHtml = fotoArr.length
+                ? `<div class="man-proc-photos">${fotoArr.map(function(src) { return `<img src="${src}" alt="step-${i + 1}">`; }).join('')}</div>`
+                : _manualePrintPlaceholder('Immagini step non disponibili');
+            return `<article class="man-proc-step">
+                <div class="man-proc-num">${i + 1}</div>
+                <div class="man-proc-body">
+                    ${fotoHtml}
+                    <p>${_esc(p?.descrizione || 'Descrizione non disponibile')}</p>
+                </div>
+            </article>`;
+        }).join('');
+
+    const disegnoHtml = data.disegnoTecnico
+        ? `<img class="man-dt-image" src="${data.disegnoTecnico}" alt="disegno tecnico">`
+        : _manualePrintPlaceholder('Disegno tecnico non disponibile');
+
+    return `<!doctype html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Libretto Istruzioni - ${_esc(data.titolo)}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lora:wght@600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --ink: #0f172a;
+            --muted: #64748b;
+            --line: #cbd5e1;
+            --paper: #ffffff;
+            --brand: #1e293b;
+            --soft: #f8fafc;
+        }
+        * { box-sizing: border-box; }
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: #e2e8f0;
+            color: var(--ink);
+            font-family: 'Roboto', system-ui, sans-serif;
+        }
+        .man-print-toolbar {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 18px;
+            background: rgba(15, 23, 42, 0.96);
+            color: #e2e8f0;
+        }
+        .man-print-toolbar button {
+            border: 1px solid rgba(255,255,255,0.18);
+            background: #1e293b;
+            color: #fff;
+            border-radius: 10px;
+            padding: 9px 14px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .man-print-stage {
+            padding: 16px;
+            display: grid;
+            gap: 14px;
+        }
+        .man-print-page {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
+            background: var(--paper);
+            box-shadow: 0 16px 36px rgba(15, 23, 42, 0.15);
+            padding: 16mm 14mm 14mm;
+        }
+        .man-brand {
+            font-size: 10px;
+            letter-spacing: 0.16em;
+            font-weight: 700;
+            color: var(--brand);
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+        .man-title {
+            font-family: 'Lora', serif;
+            font-size: 34px;
+            line-height: 1.2;
+            font-weight: 700;
+            margin: 0;
+            text-transform: uppercase;
+        }
+        .man-sub {
+            margin-top: 7px;
+            color: var(--muted);
+            font-size: 14px;
+        }
+        .man-cover-block {
+            margin-top: 16px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: var(--soft);
+            padding: 10px;
+            min-height: 180px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .man-cover-image {
+            max-width: 100%;
+            max-height: 190mm;
+            object-fit: contain;
+            border-radius: 10px;
+        }
+        .man-page-title {
+            margin: 0 0 10px;
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--brand);
+            border-bottom: 2px solid var(--line);
+            padding-bottom: 6px;
+        }
+        .man-print-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid var(--line);
+        }
+        .man-print-table th, .man-print-table td {
+            border: 1px solid var(--line);
+            padding: 8px;
+            text-align: left;
+            vertical-align: top;
+            font-size: 12px;
+        }
+        .man-print-table th {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            background: var(--soft);
+        }
+        .man-dt-image {
+            width: 100%;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+        .man-occ-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        .man-occ-card {
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 9px;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+        .man-occ-head {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 7px;
+        }
+        .man-occ-letter {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: var(--brand);
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+        .man-occ-head h4 {
+            margin: 0;
+            font-size: 13px;
+        }
+        .man-occ-head p {
+            margin: 2px 0 0;
+            color: var(--muted);
+            font-size: 11px;
+        }
+        .man-occ-image {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            object-fit: cover;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+        }
+        .man-occ-image--empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--muted);
+            font-size: 11px;
+            background: var(--soft);
+        }
+        .man-proc-step {
+            display: grid;
+            grid-template-columns: 52px 1fr;
+            gap: 10px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 10px;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+        .man-proc-num {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            border: 2px solid var(--brand);
+            color: var(--brand);
+            font-weight: 700;
+            font-size: 17px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 4px;
+        }
+        .man-proc-photos {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 7px;
+            margin-bottom: 7px;
+        }
+        .man-proc-photos img {
+            width: 100%;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            object-fit: cover;
+            min-height: 120px;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+        .man-proc-body p {
+            margin: 0;
+            white-space: pre-wrap;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+        .man-print-placeholder {
+            border: 1px dashed var(--line);
+            border-radius: 10px;
+            background: var(--soft);
+            color: var(--muted);
+            padding: 12px;
+            text-align: center;
+            font-size: 12px;
+        }
+        .man-page-footer {
+            margin-top: 10px;
+            border-top: 1px solid var(--line);
+            padding-top: 6px;
+            color: var(--muted);
+            font-size: 10px;
+        }
+        .man-break { page-break-before: always; break-before: page; }
+        @page {
+            size: A4;
+            margin: 12mm;
+        }
+        @media print {
+            html, body { background: #fff; }
+            .man-print-toolbar { display: none !important; }
+            .man-print-stage { padding: 0; gap: 0; }
+            .man-print-page {
+                width: auto;
+                min-height: auto;
+                margin: 0;
+                box-shadow: none;
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="man-print-toolbar">
+        <strong>Libretto istruzioni: ${_esc(data.titolo)}</strong>
+        <div style="display:flex;gap:8px">
+            <button type="button" onclick="window.print()">Stampa</button>
+            <button type="button" onclick="window.close()">Chiudi</button>
+        </div>
+    </div>
+
+    <div class="man-print-stage">
+        <section class="man-print-page">
+            <div class="man-brand">OMBRE1 SRL</div>
+            <h1 class="man-title">${_esc(data.titolo)}</h1>
+            <p class="man-sub">${_esc(data.categoria)} · Manuale operativo · Rev. ${data.versione}</p>
+            <p class="man-sub">Aggiornamento: ${_esc(data.aggiornato)}</p>
+            <div class="man-cover-block">${coverHtml}</div>
+            <div class="man-page-footer">Libretto istruzioni produzione - OMBRE1 SRL</div>
+        </section>
+
+        <section class="man-print-page man-break">
+            <div class="man-brand">OMBRE1 SRL</div>
+            <h2 class="man-page-title">Scheda tecnica</h2>
+            ${schedaRows
+                ? `<table class="man-print-table"><thead><tr><th>Caratteristica</th><th>Valore</th></tr></thead><tbody>${schedaRows}</tbody></table>`
+                : _manualePrintPlaceholder('Scheda tecnica non disponibile')}
+            <div class="man-page-footer">Sezione tecnica</div>
+        </section>
+
+        <section class="man-print-page man-break">
+            <div class="man-brand">OMBRE1 SRL</div>
+            <h2 class="man-page-title">Disegno tecnico</h2>
+            ${disegnoHtml}
+            <div class="man-page-footer">Sezione disegno tecnico</div>
+        </section>
+
+        <section class="man-print-page man-break">
+            <div class="man-brand">OMBRE1 SRL</div>
+            <h2 class="man-page-title">Materiale occorrente</h2>
+            ${occHtml ? `<div class="man-occ-grid">${occHtml}</div>` : _manualePrintPlaceholder('Materiale occorrente non disponibile')}
+            <div class="man-page-footer">Sezione materiali</div>
+        </section>
+
+        <section class="man-print-page man-break">
+            <div class="man-brand">OMBRE1 SRL</div>
+            <h2 class="man-page-title">Procedimento</h2>
+            ${procHtml || _manualePrintPlaceholder('Procedimento non disponibile')}
+            <div class="man-page-footer">Sezione step operativi</div>
+        </section>
+    </div>
+</body>
+</html>`;
+}
+
+function stampaManuale(id) {
+    const m = _manualiById[id];
+    if (!m) {
+        notificaElegante('Manuale non trovato.', 'error');
+        return;
+    }
+    const previewWindow = window.open('', '_blank');
+    if (!previewWindow) {
+        notificaElegante('Popup bloccato dal browser. Consenti le finestre popup per stampare.', 'warning');
+        return;
+    }
+    previewWindow.document.open();
+    previewWindow.document.write(_buildManualePrintHtml(m));
+    previewWindow.document.close();
+}
+
 function apriManuale(id) {
     const m = _manualiById[id];
     if (!m) return;
@@ -833,8 +1254,13 @@ function apriManuale(id) {
     <div id="manuali-modal" class="modal-overlay active" style="display:flex;z-index:4500">
             <div class="modal-content manuali-modal-box" style="width:90vw;max-width:1200px;max-height:90vh;overflow:auto;">
                 ${_manualiModalCloseBtn('chiudiFormManuale()')}
-        <h2>${_esc(m.titolo || '(Senza titolo)')}</h2>
-        <p class="text-xs text-slate-500 mb-3">${_esc(m.categoria || 'Generale')} · v${Number(m.version || 1)} · aggiornato ${_esc(_formatTs(m.updatedAt))}</p>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
+            <div>
+                <h2>${_esc(m.titolo || '(Senza titolo)')}</h2>
+                <p class="text-xs text-slate-500 mb-3">${_esc(m.categoria || 'Generale')} · v${Number(m.version || 1)} · aggiornato ${_esc(_formatTs(m.updatedAt))}</p>
+            </div>
+            <button type="button" class="${window.TW?.btn || ''}" onclick="stampaManuale('${_esc(m.id)}')"><i class="fas fa-print"></i> Stampa</button>
+        </div>
         ${coverHtml}
         <div>${contentHtml || '<div class="empty-msg">Nessun contenuto disponibile.</div>'}</div>
       </div>
@@ -1619,6 +2045,7 @@ async function _confermImportPptx() {
 
 export function registerGlobals() {
     window.apriManuale = apriManuale;
+    window.stampaManuale = stampaManuale;
     window._apriLightboxOcc_ = _apriLightboxOcc_;
     window.apriFormManuale = apriFormManuale;
     window.chiudiFormManuale = chiudiFormManuale;
