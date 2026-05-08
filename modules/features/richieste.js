@@ -633,7 +633,6 @@ function _fabprodBuildPrintRows_() {
         return {
             codice: entry.codice,
             prodotto: entry.prodotto,
-            descrizione: entry.descrizione,
             ordini,
             qtyTotale: entry.qtyTotale,
             formulaQty
@@ -661,7 +660,6 @@ function _fabprodBuildPrintHtml_(rows) {
         <tr>
             <td>${_fabprodEscHtml_(r.codice || '-')}</td>
             <td>${_fabprodEscHtml_(r.prodotto)}</td>
-            <td>${_fabprodEscHtml_(r.descrizione || '-')}</td>
             <td>${r.ordini.map(o => `ORD. ${_fabprodEscHtml_(o.ordine)}${o.cliente ? ` · ${_fabprodEscHtml_(o.cliente)}` : ''}`).join('<br>')}</td>
             <td class="qty">${_fabprodEscHtml_(r.formulaQty)}</td>
         </tr>
@@ -672,7 +670,7 @@ function _fabprodBuildPrintHtml_(rows) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fabbisogno per ordini: ${_fabprodEscHtml_(ordiniLabel)}</title>
+    <title>Fabbisogno</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lora:wght@600;700&family=Roboto:wght@400;500;700;800&display=swap" rel="stylesheet">
@@ -722,15 +720,16 @@ function _fabprodBuildPrintHtml_(rows) {
 </head>
 <body>
     <div class="toolbar">
-        <div class="toolbar-title">Fabbisogno per ordini</div>
+        <div class="toolbar-title">Fabbisogno</div>
         <div class="toolbar-actions">
+            <button type="button" onclick="salvaFabbisogno()">Salva</button>
             <button type="button" onclick="window.print()">Stampa</button>
             <button type="button" class="ghost" onclick="window.close()">Chiudi</button>
         </div>
     </div>
     <div class="stage">
         <div class="page">
-            <div class="title">Fabbisogno per ordini</div>
+            <div class="title">Fabbisogno</div>
             <div class="subtitle">Documento operativo per produzione e approvvigionamento</div>
             <div class="meta">
                 <div class="meta-card"><div class="meta-k">Data emissione</div><div class="meta-v">${_fabprodEscHtml_(generatedAt.toLocaleString('it-IT'))}</div></div>
@@ -741,18 +740,41 @@ function _fabprodBuildPrintHtml_(rows) {
             <table>
                 <thead>
                     <tr>
-                        <th style="width:12%">Codice</th>
-                        <th style="width:24%">Prodotto</th>
-                        <th>Descrizione</th>
-                        <th style="width:26%">Ordini di riferimento</th>
-                        <th style="width:16%">Quantità totale</th>
+                        <th style="width:14%">Codice</th>
+                        <th style="width:30%">Prodotto</th>
+                        <th style="width:36%">Ordini di riferimento</th>
+                        <th style="width:20%">Quantità totale</th>
                     </tr>
                 </thead>
-                <tbody>${bodyRows || '<tr><td colspan="5">Nessuna riga disponibile per la stampa.</td></tr>'}</tbody>
+                <tbody>${bodyRows || '<tr><td colspan="4">Nessuna riga disponibile per la stampa.</td></tr>'}</tbody>
             </table>
             <div class="footer">Generato da PROD - ${_fabprodEscHtml_(String(utenteAttuale?.nome || 'Sistema'))}</div>
         </div>
     </div>
+    <script>
+        function _fmt2(n) { return String(n).padStart(2, '0'); }
+        function _buildFabbisognoFilename() {
+            const d = new Date();
+            const stamp = d.getFullYear() + '-' + _fmt2(d.getMonth() + 1) + '-' + _fmt2(d.getDate()) + '_' + _fmt2(d.getHours()) + '-' + _fmt2(d.getMinutes());
+            return 'Fabbisogno_' + stamp + '.html';
+        }
+        function salvaFabbisogno() {
+            try {
+                const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+                const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = _buildFabbisognoFilename();
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+            } catch (e) {
+                alert('Salvataggio non riuscito.');
+            }
+        }
+    </script>
 </body>
 </html>`;
 }
