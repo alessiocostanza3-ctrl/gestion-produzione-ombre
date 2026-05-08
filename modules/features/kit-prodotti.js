@@ -588,7 +588,17 @@ function _kitGetOrderQty(orderDraft, varianteKey) {
     return Math.max(0, Number.parseInt(orderDraft?.[varianteKey], 10) || 0);
 }
 
-function _kitGetNextDocumentNumber() {
+async function _kitGetNextDocumentNumber() {
+    try {
+        const resp = await gasRequest({ azione: 'reserveKitDraftSeq' });
+        const seq = Math.max(0, Number.parseInt(resp?.draftDocSeq, 10) || 0);
+        if (seq > 0) _kitStore.draftDocSeq = seq;
+        _kitStore.ts = Number(resp?.ts || _kitStore.ts || Date.now()) || Date.now();
+        if (resp?.documento) return String(resp.documento);
+    } catch (e) {
+        console.warn('[kit-prodotti] reserveKitDraftSeq fallita, fallback locale:', e);
+    }
+
     const currentValue = Math.max(0, Number.parseInt(_kitStore.draftDocSeq, 10) || 0);
     const nextValue = currentValue + 1;
     _kitStore.draftDocSeq = nextValue;
@@ -596,10 +606,10 @@ function _kitGetNextDocumentNumber() {
     return `Distinta Base-${String(nextValue).padStart(4, '0')}`;
 }
 
-function _kitEnsureOrderDraftDocument(orderDraft) {
+async function _kitEnsureOrderDraftDocument(orderDraft) {
     const meta = _kitGetOrderMeta(orderDraft);
     if (!meta.documento) {
-        meta.documento = _kitGetNextDocumentNumber();
+        meta.documento = await _kitGetNextDocumentNumber();
         _kitSetOrderMeta(orderDraft, meta);
     }
     return meta.documento;
@@ -695,7 +705,6 @@ function _kitMutateOrderDraft(kitId, mutator) {
     const normalizedMeta = _kitNormalizeOrderMeta(currentDraft._meta || {});
     const hasMetaValues = !!(normalizedMeta.cliente || normalizedMeta.ordiniCliente.length || normalizedMeta.documento);
     if (hasValues || hasMetaValues) {
-        if (!normalizedMeta.documento) normalizedMeta.documento = _kitGetNextDocumentNumber();
         cleanedDraft._meta = normalizedMeta;
     }
 
@@ -749,7 +758,6 @@ function _kitMutateNewStyleDraft(kitId, mutator, rerender) {
     const normalizedMeta = _kitNormalizeOrderMeta(draft._meta || {});
     const hasMetaValues = !!(normalizedMeta.cliente || normalizedMeta.ordiniCliente.length || normalizedMeta.documento);
     if (hasSel || hasUnits || hasMetaValues) {
-        if (!normalizedMeta.documento) normalizedMeta.documento = _kitGetNextDocumentNumber();
         drafts[kitId] = { _meta: normalizedMeta, _units: draft._units, _sel: draft._sel };
     } else {
         delete drafts[kitId];
@@ -887,7 +895,7 @@ function _kitBuildDistintaNew(kit, draft) {
 }
 
 /** Salva distinta per kit new-style */
-function _kitNSCreateDistinta(kitId) {
+async function _kitNSCreateDistinta(kitId) {
     const { kits } = _kitLoad();
     const kit = kits.find(function(k) { return k.id === kitId; });
     if (!kit) return;
@@ -898,7 +906,8 @@ function _kitNSCreateDistinta(kitId) {
         return;
     }
     if (!nsDraft._meta.documento) {
-        _kitMutateNewStyleDraft(kitId, function(d) { d._meta.documento = _kitGetNextDocumentNumber(); }, false);
+        const documento = await _kitGetNextDocumentNumber();
+        _kitMutateNewStyleDraft(kitId, function(d) { d._meta.documento = documento; }, false);
         nsDraft = _kitGetNewStyleDraft(kitId);
     }
     const orderDraft = { _meta: nsDraft._meta };
@@ -920,7 +929,7 @@ function _kitNSCreateDistinta(kitId) {
 }
 
 /** Anteprima stampa per kit new-style */
-function _kitNSOpenPrintPreview(kitId) {
+async function _kitNSOpenPrintPreview(kitId) {
     const { kits } = _kitLoad();
     const kit = kits.find(function(k) { return k.id === kitId; });
     if (!kit) return;
@@ -931,7 +940,8 @@ function _kitNSOpenPrintPreview(kitId) {
         return;
     }
     if (!nsDraft._meta.documento) {
-        _kitMutateNewStyleDraft(kitId, function(d) { d._meta.documento = _kitGetNextDocumentNumber(); }, false);
+        const documento = await _kitGetNextDocumentNumber();
+        _kitMutateNewStyleDraft(kitId, function(d) { d._meta.documento = documento; }, false);
         nsDraft = _kitGetNewStyleDraft(kitId);
     }
     const orderDraft = { _meta: nsDraft._meta };
@@ -1639,7 +1649,7 @@ function _kitBuildPrintPreviewHtml(kit, distinta, orderDraft) {
 </html>`;
 }
 
-function _kitOpenPrintPreview(kitId) {
+async function _kitOpenPrintPreview(kitId) {
     const { kits } = _kitLoad();
     const kit = kits.find(entry => entry.id === kitId);
     if (!kit) return;
@@ -1652,8 +1662,11 @@ function _kitOpenPrintPreview(kitId) {
     }
 
     if (!_kitGetOrderMeta(orderDraft).documento) {
+        const documento = await _kitGetNextDocumentNumber();
         _kitMutateOrderDraft(kitId, function(currentDraft) {
-            _kitEnsureOrderDraftDocument(currentDraft);
+            const meta = _kitGetOrderMeta(currentDraft);
+            meta.documento = documento;
+            _kitSetOrderMeta(currentDraft, meta);
         });
         orderDraft = _kitGetOrderDraft(kit);
     }
@@ -1686,9 +1699,24 @@ function _kitSave(kits) {
 // ─── Sync server ──────────────────────────────────────────────────────────────
 let _kitPushTimer = null;
 
+function _kitFlushPendingPush() {
+    if (!_kitPushTimer) return;
+    clearTimeout(_kitPushTimer);
+    _kitPushTimer = null;
+    const payload = _kitBuildServerPayload();
+    gasRequest({ azione: 'setKitData', payload: payload })
+        .then(function(resp) {
+            _kitStore.ts = Number(resp?.ts || Date.now()) || Date.now();
+        })
+        .catch(function(e) {
+            console.warn('[kit-prodotti] flush remoto fallito:', e);
+        });
+}
+
 function _kitPushToServer() {
     clearTimeout(_kitPushTimer);
     _kitPushTimer = setTimeout(function () {
+        _kitPushTimer = null;
         const payload = _kitBuildServerPayload();
         gasRequest({ azione: 'setKitData', payload: payload })
             .then(function(resp) {
@@ -1696,6 +1724,12 @@ function _kitPushToServer() {
             })
             .catch(function (e) { console.warn('[kit-prodotti] salvataggio remoto fallito:', e); });
     }, 1500);
+}
+
+if (typeof window !== 'undefined') {
+    window.addEventListener('beforeunload', function() {
+        _kitFlushPendingPush();
+    });
 }
 
 function _kitFetchFromServer(cb) {
@@ -2090,13 +2124,18 @@ function _kitRenderDistintePage(kits, container) {
     container.innerHTML = rowsHtml;
 }
 
-function _kitCreateDistintaFromDraft(kitId) {
+async function _kitCreateDistintaFromDraft(kitId) {
     const { kits } = _kitLoad();
     const kit = kits.find(k => k.id === kitId);
     if (!kit) { notificaElegante('Kit non trovato ⚠️'); return; }
     let orderDraft = _kitGetOrderDraft(kit);
     if (!_kitGetOrderMeta(orderDraft).documento) {
-        _kitMutateOrderDraft(kitId, function(currentDraft) { _kitEnsureOrderDraftDocument(currentDraft); });
+        const documento = await _kitGetNextDocumentNumber();
+        _kitMutateOrderDraft(kitId, function(currentDraft) {
+            const meta = _kitGetOrderMeta(currentDraft);
+            meta.documento = documento;
+            _kitSetOrderMeta(currentDraft, meta);
+        });
         orderDraft = _kitGetOrderDraft(kit);
     }
     const distinta = _kitBuildDistintaBase(kit, orderDraft);

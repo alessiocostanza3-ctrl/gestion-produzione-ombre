@@ -5,6 +5,7 @@
 import { URL_GOOGLE } from '../core/config.js';
 import ProdCache from '../core/cache.js';
 import { utenteAttuale } from '../core/session.js';
+import { gasRequest } from '../core/api.js';
 import { notificaElegante, applicaFade, mostraConferma } from '../core/ui.js';
 import RevisionPoller from '../core/revision-poller.js';
 import { prefetch } from '../core/state.js';
@@ -17,6 +18,9 @@ let _ordiniAutocompleteCache = [];
 let _fabbisognoOrdiniSel   = new Set(); // ordini selezionati nel modal (reset a ogni load)
 let _fabbisognoRawRows     = [];        // righe di produzione grezze per ricalcolo client-side
 let _ordiniSelezionabili   = [];        // { ordine, cliente } unici, ordinati
+let _fabbisognoSnapshotRows = null;     // snapshot condiviso da Sheets
+let _fabbisognoSnapshotId = '';
+let _fabbisognoArchivioCache = [];
 
 // â”€â”€â”€ Alias _normNome (definita in script.js, dipende da _NOME_CANON) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const _normNome = n => window._normNome ? window._normNome(n) : (n ? String(n).trim() : n);
@@ -578,6 +582,20 @@ function _fabprodEscHtml_(value) {
 }
 
 function _fabprodBuildPrintRows_() {
+    if (Array.isArray(_fabbisognoSnapshotRows)) {
+        return _fabbisognoSnapshotRows.map(r => {
+            const qty = Number(r.qtyTotale ?? r.qty ?? 0) || 0;
+            const ordini = Array.isArray(r.ordini) ? r.ordini : [];
+            return {
+                codice: String(r.codice || '').trim(),
+                prodotto: String(r.prodotto || '').trim(),
+                ordini,
+                qtyTotale: qty,
+                formulaQty: String(r.formulaQty || _formatQtyProduzione_(qty))
+            };
+        });
+    }
+
     const grouped = new Map();
     for (const riga of (_fabbisognoRawRows || [])) {
         if (!riga || !riga.ordine) continue;
@@ -646,6 +664,22 @@ function _fabprodBuildPrintRows_() {
     });
 
     return rows;
+}
+
+function _fabprodResetSnapshot_() {
+    _fabbisognoSnapshotRows = null;
+    _fabbisognoSnapshotId = '';
+}
+
+function _fabprodBuildSnapshotMeta_(rows) {
+    const totaleQty = (rows || []).reduce((sum, r) => sum + (Number(r.qtyTotale || 0) || 0), 0);
+    return {
+        titolo: 'Fabbisogno Produzione',
+        generatedAt: Date.now(),
+        generatedBy: String(utenteAttuale?.nome || 'Sistema'),
+        righe: Array.isArray(rows) ? rows.length : 0,
+        totaleQty
+    };
 }
 
 function _fabprodBuildPrintHtml_(rows) {
@@ -780,13 +814,9 @@ function _fabprodBuildPrintHtml_(rows) {
 }
 
 function _fabprodStampaFabbisognoSel() {
-    if (!_fabbisognoOrdiniSel.size) {
-        notificaElegante('Seleziona almeno un ordine prima di stampare il fabbisogno.', 'warning');
-        return;
-    }
     const rows = _fabprodBuildPrintRows_();
     if (!rows.length) {
-        notificaElegante('Nessuna riga utile da stampare per gli ordini selezionati.', 'warning');
+        notificaElegante('Nessuna riga utile da stampare per il fabbisogno corrente.', 'warning');
         return;
     }
     const win = window.open('', '_blank');
@@ -800,6 +830,146 @@ function _fabprodStampaFabbisognoSel() {
     win.focus();
 }
 
+async function _fabprodSalvaSnapshotCondiviso() {
+    const rows = _fabprodBuildPrintRows_();
+    if (!rows.length) {
+        notificaElegante('Nessuna riga utile da salvare nel fabbisogno condiviso.', 'warning');
+        return;
+    }
+    const ordini = [..._fabbisognoOrdiniSel].sort((a, b) => a.localeCompare(b, 'it', { numeric: true, sensitivity: 'base' }));
+    const payload = {
+        id: _fabbisognoSnapshotId || undefined,
+        ordini,
+        rows,
+        meta: _fabprodBuildSnapshotMeta_(rows)
+    };
+    try {
+        const resp = await gasRequest({ azione: 'saveFabbisogno', payload });
+        if (resp?.status !== 'ok') throw new Error(resp?.message || 'saveFabbisogno failed');
+        _fabbisognoSnapshotId = String(resp.id || _fabbisognoSnapshotId || '');
+        notificaElegante('Fabbisogno condiviso salvato su Sheets.', 'success');
+    } catch (e) {
+        console.error('[richieste] saveFabbisogno error:', e);
+        notificaElegante('Errore salvataggio fabbisogno condiviso.', 'error');
+    }
+}
+
+function _fabprodBuildArchivioRowsHtml_(items) {
+    if (!items.length) {
+        return '<div class="empty-msg" style="margin:16px 0">Nessun fabbisogno condiviso disponibile.</div>';
+    }
+    return items.map(function(item) {
+        const ordini = Array.isArray(item.ordini) ? item.ordini : [];
+        const ordLabel = ordini.length ? ordini.slice(0, 4).join(', ') + (ordini.length > 4 ? ' ...' : '') : 'Ordini non specificati';
+        const updatedAt = item.updatedAt ? new Date(item.updatedAt).toLocaleString('it-IT') : '-';
+        const rowsCount = Number(item.rowsCount || 0) || 0;
+        const safeId = _fabprodEscHtml_(item.id || '');
+        return `
+            <div class="fabprod-sel-item fabprod-sel-item--checked" style="display:block;cursor:default">
+                <div class="fabprod-sel-item-info" style="gap:4px">
+                    <span class="fabprod-sel-ord">${safeId || 'SNAP'}</span>
+                    <span class="fabprod-sel-cli">Aggiornato: ${_fabprodEscHtml_(updatedAt)} · Righe: ${rowsCount}</span>
+                    <span class="fabprod-sel-cli">Ordini: ${_fabprodEscHtml_(ordLabel)}</span>
+                    <span class="fabprod-sel-cli">Autore: ${_fabprodEscHtml_(item.updatedBy || item.createdBy || '-')}</span>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">
+                    <button type="button" class="fabprod-print-btn" onclick="_fabprodApriSnapshotById('${safeId}')"><i class="fas fa-folder-open"></i> Apri</button>
+                    <button type="button" class="fabprod-sel-btn" onclick="_fabprodArchiviaSnapshotById('${safeId}')"><i class="fas fa-box-archive"></i> Archivia</button>
+                </div>
+            </div>`;
+    }).join('');
+}
+
+async function _fabprodApriArchivioSnapshot() {
+    document.getElementById('fabprod-archivio-modal')?.remove();
+    try {
+        const resp = await gasRequest({ azione: 'getFabbisogni', includeArchived: false });
+        _fabbisognoArchivioCache = Array.isArray(resp?.items) ? resp.items : [];
+    } catch (e) {
+        console.error('[richieste] getFabbisogni error:', e);
+        notificaElegante('Errore caricamento fabbisogni condivisi.', 'error');
+        return;
+    }
+
+    const el = document.createElement('div');
+    el.id = 'fabprod-archivio-modal';
+    el.className = 'fabprod-sel-modal-overlay';
+    el.innerHTML = `
+        <div class="fabprod-sel-modal-box">
+            <div class="fabprod-sel-modal-header">
+                <span><i class="fas fa-database"></i> Fabbisogni condivisi</span>
+                <button type="button" class="fabprod-sel-modal-close" onclick="_fabprodChiudiArchivioSnapshot()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="fabprod-sel-modal-body" id="fabprod-archivio-body">${_fabprodBuildArchivioRowsHtml_(_fabbisognoArchivioCache)}</div>
+            <div class="fabprod-sel-footer">
+                <button type="button" class="fabprod-sel-btn-cancel" onclick="_fabprodChiudiArchivioSnapshot()">Chiudi</button>
+            </div>
+        </div>`;
+    el.addEventListener('click', function(e) { if (e.target === el) _fabprodChiudiArchivioSnapshot(); });
+    document.body.appendChild(el);
+    requestAnimationFrame(function() { el.classList.add('fabprod-sel-modal-overlay--in'); });
+}
+
+function _fabprodChiudiArchivioSnapshot() {
+    document.getElementById('fabprod-archivio-modal')?.remove();
+}
+
+async function _fabprodApriSnapshotById(id) {
+    const key = String(id || '').trim();
+    if (!key) return;
+    try {
+        const resp = await gasRequest({ azione: 'getFabbisognoById', id: key });
+        if (resp?.status !== 'ok' || !resp?.item) throw new Error(resp?.message || 'Snapshot non trovato');
+        const item = resp.item;
+        _fabbisognoSnapshotId = String(item.id || key);
+        _fabbisognoSnapshotRows = Array.isArray(item.rows)
+            ? item.rows.map(function(r) {
+                return {
+                    codice: String(r?.codice || '').trim(),
+                    prodotto: String(r?.prodotto || '').trim(),
+                    qty: Number(r?.qtyTotale ?? r?.qty ?? 0) || 0,
+                    formulaQty: String(r?.formulaQty || ''),
+                    ordini: Array.isArray(r?.ordini) ? r.ordini : []
+                };
+            })
+            : [];
+        _fabbisognoOrdiniSel = new Set(Array.isArray(item.ordini) ? item.ordini.map(function(o) { return String(o || '').trim(); }).filter(Boolean) : []);
+        _fabprodChiudiArchivioSnapshot();
+        _aggiornaPannelloFabbisogno();
+        _fabprodApriSezioneDaScadenze_();
+        notificaElegante('Snapshot fabbisogno caricato.', 'success');
+    } catch (e) {
+        console.error('[richieste] getFabbisognoById error:', e);
+        notificaElegante('Errore apertura snapshot fabbisogno.', 'error');
+    }
+}
+
+async function _fabprodArchiviaSnapshotById(id) {
+    const key = String(id || '').trim();
+    if (!key) return;
+    const ok = await mostraConferma('Archiviare questo fabbisogno condiviso?', {
+        title: 'Archivia snapshot',
+        confirmText: 'Archivia',
+        cancelText: 'Annulla',
+        confirmType: 'danger'
+    });
+    if (!ok) return;
+
+    try {
+        const resp = await gasRequest({ azione: 'archiveFabbisogno', id: key });
+        if (resp?.status !== 'ok') throw new Error(resp?.message || 'Archiviazione non riuscita');
+        _fabbisognoArchivioCache = _fabbisognoArchivioCache.filter(function(it) { return String(it.id || '') !== key; });
+        const body = document.getElementById('fabprod-archivio-body');
+        if (body) body.innerHTML = _fabprodBuildArchivioRowsHtml_(_fabbisognoArchivioCache);
+        if (_fabbisognoSnapshotId === key) _fabprodResetSnapshot_();
+        _aggiornaPannelloFabbisogno();
+        notificaElegante('Snapshot archiviato.', 'success');
+    } catch (e) {
+        console.error('[richieste] archiveFabbisogno error:', e);
+        notificaElegante('Errore archiviazione snapshot.', 'error');
+    }
+}
+
 // â”€â”€â”€ Fabbisogno compilabile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function _aggiornaPannelloFabbisogno() {
@@ -808,11 +978,12 @@ function _aggiornaPannelloFabbisogno() {
     const badgeCnt = document.getElementById('fabprod-cnt-badge');
     if (!listEl) return;
 
-    const rawFiltrate = _fabbisognoRawRows.filter(r => {
-        if (!r || !r.ordine) return false;
-        return _fabbisognoOrdiniSel.has(String(r.ordine).trim());
-    });
-    const rows = _buildFabbisognoProduzioneRows_(rawFiltrate);
+    const rows = Array.isArray(_fabbisognoSnapshotRows)
+        ? _fabbisognoSnapshotRows
+        : _buildFabbisognoProduzioneRows_(_fabbisognoRawRows.filter(r => {
+            if (!r || !r.ordine) return false;
+            return _fabbisognoOrdiniSel.has(String(r.ordine).trim());
+        }));
 
     // Aggiorna lista con mini-render inline (non _renderFabbisogno di closure)
     if (!rows.length) {
@@ -853,7 +1024,9 @@ function _aggiornaPannelloFabbisogno() {
         badgeCnt.style.display = rows.length > 0 ? '' : 'none';
     }
     const printBtn = document.getElementById('fabprod-print-btn');
-    if (printBtn) printBtn.disabled = _fabbisognoOrdiniSel.size === 0;
+    if (printBtn) printBtn.disabled = rows.length === 0;
+    const saveBtn = document.getElementById('fabprod-save-btn');
+    if (saveBtn) saveBtn.disabled = rows.length === 0;
 }
 
 function _apriModalFabbisognoSel() {
@@ -953,6 +1126,7 @@ function _applicaSelFabbisogno() {
     _fabbisognoOrdiniSel = new Set(
         [...modal.querySelectorAll('.fabprod-sel-chk:checked')].map(c => c.value)
     );
+    _fabprodResetSnapshot_();
     _chiudiModalFabbisognoSel();
     _aggiornaPannelloFabbisogno();
 }
@@ -996,6 +1170,7 @@ function _fabprodDaScadenzeTutte() {
         return;
     }
     _fabbisognoOrdiniSel = new Set(ordini);
+    _fabprodResetSnapshot_();
     _aggiornaPannelloFabbisogno();
     _fabprodApriSezioneDaScadenze_();
     notificaElegante(`Fabbisogno impostato su ${ordini.length} ordini da scadenze.`, 'success');
@@ -1008,6 +1183,7 @@ function _fabprodDaScadenzeFlaggate() {
         return;
     }
     _fabbisognoOrdiniSel = new Set(ordini);
+    _fabprodResetSnapshot_();
     _aggiornaPannelloFabbisogno();
     _fabprodApriSezioneDaScadenze_();
     notificaElegante(`Fabbisogno impostato su ${ordini.length} ordini selezionati.`, 'success');
@@ -1343,6 +1519,16 @@ export function _renderDatiRichieste(_dati) {
                                 <i class="fas fa-sliders"></i>
                                 Seleziona ordini
                                 <span class="fabprod-sel-badge" id="fabprod-sel-badge" style="display:none">0</span>
+                            </button>
+                            <button type="button" class="fabprod-sel-btn" id="fabprod-open-btn"
+                                onclick="event.stopPropagation();_fabprodApriArchivioSnapshot()">
+                                <i class="fas fa-folder-open"></i>
+                                Apri condiviso
+                            </button>
+                            <button type="button" class="fabprod-sel-btn" id="fabprod-save-btn"
+                                onclick="event.stopPropagation();_fabprodSalvaSnapshotCondiviso()" disabled>
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                Salva condiviso
                             </button>
                             <button type="button" class="fabprod-print-btn" id="fabprod-print-btn"
                                 onclick="event.stopPropagation();_fabprodStampaFabbisognoSel()" disabled>
@@ -1825,6 +2011,11 @@ export function registerGlobals() {
     window._fabprodDaScadenzeTutte    = _fabprodDaScadenzeTutte;
     window._fabprodDaScadenzeFlaggate = _fabprodDaScadenzeFlaggate;
     window._fabprodStampaFabbisognoSel = _fabprodStampaFabbisognoSel;
+    window._fabprodSalvaSnapshotCondiviso = _fabprodSalvaSnapshotCondiviso;
+    window._fabprodApriArchivioSnapshot = _fabprodApriArchivioSnapshot;
+    window._fabprodChiudiArchivioSnapshot = _fabprodChiudiArchivioSnapshot;
+    window._fabprodApriSnapshotById = _fabprodApriSnapshotById;
+    window._fabprodArchiviaSnapshotById = _fabprodArchiviaSnapshotById;
     window.aggiornaRichiesta       = aggiornaRichiesta;
     window._sollecitaConferma      = _sollecitaConferma;
     window._archiviaConferma       = _archiviaConferma;
