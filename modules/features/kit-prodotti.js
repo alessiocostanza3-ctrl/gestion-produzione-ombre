@@ -39,6 +39,60 @@ function _kitBuildServerPayload() {
 
 let _kitStore = _kitNormalizeServerPayload({});
 
+function _kitPayloadHasData(payload) {
+    const p = _kitNormalizeServerPayload(payload || {});
+    return !!(
+        (p.kits && p.kits.length) ||
+        (p.anagrafiche && p.anagrafiche.length) ||
+        (p.distinte && p.distinte.length) ||
+        (p.presets && p.presets.length) ||
+        (p.orderDrafts && Object.keys(p.orderDrafts).length) ||
+        p.draftDocSeq > 0
+    );
+}
+
+function _kitReadLegacyLocalPayload_() {
+    try {
+        const kitsRaw = localStorage.getItem('_mlKitData');
+        const kitsParsed = kitsRaw ? JSON.parse(kitsRaw) : {};
+        const kits = Array.isArray(kitsParsed) ? kitsParsed : (Array.isArray(kitsParsed?.kits) ? kitsParsed.kits : []);
+
+        const anagrafiche = JSON.parse(localStorage.getItem('_mlKitAnagrafiche') || '[]');
+        const distinte = JSON.parse(localStorage.getItem('_mlKitDistinte') || '[]');
+        const presets = JSON.parse(localStorage.getItem('_mlKitPresetSections') || '[]');
+        const orderDrafts = JSON.parse(localStorage.getItem('_mlKitOrderDrafts') || '{}');
+        const draftDocSeq = Number.parseInt(localStorage.getItem('_mlKitOrderDraftSeq') || '0', 10) || 0;
+
+        return {
+            kits: Array.isArray(kits) ? kits : [],
+            anagrafiche: Array.isArray(anagrafiche) ? anagrafiche : [],
+            distinte: Array.isArray(distinte) ? distinte : [],
+            presets: Array.isArray(presets) ? presets : [],
+            orderDrafts: orderDrafts && typeof orderDrafts === 'object' && !Array.isArray(orderDrafts) ? orderDrafts : {},
+            draftDocSeq
+        };
+    } catch (_e) {
+        return _kitNormalizeServerPayload({});
+    }
+}
+
+function _kitClearLegacyLocal_() {
+    const keys = [
+        '_mlKitData',
+        '_mlKitDataTs',
+        '_mlKitOrderDrafts',
+        '_mlKitOrderDraftSeq',
+        '_mlKitPresetSections',
+        '_mlKitDistinte',
+        '_mlKitDistinteTs',
+        '_mlKitAnagrafiche',
+        '_mlKitAnagraficheTs'
+    ];
+    keys.forEach(function(key) {
+        try { localStorage.removeItem(key); } catch (_e) {}
+    });
+}
+
 // ─── fetch flag ───────────────────────────────────────────────────────────────
 let _fetched = false;
 let _kitOrderAutocompleteCache = [];
@@ -1648,7 +1702,32 @@ function _kitFetchFromServer(cb) {
     fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify({ azione: 'getKitData' }) })
         .then(r => r.json())
         .then(d => {
-            _kitStore = _kitNormalizeServerPayload(d);
+            const serverPayload = _kitNormalizeServerPayload(d);
+            if (_kitPayloadHasData(serverPayload)) {
+                _kitStore = serverPayload;
+                if (cb) cb(true);
+                return;
+            }
+
+            // Migrazione one-shot: se il server è vuoto ma esistono vecchi dati locali,
+            // promuovili su Sheets e svuota i vecchi storage locali.
+            const legacyPayload = _kitReadLegacyLocalPayload_();
+            if (_kitPayloadHasData(legacyPayload)) {
+                _kitStore = _kitNormalizeServerPayload(legacyPayload);
+                gasRequest({ azione: 'setKitData', payload: _kitBuildServerPayload() })
+                    .then(function(resp) {
+                        _kitStore.ts = Number(resp?.ts || Date.now()) || Date.now();
+                        _kitClearLegacyLocal_();
+                        notificaElegante('Migrazione Kit completata: dati spostati su Sheets.', 'success');
+                        if (cb) cb(true);
+                    })
+                    .catch(function() {
+                        if (cb) cb(false);
+                    });
+                return;
+            }
+
+            _kitStore = serverPayload;
             if (cb) cb(true);
         })
         .catch(() => { if (cb) cb(false); });
