@@ -7,18 +7,37 @@ import { utenteAttuale } from '../core/session.js';
 import { gasRequest } from '../core/api.js';
 import { notificaElegante, applicaFade, _esc } from '../core/ui.js';
 
-// ─── LS keys ──────────────────────────────────────────────────────────────────
-const _KIT_LS_KEY  = '_mlKitData';        // { kits: [...], ts: number }
-const _KIT_LS_TS   = '_mlKitDataTs';      // timestamp locale
-const _KIT_DRAFT_LS_KEY = '_mlKitOrderDrafts'; // bozze ordine locali, non sincronizzate
-const _KIT_DRAFT_DOC_SEQ_KEY = '_mlKitOrderDraftSeq';
-const _KIT_PRESET_SECS_LS_KEY = '_mlKitPresetSections'; // anagrafiche/sezioni riutilizzabili
+// ─── Store Kit (server canonical: Google Sheets) ─────────────────────────────
 const _KIT_SCHEMA_VERSION = 2;
 const _KIT_UNITA_MISURA_OPTIONS = ['pz', 'mt', 'cm', 'mm', 'kg', 'g', 'lt', 'ml'];
-const _KIT_DISTINTE_LS_KEY = '_mlKitDistinte';
-const _KIT_DISTINTE_LS_TS  = '_mlKitDistinteTs';
-const _KIT_ANAGRAFICHE_LS_KEY = '_mlKitAnagrafiche';
-const _KIT_ANAGRAFICHE_LS_TS  = '_mlKitAnagraficheTs';
+
+function _kitNormalizeServerPayload(raw) {
+    const src = Array.isArray(raw) ? { kits: raw } : (raw && typeof raw === 'object' ? raw : {});
+    const draftsSrc = src.orderDrafts;
+    const orderDrafts = draftsSrc && typeof draftsSrc === 'object' && !Array.isArray(draftsSrc) ? draftsSrc : {};
+    return {
+        kits: Array.isArray(src.kits) ? src.kits.map(_kitNormalizeKit) : [],
+        anagrafiche: Array.isArray(src.anagrafiche) ? src.anagrafiche : [],
+        distinte: Array.isArray(src.distinte) ? src.distinte : [],
+        presets: Array.isArray(src.presets) ? src.presets : [],
+        orderDrafts,
+        draftDocSeq: Math.max(0, Number.parseInt(src.draftDocSeq, 10) || 0),
+        ts: Number(src.ts || 0) || 0
+    };
+}
+
+function _kitBuildServerPayload() {
+    return {
+        kits: _kitStore.kits,
+        anagrafiche: _kitStore.anagrafiche,
+        distinte: _kitStore.distinte,
+        presets: _kitStore.presets,
+        orderDrafts: _kitStore.orderDrafts,
+        draftDocSeq: _kitStore.draftDocSeq
+    };
+}
+
+let _kitStore = _kitNormalizeServerPayload({});
 
 // ─── fetch flag ───────────────────────────────────────────────────────────────
 let _fetched = false;
@@ -458,53 +477,33 @@ function _kitGetCompRuleUi(comp, kit) {
 }
 
 function _kitLoadOrderDrafts() {
-    try {
-        const raw = localStorage.getItem(_KIT_DRAFT_LS_KEY);
-        const parsed = raw ? JSON.parse(raw) : {};
-        return parsed && typeof parsed === 'object' ? parsed : {};
-    } catch {
-        return {};
-    }
+    const drafts = _kitStore.orderDrafts;
+    return drafts && typeof drafts === 'object' ? JSON.parse(JSON.stringify(drafts)) : {};
 }
 
 function _kitSaveOrderDrafts(drafts) {
-    try {
-        localStorage.setItem(_KIT_DRAFT_LS_KEY, JSON.stringify(drafts || {}));
-    } catch {}
+    const nextDrafts = drafts && typeof drafts === 'object' ? drafts : {};
+    _kitStore.orderDrafts = nextDrafts;
+    _kitPushToServer();
 }
 
 function _kitLoadPresets() {
-    try {
-        const raw = localStorage.getItem(_KIT_PRESET_SECS_LS_KEY);
-        const parsed = raw ? JSON.parse(raw) : [];
-        return Array.isArray(parsed) ? parsed : [];
-    } catch {
-        return [];
-    }
+    return Array.isArray(_kitStore.presets) ? JSON.parse(JSON.stringify(_kitStore.presets)) : [];
 }
 
 function _kitSavePresets(presets) {
-    try {
-        localStorage.setItem(_KIT_PRESET_SECS_LS_KEY, JSON.stringify(presets || []));
-    } catch {}
+    _kitStore.presets = Array.isArray(presets) ? presets : [];
+    _kitPushToServer();
 }
 
-// ─── Distinte (localStorage) ─────────────────────────────────────────────────
+// ─── Distinte (server/shared) ────────────────────────────────────────────────
 function _kitLoadDistinte() {
-    try {
-        const raw = localStorage.getItem(_KIT_DISTINTE_LS_KEY);
-        const parsed = raw ? JSON.parse(raw) : [];
-        return Array.isArray(parsed) ? parsed : [];
-    } catch {
-        return [];
-    }
+    return Array.isArray(_kitStore.distinte) ? JSON.parse(JSON.stringify(_kitStore.distinte)) : [];
 }
 
 function _kitSaveDistinte(distinte) {
-    try {
-        localStorage.setItem(_KIT_DISTINTE_LS_KEY, JSON.stringify(distinte || []));
-        try { localStorage.setItem(_KIT_DISTINTE_LS_TS, Date.now()); } catch {}
-    } catch {}
+    _kitStore.distinte = Array.isArray(distinte) ? distinte : [];
+    _kitPushToServer();
 }
 
 function _kitNormalizeOrderNumber(value) {
@@ -536,12 +535,10 @@ function _kitGetOrderQty(orderDraft, varianteKey) {
 }
 
 function _kitGetNextDocumentNumber() {
-    let nextValue = 1;
-    try {
-        const currentValue = Number.parseInt(localStorage.getItem(_KIT_DRAFT_DOC_SEQ_KEY), 10) || 0;
-        nextValue = currentValue + 1;
-        localStorage.setItem(_KIT_DRAFT_DOC_SEQ_KEY, String(nextValue));
-    } catch {}
+    const currentValue = Math.max(0, Number.parseInt(_kitStore.draftDocSeq, 10) || 0);
+    const nextValue = currentValue + 1;
+    _kitStore.draftDocSeq = nextValue;
+    _kitPushToServer();
     return `Distinta Base-${String(nextValue).padStart(4, '0')}`;
 }
 
@@ -672,7 +669,7 @@ function _kitIsNewStyleKit(kit) {
     return !(kit.assiConfigurazione && kit.assiConfigurazione.length);
 }
 
-/** Carica il draft new-style da localStorage */
+/** Carica il draft new-style dallo store condiviso server */
 function _kitGetNewStyleDraft(kitId) {
     const drafts = _kitLoadOrderDrafts();
     const raw = (drafts?.[kitId] && typeof drafts[kitId] === 'object') ? drafts[kitId] : {};
@@ -1619,34 +1616,30 @@ function _kitOpenPrintPreview(kitId) {
     previewWindow.focus();
 }
 
-// ─── localStorage helpers ─────────────────────────────────────────────────────
+// ─── Store helpers (server-first) ────────────────────────────────────────────
 function _kitLoad() {
-    try {
-        const raw = localStorage.getItem(_KIT_LS_KEY);
-        if (!raw) return { kits: [] };
-        const parsed = JSON.parse(raw);
-        return {
-            kits: Array.isArray(parsed?.kits) ? parsed.kits.map(_kitNormalizeKit) : []
-        };
-    } catch { return { kits: [] }; }
+    return {
+        kits: Array.isArray(_kitStore.kits) ? _kitStore.kits.map(_kitNormalizeKit) : []
+    };
 }
 
 function _kitSave(kits) {
     const safeKits = Array.isArray(kits) ? kits.map(_kitNormalizeKit) : [];
-    try {
-        localStorage.setItem(_KIT_LS_KEY, JSON.stringify({ kits: safeKits }));
-        localStorage.setItem(_KIT_LS_TS, Date.now());
-    } catch {}
-    _kitPushToServer(safeKits);
+    _kitStore.kits = safeKits;
+    _kitPushToServer();
 }
 
 // ─── Sync server ──────────────────────────────────────────────────────────────
 let _kitPushTimer = null;
 
-function _kitPushToServer(kits) {
+function _kitPushToServer() {
     clearTimeout(_kitPushTimer);
     _kitPushTimer = setTimeout(function () {
-        gasRequest({ azione: 'setKitData', kits })
+        const payload = _kitBuildServerPayload();
+        gasRequest({ azione: 'setKitData', payload: payload })
+            .then(function(resp) {
+                _kitStore.ts = Number(resp?.ts || Date.now()) || Date.now();
+            })
             .catch(function (e) { console.warn('[kit-prodotti] salvataggio remoto fallito:', e); });
     }, 1500);
 }
@@ -1655,17 +1648,8 @@ function _kitFetchFromServer(cb) {
     fetch(URL_GOOGLE, { method: 'POST', body: JSON.stringify({ azione: 'getKitData' }) })
         .then(r => r.json())
         .then(d => {
-            if (d && Array.isArray(d.kits)) {
-                const serverTs = parseInt(d.ts || 0);
-                const localTs  = parseInt(localStorage.getItem(_KIT_LS_TS) || 0);
-                if (serverTs > 0 && serverTs > localTs) {
-                    try { localStorage.setItem(_KIT_LS_KEY, JSON.stringify({ kits: d.kits })); } catch {}
-                    try { localStorage.setItem(_KIT_LS_TS, serverTs); } catch {}
-                    if (cb) cb(true);
-                    return;
-                }
-            }
-            if (cb) cb(false);
+            _kitStore = _kitNormalizeServerPayload(d);
+            if (cb) cb(true);
         })
         .catch(() => { if (cb) cb(false); });
 }
@@ -1770,9 +1754,12 @@ function _ts() {
 export function caricaKitProdotti() {
     if (!_fetched) {
         _fetched = true;
-        _kitFetchFromServer(function (hasDati) {
-            if (hasDati) caricaKitProdotti();
-        });
+        const contenitoreLoading = document.getElementById('contenitore-dati');
+        if (contenitoreLoading) {
+            contenitoreLoading.innerHTML = "<div class='centered-msg'><i class='fas fa-spinner fa-spin'></i> Caricamento kit dal database...</div>";
+        }
+        _kitFetchFromServer(function () { caricaKitProdotti(); });
+        return;
     }
 
     const { kits } = _kitLoad();
@@ -2058,18 +2045,12 @@ function _kitCreateDistintaFromDraft(kitId) {
 
 // ─── Anagrafiche (componenti) ───────────────────────────────────────────────
 function _kitLoadAnagrafiche() {
-    try {
-        const raw = localStorage.getItem(_KIT_ANAGRAFICHE_LS_KEY);
-        const parsed = raw ? JSON.parse(raw) : [];
-        return Array.isArray(parsed) ? parsed : [];
-    } catch { return []; }
+    return Array.isArray(_kitStore.anagrafiche) ? JSON.parse(JSON.stringify(_kitStore.anagrafiche)) : [];
 }
 
 function _kitSaveAnagrafiche(items) {
-    try {
-        localStorage.setItem(_KIT_ANAGRAFICHE_LS_KEY, JSON.stringify(items || []));
-        try { localStorage.setItem(_KIT_ANAGRAFICHE_LS_TS, Date.now()); } catch {}
-    } catch {}
+    _kitStore.anagrafiche = Array.isArray(items) ? items : [];
+    _kitPushToServer();
 }
 
 function _kitEnsureAnagraficaModal() {
@@ -3129,10 +3110,8 @@ function _kitSalvaManuale(kitId) {
     btn.disabled = true;
     btn.classList.add('kit-save-loading');
     label.textContent = 'Salvataggio…';
-    const { kits } = _kitLoad();
-    gasRequest({ azione: 'setKitData', kits })
+    gasRequest({ azione: 'setKitData', payload: _kitBuildServerPayload() })
         .then(() => {
-            try { localStorage.setItem(_KIT_LS_TS, Date.now()); } catch {}
             btn.classList.remove('kit-save-loading');
             btn.classList.add('kit-save-ok');
             label.textContent = 'Salvato ✓';
