@@ -2009,7 +2009,7 @@ function _kitRenderKitsGrid(kits, container) {
                     </button>
                     <button type="button" class="btn-archive-action" style="font-size:.78rem;padding:4px 10px"
                         onclick="event.preventDefault();event.stopPropagation();_kitOpenDuplicateModal('${_esc(kit.id)}')" title="Duplica kit">
-                        <i class="fas fa-copy"></i> Dup
+                        Dup
                     </button>
                     <button type="button" class="btn-trash-modern"
                         onclick="event.preventDefault();event.stopPropagation();_kitQDelKit('${_esc(kit.id)}')" title="Elimina kit">
