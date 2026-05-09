@@ -229,11 +229,20 @@ function _kitNormalizeComp(comp) {
     };
 }
 
+function _kitSortByNome(items) {
+    const safe = Array.isArray(items) ? items : [];
+    return [...safe].sort((a, b) => {
+        const na = String(a?.nome || '').trim();
+        const nb = String(b?.nome || '').trim();
+        return na.localeCompare(nb, 'it', { sensitivity: 'base', numeric: true });
+    });
+}
+
 function _kitNormalizeSezione(sez) {
     return {
         id: String(sez?.id || _uid()),
         nome: String(sez?.nome || 'Nuova sezione').trim() || 'Nuova sezione',
-        componenti: Array.isArray(sez?.componenti) ? sez.componenti.map(_kitNormalizeComp) : []
+        componenti: _kitSortByNome(Array.isArray(sez?.componenti) ? sez.componenti.map(_kitNormalizeComp) : [])
     };
 }
 
@@ -495,13 +504,17 @@ function _kitNormalizeKit(rawKit) {
         pronti[entry[0]] = Math.max(0, Number.parseInt(entry[1], 10) || 0);
     });
 
+    const sezioniNormalize = Array.isArray(kit.sezioni)
+        ? kit.sezioni.map(sezione => _kitNormalizeSezioneForKit(sezione, { assiConfigurazione, varianti }))
+        : [];
+
     return {
         id: String(kit.id || _uid()),
         nome: String(kit.nome || 'Nuovo Kit').trim() || 'Nuovo Kit',
         schemaVersion: _KIT_SCHEMA_VERSION,
         assiConfigurazione,
         varianti,
-        sezioni: Array.isArray(kit.sezioni) ? kit.sezioni.map(sezione => _kitNormalizeSezioneForKit(sezione, { assiConfigurazione, varianti })) : [],
+        sezioni: _kitSortByNome(sezioniNormalize),
         sottoAssembly,
         qtaDaProdurre,
         pronti,
