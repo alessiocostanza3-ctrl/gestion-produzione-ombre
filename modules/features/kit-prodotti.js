@@ -1684,14 +1684,24 @@ async function _kitOpenPrintPreview(kitId) {
 }
 
 // ─── Store helpers (server-first) ────────────────────────────────────────────
+function _kitSortKitsByNome(kits) {
+    const safe = Array.isArray(kits) ? kits : [];
+    return [...safe].sort((a, b) => {
+        const na = String(a?.nome || '').trim();
+        const nb = String(b?.nome || '').trim();
+        return na.localeCompare(nb, 'it', { sensitivity: 'base', numeric: true });
+    });
+}
+
 function _kitLoad() {
+    const normalized = Array.isArray(_kitStore.kits) ? _kitStore.kits.map(_kitNormalizeKit) : [];
     return {
-        kits: Array.isArray(_kitStore.kits) ? _kitStore.kits.map(_kitNormalizeKit) : []
+        kits: _kitSortKitsByNome(normalized)
     };
 }
 
 function _kitSave(kits) {
-    const safeKits = Array.isArray(kits) ? kits.map(_kitNormalizeKit) : [];
+    const safeKits = _kitSortKitsByNome(Array.isArray(kits) ? kits.map(_kitNormalizeKit) : []);
     _kitStore.kits = safeKits;
     _kitPushToServer();
 }
