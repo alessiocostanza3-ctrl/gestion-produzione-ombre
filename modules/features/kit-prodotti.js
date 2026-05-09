@@ -2007,9 +2007,9 @@ function _kitRenderKitsGrid(kits, container) {
                         onclick="event.preventDefault();event.stopPropagation();_kitOpenConfig('${_esc(kit.id)}')" title="Configurazione avanzata">
                         <i class="fas fa-gear"></i> Config
                     </button>
-                    <button type="button" class="btn-archive-action" style="font-size:.78rem;padding:4px 10px"
+                    <button type="button" class="btn-archive-action" style="font-size:.75rem;padding:3px 8px"
                         onclick="event.preventDefault();event.stopPropagation();_kitOpenDuplicateModal('${_esc(kit.id)}')" title="Duplica kit">
-                        <i class="fas fa-copy"></i> Duplica
+                        <i class="fas fa-copy"></i> Dup
                     </button>
                     <button type="button" class="btn-trash-modern"
                         onclick="event.preventDefault();event.stopPropagation();_kitQDelKit('${_esc(kit.id)}')" title="Elimina kit">
