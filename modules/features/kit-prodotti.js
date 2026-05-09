@@ -3315,6 +3315,7 @@ let _kitQAddState = { kitId: null, sezId: null };
 
 // ─── Config Modal state ───────────────────────────────────────────────────────
 let _kitConfigModalId  = null;
+let _kitCfgCatalogPickerState = { kitId: null, query: '', categoria: '' };
 
 // ─── Duplicate Kit state ──────────────────────────────────────────────────────
 let _kitDuplicateState = { sourceKitId: null };
@@ -3335,6 +3336,7 @@ function _kitCloseConfigModal() {
     if (!modal) return;
     modal.classList.remove('active');
     setTimeout(() => { if (!modal.classList.contains('active')) modal.style.display = 'none'; }, 300);
+    _kitCfgCloseCatalogPicker();
     _kitConfigModalId = null;
 }
 
@@ -3406,39 +3408,10 @@ function _kitRenderConfigModal() {
             }).join('') + `</div>`;
     }
 
-    // ── sezione 2: pill per aggiungere dal catalogo ──
+    // ── sezione 2: picker catalogo compatto ──
     const inKitNames = new Set(allKitComps.map(({ comp }) => comp.nome));
-    let catalogHtml  = '';
-
-    if (anag.length === 0) {
-        catalogHtml = `<div class="kcfg-empty" style="background:#fef3c7;border-color:#fde68a;color:#92400e;text-align:left">
-            <i class="fas fa-exclamation-triangle" style="margin-right:6px"></i>
-            Catalogo vuoto. Vai nella tab <strong>Anagrafiche</strong> per aggiungere componenti.
-        </div>`;
-    } else {
-        const strips = cats.map(cat => {
-            const avail = anag.filter(a => (a.categoria || '').trim() === cat && !inKitNames.has(a.nome));
-            if (avail.length === 0) return '';
-            const color = catColor(cat);
-            const pills = avail.map(a =>
-                `<button type="button" class="kcfg-pill"
-                    onclick="_kitCfgModalAddAnag('${_esc(kit.id)}','${_esc(a.id)}')"
-                    title="Aggiungi ${_esc(a.nome)}">
-                    <i class="fas fa-plus" style="font-size:.58rem;opacity:.6;margin-right:3px"></i>${_esc(a.nome)}${a.codice ? `<span class="kcfg-pill-code">${_esc(a.codice)}</span>` : ''}
-                </button>`
-            ).join('');
-            return `<div class="kcfg-cat-strip">
-                <span class="kcfg-cat-badge" style="--kcfg-dot:${color}">${_esc(cat)}</span>
-                <div class="kcfg-pills">${pills}</div>
-            </div>`;
-        }).filter(Boolean).join('');
-
-        catalogHtml = strips
-            || `<p style="color:#94a3b8;font-size:.82rem;margin:4px 0;padding:6px 2px">
-                   <i class="fas fa-check-circle" style="color:#10b981;margin-right:5px"></i>
-                   Tutti i componenti del catalogo sono gi&#224; nel kit.
-               </p>`;
-    }
+    const availableCatalog = anag.filter(a => !inKitNames.has(a.nome));
+    const availableCats = [...new Set(availableCatalog.map(a => (a.categoria || 'Senza categoria').trim() || 'Senza categoria'))];
 
     const panel = document.getElementById('kit-cfg-modal-bom-panel');
     if (!panel) return;
@@ -3446,15 +3419,140 @@ function _kitRenderConfigModal() {
     panel.innerHTML = `
         <div class="kcfg-section-lbl">Nel kit (${allKitComps.length})</div>
         ${listHtml}
-        ${anag.length > 0 ? `
         <div class="kcfg-section-lbl" style="margin-top:18px">Aggiungi dal catalogo</div>
-        <div style="padding:2px 0">${catalogHtml}</div>` : catalogHtml}
+        ${anag.length > 0
+            ? `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc">
+                    <div style="font-size:.82rem;color:#64748b">
+                        ${availableCatalog.length
+                            ? `${availableCatalog.length} componenti disponibili in ${availableCats.length} categorie`
+                            : 'Tutti i componenti del catalogo sono già nel kit'}
+                    </div>
+                    <button type="button" class="btn-archive-action primary" style="white-space:nowrap" onclick="_kitCfgOpenCatalogPicker()">
+                        <i class="fas fa-magnifying-glass"></i> Apri catalogo
+                    </button>
+               </div>`
+            : `<div class="kcfg-empty" style="background:#fef3c7;border-color:#fde68a;color:#92400e;text-align:left">
+                    <i class="fas fa-exclamation-triangle" style="margin-right:6px"></i>
+                    Catalogo vuoto. Vai nella tab <strong>Anagrafiche</strong> per aggiungere componenti.
+               </div>`}
         <div style="margin-top:14px;padding-top:10px;border-top:1px solid #f1f5f9">
             <button type="button" class="btn-add-dashed" style="font-size:.79rem;padding:8px 14px;border-radius:10px"
                 onclick="_kitCfgModalAddCompFree()">
                 <i class="fas fa-pen" style="margin-right:6px;opacity:.55"></i>Aggiungi componente manuale
             </button>
         </div>`;
+}
+
+function _kitEnsureCfgCatalogPickerModal() {
+    if (document.getElementById('modal-kit-cfg-catalog-picker')) return;
+    const wrap = document.createElement('div');
+    wrap.innerHTML = `
+    <div id="modal-kit-cfg-catalog-picker" class="modal-overlay" style="display:none" onclick="if(event.target===this)_kitCfgCloseCatalogPicker()">
+      <div class="modal-content" style="max-width:760px;width:min(760px,92vw)">
+        <h2 style="margin:0 0 6px;font-size:1.03rem;font-weight:700;color:#1e293b"><i class="fas fa-layer-group" style="color:#6366f1;margin-right:6px"></i>Catalogo Componenti</h2>
+        <p style="margin:0 0 12px;color:#94a3b8;font-size:.82rem">Cerca e aggiungi i componenti senza riempire la configurazione principale.</p>
+        <input id="kit-cfg-picker-search" class="input-field-modern" placeholder="Cerca per nome, codice, categoria" oninput="_kitCfgSetCatalogPickerQuery(this.value)">
+        <div id="kit-cfg-picker-cats" style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 8px"></div>
+        <div id="kit-cfg-picker-list" style="max-height:48vh;overflow:auto;border:1px solid #e2e8f0;border-radius:12px;padding:6px;background:#fff"></div>
+        <div class="modal-footer" style="margin-top:12px">
+          <button type="button" class="btn-modal-cancel" onclick="_kitCfgCloseCatalogPicker()">Chiudi</button>
+        </div>
+      </div>
+    </div>`;
+    document.body.appendChild(wrap.firstElementChild);
+}
+
+function _kitCfgOpenCatalogPicker() {
+    if (!_kitConfigModalId) return;
+    _kitEnsureCfgCatalogPickerModal();
+    _kitCfgCatalogPickerState.kitId = _kitConfigModalId;
+    _kitCfgCatalogPickerState.query = '';
+    _kitCfgCatalogPickerState.categoria = '';
+    const modal = document.getElementById('modal-kit-cfg-catalog-picker');
+    if (!modal) return;
+    _kitCfgRenderCatalogPicker();
+    modal.style.display = 'flex';
+    modal.offsetHeight;
+    modal.classList.add('active');
+    const input = document.getElementById('kit-cfg-picker-search');
+    if (input) {
+        input.value = _kitCfgCatalogPickerState.query || '';
+        setTimeout(() => input.focus(), 50);
+    }
+}
+
+function _kitCfgCloseCatalogPicker() {
+    const modal = document.getElementById('modal-kit-cfg-catalog-picker');
+    if (!modal) return;
+    modal.classList.remove('active');
+    setTimeout(() => { if (!modal.classList.contains('active')) modal.style.display = 'none'; }, 200);
+}
+
+function _kitCfgSetCatalogPickerQuery(value) {
+    _kitCfgCatalogPickerState.query = String(value || '').trim();
+    _kitCfgRenderCatalogPicker();
+}
+
+function _kitCfgSetCatalogPickerCategory(cat) {
+    _kitCfgCatalogPickerState.categoria = cat || '';
+    _kitCfgRenderCatalogPicker();
+}
+
+function _kitCfgAddAnagFromPicker(anagId) {
+    if (!_kitCfgCatalogPickerState.kitId) return;
+    _kitCfgModalAddAnag(_kitCfgCatalogPickerState.kitId, anagId);
+    _kitCfgRenderCatalogPicker();
+}
+
+function _kitCfgRenderCatalogPicker() {
+    const kitId = _kitCfgCatalogPickerState.kitId;
+    if (!kitId) return;
+    const { kits } = _kitLoad();
+    const kit = kits.find(k => k.id === kitId);
+    if (!kit) return;
+    const anag = _kitLoadAnagrafiche();
+    const inKitNames = new Set((kit.sezioni || []).flatMap(s => (s.componenti || []).map(c => c.nome)));
+
+    const categories = [...new Set(anag.map(a => (a.categoria || 'Senza categoria').trim() || 'Senza categoria'))]
+        .sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base', numeric: true }));
+
+    const q = String(_kitCfgCatalogPickerState.query || '').toLowerCase();
+    const catFilter = _kitCfgCatalogPickerState.categoria || '';
+    const filtered = anag.filter(item => {
+        const cat = (item.categoria || 'Senza categoria').trim() || 'Senza categoria';
+        if (catFilter && cat !== catFilter) return false;
+        if (!q) return true;
+        const hay = `${item.nome || ''} ${item.codice || ''} ${item.categoria || ''} ${item.descrizione || ''}`.toLowerCase();
+        return hay.includes(q);
+    });
+
+    const catsEl = document.getElementById('kit-cfg-picker-cats');
+    if (catsEl) {
+        catsEl.innerHTML = `
+            <button type="button" class="btn-archive-action ${!catFilter ? 'primary' : ''}" onclick="_kitCfgSetCatalogPickerCategory('')">Tutte</button>
+            ${categories.map(cat => `<button type="button" class="btn-archive-action ${catFilter===cat ? 'primary' : ''}" onclick='_kitCfgSetCatalogPickerCategory(${JSON.stringify(cat)})'>${_esc(cat)}</button>`).join('')}`;
+    }
+
+    const listEl = document.getElementById('kit-cfg-picker-list');
+    if (!listEl) return;
+    if (!filtered.length) {
+        listEl.innerHTML = `<div class="kcfg-empty" style="margin:2px">Nessun componente trovato con i filtri correnti.</div>`;
+        return;
+    }
+
+    listEl.innerHTML = filtered.map(item => {
+        const cat = (item.categoria || 'Senza categoria').trim() || 'Senza categoria';
+        const already = inKitNames.has(item.nome);
+        return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border-bottom:1px solid #f1f5f9">
+            <div style="min-width:0;flex:1">
+                <div style="font-weight:600;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(item.nome)}${item.codice ? ` <span style="color:#94a3b8;font-weight:500">· ${_esc(item.codice)}</span>` : ''}</div>
+                <div style="font-size:.78rem;color:#94a3b8">${_esc(cat)}</div>
+            </div>
+            ${already
+                ? `<span class="kcfg-pill" style="cursor:default;opacity:.72"><i class="fas fa-check" style="margin-right:4px"></i>Già nel kit</span>`
+                : `<button type="button" class="btn-archive-action primary" onclick='_kitCfgAddAnagFromPicker(${JSON.stringify(item.id)})'><i class="fas fa-plus"></i> Aggiungi</button>`}
+        </div>`;
+    }).join('');
 }
 
 
@@ -5278,6 +5376,11 @@ export function registerGlobals() {
     window._kitCloseConfigModal         = _kitCloseConfigModal;
     window._kitRenderConfigModal        = _kitRenderConfigModal;
     window._kitCfgModalSaveNome         = _kitCfgModalSaveNome;
+    window._kitCfgOpenCatalogPicker     = _kitCfgOpenCatalogPicker;
+    window._kitCfgCloseCatalogPicker    = _kitCfgCloseCatalogPicker;
+    window._kitCfgSetCatalogPickerQuery = _kitCfgSetCatalogPickerQuery;
+    window._kitCfgSetCatalogPickerCategory = _kitCfgSetCatalogPickerCategory;
+    window._kitCfgAddAnagFromPicker     = _kitCfgAddAnagFromPicker;
     window._kitCfgModalAddAnag          = _kitCfgModalAddAnag;
     window._kitCfgModalAddCompFree      = _kitCfgModalAddCompFree;
     window._kitCfgModalUpdateSez        = _kitCfgModalUpdateSez;
