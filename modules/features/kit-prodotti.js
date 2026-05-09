@@ -2007,6 +2007,10 @@ function _kitRenderKitsGrid(kits, container) {
                         onclick="event.preventDefault();event.stopPropagation();_kitOpenConfig('${_esc(kit.id)}')" title="Configurazione avanzata">
                         <i class="fas fa-gear"></i> Config
                     </button>
+                    <button type="button" class="btn-archive-action" style="font-size:.78rem;padding:4px 10px"
+                        onclick="event.preventDefault();event.stopPropagation();_kitOpenDuplicateModal('${_esc(kit.id)}')" title="Duplica kit">
+                        <i class="fas fa-copy"></i> Duplica
+                    </button>
                     <button type="button" class="btn-trash-modern"
                         onclick="event.preventDefault();event.stopPropagation();_kitQDelKit('${_esc(kit.id)}')" title="Elimina kit">
                         <i class="fas fa-trash"></i>
@@ -3265,6 +3269,9 @@ let _kitQAddState = { kitId: null, sezId: null };
 // ─── Config Modal state ───────────────────────────────────────────────────────
 let _kitConfigModalId  = null;
 
+// ─── Duplicate Kit state ──────────────────────────────────────────────────────
+let _kitDuplicateState = { sourceKitId: null };
+
 // ─── Config Modal — apri / chiudi ─────────────────────────────────────────────
 function _kitOpenConfigModal(kitId) {
     _kitConfigModalId  = kitId;
@@ -3790,6 +3797,123 @@ function _kitQDelKit(kitId) {
     const newKits = kits.filter(k => k.id !== kitId);
     _kitSave(newKits);
     _kitSwitchMainTab('kits');
+}
+
+// ── Duplica kit ───────────────────────────────────────────────────────────────
+function _kitOpenDuplicateModal(kitId) {
+    _kitDuplicateState = { sourceKitId: kitId };
+    const modal = document.getElementById('modal-kit-duplicate');
+    if (!modal) return;
+    const inp = document.getElementById('kit-duplicate-nome');
+    if (inp) inp.value = '';
+    modal.style.display = 'flex';
+    modal.offsetHeight;
+    modal.classList.add('active');
+    setTimeout(() => inp && inp.focus(), 80);
+}
+
+function _kitCloseDuplicateModal() {
+    const modal = document.getElementById('modal-kit-duplicate');
+    if (!modal) return;
+    modal.classList.remove('active');
+    setTimeout(() => { if (!modal.classList.contains('active')) modal.style.display = 'none'; }, 300);
+}
+
+function _kitConfirmDuplicate() {
+    const { sourceKitId } = _kitDuplicateState || {};
+    if (!sourceKitId) { notificaElegante('Errore: kit sorgente non trovato', 'error'); return; }
+    
+    const { kits } = _kitLoad();
+    const sourceKit = kits.find(k => k.id === sourceKitId);
+    if (!sourceKit) { notificaElegante('Kit sorgente non trovato', 'warning'); return; }
+    
+    const nomeBase = (document.getElementById('kit-duplicate-nome')?.value || '').trim();
+    if (!nomeBase) { notificaElegante('Inserisci un nome per il kit duplicato', 'warning'); return; }
+    
+    // Clona profondamente il kit con nuovi ID per tutti gli oggetti nidificati
+    const clonedKit = _kitDeepCloneWithNewIds(sourceKit);
+    clonedKit.nome = nomeBase;
+    
+    kits.push(clonedKit);
+    _kitSave(kits);
+    _kitCloseDuplicateModal();
+    notificaElegante(`Kit "${nomeBase}" creato da duplicazione ✓`);
+    setTimeout(() => _kitSwitchMainTab('kits'), 320);
+}
+
+function _kitDeepCloneWithNewIds(sourceKit) {
+    const idMap = {}; // Mappa vecchi ID → nuovi ID per mantenere coerenza interna
+    
+    // Funzione helper per ottenere nuovo ID
+    const mapId = (oldId) => {
+        if (!idMap[oldId]) {
+            idMap[oldId] = _uid();
+        }
+        return idMap[oldId];
+    };
+    
+    // Clona profondamente
+    const deepClone = JSON.parse(JSON.stringify(sourceKit));
+    
+    // Rigenera ID principali
+    deepClone.id = _uid();
+    
+    // Rigenera ID nelle sezioni e componenti
+    if (Array.isArray(deepClone.sezioni)) {
+        deepClone.sezioni = deepClone.sezioni.map(sez => {
+            const newSez = JSON.parse(JSON.stringify(sez));
+            newSez.id = _uid();
+            if (Array.isArray(newSez.componenti)) {
+                newSez.componenti = newSez.componenti.map(comp => {
+                    const newComp = JSON.parse(JSON.stringify(comp));
+                    newComp.id = _uid();
+                    return newComp;
+                });
+            }
+            return newSez;
+        });
+    }
+    
+    // Rigenera ID negli assi di configurazione
+    if (Array.isArray(deepClone.assiConfigurazione)) {
+        deepClone.assiConfigurazione = deepClone.assiConfigurazione.map(asse => {
+            const newAsse = JSON.parse(JSON.stringify(asse));
+            newAsse.id = _uid();
+            if (Array.isArray(newAsse.opzioni)) {
+                newAsse.opzioni = newAsse.opzioni.map(opt => {
+                    const newOpt = JSON.parse(JSON.stringify(opt));
+                    newOpt.id = _uid();
+                    return newOpt;
+                });
+            }
+            return newAsse;
+        });
+    }
+    
+    // Rigenera ID nelle varianti
+    if (Array.isArray(deepClone.varianti)) {
+        deepClone.varianti = deepClone.varianti.map(v => {
+            const newV = JSON.parse(JSON.stringify(v));
+            newV.id = _uid();
+            return newV;
+        });
+    }
+    
+    // Rigenera ID nei sottoassembly
+    if (Array.isArray(deepClone.sottoAssembly)) {
+        deepClone.sottoAssembly = deepClone.sottoAssembly.map(sa => {
+            const newSa = JSON.parse(JSON.stringify(sa));
+            newSa.id = _uid();
+            return newSa;
+        });
+    }
+    
+    // Pulisci stato di composizione e ordini
+    deepClone.qtaDaProdurre = {};
+    deepClone.pronti = {};
+    deepClone.movimenti = [];
+    
+    return deepClone;
 }
 
 function _kitNuovoKit() {
@@ -5133,6 +5257,9 @@ export function registerGlobals() {
     window._kitQDelComp                 = _kitQDelComp;
     window._kitQDelSez                  = _kitQDelSez;
     window._kitQDelKit                  = _kitQDelKit;
+    window._kitOpenDuplicateModal       = _kitOpenDuplicateModal;
+    window._kitCloseDuplicateModal      = _kitCloseDuplicateModal;
+    window._kitConfirmDuplicate         = _kitConfirmDuplicate;
     window._kitRenderHeaderActions      = _kitRenderHeaderActions;
     window._kitOpenSaveDistintaModal   = _kitOpenSaveDistintaModal;
     window._kitCloseSaveDistintaModal  = _kitCloseSaveDistintaModal;
