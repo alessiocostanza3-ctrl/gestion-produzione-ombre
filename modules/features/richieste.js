@@ -833,7 +833,7 @@ function _fabprodStampaFabbisognoSel() {
 async function _fabprodSalvaSnapshotCondiviso() {
     const rows = _fabprodBuildPrintRows_();
     if (!rows.length) {
-        notificaElegante('Nessuna riga utile da salvare nel fabbisogno condiviso.', 'warning');
+        notificaElegante('Nessuna riga utile da salvare nel fabbisogno.', 'warning');
         return;
     }
     const ordini = [..._fabbisognoOrdiniSel].sort((a, b) => a.localeCompare(b, 'it', { numeric: true, sensitivity: 'base' }));
@@ -847,28 +847,30 @@ async function _fabprodSalvaSnapshotCondiviso() {
         const resp = await gasRequest({ azione: 'saveFabbisogno', payload });
         if (resp?.status !== 'ok') throw new Error(resp?.message || 'saveFabbisogno failed');
         _fabbisognoSnapshotId = String(resp.id || _fabbisognoSnapshotId || '');
-        notificaElegante('Fabbisogno condiviso salvato su Sheets.', 'success');
+        notificaElegante('Fabbisogno salvato su Sheets.', 'success');
     } catch (e) {
         console.error('[richieste] saveFabbisogno error:', e);
-        notificaElegante('Errore salvataggio fabbisogno condiviso.', 'error');
+        notificaElegante('Errore salvataggio fabbisogno.', 'error');
     }
 }
 
 function _fabprodBuildArchivioRowsHtml_(items) {
     if (!items.length) {
-        return '<div class="empty-msg" style="margin:16px 0">Nessun fabbisogno condiviso disponibile.</div>';
+        return '<div class="empty-msg" style="margin:16px 0">Nessun fabbisogno disponibile.</div>';
     }
     return items.map(function(item) {
         const ordini = Array.isArray(item.ordini) ? item.ordini : [];
         const ordLabel = ordini.length ? ordini.slice(0, 4).join(', ') + (ordini.length > 4 ? ' ...' : '') : 'Ordini non specificati';
         const updatedAt = item.updatedAt ? new Date(item.updatedAt).toLocaleString('it-IT') : '-';
         const rowsCount = Number(item.rowsCount || 0) || 0;
+        const status = String(item.status || 'ACTIVE').toUpperCase();
+        const statusLabel = status === 'ARCHIVED' ? 'Archiviato' : 'Attivo';
         const safeId = _fabprodEscHtml_(item.id || '');
         return `
             <div class="fabprod-sel-item fabprod-sel-item--checked" style="display:block;cursor:default">
                 <div class="fabprod-sel-item-info" style="gap:4px">
                     <span class="fabprod-sel-ord">${safeId || 'SNAP'}</span>
-                    <span class="fabprod-sel-cli">Aggiornato: ${_fabprodEscHtml_(updatedAt)} · Righe: ${rowsCount}</span>
+                    <span class="fabprod-sel-cli">Stato: ${_fabprodEscHtml_(statusLabel)} · Aggiornato: ${_fabprodEscHtml_(updatedAt)} · Righe: ${rowsCount}</span>
                     <span class="fabprod-sel-cli">Ordini: ${_fabprodEscHtml_(ordLabel)}</span>
                     <span class="fabprod-sel-cli">Autore: ${_fabprodEscHtml_(item.updatedBy || item.createdBy || '-')}</span>
                 </div>
@@ -882,25 +884,18 @@ function _fabprodBuildArchivioRowsHtml_(items) {
 
 async function _fabprodApriArchivioSnapshot() {
     document.getElementById('fabprod-archivio-modal')?.remove();
-    try {
-        const resp = await gasRequest({ azione: 'getFabbisogni', includeArchived: false });
-        _fabbisognoArchivioCache = Array.isArray(resp?.items) ? resp.items : [];
-    } catch (e) {
-        console.error('[richieste] getFabbisogni error:', e);
-        notificaElegante('Errore caricamento fabbisogni condivisi.', 'error');
-        return;
-    }
-
     const el = document.createElement('div');
     el.id = 'fabprod-archivio-modal';
     el.className = 'fabprod-sel-modal-overlay';
     el.innerHTML = `
         <div class="fabprod-sel-modal-box">
             <div class="fabprod-sel-modal-header">
-                <span><i class="fas fa-database"></i> Fabbisogni condivisi</span>
+                <span><i class="fas fa-database"></i> Fabbisogni salvati</span>
                 <button type="button" class="fabprod-sel-modal-close" onclick="_fabprodChiudiArchivioSnapshot()"><i class="fas fa-times"></i></button>
             </div>
-            <div class="fabprod-sel-modal-body" id="fabprod-archivio-body">${_fabprodBuildArchivioRowsHtml_(_fabbisognoArchivioCache)}</div>
+            <div class="fabprod-sel-modal-body" id="fabprod-archivio-body">
+                <div class="empty-msg" style="margin:16px 0">Caricamento fabbisogni...</div>
+            </div>
             <div class="fabprod-sel-footer">
                 <button type="button" class="fabprod-sel-btn-cancel" onclick="_fabprodChiudiArchivioSnapshot()">Chiudi</button>
             </div>
@@ -908,6 +903,34 @@ async function _fabprodApriArchivioSnapshot() {
     el.addEventListener('click', function(e) { if (e.target === el) _fabprodChiudiArchivioSnapshot(); });
     document.body.appendChild(el);
     requestAnimationFrame(function() { el.classList.add('fabprod-sel-modal-overlay--in'); });
+
+    const body = document.getElementById('fabprod-archivio-body');
+    try {
+        const activeResp = await gasRequest({ azione: 'getFabbisogni', includeArchived: false });
+        const activeItems = Array.isArray(activeResp?.items) ? activeResp.items : [];
+        if (activeItems.length) {
+            _fabbisognoArchivioCache = activeItems;
+            if (body) body.innerHTML = _fabprodBuildArchivioRowsHtml_(_fabbisognoArchivioCache);
+            return;
+        }
+
+        const allResp = await gasRequest({ azione: 'getFabbisogni', includeArchived: true });
+        const allItems = Array.isArray(allResp?.items) ? allResp.items : [];
+        _fabbisognoArchivioCache = allItems;
+        if (!body) return;
+        if (!allItems.length) {
+            body.innerHTML = _fabprodBuildArchivioRowsHtml_([]);
+            return;
+        }
+        body.innerHTML = `
+            <div class="empty-msg" style="margin:0 0 12px">Nessun snapshot attivo: mostro anche gli archiviati.</div>
+            ${_fabprodBuildArchivioRowsHtml_(allItems)}
+        `;
+    } catch (e) {
+        console.error('[richieste] getFabbisogni error:', e);
+        if (body) body.innerHTML = '<div class="empty-msg" style="margin:16px 0">Errore caricamento fabbisogni.</div>';
+        notificaElegante('Errore caricamento fabbisogni.', 'error');
+    }
 }
 
 function _fabprodChiudiArchivioSnapshot() {
@@ -1523,12 +1546,12 @@ export function _renderDatiRichieste(_dati) {
                             <button type="button" class="fabprod-sel-btn" id="fabprod-open-btn"
                                 onclick="event.stopPropagation();_fabprodApriArchivioSnapshot()">
                                 <i class="fas fa-folder-open"></i>
-                                Apri condiviso
+                                Apri
                             </button>
                             <button type="button" class="fabprod-sel-btn" id="fabprod-save-btn"
                                 onclick="event.stopPropagation();_fabprodSalvaSnapshotCondiviso()" disabled>
                                 <i class="fas fa-cloud-upload-alt"></i>
-                                Salva condiviso
+                                Salva
                             </button>
                             <button type="button" class="fabprod-print-btn" id="fabprod-print-btn"
                                 onclick="event.stopPropagation();_fabprodStampaFabbisognoSel()" disabled>
