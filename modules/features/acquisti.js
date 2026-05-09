@@ -23,6 +23,7 @@ let _artModalVpHandler = null;
 // ─── Cache locale (sostituisce cacheContenuti[] per questa sezione) ───────────
 const _acqCache   = {};  // { 'MATERIALE DA ORDINARE': html, '_acq_ordini': html }
 const _acqCacheTs = {};  // { chiave: timestamp }
+let _ordiniAcquistiInFlight = false; // lock anti-doppio-fetch ordini
 
 function _getOrdiniAcquistiCacheKey() {
     return 'ORDINI_ACQUISTI_' + (utenteAttuale?.nome?.toUpperCase() || '_');
@@ -163,8 +164,10 @@ export function _switchAcquistiTab(tab) {
 /* ─── ORDINI ACQUISTI ────────────────────────────────────────────────────── */
 
 async function caricaOrdiniAcquisti(expectedRequestId = null, signal = null) {
+    if (_ordiniAcquistiInFlight) return;
+    _ordiniAcquistiInFlight = true;
     const contenitore = document.getElementById('contenitore-dati');
-    if (!contenitore) return;
+    if (!contenitore) { _ordiniAcquistiInFlight = false; return; }
 
     const isAlessio = utenteAttuale?.nome?.toUpperCase().trim() === 'ALESSIO';
     const opParam   = isAlessio ? '' : (utenteAttuale?.nome || '');
@@ -174,7 +177,7 @@ async function caricaOrdiniAcquisti(expectedRequestId = null, signal = null) {
     let _hasCached = false;
     try {
         const _idbOrd = await ProdCache.get(_ordCacheKey);
-        if (_acquistTabAttivo !== 'ordini') return;
+        if (_acquistTabAttivo !== 'ordini') { _ordiniAcquistiInFlight = false; return; }
         if (_idbOrd && _idbOrd.dati) {
             contenitore.innerHTML  = _idbOrd.dati;
             _acqCache['_acq_ordini']   = _idbOrd.dati;
@@ -259,6 +262,7 @@ async function caricaOrdiniAcquisti(expectedRequestId = null, signal = null) {
         });
 
         html += `</div></div>`;
+        if (expectedRequestId !== null && expectedRequestId !== window._latestNavRequest) return;
         if (_acquistTabAttivo !== 'ordini') return;
         ProdCache.set(_ordCacheKey, html).catch(() => {});
         _acqCache['_acq_ordini']   = html;
@@ -269,6 +273,8 @@ async function caricaOrdiniAcquisti(expectedRequestId = null, signal = null) {
     } catch(e) {
         if (e.name === 'AbortError') return;
         contenitore.innerHTML = "<div class='centered-error-bold'>Errore nel caricamento ordini.</div>";
+    } finally {
+        _ordiniAcquistiInFlight = false;
     }
 }
 
@@ -575,6 +581,7 @@ async function caricaMateriali(silenzioso = false, expectedRequestId = null, sig
         });
 
         html += `</div>`;
+        if (expectedRequestId !== null && expectedRequestId !== window._latestNavRequest) return;
         if (_acquistTabAttivo !== 'catalogo') return;
         ProdCache.set('MATERIALE_DA_ORDINARE', html).catch(() => {});
         _acqCache['MATERIALE DA ORDINARE']   = html;

@@ -411,7 +411,7 @@ let _bindingsInitDone = false;
 let _navRequestSerial = 0;
 let _latestNavRequest = 0;
 let _navAbortController = null; // annulla fetch in-volo a ogni cambio pagina
-let _lastNavClickTime = 0;     // debounce click rapidissimi (<80ms)
+let _lastNavClickTime = 0;     // debounce click rapidissimi (<300ms)
 let _pipModule = null;   // lazy-loaded: modules/features/pipistrelli.js
 let _kitModule = null;   // lazy-loaded: modules/features/kit-prodotti.js
 
@@ -954,7 +954,7 @@ window.addEventListener('online', function() {
 async function cambiaPagina(nomeFoglio, elementoMenu) {
     // â”€â”€ Debounce: ignora click entro 80ms dal precedente â”€â”€
     const now = Date.now();
-    if (now - _lastNavClickTime < 80) return;
+    if (now - _lastNavClickTime < 300) return;
     _lastNavClickTime = now;
 
     // â”€â”€ Abort qualsiasi fetch in-volo della navigazione precedente â”€â”€

@@ -20,6 +20,10 @@ import {
 
 // (Paginazione rimossa: tutti gli ordini caricati in un colpo)
 
+// ── Lock anti-doppio-render per polling ─────────────────────────────────────
+let _pollingRenderInFlight = false;
+let _bgRefreshDebounceTimer = null;
+
 // ── Stato interno del modulo → condiviso via produzione-state.js ────
 
 function _invalidateProduzioneCache({ resetFetchTime = true, invalidatePersistent = true } = {}) {
@@ -1129,6 +1133,8 @@ async function _pollProdStep() {
     // Skip polling while saves are in-flight or just completed (< 12s)
     if (prodState.mutationInFlight > 0) return;
     if (Date.now() - prodState.mutationLastDone < 12000) return;
+    if (_pollingRenderInFlight) return;
+    _pollingRenderInFlight = true;
     try {
         const resp = await fetch(URL_GOOGLE, {
             method: 'POST',
@@ -1141,6 +1147,7 @@ async function _pollProdStep() {
         const newAttivi = (bundle.produzione || []).filter(r => String(r.archiviato || '').toUpperCase() !== 'TRUE');
         _patchProduzione(newAttivi, bundle.produzione, bundle.archivio || []);
     } catch (_) { /* errore di rete silenzioso */ }
+    finally { _pollingRenderInFlight = false; }
 }
 
 function _syncAvatarColors(serverMap) {
@@ -1270,6 +1277,15 @@ function _patchProduzione(newAttivi, allProd, allArch) {
 }
 
 function _backgroundRefreshProduzione(allProd, allArch) {
+    // Debounce: due patch strutturali ravvicinate generano un solo re-render
+    if (_bgRefreshDebounceTimer) clearTimeout(_bgRefreshDebounceTimer);
+    _bgRefreshDebounceTimer = setTimeout(() => {
+        _bgRefreshDebounceTimer = null;
+        _doBackgroundRefresh(allProd, allArch);
+    }, 400);
+}
+
+function _doBackgroundRefresh(allProd, allArch) {
     const contenitore = document.getElementById('contenitore-dati');
     if (!contenitore) return;
     const openSet = new Set();
