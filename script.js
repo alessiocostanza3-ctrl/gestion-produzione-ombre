@@ -1183,9 +1183,13 @@ async function cambiaPagina(nomeFoglio, elementoMenu) {
                     _kitModule = await import('./modules/features/kit-prodotti.js');
                     _kitModule.registerGlobals();
                 }
+                if (requestId !== _latestNavRequest) return;
+                if (window.paginaAttuale !== 'KIT_PRODOTTI') return;
                 _kitModule.caricaKitProdotti();
             } catch (e) {
                 if (e && e.name === 'AbortError') return;
+                if (requestId !== _latestNavRequest) return;
+                if (window.paginaAttuale !== 'KIT_PRODOTTI') return;
                 console.warn('[KIT_PRODOTTI] Errore caricamento modulo:', e);
                 const _kitCont = document.getElementById('contenitore-dati');
                 if (_kitCont) {

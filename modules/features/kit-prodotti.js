@@ -1872,6 +1872,8 @@ function _ts() {
 // ═════════════════════════════════════════════════════════════════════════════
 
 export function caricaKitProdotti() {
+    if (window.paginaAttuale !== 'KIT_PRODOTTI') return;
+
     if (!_fetched) {
         _fetched = true;
         const contenitoreLoading = document.getElementById('contenitore-dati');
