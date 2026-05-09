@@ -2087,8 +2087,10 @@ function _kitRenderAnagrafichePage(kits, container) {
 
     // group by category
     const groups = anag.reduce((acc, item) => { const cat = item.categoria || 'Senza categoria'; acc[cat] = acc[cat] || []; acc[cat].push(item); return acc; }, {});
+    const sortedCats = Object.keys(groups).sort((a, b) => a.localeCompare(b, 'it', { sensitivity: 'base', numeric: true }));
     let html = '';
-    for (const [cat, items] of Object.entries(groups)) {
+    for (const cat of sortedCats) {
+        const items = _kitSortAnagrafiche(groups[cat] || []);
         html += `<details class="ordine-group" open>
             <summary class="ordine-group-summary">
                 <div class="og-left">
@@ -2185,12 +2187,32 @@ async function _kitCreateDistintaFromDraft(kitId) {
 }
 
 // ─── Anagrafiche (componenti) ───────────────────────────────────────────────
+function _kitSortAnagrafiche(items) {
+    const safe = Array.isArray(items) ? items : [];
+    return [...safe].sort((a, b) => {
+        const catA = String(a?.categoria || 'Senza categoria').trim() || 'Senza categoria';
+        const catB = String(b?.categoria || 'Senza categoria').trim() || 'Senza categoria';
+        const catCmp = catA.localeCompare(catB, 'it', { sensitivity: 'base', numeric: true });
+        if (catCmp !== 0) return catCmp;
+
+        const nomeA = String(a?.nome || '').trim();
+        const nomeB = String(b?.nome || '').trim();
+        const nomeCmp = nomeA.localeCompare(nomeB, 'it', { sensitivity: 'base', numeric: true });
+        if (nomeCmp !== 0) return nomeCmp;
+
+        const codA = String(a?.codice || '').trim();
+        const codB = String(b?.codice || '').trim();
+        return codA.localeCompare(codB, 'it', { sensitivity: 'base', numeric: true });
+    });
+}
+
 function _kitLoadAnagrafiche() {
-    return Array.isArray(_kitStore.anagrafiche) ? JSON.parse(JSON.stringify(_kitStore.anagrafiche)) : [];
+    const cloned = Array.isArray(_kitStore.anagrafiche) ? JSON.parse(JSON.stringify(_kitStore.anagrafiche)) : [];
+    return _kitSortAnagrafiche(cloned);
 }
 
 function _kitSaveAnagrafiche(items) {
-    _kitStore.anagrafiche = Array.isArray(items) ? items : [];
+    _kitStore.anagrafiche = _kitSortAnagrafiche(Array.isArray(items) ? items : []);
     _kitPushToServer();
 }
 
