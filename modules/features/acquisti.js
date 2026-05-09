@@ -24,6 +24,7 @@ let _artModalVpHandler = null;
 const _acqCache   = {};  // { 'MATERIALE DA ORDINARE': html, '_acq_ordini': html }
 const _acqCacheTs = {};  // { chiave: timestamp }
 let _ordiniAcquistiInFlight = false; // lock anti-doppio-fetch ordini
+let _materialiInFlight = false;      // lock anti-doppio-fetch catalogo
 
 function _getOrdiniAcquistiCacheKey() {
     return 'ORDINI_ACQUISTI_' + (utenteAttuale?.nome?.toUpperCase() || '_');
@@ -116,6 +117,7 @@ function _aggiornaTabAcquisti() {
 }
 
 export function _switchAcquistiTab(tab) {
+    if (tab === _acquistTabAttivo) return;
     _acquistTabAttivo = tab;
     window._acquistTabAttivo = tab;
     _aggiornaTabAcquisti();
@@ -188,6 +190,7 @@ async function caricaOrdiniAcquisti(expectedRequestId = null, signal = null) {
         }
     } catch (_) {}
     if (!_hasCached) contenitore.innerHTML = "<div class='centered-msg'><i class='fas fa-spinner fa-spin'></i> Caricamento ordini...</div>";
+    if (_hasCached && expectedRequestId !== null) return;
 
     try {
         let rows;
@@ -388,6 +391,9 @@ async function _salvaSezioniSuBackend() {
 /* ─── CATALOGO MATERIALI ─────────────────────────────────────────────────── */
 
 async function caricaMateriali(silenzioso = false, expectedRequestId = null, signal = null) {
+    if (_materialiInFlight) return;
+    _materialiInFlight = true;
+    try {
     const isInSelectionMode = document.getElementById('btn-delete-selected')?.classList.contains('visible');
     if (silenzioso && isInSelectionMode) {
         return;
@@ -415,6 +421,7 @@ async function caricaMateriali(silenzioso = false, expectedRequestId = null, sig
             }
         } catch (_) {}
     }
+    if (silenzioso && expectedRequestId !== null) return;
     if (!silenzioso) {
         contenitore.innerHTML = "<div class='centered-msg'><i class='fas fa-spinner fa-spin'></i> Caricamento catalogo materiali...</div>";
         applicaFade(contenitore);
@@ -598,6 +605,9 @@ async function caricaMateriali(silenzioso = false, expectedRequestId = null, sig
             contenitore.innerHTML = "<div class='centered-error-bold'>Errore nel caricamento del catalogo.</div>";
             applicaFade(contenitore);
         }
+    }
+    } finally {
+        _materialiInFlight = false;
     }
 }
 
