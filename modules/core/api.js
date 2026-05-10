@@ -123,7 +123,6 @@ async function _gasRequestWithTimeoutRaw(params, timeoutMs, signal) {
     try {
         const res = await fetch(URL_GOOGLE, {
             method: 'POST',
-            headers: effectiveToken ? { 'X-Session-Token': effectiveToken } : undefined,
             body: JSON.stringify(body),
             signal: controller.signal
         });
