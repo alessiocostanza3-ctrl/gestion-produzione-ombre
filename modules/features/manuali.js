@@ -1367,8 +1367,9 @@ export async function caricaManuali(expectedRequestId = null, signal = null, isB
             window.cacheFetchTime.MANUALI_PRODOTTI = Date.now();
         }
     } catch (e) {
+        console.error('[manuali] Errore caricaManuali:', e && e.message ? e.message : String(e), e);
         if (isBackground) return;
-        contenitore.innerHTML = "<div class='centered-error-bold'>Errore nel caricamento manuali.</div>";
+        contenitore.innerHTML = "<div class='centered-error-bold'>Errore nel caricamento manuali.<br><small style='font-size:.75rem;color:#666'>" + _esc((e && e.message) || 'sconosciuto') + "</small></div>";
     }
 }
 
