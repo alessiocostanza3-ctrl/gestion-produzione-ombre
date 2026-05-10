@@ -1945,6 +1945,15 @@ function _ts() {
     });
 }
 
+function _kitSyncPageCache_() {
+    try {
+        const contenitore = document.getElementById('contenitore-dati');
+        if (!contenitore) return;
+        if (window.cacheContenuti) window.cacheContenuti.KIT_PRODOTTI = contenitore.innerHTML;
+        if (window.cacheFetchTime) window.cacheFetchTime.KIT_PRODOTTI = Date.now();
+    } catch (_e) {}
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 // PAGINA PRINCIPALE: griglia kit
 // ═════════════════════════════════════════════════════════════════════════════
@@ -1987,6 +1996,7 @@ export function caricaKitProdotti() {
     // render selected sub-page
     _kitSwitchMainTab(_kitMainTab);
     _kitRenderHeaderActions();
+    _kitSyncPageCache_();
 
     try {
         if (window && window._kitSuppressNextFade) {
@@ -2139,6 +2149,7 @@ function _kitSwitchMainTab(tab) {
     else if (tab === 'anagrafiche') _kitRenderAnagrafichePage(kits, content);
     else if (tab === 'distinte') _kitRenderDistintePage(kits, content);
     _kitRenderHeaderActions();
+    _kitSyncPageCache_();
 }
 
 function _kitRenderAnagrafichePage(kits, container) {

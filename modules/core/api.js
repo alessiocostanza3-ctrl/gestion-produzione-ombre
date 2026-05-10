@@ -47,11 +47,13 @@ export function gasRequest(params) {
         const startedAt = Date.now();
         const action = String(params && params.azione || '');
         const token = getSessionToken();
-        const body = token ? { ...params, sessionToken: token } : { ...params };
+        const paramToken = String(params && (params.sessionToken || params._token) || '').trim();
+        const effectiveToken = token || paramToken;
+        const body = effectiveToken ? { ...params, sessionToken: effectiveToken } : { ...params };
         try {
             const res = await fetch(URL_GOOGLE, {
                 method: 'POST',
-                headers: token ? { 'X-Session-Token': token } : undefined,
+                headers: effectiveToken ? { 'X-Session-Token': effectiveToken } : undefined,
                 body: JSON.stringify(body)
             });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -99,7 +101,7 @@ function _resolveAdaptiveTimeout(timeoutMs) {
         const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
         const et = String(connection && connection.effectiveType || '').toLowerCase();
         if (et === '2g' || et === 'slow-2g' || et === '3g') {
-            return Math.min(requested, 5000);
+            return Math.max(requested, 15000);
         }
     } catch (_e) {}
     return requested;
@@ -115,11 +117,13 @@ async function _gasRequestWithTimeoutRaw(params, timeoutMs, signal) {
         signal.addEventListener('abort', () => controller.abort(), { once: true });
     }
     const token = getSessionToken();
-    const body = token ? { ...params, sessionToken: token } : { ...params };
+    const paramToken = String(params && (params.sessionToken || params._token) || '').trim();
+    const effectiveToken = token || paramToken;
+    const body = effectiveToken ? { ...params, sessionToken: effectiveToken } : { ...params };
     try {
         const res = await fetch(URL_GOOGLE, {
             method: 'POST',
-            headers: token ? { 'X-Session-Token': token } : undefined,
+            headers: effectiveToken ? { 'X-Session-Token': effectiveToken } : undefined,
             body: JSON.stringify(body),
             signal: controller.signal
         });
