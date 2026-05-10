@@ -4,6 +4,7 @@
 
 import { CACHE_TTL_MS } from './config.js';
 import { notificaElegante } from './ui.js';
+import { trackMetric } from './telemetry.js';
 
 /* ══════════════════════════════════════════════════════════════════
    PROD CACHE — IndexedDB stale-while-revalidate
@@ -176,6 +177,7 @@ export async function caricaSezioneConCache(chiave, fetchFn, renderFn, forceRefr
     if (!forceRefresh) {
         datiMostrati = _l1Get(chiave);
         if (datiMostrati != null) {
+            trackMetric('cache_hit', { action: chiave, status: 'l1' }, { sampleRate: 0.2 });
             try { renderFn(datiMostrati); } catch (e) { console.warn('[ProdCache] renderFn (l1):', e); }
             return;
         }
@@ -186,7 +188,13 @@ export async function caricaSezioneConCache(chiave, fetchFn, renderFn, forceRefr
         if (cached) {
             datiMostrati = cached.dati;
             _l1Set(chiave, cached.dati);
+            trackMetric('cache_hit', {
+                action: chiave,
+                status: cached.isStale ? 'idb_stale' : 'idb_fresh'
+            }, { sampleRate: 0.35 });
             try { renderFn(cached.dati); } catch (e) { console.warn('[ProdCache] renderFn (cache):', e); }
+        } else {
+            trackMetric('cache_miss', { action: chiave, status: 'idb_miss' }, { sampleRate: 0.35 });
         }
     } else {
         // forceRefresh: leggi la cache come fallback ma non renderizzarla
@@ -195,6 +203,7 @@ export async function caricaSezioneConCache(chiave, fetchFn, renderFn, forceRefr
 
     // 3. Esegui sempre fetchFn in parallelo
     try {
+        const startedAt = Date.now();
         const nuoviDati = await fetchFn();
 
         // 4a. Salva in cache
@@ -207,18 +216,33 @@ export async function caricaSezioneConCache(chiave, fetchFn, renderFn, forceRefr
         if (nuoviJson !== mostratJson) {
             try { renderFn(nuoviDati); } catch (e) { console.warn('[ProdCache] renderFn (fetch):', e); }
         }
+        trackMetric('cache_refresh', {
+            action: chiave,
+            status: 'ok',
+            durationMs: Date.now() - startedAt
+        }, { sampleRate: 0.35 });
 
     } catch (errFetch) {
         // AbortError = cambio pagina, non serve fare nulla
         if (errFetch && errFetch.name === 'AbortError') return;
 
         if (cached) {
+            trackMetric('cache_refresh', {
+                action: chiave,
+                status: 'fallback_cache',
+                error: errFetch && errFetch.message ? errFetch.message : String(errFetch || '')
+            }, { sampleRate: 0.6 });
             // 5. Fallback: dati in cache disponibili → mostra toast con orario
             const ora = _oraFormattata(cached.timestamp);
             try {
                 notificaElegante('Dati offline — ultimo aggiornamento ' + ora, 'warning');
             } catch (_e) {}
         } else {
+            trackMetric('cache_refresh', {
+                action: chiave,
+                status: 'error',
+                error: errFetch && errFetch.message ? errFetch.message : String(errFetch || '')
+            }, { sampleRate: 1 });
             // 6. Nessuna cache: rilancia l'errore per la gestione esistente
             throw errFetch;
         }

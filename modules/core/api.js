@@ -4,6 +4,7 @@
 
 import { URL_GOOGLE } from './config.js';
 import { getSessionToken, clearSession } from './session.js';
+import { trackMetric } from './telemetry.js';
 
 // ── Request deduplication ──────────────────────────────────────────────────────
 // Se una richiesta identica (stessi params) è già in-flight, ritorna la stessa Promise.
@@ -43,22 +44,36 @@ async function _withRetry(fn, maxRetries, baseDelayMs, signal) {
 export function gasRequest(params) {
     const key = JSON.stringify(params);
     return _dedup(key, async () => {
+        const startedAt = Date.now();
+        const action = String(params && params.azione || '');
         const token = getSessionToken();
         const body = token ? { ...params, sessionToken: token } : { ...params };
-        const res = await fetch(URL_GOOGLE, {
-            method: 'POST',
-            headers: token ? { 'X-Session-Token': token } : undefined,
-            body: JSON.stringify(body)
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if (data && data.status === 'auth_error') {
-            clearSession();
-            const err = new Error('auth_error');
-            err.authError = true;
+        try {
+            const res = await fetch(URL_GOOGLE, {
+                method: 'POST',
+                headers: token ? { 'X-Session-Token': token } : undefined,
+                body: JSON.stringify(body)
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            if (data && data.status === 'auth_error') {
+                clearSession();
+                trackMetric('api_auth_error', { action, status: 'auth_error', durationMs: Date.now() - startedAt }, { immediate: true });
+                const err = new Error('auth_error');
+                err.authError = true;
+                throw err;
+            }
+            trackMetric('api_request', { action, status: 'ok', durationMs: Date.now() - startedAt }, { sampleRate: 0.5 });
+            return data;
+        } catch (err) {
+            trackMetric('api_request', {
+                action,
+                status: 'error',
+                durationMs: Date.now() - startedAt,
+                error: err && err.message ? err.message : String(err || '')
+            }, { sampleRate: 0.75 });
             throw err;
         }
-        return data;
     });
 }
 
@@ -91,6 +106,8 @@ function _resolveAdaptiveTimeout(timeoutMs) {
 }
 
 async function _gasRequestWithTimeoutRaw(params, timeoutMs, signal) {
+    const startedAt = Date.now();
+    const action = String(params && params.azione || '');
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(new DOMException('Timeout: il server non ha risposto entro ' + Math.round(timeoutMs / 1000) + 's', 'TimeoutError')), timeoutMs);
     if (signal) {
@@ -111,13 +128,21 @@ async function _gasRequestWithTimeoutRaw(params, timeoutMs, signal) {
         const data = await res.json();
         if (data && data.status === 'auth_error') {
             clearSession();
+            trackMetric('api_auth_error', { action, status: 'auth_error', durationMs: Date.now() - startedAt }, { immediate: true });
             const err = new Error('auth_error');
             err.authError = true;
             throw err;
         }
+        trackMetric('api_request', { action, status: 'ok', durationMs: Date.now() - startedAt }, { sampleRate: 0.5 });
         return data;
     } catch (err) {
         clearTimeout(timer);
+        trackMetric('api_request', {
+            action,
+            status: 'error',
+            durationMs: Date.now() - startedAt,
+            error: err && err.message ? err.message : String(err || '')
+        }, { sampleRate: 0.75 });
         throw err;
     }
 }
@@ -129,14 +154,27 @@ async function _gasRequestWithTimeoutRaw(params, timeoutMs, signal) {
  * @returns {Promise<{status:string, revision:number, utente:string}>}
  */
 export async function getRevision() {
+    const startedAt = Date.now();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 5000);
     try {
         const res = await fetch(URL_GOOGLE + '?azione=getRevision', { signal: controller.signal });
         clearTimeout(timer);
-        return await res.json();
+        const data = await res.json();
+        trackMetric('poller_revision_request', {
+            action: 'getRevision',
+            status: data && data.status ? data.status : 'ok',
+            durationMs: Date.now() - startedAt
+        }, { sampleRate: 0.4 });
+        return data;
     } catch (err) {
         clearTimeout(timer);
+        trackMetric('poller_revision_request', {
+            action: 'getRevision',
+            status: 'error',
+            durationMs: Date.now() - startedAt,
+            error: err && err.message ? err.message : String(err || '')
+        }, { sampleRate: 0.75 });
         throw err;
     }
 }

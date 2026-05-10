@@ -4,12 +4,12 @@
 
 import { getRevision, gasRequest } from './api.js';
 import {
-    URL_GOOGLE,
     REVISION_POLL_INTERVAL_MS,
     REVISION_POLL_FOCUS_MS,
     REVISION_POLL_SLOW_MS,
     PING_INTERVAL_MS
 } from './config.js';
+import { trackMetric } from './telemetry.js';
 
 // Callback che script.js registra per reagire agli aggiornamenti
 let _onRemoteChange = null;
@@ -109,6 +109,7 @@ export const RevisionPoller = {
 
     _check: async function() {
         if (this._paused) return;
+        var _checkStartedAt = Date.now();
         var pagina = _getPaginaCorrente ? String(_getPaginaCorrente() || '').toUpperCase().trim() : '';
         var isPaginaPrioritaria = (pagina === 'PROGRAMMA PRODUZIONE DEL MESE');
         if (!isPaginaPrioritaria) {
@@ -119,6 +120,11 @@ export const RevisionPoller = {
             var data = await getRevision();
             if (!data || data.status !== 'ok') {
                 this._errorStreak = Math.min(this._errorStreak + 1, 10);
+                trackMetric('poller_check', {
+                    action: pagina || 'UNKNOWN_PAGE',
+                    status: 'invalid_payload',
+                    durationMs: Date.now() - _checkStartedAt
+                }, { sampleRate: 0.5 });
                 return;
             }
             var rev = Number(data.revision);
@@ -129,9 +135,21 @@ export const RevisionPoller = {
 
             if (this._lastRevision === null) {
                 this._lastRevision = rev;
+                trackMetric('poller_check', {
+                    action: pagina || 'UNKNOWN_PAGE',
+                    status: 'baseline',
+                    durationMs: Date.now() - _checkStartedAt
+                }, { sampleRate: 0.3 });
                 return;
             }
-            if (rev === this._lastRevision) return;
+            if (rev === this._lastRevision) {
+                trackMetric('poller_check', {
+                    action: pagina || 'UNKNOWN_PAGE',
+                    status: 'unchanged',
+                    durationMs: Date.now() - _checkStartedAt
+                }, { sampleRate: 0.2 });
+                return;
+            }
 
             var utente = _getUtenteAttuale ? _getUtenteAttuale() : null;
             var nomeAttuale = (utente && utente.nome) ? utente.nome.toUpperCase() : '';
@@ -142,9 +160,21 @@ export const RevisionPoller = {
             if (utenteRev === nomeAttuale) return;
 
             var chi = data.utente || 'Qualcuno';
+            trackMetric('poller_check', {
+                action: pagina || 'UNKNOWN_PAGE',
+                status: 'remote_change',
+                durationMs: Date.now() - _checkStartedAt,
+                detail: String(chi || '')
+            }, { sampleRate: 1 });
             if (_onRemoteChange) _onRemoteChange(chi);
         } catch (e) {
             this._errorStreak = Math.min(this._errorStreak + 1, 10);
+            trackMetric('poller_check', {
+                action: pagina || 'UNKNOWN_PAGE',
+                status: 'error',
+                durationMs: Date.now() - _checkStartedAt,
+                error: e && e.message ? e.message : String(e || '')
+            }, { sampleRate: 0.7 });
             if (e && e.name !== 'AbortError') console.warn('[RevisionPoller]', e);
         }
     },
@@ -161,19 +191,27 @@ export const RevisionPoller = {
         var utente = _getUtenteAttuale ? _getUtenteAttuale() : null;
         if (!utente || !utente.nome) return;
         try {
-            var resp = await fetch(URL_GOOGLE, {
-                method: 'POST',
-                body: JSON.stringify({
-                    azione: 'ping',
-                    pagina: (_getPaginaCorrente ? _getPaginaCorrente() : '') || ''
-                })
+            var data = await gasRequest({
+                azione: 'ping',
+                pagina: (_getPaginaCorrente ? _getPaginaCorrente() : '') || ''
             });
-            var data = await resp.json();
             if (data && data.status === 'ok' && Array.isArray(data.online)) {
                 if (_onUsersOnline) _onUsersOnline(data.online);
                 RevisionPoller.lastOnlineList = data.online;
+                trackMetric('poller_ping', {
+                    action: 'ping',
+                    status: 'ok',
+                    detail: String(data.online.length)
+                }, { sampleRate: 0.3 });
             }
-        } catch (e) { /* rete offline o GAS non risponde */ }
+        } catch (e) {
+            trackMetric('poller_ping', {
+                action: 'ping',
+                status: 'error',
+                error: e && e.message ? e.message : String(e || '')
+            }, { sampleRate: 0.7 });
+            /* rete offline o GAS non risponde */
+        }
     }
 };
 
