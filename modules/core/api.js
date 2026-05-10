@@ -140,11 +140,13 @@ async function _gasRequestWithTimeoutRaw(params, timeoutMs, signal) {
         return data;
     } catch (err) {
         clearTimeout(timer);
+        const _netType = (() => { try { return (navigator.connection || navigator.mozConnection || navigator.webkitConnection || {}).effectiveType || 'unknown'; } catch(_) { return 'unknown'; } })();
         trackMetric('api_request', {
             action,
             status: 'error',
             durationMs: Date.now() - startedAt,
-            error: err && err.message ? err.message : String(err || '')
+            error: err && err.message ? err.message : String(err || ''),
+            networkType: _netType
         }, { sampleRate: 0.75 });
         throw err;
     }

@@ -6,7 +6,7 @@ import {
   utenteAttuale, setUtenteAttuale,
   getSessionToken, refreshSessionExpiry
 } from './modules/core/session.js';
-import { lsCacheGet as _lsCacheGet, lsCacheSet as _lsCacheSet, lsCacheDel as _lsCacheDel } from './modules/core/ls-cache.js';
+import { lsCacheGet as _lsCacheGet, lsCacheSet as _lsCacheSet, lsCacheDel as _lsCacheDel, lsCacheFlushAllHtml as _lsCacheFlushAllHtml } from './modules/core/ls-cache.js';
 import { cacheContenuti, cacheFetchTime, prefetch } from './modules/core/state.js';
 import { LS_DEVICE_KEYS, LS_DEVICE_PREFIXES } from './modules/core/ls-keys.js';
 // api.js is imported by revision-poller.js and pipistrelli.js
@@ -639,6 +639,12 @@ function _initModuliENaviga_() {
         onRemoteChange: function(nomeUtente) {
             notificaElegante('\uD83D\uDD04 ' + nomeUtente + ' ha aggiornato i dati');
             _markDataFresh_(Date.now());
+            // Invalida tutta la cache HTML locale e IndexedDB: forza ricarico fresco a ogni navigazione
+            _lsCacheFlushAllHtml();
+            try { ProdCache.clear(); } catch (_e) {}
+            // Reset in-memory html cache e fetch timestamps per tutte le pagine
+            Object.keys(cacheContenuti).forEach(k => { delete cacheContenuti[k]; });
+            Object.keys(cacheFetchTime).forEach(k => { cacheFetchTime[k] = 0; });
             switch (paginaAttuale) {
                 case 'PROGRAMMA PRODUZIONE DEL MESE':
                     caricaSezioneConCache('PROGRAMMA_PRODUZIONE', _fetchDatiProduzione, _renderDatiProduzione, true)

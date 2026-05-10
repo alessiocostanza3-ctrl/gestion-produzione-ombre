@@ -39,3 +39,18 @@ export function lsCacheSet(key, data) {
 export function lsCacheDel(key) {
     try { localStorage.removeItem(key); } catch(e) {}
 }
+
+/**
+ * Elimina tutte le voci HTML cache (prefisso _html_) da localStorage.
+ * Chiamata quando un cambiamento remoto invalida i dati di qualsiasi pagina.
+ */
+export function lsCacheFlushAllHtml() {
+    try {
+        const toDelete = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith('_html_')) toDelete.push(k);
+        }
+        toDelete.forEach(k => localStorage.removeItem(k));
+    } catch(e) {}
+}

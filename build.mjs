@@ -1,6 +1,20 @@
 import { build } from 'esbuild';
-import { readdirSync, unlinkSync } from 'fs';
+import { readdirSync, unlinkSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
+
+// Bump versione Service Worker — garantisce che ogni deploy invalidi la shell cache
+try {
+  const swPath = 'sw.js';
+  const swContent = readFileSync(swPath, 'utf8');
+  const updated = swContent.replace(/(prod-shell-v)(\d+)/g, (_, prefix, num) => prefix + (parseInt(num, 10) + 1));
+  if (updated !== swContent) {
+    writeFileSync(swPath, updated, 'utf8');
+    const newVer = (updated.match(/(prod-shell-v)(\d+)/) || [])[2] || '?';
+    console.log('  SW cache bumped → prod-shell-v' + newVer);
+  }
+} catch (err) {
+  console.warn('  SW bump skipped:', err.message);
+}
 
 // Pulisci la cartella dist prima del build
 try {
