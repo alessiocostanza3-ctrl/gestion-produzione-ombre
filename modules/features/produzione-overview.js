@@ -182,7 +182,32 @@ export function _buildCaricoOperatoriHtml(attivi) {
         <div class="ov-stato-body ov-op-card-body">${card2Body}</div>
     </details>`;
 
-    return card1 + card2;
+    const kitSummary = window._kitFabbisognoSummary || null;
+    let card3Body = '<div class="ov-op-item ov-op-item-free"><span class="ov-op-item-cod" style="color:#475569">Nessuna distinta kit recente</span></div>';
+    if (kitSummary) {
+        const deficits = Array.isArray(kitSummary.deficits) ? kitSummary.deficits : [];
+        const top = deficits.slice(0, 4).map(item => {
+            return `<div class="ov-op-item"><span class="ov-op-item-cod">${item.nome || 'Componente'} <em style="color:#ef4444;font-style:normal">(-${item.delta || 0})</em></span></div>`;
+        }).join('');
+        const meta = `${kitSummary.kitNome || 'Kit'}${kitSummary.documento ? ' · ' + kitSummary.documento : ''}`;
+        card3Body = `
+            <div class="ov-op-item"><span class="ov-op-item-cod">${meta}</span></div>
+            <div class="ov-op-item"><span class="ov-op-item-cod">${kitSummary.righe || 0} materiali in distinta</span></div>
+            ${top || '<div class="ov-op-item ov-op-item-free"><span class="ov-op-item-cod" style="color:#16a34a">Nessun deficit rilevato</span></div>'}
+        `;
+    }
+
+    const card3 = `<details class="ov-stato-card" open style="grid-column:4;grid-row:3">
+        <summary class="ov-stato-header" style="--ov-col:#dc2626" onclick="if(window.innerWidth>600){event.preventDefault();return false;}">
+            <span class="ov-stato-dot" style="background:#dc2626"></span>
+            <span class="ov-stato-nome">Delta fabbisogno kit</span>
+            <span class="ov-stato-tot" style="background:#dc262633;color:#dc2626">live</span>
+            <i class="fas fa-chevron-down ov-sub-chevron"></i>
+        </summary>
+        <div class="ov-stato-body ov-op-card-body">${card3Body}</div>
+    </details>`;
+
+    return card1 + card2 + card3;
 }
 
 export function _buildOverviewInnerHtml(attivi) {

@@ -49,6 +49,7 @@ export const RevisionPoller = {
     _lastCheck: 0,
     _paused: false,
     _errorStreak: 0,
+    _offPageTick: 0,
     lastRevisionValue: null,
     lastOnlineList: [],
     lastCheckTs: 0,
@@ -58,6 +59,7 @@ export const RevisionPoller = {
         this._lastRevision = null;
         this._paused = false;
         this._errorStreak = 0;
+        this._offPageTick = 0;
         this._schedule(document.hidden ? this.INTERVAL_BG_MS : this.INTERVAL_FOCUS_MS);
         // Primo ping dopo 5s, poi ogni PING_INTERVAL_MS
         this._schedulePing(5000);
@@ -91,8 +93,11 @@ export const RevisionPoller = {
     _tick: function() {
         var self = this;
         this._check().finally(function() {
+            var pagina = _getPaginaCorrente ? String(_getPaginaCorrente() || '').toUpperCase().trim() : '';
+            var isPaginaPrioritaria = (pagina === 'PROGRAMMA PRODUZIONE DEL MESE');
             var baseInterval = document.hidden ? self.INTERVAL_BG_MS
                 : (document.hasFocus && document.hasFocus() ? self.INTERVAL_FOCUS_MS : self.INTERVAL_MS);
+            if (!isPaginaPrioritaria) baseInterval = Math.max(baseInterval, self.INTERVAL_BG_MS);
             var interval = baseInterval;
             if (self._errorStreak > 0) {
                 var factor = Math.min(4, 1 + (self._errorStreak * 0.5));
@@ -104,6 +109,12 @@ export const RevisionPoller = {
 
     _check: async function() {
         if (this._paused) return;
+        var pagina = _getPaginaCorrente ? String(_getPaginaCorrente() || '').toUpperCase().trim() : '';
+        var isPaginaPrioritaria = (pagina === 'PROGRAMMA PRODUZIONE DEL MESE');
+        if (!isPaginaPrioritaria) {
+            this._offPageTick = (this._offPageTick + 1) % 3;
+            if (this._offPageTick !== 0) return;
+        }
         try {
             var data = await getRevision();
             if (!data || data.status !== 'ok') {

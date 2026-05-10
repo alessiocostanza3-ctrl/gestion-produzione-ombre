@@ -21,6 +21,7 @@ let _ordiniSelezionabili   = [];        // { ordine, cliente } unici, ordinati
 let _fabbisognoSnapshotRows = null;     // snapshot condiviso da Sheets
 let _fabbisognoSnapshotId = '';
 let _fabbisognoArchivioCache = [];
+let _fabbisognoKitSummary = null;
 
 // â”€â”€â”€ Alias _normNome (definita in script.js, dipende da _NOME_CANON) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const _normNome = n => window._normNome ? window._normNome(n) : (n ? String(n).trim() : n);
@@ -680,6 +681,35 @@ function _fabprodBuildSnapshotMeta_(rows) {
         righe: Array.isArray(rows) ? rows.length : 0,
         totaleQty
     };
+}
+
+function _integraFabbisognoDaKit_(payload) {
+    const distinta = payload && payload.distinta;
+    if (!distinta || !Array.isArray(distinta.sezioni)) return;
+    const deficits = [];
+    for (const sezione of distinta.sezioni) {
+        for (const riga of (sezione.righe || [])) {
+            const fabbisogno = Number(riga.totale || 0);
+            const disponibile = Number(riga.disponibile || 0);
+            if (disponibile < fabbisogno) {
+                deficits.push({
+                    nome: String(riga.nome || '').trim(),
+                    delta: Math.max(0, fabbisogno - disponibile)
+                });
+            }
+        }
+    }
+    _fabbisognoKitSummary = {
+        ts: Date.now(),
+        kitNome: String(payload.kitNome || '').trim(),
+        documento: String(payload.documento || '').trim(),
+        righe: Number(distinta.totaleRighe || 0),
+        deficits
+    };
+    window._kitFabbisognoSummary = _fabbisognoKitSummary;
+    if (window.paginaAttuale === 'STORICO_RICHIESTE') {
+        _aggiornaPannelloFabbisogno();
+    }
 }
 
 function _fabprodBuildPrintHtml_(rows) {
@@ -2039,6 +2069,7 @@ export function registerGlobals() {
     window._fabprodChiudiArchivioSnapshot = _fabprodChiudiArchivioSnapshot;
     window._fabprodApriSnapshotById = _fabprodApriSnapshotById;
     window._fabprodArchiviaSnapshotById = _fabprodArchiviaSnapshotById;
+    window._notificaFabbisognoNuovo = _integraFabbisognoDaKit_;
     window.aggiornaRichiesta       = aggiornaRichiesta;
     window._sollecitaConferma      = _sollecitaConferma;
     window._archiviaConferma       = _archiviaConferma;

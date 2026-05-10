@@ -44,9 +44,10 @@ export function gasRequest(params) {
     const key = JSON.stringify(params);
     return _dedup(key, async () => {
         const token = getSessionToken();
-        const body = token ? { ...params, _token: token } : { ...params };
+        const body = token ? { ...params, sessionToken: token } : { ...params };
         const res = await fetch(URL_GOOGLE, {
             method: 'POST',
+            headers: token ? { 'X-Session-Token': token } : undefined,
             body: JSON.stringify(body)
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -69,11 +70,24 @@ export function gasRequest(params) {
  * @returns {Promise<any>}
  */
 export function gasRequestWithTimeout(params, timeoutMs = 8000, { signal, retries = 0, noDedupe = false } = {}) {
+    const effectiveTimeout = _resolveAdaptiveTimeout(timeoutMs);
     if (signal || noDedupe) {
-        return _withRetry(() => _gasRequestWithTimeoutRaw(params, timeoutMs, signal || null), retries, 500, signal);
+        return _withRetry(() => _gasRequestWithTimeoutRaw(params, effectiveTimeout, signal || null), retries, 500, signal);
     }
-    const key = JSON.stringify(params) + '|' + timeoutMs;
-    return _dedup(key, () => _withRetry(() => _gasRequestWithTimeoutRaw(params, timeoutMs, null), retries, 500));
+    const key = JSON.stringify(params) + '|' + effectiveTimeout;
+    return _dedup(key, () => _withRetry(() => _gasRequestWithTimeoutRaw(params, effectiveTimeout, null), retries, 500));
+}
+
+function _resolveAdaptiveTimeout(timeoutMs) {
+    const requested = Number(timeoutMs) || 8000;
+    try {
+        const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+        const et = String(connection && connection.effectiveType || '').toLowerCase();
+        if (et === '2g' || et === 'slow-2g' || et === '3g') {
+            return Math.min(requested, 5000);
+        }
+    } catch (_e) {}
+    return requested;
 }
 
 async function _gasRequestWithTimeoutRaw(params, timeoutMs, signal) {
@@ -84,10 +98,11 @@ async function _gasRequestWithTimeoutRaw(params, timeoutMs, signal) {
         signal.addEventListener('abort', () => controller.abort(), { once: true });
     }
     const token = getSessionToken();
-    const body = token ? { ...params, _token: token } : { ...params };
+    const body = token ? { ...params, sessionToken: token } : { ...params };
     try {
         const res = await fetch(URL_GOOGLE, {
             method: 'POST',
+            headers: token ? { 'X-Session-Token': token } : undefined,
             body: JSON.stringify(body),
             signal: controller.signal
         });

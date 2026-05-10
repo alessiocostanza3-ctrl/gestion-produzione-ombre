@@ -97,6 +97,7 @@ function _kitClearLegacyLocal_() {
 let _fetched = false;
 let _kitOrderAutocompleteCache = [];
 let _kitOrderAutocompletePromise = null;
+let _kitOrderAutocompleteLoading = false;
 // Lock per evitare chiamate duplicate rapide a _kitComposeAdd
 const _kitComposeAddLock = {};
 let _kitMainTab = 'kits';
@@ -651,22 +652,35 @@ function _kitEnsureOrderLookupCache() {
     }
     if (_kitOrderAutocompletePromise) return _kitOrderAutocompletePromise;
 
-    _kitOrderAutocompletePromise = fetch(URL_GOOGLE, {
-        method: 'POST',
-        body: JSON.stringify({ pagina: 'PROGRAMMA PRODUZIONE DEL MESE' })
-    })
+    _kitOrderAutocompleteLoading = true;
+
+    _kitOrderAutocompletePromise = (function() {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(function() { controller.abort(); }, 5000);
+        return fetch(URL_GOOGLE, {
+            method: 'POST',
+            body: JSON.stringify({ pagina: 'PROGRAMMA PRODUZIONE DEL MESE' }),
+            signal: controller.signal
+        })
         .then(response => response.json())
         .then(rows => {
             _kitOrderAutocompleteCache = _kitBuildOrderLookup(rows);
             return _kitOrderAutocompleteCache;
         })
         .catch(function(error) {
-            console.warn('[kit-prodotti] autocomplete ordini non disponibile:', error);
+            if (error && error.name === 'AbortError') {
+                notificaElegante('Ricerca ordini lenta: riprova tra poco.', 'warning');
+            } else {
+                console.warn('[kit-prodotti] autocomplete ordini non disponibile:', error);
+            }
             return [];
         })
         .finally(function() {
+            clearTimeout(timeoutId);
+            _kitOrderAutocompleteLoading = false;
             _kitOrderAutocompletePromise = null;
         });
+    })();
 
     return _kitOrderAutocompletePromise;
 }
@@ -798,6 +812,10 @@ function _kitNSOrderSearch(kitId, rawQuery) {
     const list = document.getElementById('kit-ns-autocomplete-' + kitId);
     if (!list) return;
     if (!query) { list.style.display = 'none'; list.innerHTML = ''; return; }
+    if (_kitOrderAutocompleteLoading && !_kitOrderAutocompleteCache.length) {
+        list.innerHTML = '<div class="autocomplete-item autocomplete-item--muted">Caricamento ordini in corso...</div>';
+        list.style.display = 'block';
+    }
     _kitEnsureOrderLookupCache().then(function(cache) {
         const matches = cache
             .filter(function(item) { return item.ordine.toLowerCase().includes(query) || item.cliente.toLowerCase().includes(query); })
@@ -887,6 +905,7 @@ function _kitBuildDistintaNew(kit, draft) {
                 nome: comp.nome,
                 codice: String(comp.codice || '').trim(),
                 totale: qty,
+                disponibile: Number(comp.caricato || 0),
                 unita: comp.unitaMisura || 'pz',
                 dettaglio: '',
                 noteConfig: comp.noteConfig || ''
@@ -918,6 +937,32 @@ async function _kitNSCreateDistinta(kitId) {
         notificaElegante('Seleziona almeno un componente per generare la distinta.', 'warning');
         return;
     }
+
+    const stockDeficit = [];
+    const compById = new Map();
+    (kit.sezioni || []).forEach(function(sezione) {
+        (sezione.componenti || []).forEach(function(comp) {
+            compById.set(comp.id, comp);
+        });
+    });
+    (distinta.sezioni || []).forEach(function(sezione) {
+        (sezione.righe || []).forEach(function(riga) {
+            const comp = compById.get(riga.id);
+            const disponibile = Number(comp && comp.caricato || 0);
+            const fabbisogno = Number(riga.totale || 0);
+            if (disponibile < fabbisogno) {
+                stockDeficit.push({ nome: riga.nome, disponibile, fabbisogno, delta: fabbisogno - disponibile });
+            }
+        });
+    });
+    if (stockDeficit.length) {
+        const top = stockDeficit.slice(0, 3).map(function(item) {
+            return item.nome + ' (-' + _kitFormatQty(item.delta) + ')';
+        }).join(', ');
+        const extra = stockDeficit.length > 3 ? ' +' + (stockDeficit.length - 3) + ' altri' : '';
+        notificaElegante('Attenzione stock insufficiente: ' + top + extra, 'warning');
+    }
+
     if (!nsDraft._meta.documento) {
         const documento = await _kitGetNextDocumentNumber();
         _kitMutateNewStyleDraft(kitId, function(d) { d._meta.documento = documento; }, false);
@@ -937,6 +982,16 @@ async function _kitNSCreateDistinta(kitId) {
         distintaSnapshot: distinta
     });
     _kitSaveDistinte(distList);
+    try {
+        if (typeof window._notificaFabbisognoNuovo === 'function') {
+            window._notificaFabbisognoNuovo({
+                kitId: kit.id,
+                kitNome: kit.nome,
+                documento: nsDraft._meta.documento || '',
+                distinta: distinta
+            });
+        }
+    } catch (_e) {}
     notificaElegante('Distinta salvata ✓');
     if (_kitMainTab === 'distinte') _kitSwitchMainTab('distinte');
 }

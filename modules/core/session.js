@@ -54,9 +54,16 @@ export function getSessionToken() {
  * e aggiorna il riferimento in-memory utenteAttuale.
  */
 export function saveSession(utenteObj) {
-    const toSave = Object.assign({}, utenteObj, {
+    const safe = utenteObj && typeof utenteObj === 'object' ? utenteObj : {};
+    const toSave = {
+        nome: String(safe.nome || safe.username || '').trim(),
+        ruolo: String(safe.ruolo || '').trim(),
+        email: String(safe.email || '').trim().toLowerCase(),
+        vistaSimulata: String(safe.vistaSimulata || safe.nome || safe.username || '').trim(),
+        sessionToken: String(safe.sessionToken || '').trim(),
+        sessionExpiresAt: safe.sessionExpiresAt || '',
         expiresAt: Date.now() + SESSION_DURATION_MS
-    });
+    };
     try { localStorage.setItem('sessioneUtente', JSON.stringify(toSave)); } catch (_e) {}
     try { sessionStorage.setItem('sessioneUtente', JSON.stringify(toSave)); } catch (_e) {}
     utenteAttuale = toSave;

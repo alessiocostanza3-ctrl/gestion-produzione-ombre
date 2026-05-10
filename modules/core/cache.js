@@ -131,6 +131,27 @@ const ProdCache = {
     }
 };
 
+const _L1_TTL_MS = 60 * 1000;
+const _l1Cache = new Map();
+
+function _l1Get(chiave) {
+    const entry = _l1Cache.get(chiave);
+    if (!entry) return null;
+    if (entry.expiresAt <= Date.now()) {
+        _l1Cache.delete(chiave);
+        return null;
+    }
+    return entry.data;
+}
+
+function _l1Set(chiave, data, ttlMs = _L1_TTL_MS) {
+    _l1Cache.set(chiave, { data, expiresAt: Date.now() + ttlMs });
+}
+
+function _l1Invalidate(chiave) {
+    _l1Cache.delete(chiave);
+}
+
 /**
  * Carica una sezione usando il pattern stale-while-revalidate.
  *
@@ -153,11 +174,18 @@ export async function caricaSezioneConCache(chiave, fetchFn, renderFn, forceRefr
     let datiMostrati = null;
 
     if (!forceRefresh) {
+        datiMostrati = _l1Get(chiave);
+        if (datiMostrati != null) {
+            try { renderFn(datiMostrati); } catch (e) { console.warn('[ProdCache] renderFn (l1):', e); }
+            return;
+        }
+
         try { cached = await ProdCache.get(chiave); } catch (_e) {}
 
         // 2. Se disponibile: mostra subito
         if (cached) {
             datiMostrati = cached.dati;
+            _l1Set(chiave, cached.dati);
             try { renderFn(cached.dati); } catch (e) { console.warn('[ProdCache] renderFn (cache):', e); }
         }
     } else {
@@ -170,6 +198,7 @@ export async function caricaSezioneConCache(chiave, fetchFn, renderFn, forceRefr
         const nuoviDati = await fetchFn();
 
         // 4a. Salva in cache
+        _l1Set(chiave, nuoviDati);
         try { await ProdCache.set(chiave, nuoviDati); } catch (_e) {}
 
         // 4b. Aggiorna UI solo se i dati sono cambiati
@@ -198,3 +227,15 @@ export async function caricaSezioneConCache(chiave, fetchFn, renderFn, forceRefr
 
 export { ProdCache };
 export default ProdCache;
+
+const _origInvalidate = ProdCache.invalidate.bind(ProdCache);
+ProdCache.invalidate = async function(chiave) {
+    _l1Invalidate(chiave);
+    return _origInvalidate(chiave);
+};
+
+const _origClear = ProdCache.clear.bind(ProdCache);
+ProdCache.clear = async function() {
+    _l1Cache.clear();
+    return _origClear();
+};
