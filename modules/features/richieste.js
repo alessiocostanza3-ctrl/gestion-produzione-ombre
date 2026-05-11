@@ -1460,27 +1460,28 @@ export function _renderDatiRichieste(_dati) {
         const gruppiAttivi   = _filtraGruppi(_gruppiAttiviAll);
         const gruppiArchivio = _filtraGruppi(_gruppiArchivioAll);
 
-        // Separa per tipo â€” le scadenze vengono scorporate dal thread e messe in gScadenze a parte
+        // Separa per tipo — le scadenze vengono scorporate dal thread e messe in gScadenze a parte
         const gAssegnazioni = {};
         const gRichieste    = {};
         const gScadenze     = {};
+        // Assegnazioni e richieste: filtrate per utente (gruppiAttivi)
         Object.keys(gruppiAttivi).forEach(nOrd => {
             const msgs = gruppiAttivi[nOrd];
-            const scadMsgs = msgs.filter(m => (m.TIPO || '').toUpperCase() === 'SCADENZA');
             const restMsgs = msgs.filter(m => (m.TIPO || '').toUpperCase() !== 'SCADENZA');
-            // Messaggi non-scadenza: classificati in base al primo
             if (restMsgs.length > 0) {
                 const primo = restMsgs[0];
                 const tipoFirst = (primo.TIPO || 'MSG').toUpperCase();
                 if (tipoFirst === 'ASSEGNAZIONE') gAssegnazioni[nOrd] = restMsgs;
                 else                             gRichieste[nOrd]    = restMsgs;
             }
-            // Messaggi scadenza: sezione separata (chiave nOrd_scad per evitare collisioni)
+        });
+        // Scadenze: visibili a tutti gli utenti (non filtrate per destinatario)
+        Object.keys(_gruppiAttiviAll).forEach(nOrd => {
+            const scadMsgs = _gruppiAttiviAll[nOrd].filter(m => (m.TIPO || '').toUpperCase() === 'SCADENZA');
             if (scadMsgs.length > 0) {
                 gScadenze[nOrd + '_scad'] = scadMsgs;
             }
         });
-
         // Stato open/closed persistito
         const asseOpen = localStorage.getItem('_rg_assegnazioni') !== '0';
         const richOpen = localStorage.getItem('_rg_richieste') !== '0';
