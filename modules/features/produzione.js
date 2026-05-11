@@ -1436,39 +1436,69 @@ function _renderProdFilterBar() {
     const bar = document.getElementById('prod-filter-bar');
     if (!bar) return;
     const listaS = window.listaStati || [];
-    const stati = _pfState.stati;
-    const sort = _pfState.sortBy;
-    const sorts = [
-        { key: 'default',      label: 'Default' },
-        { key: 'cliente_az',   label: 'Cliente A→Z' },
-        { key: 'consegna_asc', label: 'Consegna ↑' },
-        { key: 'ordine_az',    label: 'N.Ordine A→Z' },
-        { key: 'ordine_za',    label: 'N.Ordine Z→A' },
-        { key: 'ordine_ts_asc',label: 'Data ordine ↑' },
-    ];
     const hasActive = _pfHasActiveFilters();
+    const activeCount = _pfState.stati.length + (_pfState.sortBy !== 'default' ? 1 : 0) + (_pfState.soloRimanente ? 1 : 0);
+    const sorts = [
+        { key: 'default',       label: 'Predefinito' },
+        { key: 'cliente_az',    label: 'Cliente A \u2192 Z' },
+        { key: 'consegna_asc',  label: 'Consegna urgente prima' },
+        { key: 'ordine_az',     label: 'N. Ordine A \u2192 Z' },
+        { key: 'ordine_za',     label: 'N. Ordine Z \u2192 A' },
+        { key: 'ordine_ts_asc', label: 'Data ordine (pi\u00f9 vecchi prima)' },
+    ];
+    // Mantieni panel aperto se era aperto
+    const wasOpen = document.getElementById('pf-panel') && document.getElementById('pf-panel').style.display !== 'none';
     bar.innerHTML = `
-    <div class="pf-bar${hasActive ? ' pf-bar-active' : ''}">
-      <div class="pf-section">
-        <span class="pf-lbl">Stato</span>
-        <div class="pf-chips">
-          ${listaS.map(s => {
-              const sel = stati.includes(s.nome);
-              return `<button type="button" class="kcfg-pill pf-chip-stato${sel ? ' pf-chip-on' : ''}" style="${sel ? `background:${s.colore};border-color:${s.colore};color:#fff` : ''}" onclick="_pfToggleStato(${JSON.stringify(s.nome)})"><span class="pf-chip-dot" style="background:${s.colore}"></span>${s.nome}</button>`;
+    <div class="pf-wrap">
+      <button type="button" class="pf-trigger-btn${hasActive ? ' pf-trigger-active' : ''}" id="pf-trigger-btn" onclick="event.stopPropagation();_pfTogglePanel()">
+        <i class="fas fa-sliders-h" style="font-size:.75rem"></i>
+        <span>Filtra / Ordina</span>
+        ${hasActive ? `<span class="pf-active-badge">${activeCount}</span>` : ''}
+        <i class="fas fa-chevron-down pf-caret" id="pf-caret"></i>
+      </button>
+      ${hasActive ? `<button type="button" class="pf-reset-btn" onclick="event.stopPropagation();_pfReset()" title="Rimuovi tutti i filtri"><i class="fas fa-times"></i></button>` : ''}
+      <div class="pf-panel" id="pf-panel" style="display:${wasOpen ? 'block' : 'none'}">
+        <div class="pf-panel-section">
+          <div class="pf-panel-title">Ordina per</div>
+          ${sorts.map(s => {
+              const on = _pfState.sortBy === s.key;
+              return `<label class="pf-row" onclick="event.stopPropagation();_pfSetSort('${s.key}')">
+            <span class="pf-radio${on ? ' pf-radio-on' : ''}"></span>
+            <span class="pf-row-lbl">${s.label}</span>
+          </label>`;
           }).join('')}
         </div>
-      </div>
-      <div class="pf-section pf-section-row">
-        <span class="pf-lbl">Ordina</span>
-        <div class="pf-chips">
-          ${sorts.map(s => `<button type="button" class="kcfg-pill${sort === s.key ? ' pf-chip-on' : ''}" style="${sort === s.key ? 'background:#1e293b;border-color:#1e293b;color:#fff' : ''}" onclick="_pfSetSort(${JSON.stringify(s.key)})">${s.label}</button>`).join('')}
+        <div class="pf-panel-sep"></div>
+        <div class="pf-panel-section">
+          <div class="pf-panel-title">Filtra per stato</div>
+          ${listaS.map(s => {
+              const sel = _pfState.stati.includes(s.nome);
+              const safe = s.nome.replace(/'/g, "\\'");
+              return `<label class="pf-row" onclick="event.stopPropagation();_pfToggleStato('${safe}')">
+            <span class="pf-check${sel ? ' pf-check-on' : ''}"><i class="fas fa-check" style="font-size:.55rem;color:#fff;opacity:${sel ? 1 : 0}"></i></span>
+            <span class="pf-stato-dot" style="background:${s.colore}"></span>
+            <span class="pf-row-lbl">${s.nome}</span>
+          </label>`;
+          }).join('')}
+        </div>
+        <div class="pf-panel-sep"></div>
+        <div class="pf-panel-section">
+          <label class="pf-row" onclick="event.stopPropagation();_pfToggleRimanente()">
+            <span class="pf-check${_pfState.soloRimanente ? ' pf-check-on' : ''}"><i class="fas fa-check" style="font-size:.55rem;color:#fff;opacity:${_pfState.soloRimanente ? 1 : 0}"></i></span>
+            <span class="pf-row-lbl">Solo con rimanente &gt; 0</span>
+          </label>
         </div>
       </div>
-      <div class="pf-section pf-section-row">
-        <button type="button" class="kcfg-pill${_pfState.soloRimanente ? ' pf-chip-on' : ''}" style="${_pfState.soloRimanente ? 'background:#6366f1;border-color:#6366f1;color:#fff' : ''}" onclick="_pfToggleRimanente()"><i class="fas fa-filter" style="margin-right:4px;font-size:.7rem"></i>Solo con rimanente &gt; 0</button>
-        ${hasActive ? `<button type="button" class="kcfg-pill" style="border-color:#dc2626;color:#dc2626" onclick="_pfReset()"><i class="fas fa-times" style="margin-right:4px;font-size:.7rem"></i>Reset</button>` : ''}
-      </div>
     </div>`;
+}
+
+function _pfTogglePanel() {
+    const panel = document.getElementById('pf-panel');
+    const caret = document.getElementById('pf-caret');
+    if (!panel) return;
+    const open = panel.style.display !== 'none';
+    panel.style.display = open ? 'none' : 'block';
+    if (caret) caret.style.transform = open ? '' : 'rotate(180deg)';
 }
 
 function _applicaFiltriProd() {
@@ -1619,6 +1649,61 @@ async function csvReviewResolve(idRiga, btnEl) {
 //  REGISTER GLOBALS & INIT
 // ═══════════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════════
+//  J) INFO ORDINE — panel riepilogativo date/qty
+// ═══════════════════════════════════════════════════════════════════
+
+function apriInfoOrdine(nOrd) {
+    // Rimuovi eventuale panel precedente
+    const prev = document.getElementById('_info-ord-panel');
+    if (prev) { prev.remove(); if (prev.dataset.nord === nOrd) return; }
+
+    const righe = (prodState.attiviProd || []).filter(r => (r.ordine || '') === nOrd);
+    if (!righe.length) return;
+    const cliente = righe[0].cliente || 'N.D.';
+
+    const rows = righe.map(r => {
+        const cod  = r.codice && r.codice !== 'false' ? r.codice : 'Senza Codice';
+        const qty  = r.qty || '\u2014';
+        const qE   = (r.qty_evasa !== undefined && r.qty_evasa !== '') ? r.qty_evasa : '\u2014';
+        const qR   = (r.qty_evasa !== undefined && r.qty_evasa !== '' && r.qty)
+            ? String(Math.max(0, parseFloat(r.qty || 0) - parseFloat(r.qty_evasa || 0))) : '\u2014';
+        const dO   = r.data_ordine || '\u2014';
+        const dC   = r.data_consegna || '\u2014';
+        return `<tr><td class="iop-td">${cod}</td><td class="iop-td iop-num">${qty}</td><td class="iop-td iop-num">${qE}</td><td class="iop-td iop-num">${qR}</td><td class="iop-td">${dO}</td><td class="iop-td">${dC}</td></tr>`;
+    }).join('');
+
+    const panel = document.createElement('div');
+    panel.id = '_info-ord-panel';
+    panel.dataset.nord = nOrd;
+    panel.className = 'iop-overlay';
+    panel.innerHTML = `
+      <div class="iop-box" onclick="event.stopPropagation()">
+        <div class="iop-header">
+          <span class="iop-title"><i class="fas fa-circle-info" style="margin-right:6px;color:#6366f1"></i>${_esc(cliente)} — ORD.${nOrd}</span>
+          <button class="iop-close" onclick="document.getElementById('_info-ord-panel').remove()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="iop-table-wrap">
+          <table class="iop-table">
+            <thead><tr>
+              <th class="iop-th">Codice</th>
+              <th class="iop-th iop-num">Qty</th>
+              <th class="iop-th iop-num">Evasa</th>
+              <th class="iop-th iop-num">Rim.</th>
+              <th class="iop-th">Data ordine</th>
+              <th class="iop-th">Data consegna</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        <p class="iop-hint">Date e qty evasa vengono aggiornate al caricamento del CSV Yello.</p>
+      </div>`;
+    panel.addEventListener('click', () => panel.remove());
+    document.body.appendChild(panel);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+
 function registerGlobals() {
     // Funzioni chiamate da onclick inline nell'HTML generato
     window.toggleAccordion = toggleAccordion;
@@ -1647,6 +1732,8 @@ function registerGlobals() {
     window._pfSetSort           = _pfSetSort;
     window._pfToggleRimanente   = _pfToggleRimanente;
     window._pfReset             = _pfReset;
+    window._pfTogglePanel       = _pfTogglePanel;
+    window.apriInfoOrdine       = apriInfoOrdine;
     window._ovLoadIfNeeded = _ovLoadIfNeeded;
     window._apriArchivio = _apriArchivio;
     window._scrollToOrdineList = _scrollToOrdineList;
@@ -1691,6 +1778,17 @@ function init() {
             });
         }
     }, true);
+    // Chiude filter panel se si clicca fuori
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.pf-wrap')) {
+            const panel = document.getElementById('pf-panel');
+            const caret = document.getElementById('pf-caret');
+            if (panel && panel.style.display !== 'none') {
+                panel.style.display = 'none';
+                if (caret) caret.style.transform = '';
+            }
+        }
+    });
     // Quando l'utente torna sulla tab, poll immediato su Produzione
     document.addEventListener('visibilitychange', function() {
         if (document.visibilityState === 'visible' && window.paginaAttuale === 'PROGRAMMA PRODUZIONE DEL MESE') {

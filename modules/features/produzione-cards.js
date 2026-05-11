@@ -143,6 +143,7 @@ export function generaBloccoOrdiniUnificato(dati, isArchivio) {
         if (isArchivio) {
             _menuVoci = `<button class="ord-menu-item" onclick="event.stopPropagation();chiudiTuttiMenuAzioni();${_aRiprist}"><i class="fa-solid fa-rotate-left"></i> Ripristina</button>`;
         } else {
+            _menuVoci += `<button class="ord-menu-item" onclick="event.stopPropagation();chiudiTuttiMenuAzioni();apriInfoOrdine('${_nOrdEsc}')"><i class="fa-solid fa-circle-info"></i> Info ordine</button>`;
             _menuVoci += `<button class="ord-menu-item" onclick="event.stopPropagation();chiudiTuttiMenuAzioni();${_aChiedi}"><i class="fa-regular fa-envelope"></i> Chiedi</button>`;
             _menuVoci += `<button class="ord-menu-item ord-menu-item--danger" onclick="event.stopPropagation();chiudiTuttiMenuAzioni();${_aArchivia}"><i class="fa-solid fa-box-archive"></i> Archivia</button>`;
             if (window._isCommerciale() || window._isUtenteEsente()) {
@@ -178,11 +179,20 @@ export function generaBloccoOrdiniUnificato(dati, isArchivio) {
             return r.qty_evasa !== '' && r.qty_evasa !== undefined && qT > qE;
         }) ? '1' : '0';
 
+        // Data consegna minima del gruppo per header
+        const _consegnaHdrHtml = _consegnaMin ? (() => {
+            const ts = parseInt(_consegnaMin);
+            const urgStyle = _urgenzaConsegna(ts);
+            const fmtC = _fmtData(ts);
+            return `<span class="ord-hdr-date" style="${urgStyle}"><i class="fas fa-truck" style="font-size:.6rem;margin-right:3px;opacity:.75"></i>${fmtC}</span>`;
+        })() : '';
+
         html += `
         <div class="ordine-wrapper ${classWrapper}${_reviewWrapCls}" data-ordine="${nOrd}" data-cliente="${(cliente || '').toLowerCase().replace(/"/g, '')}" data-riferimento="${(riferimento || '').toLowerCase().replace(/"/g, '')}" data-codici="${righe.map(a => (a.codice && a.codice !== 'false' ? a.codice : '')).join('|').toLowerCase()}" data-stati="${_statiGruppo}" data-consegna-min="${_consegnaMin}" data-ordine-ts="${_ordineTs}" data-ha-rimanente="${_haRimanente}">
             <div class="riga-ordine ${classHeader}" onclick="toggleAccordion(this)">
                 <div class="flex-grow">
                     <span class="order-title" style="--order-color:${colorCliente}" title="${_esc(cliente)}">${_esc(cliente)} ${htmlRiferimento}</span>
+                    ${_consegnaHdrHtml}
                 </div>
                 <div class="order-info">
                     <div class="badge-count ${TW.pill}" title="ORD.${nOrd}"><span class="badge-ord-num">ORD.${nOrdBadge}</span><span class="badge-sep">\u00b7</span>${righe.length} ART.</div>
