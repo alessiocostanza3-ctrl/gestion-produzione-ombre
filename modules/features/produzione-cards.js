@@ -55,8 +55,8 @@ export function generaBloccoOrdiniUnificato(dati, isArchivio) {
     let html = "";
     const _ordKeys = Object.keys(gruppi).sort((a, b) => {
         // CSV_REVIEW: righe da attenzionare sempre in cima
-        const _hasRevA = gruppi[a].some(r => String(r.last_modified_by || '').startsWith('CSV_REVIEW'));
-        const _hasRevB = gruppi[b].some(r => String(r.last_modified_by || '').startsWith('CSV_REVIEW'));
+        const _hasRevA = gruppi[a].some(r => { const t = String(r.last_modified_by || ''); return t === 'CSV_REVIEW_MISSING' || t === 'CSV_REVIEW_FINISH'; });
+        const _hasRevB = gruppi[b].some(r => { const t = String(r.last_modified_by || ''); return t === 'CSV_REVIEW_MISSING' || t === 'CSV_REVIEW_FINISH'; });
         if (_hasRevA && !_hasRevB) return -1;
         if (!_hasRevA && _hasRevB) return 1;
         const _cliA = (gruppi[a][0].cliente || '').trim().toUpperCase();
@@ -72,7 +72,7 @@ export function generaBloccoOrdiniUnificato(dati, isArchivio) {
         const htmlRiferimento = riferimento ? `<span class="riferimento-label">(${_esc(riferimento)})</span>` : '';;
 
         const classWrapper = isArchivio ? 'archivio-wrapper' : '';
-        const _hasReviewRows = righe.some(r => String(r.last_modified_by || '').startsWith('CSV_REVIEW'));
+        const _hasReviewRows = righe.some(r => { const t = String(r.last_modified_by || ''); return t === 'CSV_REVIEW_MISSING' || t === 'CSV_REVIEW_FINISH'; });
         const _reviewWrapCls = _hasReviewRows ? ' csv-review-order' : '';
         const classHeader = isArchivio ? 'archivio-header' : '';
         const colorCliente = isArchivio ? '#475569' : 'inherit';
@@ -214,7 +214,7 @@ export function generaCardArticolo(art, nOrd, cliente) {
     const codicePrincipale = art.codice && art.codice !== "false" ? art.codice : "Senza Codice";
 
     const _csvFlag = String(art.last_modified_by || '');
-    const _isCsvReview = _csvFlag.startsWith('CSV_REVIEW');
+    const _isCsvReview = _csvFlag === 'CSV_REVIEW_MISSING' || _csvFlag === 'CSV_REVIEW_FINISH';
     const _csvBlinkCls = _isCsvReview ? ` csv-review-blink${_csvFlag === 'CSV_REVIEW_MISSING' ? ' csv-review-missing' : ' csv-review-finish'}` : '';
     let _csvBanner = '';
     if (_csvFlag === 'CSV_REVIEW_MISSING') {
