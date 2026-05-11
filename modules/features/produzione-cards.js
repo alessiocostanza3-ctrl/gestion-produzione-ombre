@@ -5,6 +5,41 @@ import { isStatoFinale } from './produzione-state.js';
 import { _esc } from '../core/ui.js';
 import { utenteAttuale } from '../core/session.js';
 
+// Converte data CSV (DD/MM/YYYY o YYYY-MM-DD) in timestamp Unix ms. Ritorna 0 se non valida.
+function _parseDataCSV(s) {
+    if (!s) return 0;
+    const str = String(s).trim();
+    // DD/MM/YYYY
+    const m1 = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m1) return new Date(+m1[3], +m1[2] - 1, +m1[1]).getTime();
+    // YYYY-MM-DD
+    const m2 = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m2) return new Date(+m2[1], +m2[2] - 1, +m2[3]).getTime();
+    return 0;
+}
+
+// Formatta timestamp → gg/mm/aa
+function _fmtData(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yy = String(d.getFullYear()).slice(-2);
+    return `${dd}/${mm}/${yy}`;
+}
+
+// Colore urgenza data consegna: rosso se scaduta, giallo se ≤7gg, verde se ≤14gg, grigio altrimenti
+function _urgenzaConsegna(ts) {
+    if (!ts) return '';
+    const now = Date.now();
+    const diff = ts - now;
+    const giorni = diff / 86400000;
+    if (giorni < 0)   return 'color:#dc2626;font-weight:700'; // scaduta
+    if (giorni <= 7)  return 'color:#ea580c;font-weight:600'; // urgente
+    if (giorni <= 14) return 'color:#ca8a04;font-weight:600'; // presto
+    return 'color:#64748b';
+}
+
 export function generaBloccoOrdiniUnificato(dati, isArchivio) {
     if (!dati || dati.length === 0) return "";
     const TW = window.TW;
@@ -126,8 +161,25 @@ export function generaBloccoOrdiniUnificato(dati, isArchivio) {
 
         const bottoniHeader = _desktopBtns + _mobileTrigger;
 
+        // Data attributes per filtri avanzati
+        const _statiGruppo = [...new Set(righe.map(r => (r.stato || 'IN ATTESA').toUpperCase()))].join(',');
+        const _consegnaMin = (() => {
+            let min = Infinity;
+            righe.forEach(r => { const ts = _parseDataCSV(r.data_consegna); if (ts && ts < min) min = ts; });
+            return min === Infinity ? '' : String(min);
+        })();
+        const _ordineTs = (() => {
+            for (const r of righe) { const ts = _parseDataCSV(r.data_ordine); if (ts) return String(ts); }
+            return '';
+        })();
+        const _haRimanente = righe.some(r => {
+            const qT = parseFloat(r.qty) || 0;
+            const qE = parseFloat(r.qty_evasa) || 0;
+            return r.qty_evasa !== '' && r.qty_evasa !== undefined && qT > qE;
+        }) ? '1' : '0';
+
         html += `
-        <div class="ordine-wrapper ${classWrapper}${_reviewWrapCls}" data-ordine="${nOrd}" data-cliente="${(cliente || '').toLowerCase().replace(/"/g, '')}" data-riferimento="${(riferimento || '').toLowerCase().replace(/"/g, '')}" data-codici="${righe.map(a => (a.codice && a.codice !== 'false' ? a.codice : '')).join('|').toLowerCase()}">
+        <div class="ordine-wrapper ${classWrapper}${_reviewWrapCls}" data-ordine="${nOrd}" data-cliente="${(cliente || '').toLowerCase().replace(/"/g, '')}" data-riferimento="${(riferimento || '').toLowerCase().replace(/"/g, '')}" data-codici="${righe.map(a => (a.codice && a.codice !== 'false' ? a.codice : '')).join('|').toLowerCase()}" data-stati="${_statiGruppo}" data-consegna-min="${_consegnaMin}" data-ordine-ts="${_ordineTs}" data-ha-rimanente="${_haRimanente}">
             <div class="riga-ordine ${classHeader}" onclick="toggleAccordion(this)">
                 <div class="flex-grow">
                     <span class="order-title" style="--order-color:${colorCliente}" title="${_esc(cliente)}">${_esc(cliente)} ${htmlRiferimento}</span>
@@ -193,10 +245,27 @@ export function generaCardArticolo(art, nOrd, cliente) {
     <div class="item-card ${TW.card}${_csvBlinkCls}" data-id-riga="${art.id_riga}" data-codice="${codicePrincipale.toLowerCase().replace(/"/g, '')}">
         ${_csvBanner}
         <div><span class="label-sm ${TW.label}">Codice Prodotto</span><b class="${TW.value}">${codicePrincipale}</b></div>
+        ${(() => {
+            const tsO = _parseDataCSV(art.data_ordine);
+            const tsC = _parseDataCSV(art.data_consegna);
+            if (!tsO && !tsC) return '';
+            const fmtO = tsO ? _fmtData(tsO) : '\u2014';
+            const fmtC = tsC ? `<span style="${_urgenzaConsegna(tsC)}">${_fmtData(tsC)}</span>` : '\u2014';
+            return `<div class="card-date-row"><span class="label-sm ${TW.label}" style="margin-bottom:1px">Date</span><span class="card-date-vals"><span class="card-date-item"><i class="fas fa-file-signature" style="color:#94a3b8;font-size:.7rem;margin-right:3px"></i><span class="card-date-lbl">Ord.</span> ${fmtO}</span><span class="card-date-sep">\u00b7</span><span class="card-date-item"><i class="fas fa-truck" style="color:#94a3b8;font-size:.7rem;margin-right:3px"></i><span class="card-date-lbl">Cons.</span> ${fmtC}</span></span></div>`;
+        })()}
         <div class="qty-cell">
             <span class="label-sm ${TW.label}">Quantit\u00e0</span>
             <div class="qty-row">
                 <b class="${TW.value} qty-totale">${art.qty}</b>
+                ${(() => {
+                    const qT = parseFloat(art.qty) || 0;
+                    const qE = parseFloat(art.qty_evasa);
+                    const hasEvasa = !isNaN(qE) && String(art.qty_evasa || '').trim() !== '';
+                    if (!hasEvasa) return '';
+                    const rim = Math.max(0, qT - qE);
+                    const rimColor = rim === 0 ? '#22c55e' : (rim < qT * 0.25 ? '#ea580c' : '#475569');
+                    return `<span class="qty-rim-inline"><span class="qty-rim-lbl">Evasa</span><b class="qty-rimanente-val" style="color:#64748b">${qE}</b><span class="qty-rim-lbl" style="margin-left:5px">Rim.</span><b class="qty-rimanente-val" style="color:${rimColor}">${rim}</b></span>`;
+                })()}
                 <button class="btn-qty-evasa-toggle" title="Imposta quantit\u00e0 evasa" onclick="toggleQtyEvasa(this, '${art.id_riga}', ${parseFloat(art.qty)||0})" aria-label="Quantit\u00e0 parziale">
                     <i class="fas fa-flag-checkered"></i>
                 </button>

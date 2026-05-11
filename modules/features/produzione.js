@@ -154,6 +154,7 @@ function _renderDatiProduzione(dati, _isBackground = null) {
                 </button>
             </div>
             <div class="sezione-attiva">
+                <div id="prod-filter-bar"></div>
                 ${htmlAttivi || "<div class='empty-msg'>Nessun ordine in produzione.</div>"}
             </div>
 
@@ -201,6 +202,8 @@ function _renderDatiProduzione(dati, _isBackground = null) {
                 }
             });
         }
+        _renderProdFilterBar();
+        if (_pfHasActiveFilters()) _applicaFiltriProd();
     });
     _startPollingProduzione();
 
@@ -1409,6 +1412,163 @@ function _aggiornaVisibilitaFiltroArticoli(nomeFoglio) {
     }
 }
 
+// ═══════════════════════════════════════════════════════════════════
+//  I) FILTRI AVANZATI PRODUZIONE
+// ═══════════════════════════════════════════════════════════════════
+
+const _PF_LS_KEY = '_prod_filtri_v1';
+const _pfState = (() => {
+    try { return JSON.parse(localStorage.getItem(_PF_LS_KEY)) || {}; } catch { return {}; }
+})();
+if (!_pfState.stati)         _pfState.stati = [];
+if (!_pfState.sortBy)        _pfState.sortBy = 'default';
+if (!_pfState.soloRimanente) _pfState.soloRimanente = false;
+
+function _pfSave() {
+    try { localStorage.setItem(_PF_LS_KEY, JSON.stringify(_pfState)); } catch {}
+}
+
+function _pfHasActiveFilters() {
+    return _pfState.stati.length > 0 || _pfState.sortBy !== 'default' || _pfState.soloRimanente;
+}
+
+function _renderProdFilterBar() {
+    const bar = document.getElementById('prod-filter-bar');
+    if (!bar) return;
+    const listaS = window.listaStati || [];
+    const stati = _pfState.stati;
+    const sort = _pfState.sortBy;
+    const sorts = [
+        { key: 'default',      label: 'Default' },
+        { key: 'cliente_az',   label: 'Cliente A→Z' },
+        { key: 'consegna_asc', label: 'Consegna ↑' },
+        { key: 'ordine_az',    label: 'N.Ordine A→Z' },
+        { key: 'ordine_za',    label: 'N.Ordine Z→A' },
+        { key: 'ordine_ts_asc',label: 'Data ordine ↑' },
+    ];
+    const hasActive = _pfHasActiveFilters();
+    bar.innerHTML = `
+    <div class="pf-bar${hasActive ? ' pf-bar-active' : ''}">
+      <div class="pf-section">
+        <span class="pf-lbl">Stato</span>
+        <div class="pf-chips">
+          ${listaS.map(s => {
+              const sel = stati.includes(s.nome);
+              return `<button type="button" class="kcfg-pill pf-chip-stato${sel ? ' pf-chip-on' : ''}" style="${sel ? `background:${s.colore};border-color:${s.colore};color:#fff` : ''}" onclick="_pfToggleStato(${JSON.stringify(s.nome)})"><span class="pf-chip-dot" style="background:${s.colore}"></span>${s.nome}</button>`;
+          }).join('')}
+        </div>
+      </div>
+      <div class="pf-section pf-section-row">
+        <span class="pf-lbl">Ordina</span>
+        <div class="pf-chips">
+          ${sorts.map(s => `<button type="button" class="kcfg-pill${sort === s.key ? ' pf-chip-on' : ''}" style="${sort === s.key ? 'background:#1e293b;border-color:#1e293b;color:#fff' : ''}" onclick="_pfSetSort(${JSON.stringify(s.key)})">${s.label}</button>`).join('')}
+        </div>
+      </div>
+      <div class="pf-section pf-section-row">
+        <button type="button" class="kcfg-pill${_pfState.soloRimanente ? ' pf-chip-on' : ''}" style="${_pfState.soloRimanente ? 'background:#6366f1;border-color:#6366f1;color:#fff' : ''}" onclick="_pfToggleRimanente()"><i class="fas fa-filter" style="margin-right:4px;font-size:.7rem"></i>Solo con rimanente &gt; 0</button>
+        ${hasActive ? `<button type="button" class="kcfg-pill" style="border-color:#dc2626;color:#dc2626" onclick="_pfReset()"><i class="fas fa-times" style="margin-right:4px;font-size:.7rem"></i>Reset</button>` : ''}
+      </div>
+    </div>`;
+}
+
+function _applicaFiltriProd() {
+    const sezione = document.querySelector('.sezione-attiva');
+    if (!sezione) return;
+    const wrappers = [...sezione.querySelectorAll('.ordine-wrapper')];
+    if (!wrappers.length) return;
+
+    const stati = _pfState.stati;
+    const sort = _pfState.sortBy;
+    const soloRim = _pfState.soloRimanente;
+
+    // Filtra visibilità
+    wrappers.forEach(w => {
+        let show = true;
+        if (stati.length > 0) {
+            const wStati = (w.dataset.stati || '').split(',').map(s => s.trim().toUpperCase());
+            show = stati.some(s => wStati.includes(s.toUpperCase()));
+        }
+        if (show && soloRim) {
+            show = w.dataset.haRimanente === '1';
+        }
+        w.style.display = show ? '' : 'none';
+    });
+
+    // Ordina
+    if (sort !== 'default') {
+        const visible = wrappers.filter(w => w.style.display !== 'none');
+        visible.sort((a, b) => {
+            if (sort === 'cliente_az') {
+                const cA = (a.dataset.cliente || '').toLowerCase();
+                const cB = (b.dataset.cliente || '').toLowerCase();
+                return cA < cB ? -1 : cA > cB ? 1 : 0;
+            }
+            if (sort === 'consegna_asc') {
+                const tsA = parseInt(a.dataset.consegnaMin) || 0;
+                const tsB = parseInt(b.dataset.consegnaMin) || 0;
+                if (!tsA && !tsB) return 0;
+                if (!tsA) return 1;
+                if (!tsB) return -1;
+                return tsA - tsB;
+            }
+            if (sort === 'ordine_az') {
+                const oA = (a.dataset.ordine || '').toUpperCase();
+                const oB = (b.dataset.ordine || '').toUpperCase();
+                return oA < oB ? -1 : oA > oB ? 1 : 0;
+            }
+            if (sort === 'ordine_za') {
+                const oA = (a.dataset.ordine || '').toUpperCase();
+                const oB = (b.dataset.ordine || '').toUpperCase();
+                return oA > oB ? -1 : oA < oB ? 1 : 0;
+            }
+            if (sort === 'ordine_ts_asc') {
+                const tsA = parseInt(a.dataset.ordineTs) || 0;
+                const tsB = parseInt(b.dataset.ordineTs) || 0;
+                if (!tsA && !tsB) return 0;
+                if (!tsA) return 1;
+                if (!tsB) return -1;
+                return tsA - tsB;
+            }
+            return 0;
+        });
+        const bar = document.getElementById('prod-filter-bar');
+        visible.forEach(w => sezione.appendChild(w));
+        if (bar) sezione.insertBefore(bar, sezione.firstChild);
+    }
+}
+
+function _pfToggleStato(nome) {
+    const idx = _pfState.stati.indexOf(nome);
+    if (idx >= 0) _pfState.stati.splice(idx, 1);
+    else _pfState.stati.push(nome);
+    _pfSave();
+    _renderProdFilterBar();
+    _applicaFiltriProd();
+}
+
+function _pfSetSort(key) {
+    _pfState.sortBy = _pfState.sortBy === key && key !== 'default' ? 'default' : key;
+    _pfSave();
+    _renderProdFilterBar();
+    _applicaFiltriProd();
+}
+
+function _pfToggleRimanente() {
+    _pfState.soloRimanente = !_pfState.soloRimanente;
+    _pfSave();
+    _renderProdFilterBar();
+    _applicaFiltriProd();
+}
+
+function _pfReset() {
+    _pfState.stati = [];
+    _pfState.sortBy = 'default';
+    _pfState.soloRimanente = false;
+    _pfSave();
+    _renderProdFilterBar();
+    _applicaFiltriProd();
+}
+
 // ── CSV Review resolve ──────────────────────────────────────────────
 async function csvReviewResolve(idRiga, btnEl) {
     if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
@@ -1481,6 +1641,12 @@ function registerGlobals() {
     window.aggiornaDato = aggiornaDato;
     window.toggleFiltroArticoli = toggleFiltroArticoli;
     window._aggiornaVisibilitaFiltroArticoli = _aggiornaVisibilitaFiltroArticoli;
+    window._renderProdFilterBar = _renderProdFilterBar;
+    window._applicaFiltriProd   = _applicaFiltriProd;
+    window._pfToggleStato       = _pfToggleStato;
+    window._pfSetSort           = _pfSetSort;
+    window._pfToggleRimanente   = _pfToggleRimanente;
+    window._pfReset             = _pfReset;
     window._ovLoadIfNeeded = _ovLoadIfNeeded;
     window._apriArchivio = _apriArchivio;
     window._scrollToOrdineList = _scrollToOrdineList;
