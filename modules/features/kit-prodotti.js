@@ -3493,7 +3493,7 @@ function _kitRenderConfigModal() {
                             ? `${availableCatalog.length} componenti disponibili in ${availableCats.length} categorie`
                             : 'Tutti i componenti del catalogo sono già nel kit'}
                     </div>
-                    <button type="button" class="btn-archive-action primary" style="white-space:nowrap" onclick="_kitCfgOpenCatalogPicker()">
+                    <button type="button" class="btn-archive-action primary" style="white-space:nowrap;width:auto;flex-shrink:0" onclick="_kitCfgOpenCatalogPicker()">
                         <i class="fas fa-magnifying-glass"></i> Apri catalogo
                     </button>
                </div>`
@@ -3594,9 +3594,10 @@ function _kitCfgRenderCatalogPicker() {
 
     const catsEl = document.getElementById('kit-cfg-picker-cats');
     if (catsEl) {
+        const activeStyle = 'background:#6366f1;color:#fff;border-color:#6366f1';
         catsEl.innerHTML = `
-            <button type="button" class="btn-archive-action ${!catFilter ? 'primary' : ''}" onclick="_kitCfgSetCatalogPickerCategory('')">Tutte</button>
-            ${categories.map(cat => `<button type="button" class="btn-archive-action ${catFilter===cat ? 'primary' : ''}" onclick='_kitCfgSetCatalogPickerCategory(${JSON.stringify(cat)})'>${_esc(cat)}</button>`).join('')}`;
+            <button type="button" class="kcfg-pill" style="${!catFilter ? activeStyle : ''}" onclick="_kitCfgSetCatalogPickerCategory('')">Tutte</button>
+            ${categories.map(cat => `<button type="button" class="kcfg-pill" style="${catFilter===cat ? activeStyle : ''}" onclick='_kitCfgSetCatalogPickerCategory(${JSON.stringify(cat)})'>${_esc(cat)}</button>`).join('')}`;
     }
 
     const listEl = document.getElementById('kit-cfg-picker-list');
@@ -3609,14 +3610,14 @@ function _kitCfgRenderCatalogPicker() {
     listEl.innerHTML = filtered.map(item => {
         const cat = (item.categoria || 'Senza categoria').trim() || 'Senza categoria';
         const already = inKitNames.has(item.nome);
-        return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border-bottom:1px solid #f1f5f9">
+        return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border-bottom:1px solid #f1f5f9">
             <div style="min-width:0;flex:1">
-                <div style="font-weight:600;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(item.nome)}${item.codice ? ` <span style="color:#94a3b8;font-weight:500">· ${_esc(item.codice)}</span>` : ''}</div>
-                <div style="font-size:.78rem;color:#94a3b8">${_esc(cat)}</div>
+                <div style="font-size:.86rem;font-weight:600;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(item.nome)}${item.codice ? ` <span style="color:#94a3b8;font-weight:400;font-size:.78rem">· ${_esc(item.codice)}</span>` : ''}</div>
+                <div style="font-size:.74rem;color:#94a3b8;margin-top:1px">${_esc(cat)}</div>
             </div>
             ${already
-                ? `<span class="kcfg-pill" style="cursor:default;opacity:.72"><i class="fas fa-check" style="margin-right:4px"></i>Già nel kit</span>`
-                : `<button type="button" class="btn-archive-action primary" onclick='_kitCfgAddAnagFromPicker(${JSON.stringify(item.id)})'><i class="fas fa-plus"></i> Aggiungi</button>`}
+                ? `<span class="kcfg-pill" style="cursor:default;opacity:.7;flex-shrink:0"><i class="fas fa-check" style="margin-right:4px;color:#22c55e"></i>Nel kit</span>`
+                : `<button type="button" onclick='_kitCfgAddAnagFromPicker(${JSON.stringify(item.id)})' style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:20px;border:1.5px solid #6366f1;background:#eef2ff;color:#4f46e5;font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s" onmouseover="this.style.background='#6366f1';this.style.color='#fff'" onmouseout="this.style.background='#eef2ff';this.style.color='#4f46e5'"><i class="fas fa-plus"></i> Aggiungi</button>`}
         </div>`;
     }).join('');
 }
