@@ -1046,20 +1046,18 @@ async function cambiaPagina(nomeFoglio, elementoMenu) {
     // 6. Rendering Contenuto (Cache o Server)
     const contenitore = document.getElementById('contenitore-dati');
 
-    // Ripristino da localStorage se la cache RAM Ã¨ vuota (garantisce render istantaneo dopo reload)
+    // Ripristino da localStorage se la cache RAM è vuota (garantisce render istantaneo dopo reload)
     if (!cacheContenuti[nomeFoglio]) {
         const _lsKey = '_html_' + nomeFoglio;
-        const _lsHtml = _lsCacheGet(_lsKey, 300000); // conserva fino a 5 minuti
+        const _lsHtml = _lsCacheGet(_lsKey, 20 * 60 * 1000); // 20 min — RevisionPoller invalida on change
         if (_lsHtml) {
             cacheContenuti[nomeFoglio] = _lsHtml;
-            // Usa il timestamp REALE dell'LS cache cosÃ¬ il bg refresh scatta
-            // solo se i dati sono davvero scaduti, non ad ogni reload
             try {
                 const _raw = localStorage.getItem(_lsKey);
                 const _parsed = _raw ? JSON.parse(_raw) : null;
-                cacheFetchTime[nomeFoglio] = (_parsed && _parsed.ts) ? _parsed.ts : (Date.now() - CACHE_TTL_MS - 1000);
+                cacheFetchTime[nomeFoglio] = (_parsed && _parsed.ts) ? _parsed.ts : Date.now();
             } catch(e) {
-                cacheFetchTime[nomeFoglio] = Date.now() - CACHE_TTL_MS - 1000;
+                cacheFetchTime[nomeFoglio] = Date.now();
             }
         }
     }
@@ -1127,17 +1125,8 @@ async function cambiaPagina(nomeFoglio, elementoMenu) {
                 }
             });
         }
-
-        // Aggiornamento dati in background solo se la cache Ã¨ scaduta
-        const ora = Date.now();
-        const ultimoFetch = cacheFetchTime[nomeFoglio] || 0;
-        if (ora - ultimoFetch > CACHE_TTL_MS) {
-            if (nomeFoglio === 'PROGRAMMA PRODUZIONE DEL MESE') caricaDati(nomeFoglio, true, requestId, navSignal);
-            else if (nomeFoglio === 'MATERIALE DA ORDINARE')    caricaAcquisti(null, requestId, navSignal, true);
-            else if (nomeFoglio === 'STORICO_RICHIESTE')        caricaSezioneConCache('STORICO_RICHIESTE', () => _fetchDatiRichieste(navSignal), _renderDatiRichieste, true).catch(() => {});
-            else if (nomeFoglio === 'MANUALI_PRODOTTI')         caricaManuali(requestId, navSignal, true).catch(() => {});
-            else if (nomeFoglio === 'ARCHIVIO_ORDINI')          caricaArchivio();
-        }
+        // Aggiornamenti: Produzione → polling chirurgico; altre pagine → RevisionPoller.
+        // Nessun background re-render dal navigate: elimina il doppio refresh.
         return;
     }
 
