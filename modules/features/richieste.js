@@ -1294,7 +1294,10 @@ function _buildFabbisognoProduzioneRows_(righeProduzione) {
 }
 
 async function _loadFabbisognoRawRows_() {
-    const attiviProd = window._attiviProd;
+    // Preferisci i dati già in memoria da produzione.js (aggiornati ad ogni render)
+    const attiviProd = typeof window._getAttiviProd === 'function'
+        ? window._getAttiviProd()
+        : window._attiviProd;
     if (Array.isArray(attiviProd) && attiviProd.length) {
         return attiviProd;
     }
