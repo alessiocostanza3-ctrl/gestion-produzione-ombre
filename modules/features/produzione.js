@@ -1734,6 +1734,8 @@ function registerGlobals() {
     window._pfReset             = _pfReset;
     window._pfTogglePanel       = _pfTogglePanel;
     window.apriInfoOrdine       = apriInfoOrdine;
+    window._pfHasActiveFilters  = _pfHasActiveFilters;
+    window._getAttiviProd       = () => prodState.attiviProd;
     window._ovLoadIfNeeded = _ovLoadIfNeeded;
     window._apriArchivio = _apriArchivio;
     window._scrollToOrdineList = _scrollToOrdineList;

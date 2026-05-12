@@ -1107,7 +1107,26 @@ async function cambiaPagina(nomeFoglio, elementoMenu) {
         // Riattiva DnD kanban dopo restore da cache
         requestAnimationFrame(_initKanbanDnd);
         // Avvia polling live se si torna su Produzione
-        if (nomeFoglio === 'PROGRAMMA PRODUZIONE DEL MESE') _startPollingProduzione();
+        if (nomeFoglio === 'PROGRAMMA PRODUZIONE DEL MESE') {
+            _startPollingProduzione();
+            // Reinietta filter bar e ripristina qty_evasa blocks (non sono in cache)
+            requestAnimationFrame(() => {
+                if (typeof window._renderProdFilterBar === 'function') window._renderProdFilterBar();
+                if (typeof window._applicaFiltriProd === 'function' && window._pfHasActiveFilters && window._pfHasActiveFilters()) window._applicaFiltriProd();
+                // Ripristina blocchi qty_evasa visibili
+                const attiviProd = window._getAttiviProd ? window._getAttiviProd() : null;
+                if (attiviProd) {
+                    attiviProd.forEach(r => {
+                        if (parseFloat(r.qty_evasa) > 0) {
+                            const block = document.getElementById('qty-evasa-block-' + r.id_riga);
+                            const btn   = block && block.closest('.qty-cell')?.querySelector('.btn-qty-evasa-toggle');
+                            if (block) block.style.display = 'inline-flex';
+                            if (btn)   btn.classList.add('active');
+                        }
+                    });
+                }
+            });
+        }
 
         // Aggiornamento dati in background solo se la cache Ã¨ scaduta
         const ora = Date.now();
