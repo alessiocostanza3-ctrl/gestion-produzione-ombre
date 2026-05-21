@@ -5872,6 +5872,12 @@ button.menu-item-opt {
     .login-card h2 { font-size: 20px !important; margin-bottom: 6px !important; }
     .login-card p { font-size: 13px !important; margin-bottom: 18px !important; }
     #login-overlay { align-items: flex-end !important; padding: 0 !important; }
+    #btn-login {
+        position: sticky !important;
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 8px) !important;
+        z-index: 2 !important;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28) !important;
+    }
 
     .scroll-btn { font-size: 12px !important; padding: 8px 14px !important; }
     .riga-ordine:hover, .item-card:hover, .materiale-card:hover, .chat-card:hover {
@@ -10296,4 +10302,3 @@ details[open] .kit-assemb-chev { transform: rotate(180deg); }
     .kit-import-columns { grid-template-columns: 1fr; }
     .kit-import-target-head { align-items: flex-start; }
 }
-
